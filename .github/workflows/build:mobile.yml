@@ -39,7 +39,7 @@ jobs:
               run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli init --non-interactive
             - name: Pull EAS Env
               working-directory: apps/mobile
-              run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli env:pull --non-interactive
+              run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli env:pull --non-interactive --environment production
             - name: Restore signing keystore
               if: ${{ env.MYAPP_UPLOAD_KEYSTORE != '' }}
               env:
