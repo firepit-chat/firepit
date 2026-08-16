@@ -1,0 +1,955 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { ID } from "node-appwrite";
+import { Query } from "node-appwrite";
+
+import { getServerClient } from "@/lib/appwrite-server";
+import { getEnvConfig, perms } from "@/lib/appwrite-core";
+import { getServerSession } from "@/lib/auth-server";
+import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
+import type { Message, FileAttachment } from "@/lib/types";
+import {
+    logger,
+    recordError,
+    recordEvent,
+    setTransactionName,
+    trackApiCall,
+    trackMessage,
+    addTransactionAttributes,
+    returnUnauthorized,
+    returnForbidden,
+} from "@/lib/newrelic-utils";
+import {
+    MAX_MESSAGE_LENGTH,
+    MESSAGE_TOO_LONG_ERROR,
+} from "@/lib/message-constraints";
+import { upsertMentionInboxItems } from "@/lib/inbox-items";
+import { resolveMessageImageUrl } from "@/lib/message-image-url";
+import {
+    getChannelAccessForUser,
+    getServerPermissionsForUser,
+} from "@/lib/server-channel-access";
+import {
+    buildMessagePoll,
+    isPollCommand,
+    parsePollCommand,
+    serializePollOptions,
+} from "@/lib/polls";
+import { getPollStateForMessage, getPollStatesForMessages } from "@/lib/polls-server";
+import {
+    buildAttachmentDocumentData,
+    buildLegacyAttachmentDocumentData,
+    isUnknownAttachmentAttributeError,
+    normalizeFileAttachmentsInput,
+} from "@/lib/file-attachments";
+import { hasEveryoneMention, normalizeMentionIds } from "@/lib/mention-utils";
+import { getUserProfile } from "@/lib/appwrite-profiles";
+import { dispatchPushNotification } from "@/lib/push-notifications";
+
+const MESSAGE_ATTACHMENTS_COLLECTION_ID =
+    process.env.APPWRITE_MESSAGE_ATTACHMENTS_COLLECTION_ID ||
+    "message_attachments";
+
+type ListMessagesResponse = {
+    messages: Message[];
+    nextCursor: string | null;
+};
+
+function normalizeStringField(value: unknown): string | undefined {
+    if (typeof value !== "string") {
+        return undefined;
+    }
+
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeLimit(value: string | null, fallback: number): number {
+    if (!value) {
+        return fallback;
+    }
+
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+        return fallback;
+    }
+
+    const bounded = Math.trunc(parsed);
+    if (bounded < 1) {
+        return fallback;
+    }
+
+    return Math.min(bounded, 100);
+}
+
+async function getMessageDocument(
+    messageId: string,
+): Promise<Record<string, unknown> | null> {
+    const env = getEnvConfig();
+    const { databases } = getServerClient();
+
+    try {
+        return (await databases.getDocument(
+            env.databaseId,
+            env.collections.messages,
+            messageId,
+        )) as unknown as Record<string, unknown>;
+    } catch (error) {
+        if (isDocumentNotFoundError(error)) {
+            return null;
+        }
+
+        throw error;
+    }
+}
+
+function mapMessageDocument(doc: Record<string, unknown>): Message {
+    return {
+        $id: String(doc.$id),
+        userId: String(doc.userId),
+        userName: doc.userName as string | undefined,
+        text: String(doc.text ?? ""),
+        $createdAt: String(doc.$createdAt ?? ""),
+        channelId: normalizeStringField(doc.channelId),
+        serverId: normalizeStringField(doc.serverId),
+        editedAt: normalizeStringField(doc.editedAt),
+        removedAt: normalizeStringField(doc.removedAt),
+        removedBy: normalizeStringField(doc.removedBy),
+        imageFileId: normalizeStringField(doc.imageFileId),
+        imageUrl: normalizeStringField(doc.imageUrl),
+        replyToId: normalizeStringField(doc.replyToId),
+        mentions: Array.isArray(doc.mentions)
+            ? (doc.mentions as string[])
+            : undefined,
+        reactions: Array.isArray(doc.reactions)
+            ? (doc.reactions as Array<{
+                  emoji: string;
+                  userIds: string[];
+                  count: number;
+                  reactedByMe?: boolean;
+              }>)
+            : undefined,
+    };
+}
+
+/**
+ * GET /api/messages?channelId=CHANNEL_ID
+ * Lists messages for a channel.
+ */
+export async function GET(request: NextRequest) {
+    try {
+        setTransactionName("GET /api/messages");
+
+        const user = await getServerSession();
+        if (!user) {
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
+        }
+
+        const { searchParams } = new URL(request.url);
+        const channelId = searchParams.get("channelId");
+        const cursorAfter = searchParams.get("cursorAfter");
+        const limit = Math.min(
+            Number.parseInt(searchParams.get("limit") ?? "50", 10) || 50,
+            100,
+        );
+
+        if (!channelId) {
+            return NextResponse.json(
+                { error: "channelId is required" },
+                { status: 400 },
+            );
+        }
+
+        const env = getEnvConfig();
+        const { databases } = getServerClient();
+
+        const [access, response] = await Promise.all([
+            getChannelAccessForUser(databases, env, channelId, user.$id),
+            databases.listDocuments(
+                env.databaseId,
+                env.collections.messages,
+                (() => {
+                    const q = [
+                        Query.equal("channelId", channelId),
+                        Query.orderDesc("$createdAt"),
+                        Query.limit(limit),
+                    ];
+                    if (cursorAfter) {
+                        q.splice(1, 0, Query.cursorAfter(cursorAfter));
+                    }
+                    return q;
+                })(),
+            ),
+        ]);
+
+        if (!access.canRead) {
+            return returnForbidden();
+        }
+
+        const dbStartTime = Date.now();
+
+        const messages = (response.documents ?? []).map((doc) =>
+            mapMessageDocument(doc as Record<string, unknown>),
+        );
+
+        trackApiCall("/api/messages", "GET", 200, Date.now() - dbStartTime, {
+            operation: "mapMessageDocument",
+            collection: "messages",
+        });
+
+        // Batch fetch poll states for all messages (single DB call instead of N+1)
+        try {
+          const messageIds = messages.map((m) => m.$id);
+          const pollStates = await getPollStatesForMessages(databases, env, messageIds);
+          for (const msg of messages) {
+            const poll = pollStates.get(msg.$id);
+            if (poll) msg.poll = poll;
+          }
+        } catch {
+          // Poll fetch failed, continue without poll data
+        }
+
+        const lastRawDoc = response.documents.at(-1);
+        const nextCursor =
+            response.documents.length === limit && lastRawDoc
+                ? String(lastRawDoc.$id)
+                : null;
+
+        return NextResponse.json<ListMessagesResponse>({
+            messages,
+            nextCursor,
+        });
+    } catch (error) {
+        recordError(error instanceof Error ? error : new Error(String(error)), {
+            context: "GET /api/messages",
+            endpoint: "/api/messages",
+        });
+
+        logger.error("Failed to list messages", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+
+        return NextResponse.json(
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to list messages",
+            },
+            { status: 500 },
+        );
+    }
+}
+
+// Helper function to create attachment records
+// Returns array of created attachment document IDs
+async function createAttachments(
+    messageId: string,
+    messageType: "channel" | "dm",
+    attachments: FileAttachment[],
+): Promise<string[]> {
+    if (!attachments || attachments.length === 0) {
+        return [];
+    }
+
+    const env = getEnvConfig();
+    const { databases } = getServerClient();
+
+    const createdIds: string[] = [];
+
+    const rethrowWithCreatedIds = (error: unknown): never => {
+        const attachmentError =
+            error instanceof Error ? error : new Error(String(error));
+        (attachmentError as Error & { createdIds: string[] }).createdIds = [
+            ...createdIds,
+        ];
+        throw attachmentError;
+    };
+
+    for (const attachment of attachments) {
+        const payload = buildAttachmentDocumentData({
+            attachment,
+            messageId,
+            messageType,
+        });
+
+        try {
+            const result = await databases.createDocument(
+                env.databaseId,
+                MESSAGE_ATTACHMENTS_COLLECTION_ID,
+                ID.unique(),
+                payload,
+            );
+            createdIds.push(String(result.$id));
+        } catch (error) {
+            if (!isUnknownAttachmentAttributeError(error)) {
+                rethrowWithCreatedIds(error);
+            }
+
+            logger.warn(
+                "Using legacy attachment payload fallback for message attachment write",
+                {
+                    attachmentFileId: attachment.fileId,
+                    attachmentMediaKind: attachment.mediaKind,
+                    attachmentSource: attachment.source,
+                    messageId,
+                    messageType,
+                    reason:
+                        error instanceof Error
+                            ? error.message
+                            : String(error),
+                },
+            );
+
+            try {
+                const legacyResult = await databases.createDocument(
+                    env.databaseId,
+                    MESSAGE_ATTACHMENTS_COLLECTION_ID,
+                    ID.unique(),
+                    buildLegacyAttachmentDocumentData({
+                        attachment,
+                        messageId,
+                        messageType,
+                    }),
+                );
+                createdIds.push(String(legacyResult.$id));
+            } catch (legacyError) {
+                rethrowWithCreatedIds(legacyError);
+            }
+        }
+    }
+
+    return createdIds;
+}
+
+/**
+ * POST /api/messages
+ * Sends a message to a channel
+ */
+export async function POST(request: NextRequest) {
+    const startTime = Date.now();
+
+    try {
+        setTransactionName("POST /api/messages");
+
+        // Verify user is authenticated
+        const user = await getServerSession();
+        if (!user) {
+            logger.warn("Unauthenticated message attempt");
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
+        }
+
+        const env = getEnvConfig();
+        const body = await request.json();
+        const {
+            text,
+            channelId,
+            imageFileId,
+            imageUrl,
+            replyToId,
+            mentions,
+            attachments,
+        } = body;
+
+        const normalizedAttachmentsResult =
+            normalizeFileAttachmentsInput(attachments);
+        if (!normalizedAttachmentsResult.ok) {
+            return NextResponse.json(
+                { error: normalizedAttachmentsResult.error },
+                { status: 400 },
+            );
+        }
+        const normalizedAttachments = normalizedAttachmentsResult.attachments;
+
+        const normalizedText = typeof text === "string" ? text : "";
+        const creatingPoll = isPollCommand(normalizedText);
+        const validMentions = !creatingPoll
+            ? normalizeMentionIds(mentions)
+            : [];
+        const hasValidMentions = validMentions.length > 0;
+        let parsedPoll: ReturnType<typeof parsePollCommand> | null = null;
+
+        if (creatingPoll) {
+            try {
+                parsedPoll = parsePollCommand(normalizedText);
+            } catch (error) {
+                return NextResponse.json(
+                    {
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : "Invalid poll command.",
+                    },
+                    { status: 400 },
+                );
+            }
+        }
+
+        if (
+            creatingPoll &&
+            (imageFileId || imageUrl || normalizedAttachments.length > 0)
+        ) {
+            return NextResponse.json(
+                {
+                    error: "Poll messages do not support image or file attachments.",
+                },
+                { status: 400 },
+            );
+        }
+
+        if (normalizedText && normalizedText.length > MAX_MESSAGE_LENGTH) {
+            return NextResponse.json(
+                {
+                    error: MESSAGE_TOO_LONG_ERROR,
+                    maxLength: MAX_MESSAGE_LENGTH,
+                },
+                { status: 400 },
+            );
+        }
+
+        if (
+            (!text && !imageFileId && normalizedAttachments.length === 0) ||
+            !channelId
+        ) {
+            return NextResponse.json(
+                {
+                    error: "text, imageFileId, or attachments, and channelId are required",
+                },
+                { status: 400 },
+            );
+        }
+
+        const userId = user.$id;
+        const userName = user.name;
+
+        addTransactionAttributes({
+            userId,
+            channelId,
+            serverId: "unresolved",
+            hasImage: !!imageFileId,
+            hasAttachments: normalizedAttachments.length > 0,
+            isReply: !!replyToId,
+            hasMentions: hasValidMentions,
+        }); // Create message permissions
+        const permissions = perms.message(userId, {
+            mod: env.teams.moderatorTeamId,
+            admin: env.teams.adminTeamId,
+        });
+
+        const { databases } = getServerClient();
+
+        const access = await getChannelAccessForUser(
+            databases,
+            env,
+            String(channelId),
+            userId,
+        );
+        if (!access.isMember || !access.canSend) {
+            return returnForbidden();
+        }
+
+        // Normalize serverId once and reuse for @all mention validation and later logic
+        const normalizedServerId = normalizeStringField(access.serverId);
+
+        if (hasEveryoneMention(normalizedText)) {
+            if (!normalizedServerId) {
+                return NextResponse.json(
+                    { error: "Server context required for @all mentions" },
+                    { status: 400 },
+                );
+            }
+            const serverAccess = await getServerPermissionsForUser(
+                databases,
+                env,
+                normalizedServerId,
+                userId,
+            );
+            if (!serverAccess.permissions?.mentionEveryone) {
+                return NextResponse.json(
+                    { error: "Forbidden: missing mentionEveryone permission" },
+                    { status: 403 },
+                );
+            }
+        }
+
+        const normalizedChannelId = normalizeStringField(channelId);
+        if (!normalizedChannelId) {
+            return NextResponse.json(
+                { error: "Invalid channelId" },
+                { status: 400 },
+            );
+        }
+
+        const transactionAttributes: Record<string, string | number | boolean> =
+            {
+                channelId: normalizedChannelId,
+            };
+        if (normalizedServerId) {
+            transactionAttributes.serverId = normalizedServerId;
+        }
+
+        addTransactionAttributes(transactionAttributes);
+
+        const messageData: Record<string, unknown> = {
+            userId,
+            text: parsedPoll ? "" : normalizedText || "",
+            userName,
+            channelId: normalizedChannelId,
+        };
+
+        if (normalizedServerId) {
+            messageData.serverId = normalizedServerId;
+        }
+
+        // Add image fields if provided
+        if (imageFileId) {
+            messageData.imageFileId = imageFileId;
+        }
+        if (imageUrl) {
+            messageData.imageUrl = imageUrl;
+        }
+        // Add reply field if provided
+        if (replyToId) {
+            messageData.replyToId = replyToId;
+        }
+        // Add mentions array if provided
+        if (hasValidMentions) {
+            messageData.mentions = validMentions;
+        }
+
+        const dbStartTime = Date.now();
+        const res = await databases.createDocument(
+            env.databaseId,
+            env.collections.messages,
+            ID.unique(),
+            messageData,
+            permissions,
+        );
+
+        let pollResponse: Message["poll"];
+
+        if (parsedPoll) {
+            try {
+                const serializedOptions = serializePollOptions(
+                    parsedPoll.options,
+                );
+                const pollDocument = await databases.createDocument(
+                    env.databaseId,
+                    env.collections.polls,
+                    ID.unique(),
+                    {
+                        messageId: String(res.$id),
+                        channelId: normalizedChannelId,
+                        question: parsedPoll.question,
+                        options: serializedOptions,
+                        status: "open",
+                        createdBy: userId,
+                    },
+                    permissions,
+                );
+
+                pollResponse = buildMessagePoll({
+                    poll: {
+                        $id: String(pollDocument.$id),
+                        messageId: String(res.$id),
+                        channelId: normalizedChannelId,
+                        question: parsedPoll.question,
+                        options: serializedOptions,
+                        status: "open",
+                        createdBy: userId,
+                    },
+                    votes: [],
+                });
+            } catch (error) {
+                try {
+                    await databases.deleteDocument(
+                        env.databaseId,
+                        env.collections.messages,
+                        String(res.$id),
+                    );
+                } catch (deleteError) {
+                    logger.warn(
+                        "Failed to roll back message after poll creation error",
+                        {
+                            deleteError,
+                            messageId: String(res.$id),
+                        },
+                    );
+                }
+
+                throw error;
+            }
+        }
+
+        // Track database operation
+        trackApiCall("/api/messages", "POST", 200, Date.now() - dbStartTime, {
+            operation: "createDocument",
+            collection: "messages",
+        });
+
+        // Create attachment records if provided
+        if (normalizedAttachments.length > 0) {
+            try {
+                await createAttachments(
+                    String(res.$id),
+                    "channel",
+                    normalizedAttachments,
+                );
+            } catch (attachmentError) {
+                const attachmentErrorWithIds = attachmentError as Error & {
+                    createdIds?: string[];
+                };
+                const createdAttachmentIds = Array.isArray(
+                    attachmentErrorWithIds.createdIds,
+                )
+                    ? attachmentErrorWithIds.createdIds
+                    : [];
+
+                for (const createdId of createdAttachmentIds) {
+                    try {
+                        await databases.deleteDocument(
+                            env.databaseId,
+                            MESSAGE_ATTACHMENTS_COLLECTION_ID,
+                            createdId,
+                        );
+                    } catch (cleanupError) {
+                        logger.warn(
+                            "Failed to roll back message attachment after attachment error",
+                            {
+                                attachmentId: createdId,
+                                error:
+                                    cleanupError instanceof Error
+                                        ? cleanupError.message
+                                        : String(cleanupError),
+                            },
+                        );
+                    }
+                }
+
+                // Roll back the created message if attachment write fails
+                try {
+                    await databases.deleteDocument(
+                        env.databaseId,
+                        env.collections.messages,
+                        String(res.$id),
+                    );
+                } catch (deleteError) {
+                    logger.error(
+                        "Failed to roll back message after attachment error",
+                        { deleteError },
+                    );
+                }
+                throw attachmentError;
+            }
+        }
+
+        if (hasValidMentions) {
+            await upsertMentionInboxItems({
+                authorUserId: userId,
+                contextId: normalizedChannelId,
+                contextKind: "channel",
+                latestActivityAt: String(
+                    res.$createdAt ?? new Date().toISOString(),
+                ),
+                mentions: validMentions,
+                messageId: String(res.$id),
+                previewText: text || "",
+                serverId: normalizedServerId,
+            });
+        }
+
+        const doc = res as unknown as Record<string, unknown>;
+        const message: Message = {
+            $id: String(doc.$id),
+            userId: String(doc.userId),
+            userName: doc.userName as string | undefined,
+            text: String(doc.text),
+            $createdAt: String(doc.$createdAt ?? ""),
+            channelId: doc.channelId as string | undefined,
+            removedAt: doc.removedAt as string | undefined,
+            removedBy: doc.removedBy as string | undefined,
+            serverId: doc.serverId as string | undefined,
+            imageFileId: doc.imageFileId as string | undefined,
+            imageUrl: resolveMessageImageUrl({
+                imageFileId: doc.imageFileId,
+                imageUrl: doc.imageUrl,
+            }),
+            replyToId: doc.replyToId as string | undefined,
+            mentions: Array.isArray(doc.mentions)
+                ? (doc.mentions as string[])
+                : undefined,
+            poll: pollResponse,
+        };
+
+        // Track message sent event
+        trackMessage("sent", "channel", {
+            messageId: message.$id,
+            userId,
+            channelId: normalizedChannelId,
+            serverId: normalizedServerId,
+            hasImage: !!imageFileId,
+            hasAttachments: normalizedAttachments.length > 0,
+            attachmentCount: normalizedAttachments.length,
+            isReply: !!replyToId,
+            textLength: normalizedText.length,
+        });
+
+        recordEvent("message_sent", {
+            actorUserId: userId,
+            channelId: normalizedChannelId,
+            hasAttachments: normalizedAttachments.length > 0,
+            hasImage: Boolean(imageFileId),
+            isReply: Boolean(replyToId),
+            isPoll: Boolean(parsedPoll),
+            messageId: message.$id,
+            messageType: "channel",
+            serverId: normalizedServerId,
+            totalQueryTimeMs: Date.now() - startTime,
+        });
+
+        logger.info("Message sent", {
+            messageId: message.$id,
+            userId,
+            channelId,
+            hasAttachments: normalizedAttachments.length > 0,
+            isPoll: Boolean(parsedPoll),
+            duration: Date.now() - startTime,
+        });
+
+        // Add attachments to message object for response (they'll be fetched when listing messages)
+        if (normalizedAttachments.length > 0) {
+            message.attachments = normalizedAttachments;
+        }
+
+        // Send push notifications to mentioned users (non-blocking)
+        if (hasValidMentions && validMentions.length > 0) {
+            const senderProfile = await getUserProfile(userId).catch(() => null);
+            const senderName = senderProfile?.displayName || "Someone";
+            const mentionText = text || "Mentioned you in a channel";
+            for (const mentionedUserId of validMentions) {
+                if (mentionedUserId !== userId) {
+                    void dispatchPushNotification(mentionedUserId, `${senderName} mentioned you`, mentionText, {
+                        type: "mention",
+                        serverId: normalizedServerId,
+                        channelId: normalizedChannelId,
+                        messageId: String(res.$id),
+                    }).catch((err) => logger.warn("Push dispatch failed:", err));
+                }
+            }
+        }
+
+        return NextResponse.json({ message });
+    } catch (error) {
+        recordError(error instanceof Error ? error : new Error(String(error)), {
+            context: "POST /api/messages",
+            endpoint: "/api/messages",
+        });
+
+        logger.error("Failed to send message", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+
+        return NextResponse.json(
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to send message",
+            },
+            { status: 500 },
+        );
+    }
+}
+
+/**
+ * PATCH /api/messages?id=MESSAGE_ID
+ * Edits a message (user must own the message)
+ */
+export async function PATCH(request: NextRequest) {
+    const startTime = Date.now();
+
+    try {
+        // Verify user is authenticated
+        const user = await getServerSession();
+        if (!user) {
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
+        }
+
+        const { searchParams } = new URL(request.url);
+        const messageId = searchParams.get("id");
+        const body = await request.json();
+        const { text } = body;
+
+        if (!messageId || !text) {
+            return NextResponse.json(
+                { error: "id and text are required" },
+                { status: 400 },
+            );
+        }
+
+        if (text.length > MAX_MESSAGE_LENGTH) {
+            return NextResponse.json(
+                {
+                    error: MESSAGE_TOO_LONG_ERROR,
+                    maxLength: MAX_MESSAGE_LENGTH,
+                },
+                { status: 400 },
+            );
+        }
+
+        const env = getEnvConfig();
+        const { databases } = getServerClient();
+
+        const existing = await getMessageDocument(messageId);
+        if (!existing) {
+            return NextResponse.json(
+                { error: "Message not found" },
+                { status: 404 },
+            );
+        }
+
+        if (String(existing.userId) !== user.$id) {
+            return NextResponse.json(
+                { error: "You can only edit your own messages" },
+                { status: 403 },
+            );
+        }
+
+        // Update the message with new text and editedAt timestamp
+        const editedAt = new Date().toISOString();
+        const res = await databases.updateDocument(
+            env.databaseId,
+            env.collections.messages,
+            messageId,
+            { text, editedAt },
+        );
+
+        const doc = res as unknown as Record<string, unknown>;
+        const message: Message = {
+            $id: String(doc.$id),
+            userId: String(doc.userId),
+            userName: doc.userName as string | undefined,
+            text: String(doc.text),
+            $createdAt: String(doc.$createdAt ?? ""),
+            channelId: normalizeStringField(doc.channelId),
+            editedAt: normalizeStringField(doc.editedAt),
+            removedAt: normalizeStringField(doc.removedAt),
+            removedBy: normalizeStringField(doc.removedBy),
+            serverId: normalizeStringField(doc.serverId),
+            imageFileId: normalizeStringField(doc.imageFileId),
+            imageUrl: normalizeStringField(doc.imageUrl),
+            replyToId: normalizeStringField(doc.replyToId),
+        };
+
+        recordEvent("message_edited", {
+            actorUserId: user.$id,
+            channelId: message.channelId,
+            messageId,
+            messageType: "channel",
+            serverId: message.serverId,
+            totalQueryTimeMs: Date.now() - startTime,
+        });
+
+        return NextResponse.json({ message });
+    } catch (error) {
+        return NextResponse.json(
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to edit message",
+            },
+            { status: 500 },
+        );
+    }
+}
+
+/**
+ * DELETE /api/messages?id=MESSAGE_ID
+ * Deletes a message (user must own the message)
+ */
+export async function DELETE(request: NextRequest) {
+    const startTime = Date.now();
+
+    try {
+        // Verify user is authenticated
+        const user = await getServerSession();
+        if (!user) {
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
+        }
+
+        const { searchParams } = new URL(request.url);
+        const messageId = searchParams.get("id");
+
+        if (!messageId) {
+            return NextResponse.json(
+                { error: "id is required" },
+                { status: 400 },
+            );
+        }
+
+        const env = getEnvConfig();
+        const { databases } = getServerClient();
+
+        const existing = await getMessageDocument(messageId);
+        if (!existing) {
+            return NextResponse.json(
+                { error: "Message not found" },
+                { status: 404 },
+            );
+        }
+
+        if (String(existing.userId) !== user.$id) {
+            return NextResponse.json(
+                { error: "You can only delete your own messages" },
+                { status: 403 },
+            );
+        }
+
+        await databases.deleteDocument(
+            env.databaseId,
+            env.collections.messages,
+            messageId,
+        );
+
+        const normalizedDeletedChannelId = normalizeStringField(
+            existing.channelId,
+        );
+        const normalizedDeletedServerId = normalizeStringField(
+            existing.serverId,
+        );
+
+        recordEvent("message_deleted", {
+            actorUserId: user.$id,
+            channelId: normalizedDeletedChannelId,
+            messageId,
+            messageType: "channel",
+            serverId: normalizedDeletedServerId,
+            totalQueryTimeMs: Date.now() - startTime,
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        return NextResponse.json(
+            {
+                error:
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to delete message",
+            },
+            { status: 500 },
+        );
+    }
+}

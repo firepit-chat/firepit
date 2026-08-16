@@ -1,0 +1,1060 @@
+/**
+ * Tests for /api/direct-messages endpoint
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+import { MAX_MESSAGE_LENGTH } from "@/lib/message-constraints";
+import { clearUnreadConsistencySnapshots } from "@/lib/unread-consistency";
+
+// Mock environment variables
+vi.stubEnv("APPWRITE_ENDPOINT", "http://localhost/v1");
+vi.stubEnv("APPWRITE_PROJECT_ID", "test-project");
+vi.stubEnv("APPWRITE_API_KEY", "test-api-key");
+vi.stubEnv("APPWRITE_DATABASE_ID", "test-db");
+
+// Create persistent mocks
+const {
+    mockGetServerSession,
+    mockListDocuments,
+    mockCreateDocument,
+    mockUpdateDocument,
+    mockDeleteDocument,
+    mockGetDocument,
+    mockGetRelationshipMap,
+    mockGetRelationshipStatus,
+    mockGetNotificationSettings,
+    mockGetOrCreateNotificationSettings,
+    mockGetUserProfile,
+    mockGetUserProfilesBatch,
+    mockGetAvatarUrl,
+    mockUpsertMentionInboxItems,
+    mockListThreadReadsByContext,
+    mockIsThreadUnread,
+} = vi.hoisted(() => ({
+    mockGetServerSession: vi.fn(),
+    mockListDocuments: vi.fn(),
+    mockCreateDocument: vi.fn(),
+    mockUpdateDocument: vi.fn(),
+    mockDeleteDocument: vi.fn(),
+    mockGetDocument: vi.fn(),
+    mockGetRelationshipMap: vi.fn(),
+    mockGetRelationshipStatus: vi.fn(),
+    mockGetNotificationSettings: vi.fn(),
+    mockGetOrCreateNotificationSettings: vi.fn(),
+    mockGetUserProfile: vi.fn(),
+    mockGetUserProfilesBatch: vi.fn(),
+    mockGetAvatarUrl: vi.fn(),
+    mockUpsertMentionInboxItems: vi.fn(),
+    mockListThreadReadsByContext: vi.fn(),
+    mockIsThreadUnread: vi.fn(),
+}));
+
+// Mock dependencies
+vi.mock("@/lib/auth-server", () => ({
+    getServerSession: mockGetServerSession,
+}));
+
+vi.mock("@/lib/appwrite-server", () => ({
+    getServerClient: vi.fn(() => ({
+        databases: {
+            listDocuments: mockListDocuments,
+            createDocument: mockCreateDocument,
+            updateDocument: mockUpdateDocument,
+            deleteDocument: mockDeleteDocument,
+            getDocument: mockGetDocument,
+        },
+    })),
+}));
+
+vi.mock("@/lib/appwrite-core", () => ({
+    getEnvConfig: vi.fn(() => ({
+        databaseId: "test-db",
+        collections: {
+            conversations: "conversations-collection",
+            directMessages: "direct-messages-collection",
+            messageAttachments: "message-attachments-collection",
+        },
+    })),
+    getServerClient: vi.fn(() => ({
+        databases: {
+            listDocuments: mockListDocuments,
+            createDocument: mockCreateDocument,
+            updateDocument: mockUpdateDocument,
+            deleteDocument: mockDeleteDocument,
+            getDocument: mockGetDocument,
+        },
+    })),
+}));
+
+vi.mock("@/lib/newrelic-utils", () => ({
+    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
+    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    logger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    },
+    recordError: vi.fn(),
+    recordEvent: vi.fn(),
+    setTransactionName: vi.fn(),
+    trackApiCall: vi.fn(),
+    trackMessage: vi.fn(),
+    addTransactionAttributes: vi.fn(),
+}));
+
+vi.mock("@/lib/appwrite-friendships", () => ({
+    getRelationshipMap: mockGetRelationshipMap,
+    getRelationshipStatus: mockGetRelationshipStatus,
+}));
+
+vi.mock("@/lib/notification-settings", () => ({
+    getNotificationSettings: mockGetNotificationSettings,
+    getOrCreateNotificationSettings: mockGetOrCreateNotificationSettings,
+}));
+
+vi.mock("@/lib/appwrite-profiles", () => ({
+    getUserProfile: mockGetUserProfile,
+    getUserProfilesBatch: mockGetUserProfilesBatch,
+    getAvatarUrl: mockGetAvatarUrl,
+}));
+
+vi.mock("@/lib/inbox-items", () => ({
+    upsertMentionInboxItems: mockUpsertMentionInboxItems,
+}));
+
+vi.mock("@/lib/thread-read-store", () => ({
+    CONCURRENT_DOCUMENT_QUERIES: 4,
+    listThreadReadsByContext: mockListThreadReadsByContext,
+    runInBatches: async <T>(params: {
+        batchSize: number;
+        items: T[];
+        worker: (item: T) => Promise<void>;
+    }) => {
+        for (let index = 0; index < params.items.length; index += params.batchSize) {
+            await Promise.all(
+                params.items
+                    .slice(index, index + params.batchSize)
+                    .map((item) => params.worker(item)),
+            );
+        }
+    },
+}));
+
+vi.mock("@/lib/thread-read-states", () => ({
+    isThreadUnread: mockIsThreadUnread,
+}));
+
+vi.mock("node-appwrite", () => ({
+    ID: {
+        unique: () => "mock-id",
+    },
+    Query: {
+        equal: (field: string, value: string | string[]) =>
+            `equal(${field},${JSON.stringify(value)})`,
+        contains: (field: string, value: string | string[]) =>
+            `contains(${field},${JSON.stringify(Array.isArray(value) ? value : [value])})`,
+        greaterThan: (field: string, value: number) =>
+            `greaterThan(${field},${value})`,
+        isNotNull: (field: string) => `isNotNull(${field})`,
+        orderAsc: (field: string) => `orderAsc(${field})`,
+        orderDesc: (field: string) => `orderDesc(${field})`,
+        limit: (n: number) => `limit(${n})`,
+        cursorAfter: (documentId: string) => `cursorAfter(${documentId})`,
+    },
+    Permission: {
+        read: (role: string) => `read("${role}")`,
+        update: (role: string) => `update("${role}")`,
+        delete: (role: string) => `delete("${role}")`,
+    },
+    Role: {
+        user: (id: string) => `user:${id}`,
+    },
+}));
+
+describe("Direct Messages API", () => {
+    let GET: (request: NextRequest) => Promise<Response>;
+    let POST: (request: NextRequest) => Promise<Response>;
+    let PATCH: (request: NextRequest) => Promise<Response>;
+    let DELETE: (request: NextRequest) => Promise<Response>;
+
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        clearUnreadConsistencySnapshots();
+
+        mockGetDocument.mockRejectedValue(new Error("not found"));
+        mockUpsertMentionInboxItems.mockReset();
+        mockListThreadReadsByContext.mockResolvedValue(new Map());
+        mockIsThreadUnread.mockReturnValue(false);
+        mockGetRelationshipStatus.mockResolvedValue({
+            blockedByMe: false,
+            blockedMe: false,
+            directMessagePrivacy: "everyone",
+            isFriend: false,
+            incomingRequest: false,
+            outgoingRequest: false,
+            canSendDirectMessage: true,
+            canReceiveFriendRequest: true,
+        });
+        mockGetRelationshipMap.mockImplementation(
+            async (_userId: string, otherUserIds: string[]) =>
+                new Map(
+                    otherUserIds.map((otherUserId) => [
+                        otherUserId,
+                        {
+                            blockedByMe: false,
+                            blockedMe: false,
+                            directMessagePrivacy: "everyone",
+                            isFriend: false,
+                            incomingRequest: false,
+                            outgoingRequest: false,
+                            canSendDirectMessage: true,
+                            canReceiveFriendRequest: true,
+                        },
+                    ]),
+                ),
+        );
+            mockGetOrCreateNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: false,
+            });
+            mockGetNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: false,
+            });
+            mockGetUserProfile.mockResolvedValue(null);
+            mockGetUserProfilesBatch.mockResolvedValue(new Map());
+
+        // Dynamically import the route handlers
+        const module = await import("../../app/api/direct-messages/route");
+        GET = module.GET;
+        POST = module.POST;
+        PATCH = module.PATCH;
+        DELETE = module.DELETE;
+    });
+
+    describe("GET /api/direct-messages", () => {
+        it("should return 401 if not authenticated", async () => {
+            mockGetServerSession.mockResolvedValue(null);
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=conversations",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(401);
+            expect(data.error).toBe("Unauthorized");
+        });
+
+        it("should list conversations for authenticated user", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockListDocuments.mockResolvedValue({
+                documents: [
+                    {
+                        $id: "conv-1",
+                        participants: ["user-1", "user-2"],
+                        lastMessageAt: new Date().toISOString(),
+                        $createdAt: new Date().toISOString(),
+                    },
+                    {
+                        $id: "conv-2",
+                        participants: ["user-1", "user-3"],
+                        lastMessageAt: new Date().toISOString(),
+                        $createdAt: new Date().toISOString(),
+                    },
+                ],
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=conversations",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.conversations).toHaveLength(2);
+            expect(data.conversations[0].$id).toBe("conv-1");
+        });
+
+        it("returns converged unread count after mark-all-read updates thread reads", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+            mockListThreadReadsByContext.mockResolvedValue(
+                new Map([
+                    [
+                        "conv-1",
+                        {
+                            "parent-1": "2026-03-11T13:05:00.000Z",
+                        },
+                    ],
+                ]),
+            );
+            mockIsThreadUnread.mockImplementation(
+                ({
+                    lastReadAt,
+                    lastThreadReplyAt,
+                    threadMessageCount,
+                }: {
+                    lastReadAt?: string;
+                    lastThreadReplyAt?: string;
+                    threadMessageCount?: number;
+                }) => {
+                    if (!threadMessageCount || threadMessageCount < 1) {
+                        return false;
+                    }
+
+                    if (!lastThreadReplyAt) {
+                        return false;
+                    }
+
+                    if (!lastReadAt) {
+                        return true;
+                    }
+
+                    return lastReadAt.localeCompare(lastThreadReplyAt) < 0;
+                },
+            );
+            mockListDocuments.mockImplementation(
+                async (_databaseId, collectionId, queries: string[] = []) => {
+                    const queryText = queries.join("|");
+
+                    if (collectionId === "conversations-collection") {
+                        return {
+                            documents: [
+                                {
+                                    $id: "conv-1",
+                                    participants: ["user-1", "user-2"],
+                                    lastMessageAt: "2026-03-11T13:05:00.000Z",
+                                    $createdAt: "2026-03-11T12:00:00.000Z",
+                                },
+                            ],
+                        };
+                    }
+
+                    if (collectionId === "direct-messages-collection") {
+                        if (queryText.includes("greaterThan(threadMessageCount,0)")) {
+                            return {
+                                documents: [
+                                    {
+                                        $id: "parent-1",
+                                        conversationId: "conv-1",
+                                        threadMessageCount: 1,
+                                        lastThreadReplyAt: "2026-03-11T13:05:00.000Z",
+                                    },
+                                ],
+                            };
+                        }
+
+                        if (queryText.includes("isNotNull(threadId)")) {
+                            return {
+                                documents: [
+                                    {
+                                        $id: "reply-1",
+                                        $createdAt: "2026-03-11T13:05:00.000Z",
+                                        conversationId: "conv-1",
+                                        threadId: "parent-1",
+                                    },
+                                ],
+                            };
+                        }
+
+                        return { documents: [] };
+                    }
+
+                    return { documents: [] };
+                },
+            );
+
+            const response = await GET(
+                new NextRequest(
+                    "http://localhost/api/direct-messages?type=conversations",
+                ),
+            );
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(mockListThreadReadsByContext).toHaveBeenCalledWith({
+                contextIds: ["conv-1"],
+                contextType: "conversation",
+                userId: "user-1",
+            });
+            expect(data.conversations).toHaveLength(1);
+            expect(data.conversations[0]?.unreadThreadCount).toBe(0);
+            expect(data.conversations[0]?.hasUnread).toBe(false);
+        });
+
+        it("should list messages for a conversation", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockListDocuments.mockResolvedValue({
+                documents: [
+                    {
+                        $id: "msg-1",
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "Hello",
+                        $createdAt: new Date().toISOString(),
+                    },
+                    {
+                        $id: "msg-2",
+                        conversationId: "conv-1",
+                        senderId: "user-2",
+                        receiverId: "user-1",
+                        text: "Hi there",
+                        $createdAt: new Date().toISOString(),
+                    },
+                ],
+                total: 2,
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=messages&conversationId=conv-1",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.items).toHaveLength(2);
+            expect(data.items[0].conversationId).toBe("conv-1");
+        });
+
+        it("should get or create conversation between two users", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            // Mock finding existing conversation
+            mockListDocuments.mockResolvedValue({
+                documents: [
+                    {
+                        $id: "conv-1",
+                        participants: ["user-1", "user-2"],
+                        lastMessageAt: new Date().toISOString(),
+                        $createdAt: new Date().toISOString(),
+                    },
+                ],
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=conversation&userId1=user-1&userId2=user-2",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.conversation.$id).toBe("conv-1");
+        });
+
+        it("returns dm encryption metadata on conversation responses", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockListDocuments.mockResolvedValue({
+                documents: [
+                    {
+                        $id: "conv-1",
+                        participants: ["user-1", "user-2"],
+                        lastMessageAt: new Date().toISOString(),
+                        $createdAt: new Date().toISOString(),
+                    },
+                ],
+            });
+
+            mockGetOrCreateNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: true,
+            });
+            mockGetNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: true,
+            });
+            mockGetUserProfile.mockResolvedValue({
+                dmEncryptionPublicKey: "peer-public-key",
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=conversation&userId1=user-1&userId2=user-2",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.conversation.dmEncryptionSelfEnabled).toBe(true);
+            expect(data.conversation.dmEncryptionPeerEnabled).toBe(true);
+            expect(data.conversation.dmEncryptionMutualEnabled).toBe(true);
+            expect(data.conversation.dmEncryptionPeerPublicKey).toBe(
+                "peer-public-key",
+            );
+        });
+
+        it("should create new conversation if not found", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            // Mock no existing conversation
+            mockListDocuments.mockResolvedValue({
+                documents: [],
+            });
+
+            // Mock creating new conversation
+            mockCreateDocument.mockResolvedValue({
+                $id: "new-conv-1",
+                participants: ["user-1", "user-2"],
+                lastMessageAt: new Date().toISOString(),
+                $createdAt: new Date().toISOString(),
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?type=conversation&userId1=user-1&userId2=user-2",
+            );
+            const request = new NextRequest(url);
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.conversation.$id).toBe("new-conv-1");
+            expect(mockCreateDocument).toHaveBeenCalled();
+        });
+    });
+
+    describe("POST /api/direct-messages", () => {
+        it("persists mention inbox items when mentions are present", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+            mockGetDocument.mockResolvedValue({
+                $id: "conv-1",
+                participants: ["user-1", "user-2"],
+                isGroup: false,
+            });
+            mockCreateDocument.mockResolvedValue({
+                $id: "dm-mention",
+                $createdAt: "2026-03-11T12:00:00.000Z",
+                conversationId: "conv-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                text: "Hi @alice",
+                mentions: ["alice"],
+            });
+
+            const response = await POST(
+                new NextRequest("http://localhost/api/direct-messages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "Hi @alice",
+                        mentions: ["alice"],
+                    }),
+                }),
+            );
+
+            expect(response.status).toBe(200);
+            expect(mockUpsertMentionInboxItems).toHaveBeenCalledWith({
+                authorUserId: "user-1",
+                contextId: "conv-1",
+                contextKind: "conversation",
+                latestActivityAt: "2026-03-11T12:00:00.000Z",
+                mentions: ["alice"],
+                messageId: "dm-mention",
+                previewText: "Hi @alice",
+            });
+        });
+
+        it("should return 401 if not authenticated", async () => {
+            mockGetServerSession.mockResolvedValue(null);
+
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "Hello",
+                    }),
+                },
+            );
+
+            const response = await POST(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(401);
+            expect(data.error).toBe("Unauthorized");
+        });
+
+        it("should send a direct message", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockCreateDocument.mockResolvedValue({
+                $id: "msg-1",
+                conversationId: "conv-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                text: "Hello",
+                $createdAt: new Date().toISOString(),
+            });
+
+            mockUpdateDocument.mockResolvedValue({});
+
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "Hello",
+                    }),
+                },
+            );
+
+            const response = await POST(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.message.$id).toBe("msg-1");
+            expect(data.message.text).toBe("Hello");
+        });
+
+        it("should send a direct message with image", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockCreateDocument.mockResolvedValue({
+                $id: "msg-2",
+                conversationId: "conv-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                text: "Check this out",
+                imageFileId: "file-123",
+                imageUrl: "https://example.com/image.jpg",
+                $createdAt: new Date().toISOString(),
+            });
+
+            mockUpdateDocument.mockResolvedValue({});
+
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "Check this out",
+                        imageFileId: "file-123",
+                        imageUrl: "https://example.com/image.jpg",
+                    }),
+                },
+            );
+
+            const response = await POST(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.message.imageFileId).toBe("file-123");
+            expect(data.message.imageUrl).toBe("https://example.com/image.jpg");
+        });
+
+        it("should return 400 if required fields are missing", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        // Missing text, imageFileId, and attachments
+                    }),
+                },
+            );
+
+            const response = await POST(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.error).toContain("required");
+        });
+
+        it("should return 400 when DM text exceeds max length", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages",
+                {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "a".repeat(MAX_MESSAGE_LENGTH + 1),
+                    }),
+                },
+            );
+
+            const response = await POST(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.maxLength).toBe(MAX_MESSAGE_LENGTH);
+            expect(String(data.error)).toContain("too long");
+            expect(mockCreateDocument).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 for invalid attachments payload", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const response = await POST(
+                new NextRequest("http://localhost/api/direct-messages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        attachments: [{ fileId: "broken" }],
+                    }),
+                }),
+            );
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(String(data.error)).toContain("attachments[0]");
+            expect(mockCreateDocument).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 for invalid encrypted payloads", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockGetDocument.mockResolvedValue({
+                $id: "conv-1",
+                participants: ["user-1", "user-2"],
+                isGroup: false,
+            });
+
+            mockGetNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: true,
+            });
+            mockGetUserProfile.mockImplementation(async (userId: string) => {
+                if (userId === "user-1") {
+                    return { dmEncryptionPublicKey: "sender-profile-key" };
+                }
+
+                return { dmEncryptionPublicKey: "receiver-profile-key" };
+            });
+
+            const response = await POST(
+                new NextRequest("http://localhost/api/direct-messages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "",
+                        isEncrypted: true,
+                        encryptedText: "ciphertext",
+                        encryptionNonce: "nonce",
+                        encryptionVersion: "xchacha20poly1305-v1",
+                        encryptionSenderPublicKey: "different-key",
+                    }),
+                }),
+            );
+
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(String(data.error)).toContain(
+                "encryptionSenderPublicKey",
+            );
+            expect(mockCreateDocument).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when plaintext text is sent while DM encryption is enabled for both participants", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockGetDocument.mockResolvedValue({
+                $id: "conv-1",
+                participants: ["user-1", "user-2"],
+                isGroup: false,
+            });
+
+            mockGetNotificationSettings.mockResolvedValue({
+                dmEncryptionEnabled: true,
+            });
+            mockGetUserProfile.mockImplementation(async (userId: string) => {
+                if (userId === "user-1") {
+                    return { dmEncryptionPublicKey: "sender-profile-key" };
+                }
+
+                return { dmEncryptionPublicKey: "receiver-profile-key" };
+            });
+
+            const response = await POST(
+                new NextRequest("http://localhost/api/direct-messages", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        conversationId: "conv-1",
+                        senderId: "user-1",
+                        receiverId: "user-2",
+                        text: "hello plaintext",
+                    }),
+                }),
+            );
+
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(String(data.error)).toContain("Encrypted text is required");
+            expect(mockCreateDocument).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("PATCH /api/direct-messages", () => {
+        it("should return 401 if not authenticated", async () => {
+            mockGetServerSession.mockResolvedValue(null);
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-1",
+            );
+            const request = new NextRequest(url, {
+                method: "PATCH",
+                body: JSON.stringify({ text: "Updated text" }),
+            });
+
+            const response = await PATCH(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(401);
+            expect(data.error).toBe("Unauthorized");
+        });
+
+        it("should edit a direct message", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockGetDocument.mockResolvedValue({
+                $id: "msg-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                conversationId: "conv-1",
+                text: "Original text",
+            });
+
+            mockUpdateDocument.mockResolvedValue({
+                $id: "msg-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                conversationId: "conv-1",
+                text: "Updated text",
+                editedAt: new Date().toISOString(),
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-1",
+            );
+            const request = new NextRequest(url, {
+                method: "PATCH",
+                body: JSON.stringify({ text: "Updated text" }),
+            });
+
+            const response = await PATCH(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.message.text).toBe("Updated text");
+            expect(mockUpdateDocument).toHaveBeenCalled();
+        });
+
+        it("should return 400 if message ID is missing", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const url = new URL("http://localhost/api/direct-messages");
+            const request = new NextRequest(url, {
+                method: "PATCH",
+                body: JSON.stringify({ text: "Updated text" }),
+            });
+
+            const response = await PATCH(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.error).toContain("Message ID");
+        });
+
+        it("should return 400 when edited DM text exceeds max length", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-1",
+            );
+            const request = new NextRequest(url, {
+                method: "PATCH",
+                body: JSON.stringify({
+                    text: "a".repeat(MAX_MESSAGE_LENGTH + 1),
+                }),
+            });
+
+            const response = await PATCH(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.maxLength).toBe(MAX_MESSAGE_LENGTH);
+            expect(String(data.error)).toContain("too long");
+            expect(mockUpdateDocument).not.toHaveBeenCalled();
+        });
+
+        it("blocks edits for encrypted direct messages", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockGetDocument.mockResolvedValue({
+                $id: "msg-enc-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                conversationId: "conv-1",
+                text: "",
+                isEncrypted: true,
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-enc-1",
+            );
+            const request = new NextRequest(url, {
+                method: "PATCH",
+                body: JSON.stringify({ text: "Updated text" }),
+            });
+
+            const response = await PATCH(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(409);
+            expect(String(data.error)).toContain("cannot be edited");
+            expect(mockUpdateDocument).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("DELETE /api/direct-messages", () => {
+        it("should return 401 if not authenticated", async () => {
+            mockGetServerSession.mockResolvedValue(null);
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-1",
+            );
+            const request = new NextRequest(url, {
+                method: "DELETE",
+            });
+
+            const response = await DELETE(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(401);
+            expect(data.error).toBe("Unauthorized");
+        });
+
+        it("should delete a direct message", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            mockGetDocument.mockResolvedValue({
+                $id: "msg-1",
+                senderId: "user-1",
+                receiverId: "user-2",
+                conversationId: "conv-1",
+                text: "Message to delete",
+            });
+
+            mockUpdateDocument.mockResolvedValue({
+                $id: "msg-1",
+                removedAt: new Date().toISOString(),
+                removedBy: "user-1",
+            });
+
+            const url = new URL(
+                "http://localhost/api/direct-messages?id=msg-1",
+            );
+            const request = new NextRequest(url, {
+                method: "DELETE",
+            });
+
+            const response = await DELETE(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.success).toBe(true);
+            expect(mockUpdateDocument).toHaveBeenCalled();
+        });
+
+        it("should return 400 if message ID is missing", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+
+            const url = new URL("http://localhost/api/direct-messages");
+            const request = new NextRequest(url, {
+                method: "DELETE",
+            });
+
+            const response = await DELETE(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(data.error).toContain("Message ID");
+        });
+    });
+});

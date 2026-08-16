@@ -1,0 +1,1249 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    ArrowDown,
+    ArrowUp,
+    FolderPlus,
+    Pencil,
+    Save,
+    Trash2,
+    Shield,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import type { Channel, ChannelCategory, Role } from "@/lib/types";
+import { apiCache } from "@/lib/cache-utils";
+
+type EditableChannelType = "text" | "announcement";
+
+type CategorySettingsPanelProperties = {
+    serverId: string;
+    canManage: boolean;
+};
+
+type CategoriesResponse = {
+    categories: ChannelCategory[];
+};
+
+type ChannelsResponse = {
+    channels: Channel[];
+    nextCursor: string | null;
+};
+
+type RolesResponse = {
+    roles: Role[];
+};
+
+type ChannelCreateResponse = {
+    channel: Channel;
+};
+
+function normalizeChannelType(
+    value: Channel["type"],
+): "text" | "voice" | "announcement" {
+    if (value === "voice") {
+        return "voice";
+    }
+
+    if (value === "announcement") {
+        return "announcement";
+    }
+
+    return "text";
+}
+
+function sortCategories(categories: ChannelCategory[]) {
+    return [...categories].sort(
+        (left, right) => left.position - right.position,
+    );
+}
+
+function sortChannels(channels: Channel[]) {
+    return [...channels].sort((left, right) => {
+        const leftPosition = left.position ?? 0;
+        const rightPosition = right.position ?? 0;
+        if (leftPosition !== rightPosition) {
+            return leftPosition - rightPosition;
+        }
+
+        return left.name.localeCompare(right.name);
+    });
+}
+
+export function CategorySettingsPanel({
+    serverId,
+    canManage,
+}: CategorySettingsPanelProperties) {
+    const [categories, setCategories] = useState<ChannelCategory[]>([]);
+    const [channels, setChannels] = useState<Channel[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [creatingName, setCreatingName] = useState("");
+    const [creatingCategory, setCreatingCategory] = useState(false);
+    const [creatingChannelName, setCreatingChannelName] = useState("");
+    const [creatingChannelType, setCreatingChannelType] =
+        useState<EditableChannelType>("text");
+    const [creatingChannel, setCreatingChannel] = useState(false);
+    const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
+        null,
+    );
+    const [editingName, setEditingName] = useState("");
+    const [pendingCategoryCounts, setPendingCategoryCounts] = useState<
+        Record<string, number>
+    >({});
+    const [pendingChannelCounts, setPendingChannelCounts] = useState<
+        Record<string, number>
+    >({});
+    const loadRequestId = useRef(0);
+
+    const uncategorizedChannels = useMemo(
+        () => sortChannels(channels.filter((channel) => !channel.categoryId)),
+        [channels],
+    );
+
+    const sortedRoles = useMemo(
+        () => [...roles].sort((left, right) => right.position - left.position),
+        [roles],
+    );
+
+    function setCategoryPending(categoryIds: string[], pending: boolean) {
+        setPendingCategoryCounts((currentValue) => {
+            const nextValue = { ...currentValue };
+
+            for (const categoryId of categoryIds) {
+                if (pending) {
+                    nextValue[categoryId] = (nextValue[categoryId] ?? 0) + 1;
+                    continue;
+                }
+
+                const currentCount = nextValue[categoryId] ?? 0;
+                if (currentCount <= 1) {
+                    delete nextValue[categoryId];
+                } else {
+                    nextValue[categoryId] = currentCount - 1;
+                }
+            }
+
+            return nextValue;
+        });
+    }
+
+    function setChannelPending(channelIds: string[], pending: boolean) {
+        setPendingChannelCounts((currentValue) => {
+            const nextValue = { ...currentValue };
+
+            for (const channelId of channelIds) {
+                if (pending) {
+                    nextValue[channelId] = (nextValue[channelId] ?? 0) + 1;
+                    continue;
+                }
+
+                const currentCount = nextValue[channelId] ?? 0;
+                if (currentCount <= 1) {
+                    delete nextValue[channelId];
+                } else {
+                    nextValue[channelId] = currentCount - 1;
+                }
+            }
+
+            return nextValue;
+        });
+    }
+
+    function isCategoryPending(categoryId: string) {
+        return (pendingCategoryCounts[categoryId] ?? 0) > 0;
+    }
+
+    function isChannelPending(channelId: string) {
+        return (pendingChannelCounts[channelId] ?? 0) > 0;
+    }
+
+    const loadData = useCallback(
+        async (options?: { silent?: boolean }) => {
+            const requestId = ++loadRequestId.current;
+            if (options?.silent) {
+                setRefreshing(true);
+            } else {
+                setLoading(true);
+            }
+
+            try {
+                const [categoriesResponse, channelsResponse, rolesResponse] =
+                    await Promise.all([
+                        fetch(`/api/categories?serverId=${serverId}`),
+                        fetch(`/api/channels?serverId=${serverId}&limit=100`),
+                        fetch(`/api/roles?serverId=${serverId}`),
+                    ]);
+
+                if (
+                    !categoriesResponse.ok ||
+                    !channelsResponse.ok ||
+                    !rolesResponse.ok
+                ) {
+                    const failedResources: string[] = [];
+                    if (!categoriesResponse.ok) {
+                        failedResources.push(
+                            `categories (${categoriesResponse.status})`,
+                        );
+                    }
+                    if (!channelsResponse.ok) {
+                        failedResources.push(
+                            `channels (${channelsResponse.status})`,
+                        );
+                    }
+                    if (!rolesResponse.ok) {
+                        failedResources.push(`roles (${rolesResponse.status})`);
+                    }
+
+                    throw new Error(
+                        `Failed to load resources: ${failedResources.join(", ")}`,
+                    );
+                }
+
+                const categoriesData =
+                    (await categoriesResponse.json()) as CategoriesResponse;
+                const channelsData =
+                    (await channelsResponse.json()) as ChannelsResponse;
+                const rolesData = (await rolesResponse.json()) as RolesResponse;
+
+                if (requestId !== loadRequestId.current) {
+                    return;
+                }
+
+                setCategories(sortCategories(categoriesData.categories));
+                setChannels(sortChannels(channelsData.channels));
+                setRoles(rolesData.roles);
+            } catch (error) {
+                toast.error(
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to load categories",
+                );
+            } finally {
+                if (requestId === loadRequestId.current) {
+                    if (options?.silent) {
+                        setRefreshing(false);
+                    } else {
+                        setLoading(false);
+                    }
+                }
+            }
+        },
+        [serverId],
+    );
+
+    useEffect(() => {
+        if (!serverId) {
+            return;
+        }
+
+        const task = loadData();
+        task.catch(() => {
+            // Errors are already surfaced in loadData.
+        });
+    }, [serverId, loadData]);
+
+    function notifySidebar() {
+        apiCache.clear(`categories:${serverId}:initial`);
+        apiCache.clear(`channels:${serverId}:initial`);
+        window.dispatchEvent(new Event("firepit:categories-changed"));
+        window.dispatchEvent(new Event("firepit:channels-changed"));
+    }
+
+    function refreshAfterMutation() {
+        notifySidebar();
+        const task = loadData({ silent: true });
+        task.catch(() => {
+            // Errors are already surfaced in loadData.
+        });
+    }
+
+    function getChannelsForCategory(categoryId: string) {
+        return sortChannels(
+            channels.filter((channel) => channel.categoryId === categoryId),
+        );
+    }
+
+    function getNextChannelPosition(categoryId?: string) {
+        const categoryChannels = channels.filter(
+            (channel) => (channel.categoryId || "") === (categoryId || ""),
+        );
+        return (
+            categoryChannels.reduce(
+                (max, channel) => Math.max(max, channel.position ?? 0),
+                -1,
+            ) + 1
+        );
+    }
+
+    async function createCategory() {
+        const name = creatingName.trim();
+        if (!name || creatingCategory) {
+            return;
+        }
+
+        setCreatingCategory(true);
+        try {
+            const response = await fetch("/api/categories", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ serverId, name }),
+            });
+
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: string };
+                throw new Error(data.error || "Failed to create category");
+            }
+
+            const data = (await response.json()) as {
+                category: ChannelCategory;
+            };
+
+            setCreatingName("");
+            setCategories((currentValue) =>
+                sortCategories([...currentValue, data.category]),
+            );
+            refreshAfterMutation();
+            toast.success("Category created");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to create category",
+            );
+        } finally {
+            setCreatingCategory(false);
+        }
+    }
+
+    async function createChannel() {
+        const name = creatingChannelName.trim();
+        if (!name || creatingChannel) {
+            return;
+        }
+
+        setCreatingChannel(true);
+        try {
+            const response = await fetch("/api/channels", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    serverId,
+                    name,
+                    type: creatingChannelType,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: string };
+                throw new Error(data.error || "Failed to create channel");
+            }
+
+            const data = (await response.json()) as ChannelCreateResponse;
+            setCreatingChannelName("");
+            setCreatingChannelType("text");
+            setChannels((currentValue) =>
+                sortChannels([...currentValue, data.channel]),
+            );
+            refreshAfterMutation();
+            toast.success("Channel created");
+        } catch (error) {
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to create channel",
+            );
+        } finally {
+            setCreatingChannel(false);
+        }
+    }
+
+    async function updateChannelType(
+        channel: Channel,
+        nextType: EditableChannelType,
+    ) {
+        const currentType = normalizeChannelType(channel.type);
+        if (currentType === nextType) {
+            return;
+        }
+
+        const previousChannels = channels;
+        setChannelPending([channel.$id], true);
+        setChannels((currentValue) =>
+            sortChannels(
+                currentValue.map((item) =>
+                    item.$id === channel.$id
+                        ? {
+                              ...item,
+                              type: nextType,
+                          }
+                        : item,
+                ),
+            ),
+        );
+
+        try {
+            await updateChannel(channel.$id, { type: nextType });
+            refreshAfterMutation();
+            toast.success("Channel type updated");
+        } catch (error) {
+            setChannels(previousChannels);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to update channel type",
+            );
+        } finally {
+            setChannelPending([channel.$id], false);
+        }
+    }
+
+    async function saveCategoryName(categoryId: string) {
+        const name = editingName.trim();
+        if (!name) {
+            return;
+        }
+
+        const previousCategories = categories;
+        setCategoryPending([categoryId], true);
+        setCategories((currentValue) =>
+            currentValue.map((category) =>
+                category.$id === categoryId ? { ...category, name } : category,
+            ),
+        );
+        setEditingCategoryId(null);
+        setEditingName("");
+
+        try {
+            const response = await fetch("/api/categories", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ categoryId, name }),
+            });
+
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: string };
+                throw new Error(data.error || "Failed to rename category");
+            }
+
+            refreshAfterMutation();
+            toast.success("Category updated");
+        } catch (error) {
+            setCategories(previousCategories);
+            setEditingCategoryId(categoryId);
+            setEditingName(name);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to rename category",
+            );
+        } finally {
+            setCategoryPending([categoryId], false);
+        }
+    }
+
+    async function saveAllowedRoles(
+        categoryId: string,
+        allowedRoleIds: string[],
+    ) {
+        const previousCategories = categories;
+
+        setCategoryPending([categoryId], true);
+        setCategories((currentValue) =>
+            currentValue.map((category) =>
+                category.$id === categoryId
+                    ? {
+                          ...category,
+                          allowedRoleIds,
+                      }
+                    : category,
+            ),
+        );
+
+        try {
+            const response = await fetch("/api/categories", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    categoryId,
+                    allowedRoleIds,
+                }),
+            });
+
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: string };
+                throw new Error(
+                    data.error || "Failed to update category access",
+                );
+            }
+
+            refreshAfterMutation();
+            toast.success("Category access updated");
+        } catch (error) {
+            setCategories(previousCategories);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to update category access",
+            );
+        } finally {
+            setCategoryPending([categoryId], false);
+        }
+    }
+
+    async function moveCategory(categoryId: string, direction: -1 | 1) {
+        const orderedCategories = sortCategories(categories);
+        const currentIndex = orderedCategories.findIndex(
+            (category) => category.$id === categoryId,
+        );
+        const targetIndex = currentIndex + direction;
+        if (
+            currentIndex < 0 ||
+            targetIndex < 0 ||
+            targetIndex >= orderedCategories.length
+        ) {
+            return;
+        }
+
+        const current = orderedCategories[currentIndex];
+        const target = orderedCategories[targetIndex];
+        const previousCategories = categories;
+
+        setCategoryPending([current.$id, target.$id], true);
+        setCategories(
+            sortCategories(
+                orderedCategories.map((category) => {
+                    if (category.$id === current.$id) {
+                        return { ...category, position: target.position };
+                    }
+
+                    if (category.$id === target.$id) {
+                        return { ...category, position: current.position };
+                    }
+
+                    return category;
+                }),
+            ),
+        );
+
+        try {
+            await Promise.all([
+                fetch("/api/categories", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        categoryId: current.$id,
+                        position: target.position,
+                    }),
+                }),
+                fetch("/api/categories", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        categoryId: target.$id,
+                        position: current.position,
+                    }),
+                }),
+            ]);
+
+            refreshAfterMutation();
+        } catch {
+            setCategories(previousCategories);
+            toast.error("Failed to reorder category");
+        } finally {
+            setCategoryPending([current.$id, target.$id], false);
+        }
+    }
+
+    async function deleteCategory(categoryId: string) {
+        const previousCategories = categories;
+        const previousChannels = channels;
+        let nextUncategorizedPosition = getNextChannelPosition();
+
+        setCategoryPending([categoryId], true);
+        setCategories((currentValue) =>
+            currentValue.filter((category) => category.$id !== categoryId),
+        );
+        setChannels((currentValue) =>
+            sortChannels(
+                currentValue.map((channel) => {
+                    if (channel.categoryId !== categoryId) {
+                        return channel;
+                    }
+
+                    const updatedChannel = {
+                        ...channel,
+                        categoryId: undefined,
+                        position: nextUncategorizedPosition,
+                    };
+                    nextUncategorizedPosition += 1;
+                    return updatedChannel;
+                }),
+            ),
+        );
+
+        try {
+            const response = await fetch(
+                `/api/categories?categoryId=${encodeURIComponent(categoryId)}`,
+                { method: "DELETE" },
+            );
+
+            if (!response.ok) {
+                const data = (await response.json()) as { error?: string };
+                throw new Error(data.error || "Failed to delete category");
+            }
+
+            refreshAfterMutation();
+            toast.success("Category deleted");
+        } catch (error) {
+            setCategories(previousCategories);
+            setChannels(previousChannels);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to delete category",
+            );
+        } finally {
+            setCategoryPending([categoryId], false);
+        }
+    }
+
+    async function updateChannel(
+        channelId: string,
+        updates: Record<string, unknown>,
+    ) {
+        const response = await fetch(
+            `/api/channels/${encodeURIComponent(channelId)}`,
+            {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updates),
+            },
+        );
+
+        if (!response.ok) {
+            const data = (await response.json()) as { error?: string };
+            throw new Error(data.error || "Failed to update channel");
+        }
+    }
+
+    async function assignChannel(channelId: string, categoryId: string) {
+        const previousChannels = channels;
+        const normalizedCategoryId =
+            categoryId === "uncategorized" ? undefined : categoryId;
+        const channel = channels.find((item) => item.$id === channelId);
+        if (!channel) {
+            return;
+        }
+
+        if ((channel.categoryId || undefined) === normalizedCategoryId) {
+            return;
+        }
+
+        const nextPosition = normalizedCategoryId
+            ? getNextChannelPosition(normalizedCategoryId)
+            : getNextChannelPosition();
+
+        setChannelPending([channelId], true);
+        setChannels((currentValue) =>
+            sortChannels(
+                currentValue.map((item) =>
+                    item.$id === channelId
+                        ? {
+                              ...item,
+                              categoryId: normalizedCategoryId,
+                              position: nextPosition,
+                          }
+                        : item,
+                ),
+            ),
+        );
+
+        try {
+            await updateChannel(channelId, {
+                categoryId: normalizedCategoryId ?? null,
+                position: nextPosition,
+            });
+            refreshAfterMutation();
+        } catch (error) {
+            setChannels(previousChannels);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to update channel",
+            );
+        } finally {
+            setChannelPending([channelId], false);
+        }
+    }
+
+    async function moveChannel(channel: Channel, direction: -1 | 1) {
+        const siblingChannels = sortChannels(
+            channels.filter(
+                (item) =>
+                    (item.categoryId || "") === (channel.categoryId || ""),
+            ),
+        );
+        const currentIndex = siblingChannels.findIndex(
+            (item) => item.$id === channel.$id,
+        );
+        const targetIndex = currentIndex + direction;
+        if (
+            currentIndex < 0 ||
+            targetIndex < 0 ||
+            targetIndex >= siblingChannels.length
+        ) {
+            return;
+        }
+
+        const current = siblingChannels[currentIndex];
+        const target = siblingChannels[targetIndex];
+        const previousChannels = channels;
+
+        setChannelPending([current.$id, target.$id], true);
+        setChannels(
+            sortChannels(
+                channels.map((item) => {
+                    if (item.$id === current.$id) {
+                        return { ...item, position: target.position ?? 0 };
+                    }
+
+                    if (item.$id === target.$id) {
+                        return { ...item, position: current.position ?? 0 };
+                    }
+
+                    return item;
+                }),
+            ),
+        );
+
+        try {
+            await Promise.all([
+                updateChannel(current.$id, { position: target.position ?? 0 }),
+                updateChannel(target.$id, { position: current.position ?? 0 }),
+            ]);
+            refreshAfterMutation();
+        } catch (error) {
+            setChannels(previousChannels);
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to reorder channel",
+            );
+        } finally {
+            setChannelPending([current.$id, target.$id], false);
+        }
+    }
+
+    if (!canManage) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Channel Categories</CardTitle>
+                    <CardDescription>
+                        Category management is limited to users who can manage
+                        channels.
+                    </CardDescription>
+                </CardHeader>
+            </Card>
+        );
+    }
+
+    return (
+        <div className="min-w-0 space-y-4 overflow-x-hidden">
+            {refreshing && (
+                <p className="px-1 text-xs text-muted-foreground">
+                    Syncing category changes...
+                </p>
+            )}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Channel Setup</CardTitle>
+                    <CardDescription>
+                        Create channels and choose whether they are regular chat
+                        channels or announcement-only channels.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <div className="grid gap-3 md:grid-cols-[1fr_200px_auto]">
+                        <div className="space-y-2">
+                            <Label htmlFor="channel-name">New channel</Label>
+                            <Input
+                                disabled={creatingChannel}
+                                id="channel-name"
+                                onChange={(event) =>
+                                    setCreatingChannelName(event.target.value)
+                                }
+                                placeholder="announcements"
+                                value={creatingChannelName}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="channel-type">Channel type</Label>
+                            <Select
+                                disabled={creatingChannel}
+                                onValueChange={(value: EditableChannelType) =>
+                                    setCreatingChannelType(value)
+                                }
+                                value={creatingChannelType}
+                            >
+                                <SelectTrigger id="channel-type">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="text">Text</SelectItem>
+                                    <SelectItem value="announcement">
+                                        Announcement
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <Button
+                            className="self-end"
+                            disabled={
+                                creatingChannel || !creatingChannelName.trim()
+                            }
+                            onClick={() => void createChannel()}
+                            type="button"
+                        >
+                            {creatingChannel ? "Creating..." : "Create"}
+                        </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Voice channels are hidden here until voice chat behavior
+                        is implemented.
+                    </p>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Channel Categories</CardTitle>
+                    <CardDescription>
+                        Group channels into collapsible sections and control
+                        their order.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <Label htmlFor="category-name">New category</Label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                        <Input
+                            className="min-w-0 flex-1"
+                            disabled={creatingCategory}
+                            id="category-name"
+                            onChange={(event) =>
+                                setCreatingName(event.target.value)
+                            }
+                            placeholder="Announcements"
+                            value={creatingName}
+                        />
+                        <Button
+                            className="w-full sm:w-auto"
+                            disabled={creatingCategory || !creatingName.trim()}
+                            onClick={() => void createCategory()}
+                            type="button"
+                        >
+                            <FolderPlus className="h-4 w-4" />
+                            {creatingCategory ? "Creating..." : "Create"}
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Categories</CardTitle>
+                    <CardDescription>
+                        Rename, reorder, or delete category sections.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {loading ? (
+                        <p className="py-4 text-sm text-muted-foreground">
+                            Loading categories...
+                        </p>
+                    ) : categories.length === 0 ? (
+                        <p className="py-4 text-sm text-muted-foreground">
+                            No categories created yet.
+                        </p>
+                    ) : (
+                        categories.map((category) => {
+                            const filteredRoles = sortedRoles.filter((role) =>
+                                category.allowedRoleIds?.includes(role.$id),
+                            );
+
+                            const visibilityLabel = (() => {
+                                if (
+                                    !category.allowedRoleIds ||
+                                    category.allowedRoleIds.length === 0
+                                ) {
+                                    return "Visible to all members";
+                                }
+
+                                if (filteredRoles.length === 0) {
+                                    return "Restricted (roles not found)";
+                                }
+
+                                return `Restricted to ${filteredRoles
+                                    .map((role) => role.name || "a role")
+                                    .join(", ")}`;
+                            })();
+
+                            return (
+                                <div
+                                    key={category.$id}
+                                    className="space-y-3 rounded-lg border border-border/60 p-3 overflow-x-hidden"
+                                >
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        {editingCategoryId === category.$id ? (
+                                            <Input
+                                                className="min-w-0 flex-1"
+                                                onChange={(event) =>
+                                                    setEditingName(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                value={editingName}
+                                            />
+                                        ) : (
+                                            <div className="min-w-0 flex-1 truncate font-medium">
+                                                {category.name}
+                                            </div>
+                                        )}
+                                        {isCategoryPending(category.$id) && (
+                                            <span className="text-xs text-muted-foreground">
+                                                Saving...
+                                            </span>
+                                        )}
+                                        <Button
+                                            disabled={isCategoryPending(
+                                                category.$id,
+                                            )}
+                                            onClick={() =>
+                                                void moveCategory(
+                                                    category.$id,
+                                                    -1,
+                                                )
+                                            }
+                                            size="icon"
+                                            type="button"
+                                            variant="ghost"
+                                        >
+                                            <ArrowUp className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            disabled={isCategoryPending(
+                                                category.$id,
+                                            )}
+                                            onClick={() =>
+                                                void moveCategory(
+                                                    category.$id,
+                                                    1,
+                                                )
+                                            }
+                                            size="icon"
+                                            type="button"
+                                            variant="ghost"
+                                        >
+                                            <ArrowDown className="h-4 w-4" />
+                                        </Button>
+                                        {editingCategoryId === category.$id ? (
+                                            <Button
+                                                disabled={
+                                                    isCategoryPending(
+                                                        category.$id,
+                                                    ) || !editingName.trim()
+                                                }
+                                                onClick={() =>
+                                                    void saveCategoryName(
+                                                        category.$id,
+                                                    )
+                                                }
+                                                size="icon"
+                                                type="button"
+                                                variant="ghost"
+                                            >
+                                                <Save className="h-4 w-4" />
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                disabled={isCategoryPending(
+                                                    category.$id,
+                                                )}
+                                                onClick={() => {
+                                                    setEditingCategoryId(
+                                                        category.$id,
+                                                    );
+                                                    setEditingName(
+                                                        category.name,
+                                                    );
+                                                }}
+                                                size="icon"
+                                                type="button"
+                                                variant="ghost"
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        <Button
+                                            disabled={isCategoryPending(
+                                                category.$id,
+                                            )}
+                                            onClick={() =>
+                                                void deleteCategory(
+                                                    category.$id,
+                                                )
+                                            }
+                                            size="icon"
+                                            type="button"
+                                            variant="ghost"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    {sortedRoles.length > 0 && (
+                                        <div className="flex min-w-0 items-start gap-2 rounded-md bg-muted/30 px-3 py-2">
+                                            <Shield
+                                                aria-hidden="true"
+                                                className="h-4 w-4 text-muted-foreground"
+                                            />
+                                            <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+                                                {sortedRoles.map((role) => {
+                                                    const isSelected =
+                                                        category.allowedRoleIds?.includes(
+                                                            role.$id,
+                                                        ) ?? false;
+                                                    return (
+                                                        <button
+                                                            aria-pressed={
+                                                                isSelected
+                                                            }
+                                                            disabled={isCategoryPending(
+                                                                category.$id,
+                                                            )}
+                                                            key={role.$id}
+                                                            onClick={() => {
+                                                                const current =
+                                                                    category.allowedRoleIds ||
+                                                                    [];
+                                                                const newAllowed =
+                                                                    isSelected
+                                                                        ? current.filter(
+                                                                              (
+                                                                                  id,
+                                                                              ) =>
+                                                                                  id !==
+                                                                                  role.$id,
+                                                                          )
+                                                                        : [
+                                                                              ...current,
+                                                                              role.$id,
+                                                                          ];
+                                                                void saveAllowedRoles(
+                                                                    category.$id,
+                                                                    newAllowed,
+                                                                );
+                                                            }}
+                                                            type="button"
+                                                            className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                                                                isSelected
+                                                                    ? "border-primary bg-primary/10 text-primary"
+                                                                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                                                            }`}
+                                                        >
+                                                            {role.name}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            <span className="min-w-0 text-xs text-muted-foreground sm:ml-auto sm:text-right">
+                                                {visibilityLabel}
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="space-y-2">
+                                        {getChannelsForCategory(
+                                            category.$id,
+                                        ).map((channel) => (
+                                            <div
+                                                key={channel.$id}
+                                                className="flex min-w-0 flex-col gap-2 rounded-md bg-muted/30 px-3 py-2 lg:flex-row lg:items-center"
+                                            >
+                                                <div className="min-w-0 flex-1 truncate text-sm font-medium">
+                                                    {channel.name}
+                                                </div>
+                                                <div className="flex items-center gap-1 self-end lg:self-auto">
+                                                    <Button
+                                                        disabled={isChannelPending(
+                                                            channel.$id,
+                                                        )}
+                                                        onClick={() =>
+                                                            void moveChannel(
+                                                                channel,
+                                                                -1,
+                                                            )
+                                                        }
+                                                        size="icon"
+                                                        type="button"
+                                                        variant="ghost"
+                                                    >
+                                                        <ArrowUp className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        disabled={isChannelPending(
+                                                            channel.$id,
+                                                        )}
+                                                        onClick={() =>
+                                                            void moveChannel(
+                                                                channel,
+                                                                1,
+                                                            )
+                                                        }
+                                                        size="icon"
+                                                        type="button"
+                                                        variant="ghost"
+                                                    >
+                                                        <ArrowDown className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Assign Channels</CardTitle>
+                    <CardDescription>
+                        Move channels into categories or leave them
+                        uncategorized.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {sortChannels(channels).map((channel) => {
+                        const channelType = normalizeChannelType(channel.type);
+
+                        return (
+                            <div
+                                key={channel.$id}
+                                className="flex min-w-0 flex-col gap-3 overflow-x-hidden rounded-lg border border-border/60 p-3 xl:flex-row xl:flex-wrap xl:items-center"
+                            >
+                                <div className="flex min-w-0 flex-1 items-center gap-2 xl:min-w-0">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="truncate font-medium">
+                                            {channel.name}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {channel.categoryId
+                                                ? categories.find(
+                                                      (category) =>
+                                                          category.$id ===
+                                                          channel.categoryId,
+                                                  )?.name || "Unknown category"
+                                                : "Uncategorized"}
+                                        </div>
+                                    </div>
+                                    <span className="rounded border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                        {channelType}
+                                    </span>
+                                </div>
+                                <Select
+                                    disabled={isChannelPending(channel.$id)}
+                                    onValueChange={(value) => {
+                                        void assignChannel(channel.$id, value);
+                                    }}
+                                    value={
+                                        channel.categoryId || "uncategorized"
+                                    }
+                                >
+                                    <SelectTrigger className="w-full xl:w-56 xl:max-w-full">
+                                        <SelectValue placeholder="Assign category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="uncategorized">
+                                            Uncategorized
+                                        </SelectItem>
+                                        {categories.map((category) => (
+                                            <SelectItem
+                                                key={category.$id}
+                                                value={category.$id}
+                                            >
+                                                {category.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <div className="flex flex-wrap items-center gap-1 xl:shrink-0">
+                                    <Button
+                                        disabled={
+                                            isChannelPending(channel.$id) ||
+                                            channelType === "text"
+                                        }
+                                        onClick={() =>
+                                            void updateChannelType(
+                                                channel,
+                                                "text",
+                                            )
+                                        }
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        Text
+                                    </Button>
+                                    <Button
+                                        disabled={
+                                            isChannelPending(channel.$id) ||
+                                            channelType === "announcement"
+                                        }
+                                        onClick={() =>
+                                            void updateChannelType(
+                                                channel,
+                                                "announcement",
+                                            )
+                                        }
+                                        size="sm"
+                                        type="button"
+                                        variant="outline"
+                                    >
+                                        Announcement
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                    {uncategorizedChannels.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                            Uncategorized channels remain visible beneath all
+                            categories in the sidebar.
+                        </p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}

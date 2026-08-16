@@ -1,0 +1,238 @@
+import { NextResponse } from "next/server";
+import { apiCache } from "@/lib/cache-utils";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const REPO_OWNER = "acarlson33";
+const REPO_NAME = "firepit";
+const CACHE_KEY = "github-latest-release";
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+interface BuildMetadata {
+	version: string;
+	commitSha: string;
+	commitShort: string;
+	buildTime: string;
+	isCanary: boolean;
+	latestTag: string | null;
+	branch: string;
+}
+
+const DEFAULT_BUILD_METADATA: BuildMetadata = {
+	version: "1.0.0-dev",
+	commitSha: "unknown",
+	commitShort: "unknown",
+	buildTime: new Date().toISOString(),
+	isCanary: true,
+	latestTag: null,
+	branch: "unknown",
+};
+
+function sanitizeBuildMetadata(raw: unknown): BuildMetadata {
+	const record =
+		raw && typeof raw === "object"
+			? (raw as Record<string, unknown>)
+			: {};
+	const asString = (value: unknown, fallback: string) =>
+		typeof value === "string" && value.length > 0 ? value : fallback;
+
+	return {
+		version: asString(record.version, DEFAULT_BUILD_METADATA.version),
+		commitSha: asString(record.commitSha, DEFAULT_BUILD_METADATA.commitSha),
+		commitShort: asString(
+			record.commitShort,
+			DEFAULT_BUILD_METADATA.commitShort,
+		),
+		buildTime: asString(record.buildTime, DEFAULT_BUILD_METADATA.buildTime),
+		isCanary:
+			typeof record.isCanary === "boolean"
+				? record.isCanary
+				: DEFAULT_BUILD_METADATA.isCanary,
+		latestTag:
+			typeof record.latestTag === "string" && record.latestTag.length > 0
+				? record.latestTag
+				: null,
+		branch: asString(record.branch, DEFAULT_BUILD_METADATA.branch),
+	};
+}
+
+let memoizedBuildMetadata: BuildMetadata | null = null;
+
+/**
+ * Load build-time version metadata
+ * Falls back to default values if file doesn't exist (e.g., in development)
+ */
+function loadBuildMetadata(): BuildMetadata {
+	// Allow tests to inject mock metadata via environment variable
+	if (process.env.MOCK_VERSION_METADATA) {
+		try {
+			return sanitizeBuildMetadata(JSON.parse(process.env.MOCK_VERSION_METADATA));
+		} catch {
+			// If parsing fails, fall through to normal behavior
+		}
+	}
+
+	if (memoizedBuildMetadata) {
+		return memoizedBuildMetadata;
+	}
+
+	try {
+		const metadataPath = join(
+			process.cwd(),
+			"src",
+			"generated",
+			"version-metadata.json",
+		);
+		const content = readFileSync(metadataPath, "utf8");
+		memoizedBuildMetadata = sanitizeBuildMetadata(JSON.parse(content));
+	} catch {
+		// Fallback for development or when metadata hasn't been generated
+		memoizedBuildMetadata = { ...DEFAULT_BUILD_METADATA };
+	}
+
+	return memoizedBuildMetadata;
+}
+
+interface GitHubRelease {
+	tag_name: string;
+	name: string;
+	published_at: string;
+	html_url: string;
+}
+
+interface VersionInfo {
+	currentVersion: string;
+	latestVersion: string;
+	isOutdated: boolean;
+	releaseUrl?: string;
+	publishedAt?: string;
+	error?: string;
+	commitSha?: string;
+	commitShort?: string;
+	buildTime?: string;
+	isCanary?: boolean;
+	branch?: string;
+	apiVersion: string;
+	minMobileAppVersion: string | null;
+	maxMobileAppVersion: string | null;
+	deprecationWarnings: string[];
+}
+
+/**
+ * Compare two semantic versions
+ * Returns true if version1 is older than version2
+ */
+function isVersionOutdated(current: string, latest: string): boolean {
+	// Remove 'v' prefix if present
+	const cleanCurrent = current.replace(/^v/i, "");
+	const cleanLatest = latest.replace(/^v/i, "");
+
+	const currentParts = cleanCurrent.split(".").map(Number);
+	const latestParts = cleanLatest.split(".").map(Number);
+
+	for (let i = 0; i < Math.max(currentParts.length, latestParts.length); i++) {
+		const currentPart = currentParts[i] || 0;
+		const latestPart = latestParts[i] || 0;
+
+		if (latestPart > currentPart) {
+			return true;
+		}
+		if (latestPart < currentPart) {
+			return false;
+		}
+	}
+
+	return false;
+}
+
+function getDeprecationWarnings(): string[] {
+	if (process.env.FIREPIT_DEPRECATE_LEGACY_AUTH === "true") {
+		return ["Legacy cookie-based authentication is deprecated. Use Bearer tokens."];
+	}
+	return [];
+}
+
+/**
+ * Fetch the latest release from GitHub
+ */
+async function fetchLatestRelease(): Promise<GitHubRelease> {
+	const response = await fetch(
+		`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`,
+		{
+			headers: {
+				Accept: "application/vnd.github.v3+json",
+				"User-Agent": "Firepit-App",
+			},
+			signal: AbortSignal.timeout(10_000),
+			// Don't cache on fetch level since we're using our own cache
+			cache: "no-store",
+		},
+	);
+
+	if (!response.ok) {
+		throw new Error(`GitHub API error: ${response.status}`);
+	}
+
+	return response.json();
+}
+
+/**
+ * Get version information with caching
+ */
+export async function GET() {
+	// Load build metadata
+	const buildMetadata = loadBuildMetadata();
+
+	try {
+		// Try to get cached version info
+		const cachedRelease = await apiCache.dedupe<GitHubRelease>(
+			CACHE_KEY,
+			fetchLatestRelease,
+			CACHE_TTL,
+		);
+
+		const latestVersion = cachedRelease.tag_name;
+		const isOutdated = isVersionOutdated(buildMetadata.version, latestVersion);
+
+		const versionInfo: VersionInfo = {
+			currentVersion: buildMetadata.version,
+			latestVersion,
+			isOutdated,
+			releaseUrl: cachedRelease.html_url,
+			publishedAt: cachedRelease.published_at,
+			commitSha: buildMetadata.commitSha,
+			commitShort: buildMetadata.commitShort,
+			buildTime: buildMetadata.buildTime,
+			isCanary: buildMetadata.isCanary,
+			branch: buildMetadata.branch,
+			apiVersion: process.env.FIREPIT_API_VERSION ?? buildMetadata.version,
+			minMobileAppVersion: process.env.FIREPIT_MIN_MOBILE_APP_VERSION ?? null,
+			maxMobileAppVersion: process.env.FIREPIT_MAX_MOBILE_APP_VERSION ?? null,
+			deprecationWarnings: getDeprecationWarnings(),
+		};
+
+		return NextResponse.json(versionInfo);
+	} catch (error) {
+		// If GitHub API fails, return current version without comparison
+		const versionInfo: VersionInfo = {
+			currentVersion: buildMetadata.version,
+			latestVersion: "unknown",
+			isOutdated: false,
+			error:
+				error instanceof Error
+					? error.message
+					: "Failed to fetch latest version",
+			commitSha: buildMetadata.commitSha,
+			commitShort: buildMetadata.commitShort,
+			buildTime: buildMetadata.buildTime,
+			isCanary: buildMetadata.isCanary,
+			branch: buildMetadata.branch,
+			apiVersion: process.env.FIREPIT_API_VERSION ?? buildMetadata.version,
+			minMobileAppVersion: process.env.FIREPIT_MIN_MOBILE_APP_VERSION ?? null,
+			maxMobileAppVersion: process.env.FIREPIT_MAX_MOBILE_APP_VERSION ?? null,
+			deprecationWarnings: getDeprecationWarnings(),
+		};
+
+		return NextResponse.json(versionInfo, { status: 200 });
+	}
+}

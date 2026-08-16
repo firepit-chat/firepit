@@ -1,0 +1,674 @@
+/**
+ * Profile management utilities for user profiles
+ * Handles profile CRUD operations, avatar uploads, and profile queries
+ * SERVER-ONLY — uses admin SDK. Client code should use /api/profiles/* routes.
+ */
+
+import { ID, Query } from "node-appwrite";
+import { getAdminClient } from "./appwrite-admin";
+import { getEnvConfig } from "./appwrite-core";
+import { logger } from "./newrelic-utils";
+import {
+    getPresetFrameImageUrl,
+    getPresetFrameStorageFileId,
+} from "./preset-frames";
+
+import type { NavigationItemPreferenceId } from "./types";
+
+type UserProfile = {
+    $id: string;
+    userId: string;
+    userName?: string;
+    displayName?: string;
+    bio?: string;
+    pronouns?: string;
+    avatarFileId?: string;
+    location?: string;
+    website?: string;
+    showDocsInNavigation?: boolean;
+    showFriendsInNavigation?: boolean;
+    showSettingsInNavigation?: boolean;
+    showAddFriendInHeader?: boolean;
+    telemetryEnabled?: boolean;
+    navigationItemOrder?: NavigationItemPreferenceId[] | string;
+    profileBackgroundColor?: string;
+    profileBackgroundGradient?: string;
+    profileBackgroundImageFileId?: string;
+    profileBackgroundImageChangedAt?: string;
+    avatarFramePreset?: string;
+    dmEncryptionPublicKey?: string;
+    $createdAt: string;
+    $updatedAt: string;
+};
+
+const editableProfileKeys = [
+    "userName",
+    "displayName",
+    "bio",
+    "pronouns",
+    "avatarFileId",
+    "location",
+    "website",
+    "showDocsInNavigation",
+    "showFriendsInNavigation",
+    "showSettingsInNavigation",
+    "showAddFriendInHeader",
+    "telemetryEnabled",
+    "navigationItemOrder",
+    "profileBackgroundColor",
+    "profileBackgroundGradient",
+    "profileBackgroundImageFileId",
+    "avatarFramePreset",
+    "dmEncryptionPublicKey",
+] as const;
+
+type EditableProfileKey = (typeof editableProfileKeys)[number];
+
+type UserProfileUpdatePayload = Partial<
+    Record<EditableProfileKey, UserProfile[EditableProfileKey] | null>
+>;
+
+function chunkValues<T>(values: T[], size: number) {
+    const chunks: T[][] = [];
+
+    for (let index = 0; index < values.length; index += size) {
+        chunks.push(values.slice(index, index + size));
+    }
+
+    return chunks;
+}
+
+/**
+ * Get a user's profile by userId
+ *
+ * @param {string} userId - The user id value.
+ * @returns {Promise<UserProfile | null>} The return value.
+ */
+
+const PROFILE_CACHE_TTL_MS = 30_000;
+const PROFILE_CACHE_MAX = 500;
+const profileCache = new Map<string, { data: UserProfile | null; ts: number }>();
+
+function evictProfileCache(): void {
+    if (profileCache.size <= PROFILE_CACHE_MAX) return;
+    const now = Date.now();
+    for (const [key, entry] of profileCache) {
+        if (now - entry.ts > PROFILE_CACHE_TTL_MS || profileCache.size > PROFILE_CACHE_MAX) {
+            profileCache.delete(key);
+        }
+    }
+}
+
+function invalidateProfileCache(profileId?: string, userId?: string): void {
+    if (userId) {
+        profileCache.delete(userId);
+    }
+    if (profileId) {
+        for (const [key, entry] of profileCache) {
+            if (entry.data?.$id === profileId) {
+                profileCache.delete(key);
+            }
+        }
+    }
+}
+
+export async function getUserProfile(
+    userId: string,
+): Promise<UserProfile | null> {
+    evictProfileCache();
+    const cached = profileCache.get(userId);
+    if (cached && Date.now() - cached.ts < PROFILE_CACHE_TTL_MS) {
+        return cached.data;
+    }
+
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+
+    const profiles = await databases.listDocuments(
+        env.databaseId,
+        env.collections.profiles,
+        [Query.equal("userId", userId), Query.limit(1)],
+    );
+
+    if (profiles.documents.length === 0) {
+        profileCache.set(userId, { data: null, ts: Date.now() });
+        return null;
+    }
+
+    const result = profiles.documents[0] as unknown as UserProfile;
+    profileCache.set(userId, { data: result, ts: Date.now() });
+    return result;
+}
+
+export async function getUserProfilesBatch(
+    userIds: string[],
+): Promise<Map<string, UserProfile>> {
+    if (userIds.length === 0) return new Map();
+
+    evictProfileCache();
+    const now = Date.now();
+    const result = new Map<string, UserProfile>();
+    const uncached: string[] = [];
+
+    for (const uid of userIds) {
+        const cached = profileCache.get(uid);
+        if (cached && now - cached.ts < PROFILE_CACHE_TTL_MS) {
+            if (cached.data) result.set(uid, cached.data);
+        } else {
+            uncached.push(uid);
+        }
+    }
+
+    if (uncached.length === 0) return result;
+
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+
+    const batchSize = 100;
+    for (let i = 0; i < uncached.length; i += batchSize) {
+        const batch = uncached.slice(i, i + batchSize);
+        const response = await databases.listDocuments(
+            env.databaseId,
+            env.collections.profiles,
+            [Query.equal("userId", batch), Query.limit(batchSize)],
+        );
+        for (const doc of response.documents) {
+            const profile = doc as unknown as UserProfile;
+            if (profile.userId) {
+                result.set(profile.userId, profile);
+                profileCache.set(profile.userId, { data: profile, ts: now });
+            }
+        }
+        // Cache misses (IDs with no profile) to avoid re-querying
+        for (const uid of batch) {
+            if (!result.has(uid)) {
+                profileCache.set(uid, { data: null, ts: now });
+            }
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Resolve a profile by either exact userId or exact userName.
+ *
+ * @param {string} identifier - The identifier value.
+ * @returns {Promise<string | undefined>} The return value.
+ */
+export async function resolveProfileUserId(identifier: string) {
+    const trimmedIdentifier = identifier.trim();
+    if (!trimmedIdentifier) {
+        return undefined;
+    }
+
+    try {
+        const { databases } = getAdminClient();
+        const env = getEnvConfig();
+
+        let profiles = await databases.listDocuments(
+            env.databaseId,
+            env.collections.profiles,
+            [Query.equal("userId", trimmedIdentifier), Query.limit(1)],
+        );
+
+        if (profiles.documents.length === 0) {
+            profiles = await databases.listDocuments(
+                env.databaseId,
+                env.collections.profiles,
+                [Query.equal("userName", trimmedIdentifier), Query.limit(1)],
+            );
+        }
+
+        const profile = profiles.documents[0] as unknown as
+            | UserProfile
+            | undefined;
+        return profile?.userId;
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Handles resolve profile identifiers.
+ *
+ * @param {string[]} identifiers - The identifiers value.
+ * @returns {Promise<Map<string, string>>} The return value.
+ */
+export async function resolveProfileIdentifiers(identifiers: string[]) {
+    const trimmedIdentifiers = Array.from(
+        new Set(
+            identifiers.map((identifier) => identifier.trim()).filter(Boolean),
+        ),
+    );
+
+    if (trimmedIdentifiers.length === 0) {
+        return new Map<string, string>();
+    }
+
+    try {
+        const { databases } = getAdminClient();
+        const env = getEnvConfig();
+        const identifierSet = new Set(trimmedIdentifiers);
+        const identifierChunks = chunkValues(trimmedIdentifiers, 100);
+        const documents: UserProfile[] = [];
+
+        const chunkResults = await Promise.all(
+            identifierChunks.flatMap((chunk) =>
+                ["userId", "userName", "displayName"].map((field) =>
+                    databases.listDocuments(
+                        env.databaseId,
+                        env.collections.profiles,
+                        [Query.equal(field, chunk), Query.limit(100)],
+                    ),
+                ),
+            ),
+        );
+
+        for (const chunkResult of chunkResults) {
+            documents.push(
+                ...(chunkResult.documents as unknown as UserProfile[]),
+            );
+        }
+
+        const resolved = new Map<string, string>();
+        for (const profile of documents) {
+            const userId = profile.userId;
+
+            if (identifierSet.has(userId)) {
+                resolved.set(userId, userId);
+            }
+
+            if (profile.userName && identifierSet.has(profile.userName)) {
+                resolved.set(profile.userName, userId);
+            }
+
+            if (profile.displayName && identifierSet.has(profile.displayName)) {
+                resolved.set(profile.displayName, userId);
+            }
+        }
+
+        return resolved;
+    } catch {
+        return new Map<string, string>();
+    }
+}
+
+/**
+ * Create a new user profile
+ *
+ * @param {string} userId - The user id value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @returns {Promise<UserProfile>} The return value.
+ */
+export async function createUserProfile(
+    userId: string,
+    data: Partial<
+        Omit<UserProfile, "$id" | "userId" | "$createdAt" | "$updatedAt">
+    >,
+): Promise<UserProfile> {
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+
+    const profile = await databases.createDocument(
+        env.databaseId,
+        env.collections.profiles,
+        ID.unique(),
+        {
+            userId,
+            ...data,
+        },
+    );
+
+    invalidateProfileCache(undefined, userId);
+    return profile as unknown as UserProfile;
+}
+
+/**
+ * Update a user's profile
+ *
+ * @param {string} profileId - The profile id value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @returns {Promise<UserProfile>} The return value.
+ */
+export async function updateUserProfile(
+    profileId: string,
+    data: UserProfileUpdatePayload,
+): Promise<UserProfile> {
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+
+    const cleanData: UserProfileUpdatePayload = {};
+    for (const key of editableProfileKeys) {
+        const value = data[key];
+        if (value !== undefined) {
+            cleanData[key] = value;
+        }
+    }
+
+    if (Object.keys(cleanData).length === 0) {
+        logger.warn(
+            "Skipped profile update because payload had no defined keys",
+            {
+                profileId,
+            },
+        );
+        const existing = await databases.getDocument(
+            env.databaseId,
+            env.collections.profiles,
+            profileId,
+        );
+        return existing as unknown as UserProfile;
+    }
+
+    const profile = await databases.updateDocument(
+        env.databaseId,
+        env.collections.profiles,
+        profileId,
+        cleanData,
+    );
+
+    invalidateProfileCache(profileId);
+    return profile as unknown as UserProfile;
+}
+
+/**
+ * Update profile background image state.
+ * This path is intentionally separate from generic profile updates.
+ *
+ * @param {string} profileId - The profile id value.
+ * @param {{ profileBackgroundImageFileId: string | null; profileBackgroundImageChangedAt: string; profileBackgroundColor?: string | null; profileBackgroundGradient?: string | null; }} data - The data value.
+ * @returns {Promise<UserProfile>} The return value.
+ */
+export async function updateProfileBackgroundImageState(
+    profileId: string,
+    data: {
+        profileBackgroundImageFileId: string | null;
+        profileBackgroundImageChangedAt: string;
+        profileBackgroundColor?: string | null;
+        profileBackgroundGradient?: string | null;
+    },
+): Promise<UserProfile> {
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+
+    const profile = await databases.updateDocument(
+        env.databaseId,
+        env.collections.profiles,
+        profileId,
+        {
+            profileBackgroundImageFileId: data.profileBackgroundImageFileId,
+            profileBackgroundImageChangedAt:
+                data.profileBackgroundImageChangedAt,
+            profileBackgroundColor: data.profileBackgroundColor ?? null,
+            profileBackgroundGradient: data.profileBackgroundGradient ?? null,
+        },
+    );
+
+    invalidateProfileCache(profileId);
+    return profile as unknown as UserProfile;
+}
+
+/**
+ * Get or create a user profile
+ * Ensures every user has a profile
+ *
+ * @param {string} userId - The user id value.
+ * @param {string | undefined} defaultDisplayName - The default display name value, if provided.
+ * @returns {Promise<UserProfile>} The return value.
+ */
+export async function getOrCreateUserProfile(
+    userId: string,
+    defaultDisplayName?: string,
+): Promise<UserProfile> {
+    let profile = await getUserProfile(userId);
+
+    if (!profile) {
+        profile = await createUserProfile(userId, {
+            displayName: defaultDisplayName,
+        });
+    }
+
+    return profile;
+}
+
+/**
+ * Delete a user's avatar file
+ *
+ * @param {string} fileId - The file id value.
+ * @returns {Promise<void>} The return value.
+ */
+export async function deleteAvatarFile(fileId: string): Promise<void> {
+    try {
+        const { storage } = getAdminClient();
+        const env = getEnvConfig();
+
+        await storage.deleteFile(env.buckets.avatars, fileId);
+    } catch {
+        // Don't throw - avatar deletion is not critical
+    }
+}
+
+/**
+ * Delete a user's profile background image file
+ *
+ * @param {string} fileId - The file id value.
+ * @returns {Promise<void>} The return value.
+ */
+export async function deleteProfileBackgroundFile(
+    fileId: string,
+): Promise<void> {
+    try {
+        const { storage } = getAdminClient();
+        const env = getEnvConfig();
+
+        await storage.deleteFile(env.buckets.profileBackgrounds, fileId);
+    } catch {
+        // Don't throw - file deletion is not critical
+    }
+}
+
+/**
+ * Get profile background image URL
+ *
+ * @param {string} fileId - The file id value.
+ * @returns {string} The return value.
+ */
+export function getProfileBackgroundUrl(fileId: string): string {
+    const env = getEnvConfig();
+    return `${env.endpoint}/storage/buckets/${env.buckets.profileBackgrounds}/files/${fileId}/view?project=${env.project}`;
+}
+
+/**
+ * Get predefined avatar frame image URL.
+ *
+ * @param {string} fileId - The file id value.
+ * @returns {string} The return value.
+ */
+function getPredefinedAvatarFrameUrl(fileId: string): string {
+    const env = getEnvConfig();
+    return `${env.endpoint}/storage/buckets/${env.buckets.avatarFramesPredefined}/files/${fileId}/view?project=${env.project}`;
+}
+
+/**
+ * Get predefined avatar frame URL for a preset id.
+ *
+ * @param {string | undefined} presetId - The preset id value.
+ * @returns {string | undefined} The return value.
+ */
+export function getPredefinedAvatarFrameUrlByPresetId(presetId?: string) {
+    if (!presetId) {
+        return undefined;
+    }
+
+    return getPresetFrameImageUrl(presetId);
+}
+
+/**
+ * Get predefined frame URL only when the mapped backing file exists.
+ *
+ * @param {string | undefined} presetId - The preset id value.
+ * @returns {Promise<string | undefined>} The return value.
+ */
+export async function getPredefinedAvatarFrameUrlIfExists(presetId?: string) {
+    if (!presetId) {
+        return undefined;
+    }
+
+    const storageFileId = getPresetFrameStorageFileId(presetId);
+    if (!storageFileId) {
+        return undefined;
+    }
+
+    try {
+        const { storage } = getAdminClient();
+        const env = getEnvConfig();
+        await storage.getFile(
+            env.buckets.avatarFramesPredefined,
+            storageFileId,
+        );
+        return getPredefinedAvatarFrameUrl(storageFileId);
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * Return the subset of preset frame IDs whose mapped files currently exist.
+ *
+ * @param {string[]} presetIds - Candidate preset IDs.
+ * @returns {Promise<Set<string>>} The return value.
+ */
+export async function getExistingPredefinedAvatarFrameIds(presetIds: string[]) {
+    const uniquePresetIds = [...new Set(presetIds.filter(Boolean))];
+    if (uniquePresetIds.length === 0) {
+        return new Set<string>();
+    }
+
+    try {
+        const { storage } = getAdminClient();
+        const env = getEnvConfig();
+
+        // Limit concurrency to avoid overwhelming Appwrite at scale.
+        const CHUNK_SIZE = 10;
+        const existingPresetIds: (string | undefined)[] = [];
+        for (const chunk of chunkValues(uniquePresetIds, CHUNK_SIZE)) {
+            // Intentionally process chunks sequentially to cap concurrent getFile calls.
+            const results = await Promise.all(
+                chunk.map(async (presetId) => {
+                    const storageFileId = getPresetFrameStorageFileId(presetId);
+                    if (!storageFileId) {
+                        return undefined;
+                    }
+
+                    try {
+                        await storage.getFile(
+                            env.buckets.avatarFramesPredefined,
+                            storageFileId,
+                        );
+                        return presetId;
+                    } catch {
+                        return undefined;
+                    }
+                }),
+            );
+            existingPresetIds.push(...results);
+        }
+
+        return new Set(
+            existingPresetIds.filter(
+                (presetId): presetId is string => typeof presetId === "string",
+            ),
+        );
+    } catch {
+        return new Set<string>();
+    }
+}
+
+/**
+ * Resolve the best avatar frame URL for a profile.
+ *
+ * @param {{ avatarFramePreset?: string }} profile - Minimal frame profile.
+ * @returns {Promise<string | undefined>} The return value.
+ */
+export async function getAvatarFrameUrlForProfile(profile: {
+    avatarFramePreset?: string;
+}) {
+    return getPredefinedAvatarFrameUrlIfExists(profile.avatarFramePreset);
+}
+
+/**
+ * Get avatar URL for a profile
+ *
+ * @param {string} fileId - The file id value.
+ * @returns {string} The return value.
+ */
+export function getAvatarUrl(fileId: string): string {
+    const env = getEnvConfig();
+    return `${env.endpoint}/storage/buckets/${env.buckets.avatars}/files/${fileId}/view?project=${env.project}`;
+}
+
+/**
+ * Search profiles by display name
+ *
+ * @param {string} searchTerm - The search term value.
+ * @param {number} limit - The limit value, if provided.
+ * @returns {Promise<UserProfile[]>} The return value.
+ */
+export async function searchProfiles(
+    searchTerm: string,
+    limit = 10,
+): Promise<UserProfile[]> {
+    try {
+        const { databases } = getAdminClient();
+        const env = getEnvConfig();
+
+        const profiles = await databases.listDocuments(
+            env.databaseId,
+            env.collections.profiles,
+            [Query.search("displayName", searchTerm), Query.limit(limit)],
+        );
+
+        return profiles.documents as unknown as UserProfile[];
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Get multiple profiles by user IDs
+ *
+ * @param {string[]} userIds - The user ids value.
+ * @returns {Promise<Map<string, UserProfile>>} The return value.
+ */
+export async function getProfilesByUserIds(
+    userIds: string[],
+): Promise<Map<string, UserProfile>> {
+    if (userIds.length === 0) {
+        return new Map();
+    }
+
+    try {
+        const { databases } = getAdminClient();
+        const env = getEnvConfig();
+
+        const profileMap = new Map<string, UserProfile>();
+        for (const chunk of chunkValues(userIds, 100)) {
+            // Appwrite Query.equal supports arrays, but caps out at 100 values.
+            const profiles = await databases.listDocuments(
+                env.databaseId,
+                env.collections.profiles,
+                [Query.equal("userId", chunk), Query.limit(chunk.length)],
+            );
+
+            for (const doc of profiles.documents) {
+                const profile = doc as unknown as UserProfile;
+                profileMap.set(profile.userId, profile);
+            }
+        }
+
+        return profileMap;
+    } catch {
+        return new Map();
+    }
+}

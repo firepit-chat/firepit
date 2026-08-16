@@ -1,0 +1,10 @@
+node_modules/
+.DS_Store
+.env*.local
+*.log
+.turbo/
+
+# Unfinished beta specification files, to be moved to a separate repo
+docs/specs
+
+*.apk

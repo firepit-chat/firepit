@@ -1,0 +1,434 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { ID, Query } from "node-appwrite";
+
+import { getEnvConfig } from "@/lib/appwrite-core";
+import { getServerClient } from "@/lib/appwrite-server";
+import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
+import { getServerSession } from "@/lib/auth-server";
+import { chunkValues, listPages } from "@/lib/appwrite-pagination";
+import {
+    logger,
+    returnUnauthorized,
+    returnForbidden,
+} from "@/lib/newrelic-utils";
+import { getServerPermissionsForUser } from "@/lib/server-channel-access";
+
+const env = getEnvConfig();
+const databaseId = env.databaseId || "main";
+const categoriesCollectionId = env.collections.categories;
+const channelsCollectionId = env.collections.channels;
+const rolesCollectionId = env.collections.roles;
+const QUERY_ARRAY_LIMIT = 100;
+
+function getDatabases() {
+    return getServerClient().databases;
+}
+
+async function requireServerMembership(serverId: string) {
+    const databases = getDatabases();
+    const session = await getServerSession();
+    if (!session?.$id) {
+        return {
+            response: returnUnauthorized(),
+        };
+    }
+
+    const access = await getServerPermissionsForUser(
+        databases,
+        env,
+        serverId,
+        session.$id,
+    );
+
+    if (!access.isMember) {
+        return {
+            response: returnForbidden(),
+        };
+    }
+
+    return { access, userId: session.$id };
+}
+
+async function requireManageChannelsAccess(serverId: string) {
+    const result = await requireServerMembership(serverId);
+    if ("response" in result) {
+        return result;
+    }
+
+    if (!result.access.permissions.manageChannels) {
+        return {
+            response: returnForbidden(),
+        };
+    }
+
+    return { access: result.access, userId: result.userId };
+}
+
+async function getNextCategoryPosition(serverId: string) {
+    const databases = getDatabases();
+    const result = await databases.listDocuments(
+        databaseId,
+        categoriesCollectionId,
+        [
+            Query.equal("serverId", serverId),
+            Query.orderDesc("position"),
+            Query.limit(1),
+        ],
+    );
+
+    const current = result.documents[0];
+    return typeof current?.position === "number" ? current.position + 1 : 0;
+}
+
+export async function GET(request: NextRequest) {
+    try {
+        const databases = getDatabases();
+        const { searchParams } = new URL(request.url);
+        const serverId = searchParams.get("serverId");
+
+        if (!serverId) {
+            return NextResponse.json(
+                { error: "serverId is required" },
+                { status: 400 },
+            );
+        }
+
+        const auth = await requireServerMembership(serverId);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
+        const categories = await databases.listDocuments(
+            databaseId,
+            categoriesCollectionId,
+            [
+                Query.equal("serverId", serverId),
+                Query.orderAsc("position"),
+                Query.limit(100),
+            ],
+        );
+
+        const userRoleIds = auth.access.roleIds ?? [];
+        const isOwner = auth.access.isServerOwner;
+        const isAdmin = auth.access.permissions?.administrator ?? false;
+
+        const accessibleCategories = categories.documents.filter((category) => {
+            const allowedRoleIds = category.allowedRoleIds as
+                | string[]
+                | null
+                | undefined;
+            if (!allowedRoleIds || allowedRoleIds.length === 0) {
+                return true;
+            }
+            if (isOwner || isAdmin) {
+                return true;
+            }
+            return allowedRoleIds.some((roleId) =>
+                userRoleIds.includes(roleId),
+            );
+        });
+
+        return NextResponse.json({ categories: accessibleCategories });
+    } catch (error) {
+        logger.error("Failed to list categories", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+            { error: "Failed to list categories" },
+            { status: 500 },
+        );
+    }
+}
+
+export async function POST(request: NextRequest) {
+    try {
+        const databases = getDatabases();
+        const body = (await request.json()) as {
+            serverId?: string;
+            name?: string;
+        };
+        const serverId = body.serverId?.trim();
+        const name = body.name?.trim();
+
+        if (!serverId || !name) {
+            return NextResponse.json(
+                { error: "serverId and name are required" },
+                { status: 400 },
+            );
+        }
+
+        const auth = await requireManageChannelsAccess(serverId);
+        if ("response" in auth) {
+            return auth.response;
+        }
+
+        const category = await databases.createDocument(
+            databaseId,
+            categoriesCollectionId,
+            ID.unique(),
+            {
+                serverId,
+                name,
+                createdBy: auth.userId,
+                position: await getNextCategoryPosition(serverId),
+            },
+        );
+
+        return NextResponse.json({ category }, { status: 201 });
+    } catch (error) {
+        logger.error("Failed to create category", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+            { error: "Failed to create category" },
+            { status: 500 },
+        );
+    }
+}
+
+export async function PUT(request: NextRequest) {
+    try {
+        const databases = getDatabases();
+        const body = (await request.json()) as {
+            categoryId?: string;
+            name?: string;
+            position?: number;
+            allowedRoleIds?: string[] | null;
+        };
+
+        if (!body.categoryId) {
+            return NextResponse.json(
+                { error: "categoryId is required" },
+                { status: 400 },
+            );
+        }
+
+        let existingCategory: Record<string, unknown>;
+        try {
+            existingCategory = (await databases.getDocument(
+                databaseId,
+                categoriesCollectionId,
+                body.categoryId,
+            )) as Record<string, unknown>;
+        } catch (error) {
+            if (isDocumentNotFoundError(error)) {
+                return NextResponse.json(
+                    { error: "Category not found" },
+                    { status: 404 },
+                );
+            }
+            throw error;
+        }
+
+        const auth = await requireManageChannelsAccess(
+            String(existingCategory.serverId),
+        );
+        if ("response" in auth) {
+            return auth.response;
+        }
+
+        const updateData: Record<string, string | number | string[] | null> =
+            {};
+        if (body.name !== undefined) {
+            const nextName = body.name.trim();
+            if (!nextName) {
+                return NextResponse.json(
+                    { error: "Category name cannot be empty" },
+                    { status: 400 },
+                );
+            }
+            updateData.name = nextName;
+        }
+        if (body.position !== undefined) {
+            if (!Number.isInteger(body.position) || body.position < 0) {
+                return NextResponse.json(
+                    { error: "position must be a non-negative integer" },
+                    { status: 400 },
+                );
+            }
+            updateData.position = body.position;
+        }
+        if (body.allowedRoleIds !== undefined) {
+            if (body.allowedRoleIds === null) {
+                updateData.allowedRoleIds = null;
+            } else if (!Array.isArray(body.allowedRoleIds)) {
+                return NextResponse.json(
+                    { error: "allowedRoleIds must be an array or null" },
+                    { status: 400 },
+                );
+            } else {
+                const filteredRoleIds = body.allowedRoleIds
+                    .filter(
+                        (roleId): roleId is string =>
+                            typeof roleId === "string",
+                    )
+                    .map((roleId) => roleId.trim())
+                    .filter((roleId) => roleId.length > 0);
+                const dedupedRoleIds = [...new Set(filteredRoleIds)];
+
+                if (dedupedRoleIds.length === 0) {
+                    updateData.allowedRoleIds = null;
+                } else {
+                    if (!rolesCollectionId) {
+                        logger.error(
+                            "roles collection is not configured for category role validation",
+                            {
+                                categoryId: body.categoryId,
+                                serverId: String(existingCategory.serverId),
+                            },
+                        );
+                        return NextResponse.json(
+                            {
+                                error: "Server role validation is unavailable",
+                            },
+                            { status: 500 },
+                        );
+                    }
+
+                    const validRoleIds = new Set<string>();
+                    const roleIdChunks = chunkValues(
+                        dedupedRoleIds,
+                        QUERY_ARRAY_LIMIT,
+                    );
+                    const existingRolePages = await Promise.all(
+                        roleIdChunks.map((roleIdChunk) =>
+                            databases.listDocuments(
+                                databaseId,
+                                rolesCollectionId,
+                                [
+                                    Query.equal(
+                                        "serverId",
+                                        String(existingCategory.serverId),
+                                    ),
+                                    Query.equal("$id", roleIdChunk),
+                                    Query.limit(roleIdChunk.length),
+                                ],
+                            ),
+                        ),
+                    );
+
+                    for (const existingRoles of existingRolePages) {
+                        for (const role of existingRoles.documents) {
+                            validRoleIds.add(String(role.$id));
+                        }
+                    }
+
+                    const invalidRoleIds = dedupedRoleIds.filter(
+                        (roleId) => !validRoleIds.has(roleId),
+                    );
+
+                    if (invalidRoleIds.length > 0) {
+                        return NextResponse.json(
+                            {
+                                error: "Some allowedRoleIds do not exist for this server",
+                                invalidRoleIds,
+                            },
+                            { status: 400 },
+                        );
+                    }
+
+                    updateData.allowedRoleIds = dedupedRoleIds;
+                }
+            }
+        }
+
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json(
+                { error: "No category updates provided" },
+                { status: 400 },
+            );
+        }
+
+        const category = await databases.updateDocument(
+            databaseId,
+            categoriesCollectionId,
+            body.categoryId,
+            updateData,
+        );
+
+        return NextResponse.json({ category });
+    } catch (error) {
+        logger.error("Failed to update category", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+            { error: "Failed to update category" },
+            { status: 500 },
+        );
+    }
+}
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const databases = getDatabases();
+        const { searchParams } = new URL(request.url);
+        const categoryId = searchParams.get("categoryId");
+
+        if (!categoryId) {
+            return NextResponse.json(
+                { error: "categoryId is required" },
+                { status: 400 },
+            );
+        }
+
+        let existingCategory: Record<string, unknown>;
+        try {
+            existingCategory = (await databases.getDocument(
+                databaseId,
+                categoriesCollectionId,
+                categoryId,
+            )) as Record<string, unknown>;
+        } catch (error) {
+            if (isDocumentNotFoundError(error)) {
+                return NextResponse.json(
+                    { error: "Category not found" },
+                    { status: 404 },
+                );
+            }
+            throw error;
+        }
+
+        const auth = await requireManageChannelsAccess(
+            String(existingCategory.serverId),
+        );
+        if ("response" in auth) {
+            return auth.response;
+        }
+
+        const linkedChannels = await listPages({
+            databases,
+            databaseId,
+            collectionId: channelsCollectionId,
+            baseQueries: [Query.equal("categoryId", categoryId)],
+            pageSize: 100,
+            warningContext: "categories.delete.linkedChannels",
+        });
+
+        await Promise.all(
+            linkedChannels.documents.map((channel) =>
+                databases.updateDocument(
+                    databaseId,
+                    channelsCollectionId,
+                    String(channel.$id),
+                    { categoryId: "", position: 0 },
+                ),
+            ),
+        );
+
+        await databases.deleteDocument(
+            databaseId,
+            categoriesCollectionId,
+            categoryId,
+        );
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        logger.error("Failed to delete category", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+        return NextResponse.json(
+            { error: "Failed to delete category" },
+            { status: 500 },
+        );
+    }
+}

@@ -1,0 +1,78 @@
+import { ID } from "appwrite";
+
+import { getBrowserAccount } from "./appwrite-core";
+import type { User } from "./types";
+
+/**
+ * Handles register.
+ *
+ * @param {string} email - The email value.
+ * @param {string} password - The password value.
+ * @param {string} name - The name value.
+ * @returns {Promise<User>} The return value.
+ */
+export async function register(
+  email: string,
+  password: string,
+  name: string
+): Promise<User> {
+  // Always create a fresh account instance to ensure we are in a browser context (no API key)
+  const acc = getBrowserAccount();
+  const res = await acc.create({
+    userId: ID.unique(),
+    email,
+    password,
+    name,
+  });
+  return { $id: res.$id, name: res.name, email: res.email };
+}
+
+/**
+ * Handles login.
+ *
+ * @param {string} email - The email value.
+ * @param {string} password - The password value.
+ * @returns {Promise<Session>} The return value.
+ */
+export function login(email: string, password: string) {
+  const acc = getBrowserAccount();
+  // Primary session creation (SDK sets cookie). If Appwrite cannot set cookies due to platform misconfig,
+  // this will succeed but the session cookie may still be missing; that scenario must be addressed via platform settings.
+  return acc.createEmailPasswordSession({ email, password });
+}
+
+/**
+ * Handles logout.
+ * @returns {Promise<{}>} The return value.
+ */
+export function logout() {
+  const acc = getBrowserAccount();
+  return acc.deleteSession({ sessionId: "current" });
+}
+
+/**
+ * Returns current user.
+ * @returns {Promise<User | null>} The return value.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  try {
+    const acc = getBrowserAccount();
+    const user = await acc.get();
+    return { $id: user.$id, name: user.name, email: user.email };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returns current session.
+ * @returns {Promise<Session | null>} The return value.
+ */
+export async function getCurrentSession() {
+  try {
+    const acc = getBrowserAccount();
+    return await acc.getSession({ sessionId: "current" });
+  } catch {
+    return null;
+  }
+}

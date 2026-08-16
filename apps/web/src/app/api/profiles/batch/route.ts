@@ -1,0 +1,319 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { Query } from "node-appwrite";
+import { getServerSession } from "@/lib/auth-server";
+import { getRelationshipMap } from "@/lib/appwrite-friendships";
+import {
+    getAvatarUrl,
+    getProfileBackgroundUrl,
+    getExistingPredefinedAvatarFrameIds,
+    getPredefinedAvatarFrameUrlByPresetId,
+} from "@/lib/appwrite-profiles";
+import {
+    logger,
+    recordError,
+    setTransactionName,
+    trackApiCall,
+    addTransactionAttributes,
+} from "@/lib/newrelic-utils";
+import { getEnvConfig } from "@/lib/appwrite-core";
+import { getServerClient } from "@/lib/appwrite-server";
+import { normalizeStatus } from "@/lib/status-normalization";
+import { apiCache } from "@/lib/cache-utils";
+
+const PROFILES_BATCH_CACHE_TTL_MS = 10 * 1000;
+
+function canUseProfilesBatchCache(): boolean {
+    return process.env.NODE_ENV !== "test";
+}
+
+function dedupeProfilesBatchCache<T>(key: string, fetcher: () => Promise<T>) {
+    if (!canUseProfilesBatchCache()) {
+        return fetcher();
+    }
+
+    return apiCache.dedupe(key, fetcher, PROFILES_BATCH_CACHE_TTL_MS);
+}
+
+function stableIdsKey(userIds: string[]): string {
+    return [...new Set(userIds.filter(Boolean))].sort().join("|");
+}
+
+/**
+ * POST /api/profiles/batch
+ * Batch fetch multiple user profiles to reduce API calls
+ *
+ * Body: { userIds: string[] }
+ */
+export async function POST(request: NextRequest) {
+    const startTime = Date.now();
+
+    try {
+        setTransactionName("POST /api/profiles/batch");
+
+        const session = await getServerSession();
+        if (!session?.$id) {
+            return NextResponse.json(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
+        }
+
+        let body: { userIds?: unknown };
+        try {
+            body = await request.json();
+        } catch {
+            return NextResponse.json(
+                { error: "Invalid JSON body" },
+                { status: 400 },
+            );
+        }
+
+        const rawUserIds = body?.userIds;
+
+        if (!Array.isArray(rawUserIds) || rawUserIds.length === 0) {
+            logger.warn("Invalid batch profile request", {
+                userIds: rawUserIds,
+            });
+            return NextResponse.json(
+                { error: "userIds array is required" },
+                { status: 400 },
+            );
+        }
+
+        // Limit batch size to prevent abuse
+        if (rawUserIds.length > 100) {
+            logger.warn("Batch size too large", { count: rawUserIds.length });
+            return NextResponse.json(
+                { error: "Maximum 100 userIds per request" },
+                { status: 400 },
+            );
+        }
+
+        const userIds = rawUserIds.filter(
+            (userId): userId is string =>
+                typeof userId === "string" && userId.length > 0,
+        );
+        const uniqueUserIds = [...new Set(userIds)];
+
+        if (uniqueUserIds.length === 0) {
+            logger.warn("Invalid batch profile request", {
+                userIds: rawUserIds,
+            });
+            return NextResponse.json(
+                { error: "userIds array is required" },
+                { status: 400 },
+            );
+        }
+
+        const relationshipMap = await getRelationshipMap(
+            session.$id,
+            uniqueUserIds,
+        );
+        const visibleUserIds = uniqueUserIds.filter((userId) => {
+            if (userId === session.$id) {
+                return true;
+            }
+
+            const relationship = relationshipMap.get(userId);
+            return !relationship?.blockedByMe && !relationship?.blockedMe;
+        });
+
+        addTransactionAttributes({
+            requestedCount: userIds.length,
+            uniqueCount: uniqueUserIds.length,
+            visibleCount: visibleUserIds.length,
+        });
+
+        logger.info("Fetching batch profiles", {
+            count: visibleUserIds.length,
+        });
+
+        const env = getEnvConfig();
+        const { databases } = getServerClient();
+
+        // Fetch all visible profiles and statuses in parallel using batched reads.
+        const fetchStartTime = Date.now();
+        const profilesResult =
+            visibleUserIds.length === 0
+                ? { documents: [] as unknown[] }
+                : await dedupeProfilesBatchCache(
+                      `api:profiles-batch:profiles:${stableIdsKey(visibleUserIds)}`,
+                      () =>
+                          databases.listDocuments(
+                              env.databaseId,
+                              env.collections.profiles,
+                              [
+                                  Query.equal("userId", visibleUserIds),
+                                  Query.limit(visibleUserIds.length),
+                              ],
+                          ),
+                  );
+
+        const avatarFramePresetIds = Array.from(
+            new Set(
+                profilesResult.documents.flatMap((document) => {
+                    const profile = document as Record<string, unknown>;
+                    return typeof profile.avatarFramePreset === "string"
+                        ? [profile.avatarFramePreset]
+                        : [];
+                }),
+            ),
+        );
+
+        // Run statuses + avatar frame validation concurrently (both independent of each other).
+        const [statusesResult, existingPredefinedAvatarFrameIds] =
+            visibleUserIds.length === 0
+                ? [{ documents: [] as unknown[] }, new Set<string>()]
+                : await Promise.all([
+                      dedupeProfilesBatchCache(
+                          `api:profiles-batch:statuses:${stableIdsKey(visibleUserIds)}`,
+                          () =>
+                              databases.listDocuments(
+                                  env.databaseId,
+                                  env.collections.statuses,
+                                  [
+                                      Query.equal("userId", visibleUserIds),
+                                      Query.limit(visibleUserIds.length),
+                                  ],
+                              ),
+                      ).catch(() => ({ documents: [] })),
+                      avatarFramePresetIds.length > 0
+                          ? getExistingPredefinedAvatarFrameIds(
+                                avatarFramePresetIds,
+                            )
+                          : Promise.resolve(new Set<string>()),
+                  ]);
+
+        const fetchDuration = Date.now() - fetchStartTime;
+        const profilesByUserId = new Map(
+            profilesResult.documents.map((document) => {
+                const profile = document as Record<string, unknown>;
+                return [String(profile.userId), profile] as const;
+            }),
+        );
+        const statusesByUserId = new Map(
+            statusesResult.documents.map((document) => {
+                const status = document as Record<string, unknown>;
+                const { normalized } = normalizeStatus(status);
+                return [normalized.userId, normalized] as const;
+            }),
+        );
+
+        // Convert results to a map for easy lookup
+        const profilesMap: Record<string, unknown> = {};
+        let successCount = 0;
+        for (const userId of visibleUserIds) {
+            const profile = profilesByUserId.get(userId);
+            if (!profile) {
+                continue;
+            }
+
+            const status = statusesByUserId.get(userId);
+            const avatarFileId =
+                typeof profile.avatarFileId === "string"
+                    ? profile.avatarFileId
+                    : undefined;
+            const profileBackgroundImageFileId =
+                typeof profile.profileBackgroundImageFileId === "string"
+                    ? profile.profileBackgroundImageFileId
+                    : undefined;
+            const avatarFramePreset =
+                typeof profile.avatarFramePreset === "string"
+                    ? profile.avatarFramePreset
+                    : undefined;
+            const hasPredefinedFrame =
+                avatarFramePreset &&
+                existingPredefinedAvatarFrameIds.has(avatarFramePreset);
+
+            profilesMap[userId] = {
+                userId,
+                displayName:
+                    typeof profile.displayName === "string"
+                        ? profile.displayName
+                        : undefined,
+                bio: typeof profile.bio === "string" ? profile.bio : undefined,
+                pronouns:
+                    typeof profile.pronouns === "string"
+                        ? profile.pronouns
+                        : undefined,
+                location:
+                    typeof profile.location === "string"
+                        ? profile.location
+                        : undefined,
+                website:
+                    typeof profile.website === "string"
+                        ? profile.website
+                        : undefined,
+                avatarFileId,
+                avatarUrl: avatarFileId
+                    ? getAvatarUrl(avatarFileId)
+                    : undefined,
+                profileBackgroundColor:
+                    typeof profile.profileBackgroundColor === "string"
+                        ? profile.profileBackgroundColor
+                        : undefined,
+                profileBackgroundGradient:
+                    typeof profile.profileBackgroundGradient === "string"
+                        ? profile.profileBackgroundGradient
+                        : undefined,
+                profileBackgroundImageFileId,
+                profileBackgroundUrl: profileBackgroundImageFileId
+                    ? getProfileBackgroundUrl(profileBackgroundImageFileId)
+                    : undefined,
+                avatarFramePreset,
+                avatarFrameUrl: hasPredefinedFrame
+                    ? getPredefinedAvatarFrameUrlByPresetId(avatarFramePreset)
+                    : undefined,
+                status: status
+                    ? {
+                          status: status.status,
+                          customMessage: status.customMessage,
+                          lastSeenAt: status.lastSeenAt,
+                      }
+                    : undefined,
+            };
+            successCount++;
+        }
+
+        trackApiCall("/api/profiles/batch", "POST", 200, fetchDuration, {
+            operation: "batchFetchProfiles",
+            requestedCount: userIds.length,
+            uniqueCount: uniqueUserIds.length,
+            visibleCount: visibleUserIds.length,
+            successCount,
+            failedCount: visibleUserIds.length - successCount,
+        });
+
+        logger.info("Batch profiles fetched", {
+            requested: uniqueUserIds.length,
+            visible: visibleUserIds.length,
+            succeeded: successCount,
+            failed: visibleUserIds.length - successCount,
+            duration: Date.now() - startTime,
+        });
+
+        return NextResponse.json({
+            profiles: profilesMap,
+            visibleUserIds,
+        }, {
+            headers: {
+                'Cache-Control': 'private, max-age=10',
+            },
+        });
+    } catch (error) {
+        recordError(error instanceof Error ? error : new Error(String(error)), {
+            context: "POST /api/profiles/batch",
+            endpoint: "/api/profiles/batch",
+        });
+
+        logger.error("Batch profile fetch error", {
+            error: error instanceof Error ? error.message : String(error),
+        });
+
+        return NextResponse.json(
+            { error: "Failed to fetch profiles" },
+            { status: 500 },
+        );
+    }
+}

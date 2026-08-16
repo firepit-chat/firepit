@@ -1,0 +1,231 @@
+/**
+ * Mention parsing and formatting utilities
+ */
+
+export interface MentionMatch {
+    fullMatch: string;
+    username: string;
+    startIndex: number;
+    endIndex: number;
+}
+
+function isValidMentionId(value: unknown): value is string {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
+export function normalizeMentionIds(input: unknown): string[] {
+    let normalizedInput: unknown[];
+    if (!Array.isArray(input)) {
+        if (typeof input === "string") {
+            try {
+                const parsed = JSON.parse(input);
+                normalizedInput = Array.isArray(parsed) ? parsed : [];
+            } catch {
+                return [];
+            }
+        } else {
+            return [];
+        }
+    } else {
+        normalizedInput = input;
+    }
+
+    const trimmed = normalizedInput.filter(isValidMentionId).map((v) => v.trim());
+    return Array.from(new Set(trimmed));
+}
+
+const EVERYONE_MENTION_REGEX = /(?:^|\s)@all(?=$|\s|[.,!?;:])/i;
+
+/**
+ * Regular expression to match @username patterns (simple fallback).
+ * Matches @ followed by one or more non-whitespace characters.
+ * This is intentionally conservative — names with spaces are handled by the
+ * display-name matching in MessageWithMentions when the mentions array is
+ * available.
+ */
+export const MENTION_REGEX = /@(\S+)/g;
+
+/**
+ * Matches `<@userId>` mentions. User IDs may contain ., -, and _.
+ */
+export const MENTION_PATTERN = /<@([a-zA-Z0-9._-]+)>/g;
+
+/**
+ * Parse message text to find all @mentions using the simple regex.
+ * For names with spaces/symbols, use findMentionSpans in
+ * message-with-mentions.tsx with the mentions array instead.
+ *
+ * @param {string} text - The text value.
+ * @returns {MentionMatch[]} The return value.
+ */
+export function parseMentions(text: string): MentionMatch[] {
+    const matches: MentionMatch[] = [];
+    const regex = /@(\S+)/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(text)) !== null) {
+        matches.push({
+            fullMatch: match[0],
+            username: match[1],
+            startIndex: match.index,
+            endIndex: match.index + match[0].length,
+        });
+    }
+
+    return matches;
+}
+
+/**
+ * Extract usernames from @mentions in text (simple regex fallback).
+ * Only captures single-word @mentions. For names with spaces, use
+ * extractMentionsWithKnownNames instead.
+ *
+ * @param {string} text - The text value.
+ * @returns {string[]} The return value.
+ */
+export function extractMentionedUsernames(text: string): string[] {
+    const mentions = parseMentions(text);
+    return mentions.map((m) => m.username);
+}
+
+/**
+ * Extract mentioned display names from text using a list of known names.
+ * This handles names containing spaces and special characters (e.g. "avery <3")
+ * by finding exact `@displayName` substrings in the text.
+ * Falls back to the simple regex for any remaining @-mentions.
+ *
+ * @param {string} text - The text value.
+ * @param {string[]} knownNames - The known names value.
+ * @returns {string[]} The return value.
+ */
+export function extractMentionsWithKnownNames(
+    text: string,
+    knownNames: string[],
+): string[] {
+    const lowerText = text.toLowerCase();
+    const found: string[] = [];
+    const taken: Array<{ start: number; end: number }> = [];
+
+    // Sort longest-first so "avery <3" is matched before "avery"
+    const sorted = [...new Set(knownNames)]
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+
+    for (const name of sorted) {
+        const needle = `@${name.toLowerCase()}`;
+        let pos = lowerText.indexOf(needle);
+        while (pos !== -1) {
+            const end = pos + needle.length;
+            const overlaps = taken.some(
+                (r) => !(end <= r.start || pos >= r.end),
+            );
+            if (!overlaps) {
+                found.push(name);
+                taken.push({ start: pos, end });
+            }
+            pos = lowerText.indexOf(needle, end);
+        }
+    }
+
+    // Fallback: pick up any @word-style mentions we missed
+    for (const match of parseMentions(text)) {
+        const overlaps = taken.some(
+            (r) => !(match.endIndex <= r.start || match.startIndex >= r.end),
+        );
+        if (!overlaps) {
+            found.push(match.username);
+            taken.push({ start: match.startIndex, end: match.endIndex });
+        }
+    }
+
+    return found;
+}
+
+/**
+ * Check if text contains any mentions
+ *
+ * @param {string} text - The text value.
+ * @returns {boolean} The return value.
+ */
+export function hasMentions(text: string): boolean {
+    return /@(\S+)/.test(text);
+}
+
+/**
+ * Check if text contains an @all mention (legacy shorthand).
+ *
+ * @param {string} text - The text value.
+ * @returns {boolean} True if the text contains an @all mention.
+ */
+export function hasEveryoneMention(text: string): boolean {
+    return EVERYONE_MENTION_REGEX.test(text);
+}
+
+/**
+ * Find mention at cursor position
+ * Returns the mention being typed if cursor is within/after an @ symbol
+ *
+ * @param {string} text - The text value.
+ * @param {number} cursorPosition - The cursor position value.
+ * @returns {MentionMatch | null} The return value.
+ */
+export function getMentionAtCursor(
+    text: string,
+    cursorPosition: number,
+): MentionMatch | null {
+    const beforeCursor = text.slice(0, cursorPosition);
+    const lastAtSymbol = beforeCursor.lastIndexOf("@");
+
+    if (lastAtSymbol === -1) {
+        return null;
+    }
+
+    // Check if there's whitespace between @ and cursor
+    const textAfterAt = text.slice(lastAtSymbol + 1, cursorPosition);
+    if (/\s/.test(textAfterAt)) {
+        return null;
+    }
+
+    // Find the end of the mention (next whitespace or end of string)
+    const textAfterCursor = text.slice(cursorPosition);
+    const nextWhitespace = textAfterCursor.search(/\s/);
+    const endIndex =
+        nextWhitespace === -1 ? text.length : cursorPosition + nextWhitespace;
+
+    const fullMatch = text.slice(lastAtSymbol, endIndex);
+    const username = fullMatch.slice(1); // Remove @ symbol
+
+    return {
+        fullMatch,
+        username,
+        startIndex: lastAtSymbol,
+        endIndex,
+    };
+}
+
+/**
+ * Replace mention text with formatted version (for autocomplete)
+ *
+ * @param {string} text - The text value.
+ * @param {number} cursorPosition - The cursor position value.
+ * @param {string} newUsername - The new username value.
+ * @returns {{ newText: string; newCursorPosition: number; }} The return value.
+ */
+export function replaceMentionAtCursor(
+    text: string,
+    cursorPosition: number,
+    newUsername: string,
+): { newText: string; newCursorPosition: number } {
+    const mention = getMentionAtCursor(text, cursorPosition);
+
+    if (!mention) {
+        return { newText: text, newCursorPosition: cursorPosition };
+    }
+
+    const before = text.slice(0, mention.startIndex);
+    const after = text.slice(mention.endIndex);
+    const newText = `${before}@${newUsername} ${after}`;
+    const newCursorPosition = mention.startIndex + newUsername.length + 2; // +2 for @ and space
+
+    return { newText, newCursorPosition };
+}

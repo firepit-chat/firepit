@@ -1,0 +1,405 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+
+const packageJsonPath = join(process.cwd(), "package.json");
+
+const { mockCloseSocket, mockPublicClose, mockRealtimeSubscribe } = vi.hoisted(
+    () => ({
+        mockCloseSocket: vi.fn().mockResolvedValue(undefined),
+        mockPublicClose: vi.fn().mockResolvedValue(undefined),
+        mockRealtimeSubscribe: vi.fn(async () => ({
+            close: vi.fn(async () => {}),
+            update: vi.fn().mockResolvedValue(undefined),
+            disconnect: vi.fn().mockResolvedValue(undefined),
+        })),
+    }),
+);
+
+// Mock Appwrite Client
+ vi.mock("appwrite", () => ({
+     Client: vi.fn().mockImplementation(function () {
+         return {
+             setEndpoint: vi.fn().mockReturnThis(),
+             setProject: vi.fn().mockReturnThis(),
+         };
+     }),
+     Realtime: vi.fn().mockImplementation(function () {
+         const instance = {
+             activeSubscriptions: new Map<number, unknown>(),
+             closeSocket: mockCloseSocket,
+             reconnect: true,
+             subscribe: mockRealtimeSubscribe,
+         };
+
+         return instance;
+     }),
+ }));
+
+// Mock appwrite-core to dynamically read env vars (avoiding cache issues)
+vi.mock("@/lib/appwrite-core", () => ({
+    getEnvConfig: () => {
+        const endpoint = process.env.APPWRITE_ENDPOINT;
+        const project = process.env.APPWRITE_PROJECT_ID;
+        if (!endpoint || !project) {
+            throw new Error("Missing Appwrite configuration");
+        }
+        return { endpoint, project, databaseId: "test-db", collections: {} };
+    },
+}));
+
+describe("Realtime Pool", () => {
+    let getSharedClient: () => unknown;
+    let getSharedRealtime: () => unknown;
+    let disposeSharedRealtime: () => Promise<void>;
+    let resetSharedRealtime: () => Promise<void>;
+    let resetSharedClient: () => Promise<void>;
+    let trackSubscription: (channel: string) => () => void;
+    let hasActiveSubscriptions: (channel: string) => boolean;
+
+    beforeEach(async () => {
+        // Reset environment variables
+        process.env.APPWRITE_ENDPOINT = "https://cloud.appwrite.io/v1";
+        process.env.APPWRITE_PROJECT_ID = "test-project";
+
+        vi.clearAllMocks();
+        vi.resetModules();
+
+        // Re-import the module to get fresh state
+        const module = await import("@/lib/realtime-pool");
+        getSharedClient = module.getSharedClient;
+        getSharedRealtime = module.getSharedRealtime;
+        disposeSharedRealtime = module.disposeSharedRealtime;
+        resetSharedRealtime = module.resetSharedRealtime;
+        resetSharedClient = module.resetSharedClient;
+        trackSubscription = module.trackSubscription;
+        hasActiveSubscriptions = module.hasActiveSubscriptions;
+    });
+
+    afterEach(() => {
+        vi.resetModules();
+    });
+
+    describe("getSharedClient", () => {
+        it("should create a new client when none exists", () => {
+            const client = getSharedClient();
+            expect(client).toBeDefined();
+            expect(typeof client).toBe("object");
+        });
+
+        it("should return the same client on subsequent calls", () => {
+            const client1 = getSharedClient();
+            const client2 = getSharedClient();
+            expect(client1).toBe(client2);
+        });
+
+        it("should throw error when APPWRITE_ENDPOINT is missing", async () => {
+            delete process.env.APPWRITE_ENDPOINT;
+            vi.resetModules();
+
+            const module = await import("@/lib/realtime-pool");
+            expect(() => module.getSharedClient()).toThrow(
+                "Missing Appwrite configuration",
+            );
+        });
+
+        it("should throw error when APPWRITE_PROJECT_ID is missing", async () => {
+            delete process.env.APPWRITE_PROJECT_ID;
+            vi.resetModules();
+
+            const module = await import("@/lib/realtime-pool");
+            expect(() => module.getSharedClient()).toThrow(
+                "Missing Appwrite configuration",
+            );
+        });
+    });
+
+    describe("getSharedRealtime", () => {
+        it("should serialize concurrent subscribe calls", async () => {
+            getSharedRealtime();
+
+            let releaseFirstSubscribe: (() => void) | undefined;
+
+            mockRealtimeSubscribe
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            releaseFirstSubscribe = () =>
+                                resolve({
+                                    close: vi.fn(async () => {}),
+                                    update: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                    disconnect: vi
+                                        .fn()
+                                        .mockResolvedValue(undefined),
+                                });
+                        }),
+                )
+                .mockResolvedValueOnce({
+                    close: vi.fn(async () => {}),
+                    update: vi.fn().mockResolvedValue(undefined),
+                    disconnect: vi.fn().mockResolvedValue(undefined),
+                });
+
+            const wrappedSubscribe = (
+                getSharedRealtime() as {
+                    subscribe: (...args: unknown[]) => Promise<unknown>;
+                }
+            ).subscribe;
+
+            const firstCall = wrappedSubscribe("channel-1", vi.fn());
+            const secondCall = wrappedSubscribe("channel-2", vi.fn());
+
+            // Flush microtasks twice so the first queued subscribe starts and blocks
+            // before asserting the second subscribe has not executed yet.
+            await Promise.resolve();
+            await Promise.resolve();
+            expect(mockRealtimeSubscribe).toHaveBeenCalledTimes(1);
+
+            releaseFirstSubscribe?.();
+            await firstCall;
+            await secondCall;
+
+            expect(mockRealtimeSubscribe).toHaveBeenCalledTimes(2);
+        });
+
+        it("should await deferred unsubscribe close handling", async () => {
+            getSharedRealtime();
+
+            const closeSpy = vi.fn(async () => {});
+            mockRealtimeSubscribe.mockResolvedValueOnce({
+                close: closeSpy,
+                update: vi.fn().mockResolvedValue(undefined),
+                disconnect: vi.fn().mockResolvedValue(undefined),
+            });
+
+            const wrappedSubscribe = (
+                getSharedRealtime() as {
+                    subscribe: (...args: unknown[]) => Promise<unknown>;
+                }
+            ).subscribe;
+
+            const unsubscribe = (await wrappedSubscribe(
+                "channel-1",
+                vi.fn(),
+            )) as () => Promise<void>;
+
+            await unsubscribe();
+
+            expect(closeSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it("should await unsubscribe functions returned directly by the SDK", async () => {
+            getSharedRealtime();
+
+            let resolveDeferred: () => void = () => {};
+            const unsubscribeDeferred = new Promise<void>((resolve) => {
+                resolveDeferred = resolve;
+            });
+            const unsubscribeSpy = vi.fn(() => unsubscribeDeferred);
+            mockRealtimeSubscribe.mockResolvedValueOnce(unsubscribeSpy);
+
+            const wrappedSubscribe = (
+                getSharedRealtime() as {
+                    subscribe: (...args: unknown[]) => Promise<unknown>;
+                }
+            ).subscribe;
+
+            const unsubscribe = (await wrappedSubscribe(
+                "channel-1",
+                vi.fn(),
+            )) as () => Promise<void>;
+
+            const unsubscribePromise = unsubscribe();
+            expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+
+            let settled = false;
+            void unsubscribePromise.then(() => {
+                settled = true;
+            });
+
+            await Promise.resolve();
+            expect(settled).toBe(false);
+            resolveDeferred();
+            await unsubscribePromise;
+            expect(settled).toBe(true);
+
+            expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("trackSubscription", () => {
+        it("should track a new subscription", () => {
+            const cleanup = trackSubscription("channel-1");
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+            expect(typeof cleanup).toBe("function");
+        });
+
+        it("should increment subscription count for same channel", () => {
+            const cleanup1 = trackSubscription("channel-1");
+            const cleanup2 = trackSubscription("channel-1");
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup1();
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup2();
+            expect(hasActiveSubscriptions("channel-1")).toBe(false);
+        });
+
+        it("should handle multiple channels independently", () => {
+            trackSubscription("channel-1");
+            trackSubscription("channel-2");
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+            expect(hasActiveSubscriptions("channel-2")).toBe(true);
+        });
+
+        it("should cleanup subscription when cleanup function is called", () => {
+            const cleanup = trackSubscription("channel-1");
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup();
+            expect(hasActiveSubscriptions("channel-1")).toBe(false);
+        });
+
+        it("should handle cleanup called multiple times safely", () => {
+            const cleanup = trackSubscription("channel-1");
+
+            cleanup();
+            cleanup();
+            cleanup();
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(false);
+        });
+
+        it("should track multiple subscriptions and cleanup correctly", () => {
+            const cleanup1 = trackSubscription("channel-1");
+            const cleanup2 = trackSubscription("channel-1");
+            const cleanup3 = trackSubscription("channel-1");
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup1();
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup2();
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+
+            cleanup3();
+            expect(hasActiveSubscriptions("channel-1")).toBe(false);
+        });
+    });
+
+    describe("hasActiveSubscriptions", () => {
+        it("should return false for untracked channel", () => {
+            expect(hasActiveSubscriptions("unknown-channel")).toBe(false);
+        });
+
+        it("should return true for tracked channel", () => {
+            trackSubscription("channel-1");
+            expect(hasActiveSubscriptions("channel-1")).toBe(true);
+        });
+
+        it("should return false after all subscriptions are cleaned up", () => {
+            const cleanup1 = trackSubscription("channel-1");
+            const cleanup2 = trackSubscription("channel-1");
+
+            cleanup1();
+            cleanup2();
+
+            expect(hasActiveSubscriptions("channel-1")).toBe(false);
+        });
+
+        it("should handle empty string channel", () => {
+            expect(hasActiveSubscriptions("")).toBe(false);
+
+            const cleanup = trackSubscription("");
+            expect(hasActiveSubscriptions("")).toBe(true);
+
+            cleanup();
+            expect(hasActiveSubscriptions("")).toBe(false);
+        });
+    });
+
+    describe("disposeSharedRealtime", () => {
+        it("should close socket and clear realtime internals", async () => {
+            const realtime = getSharedRealtime() as {
+                activeSubscriptions?: Map<number, unknown>;
+                reconnect?: boolean;
+            };
+
+            realtime.activeSubscriptions?.set(1, { channel: "channel-1" });
+            realtime.reconnect = true;
+
+            await disposeSharedRealtime();
+
+            expect(mockCloseSocket).toHaveBeenCalledTimes(1);
+            expect(realtime.activeSubscriptions?.size).toBe(0);
+            expect(realtime.reconnect).toBe(false);
+        });
+
+        it("should safely no-op when realtime was never created", async () => {
+            vi.resetModules();
+            mockCloseSocket.mockClear();
+
+            const module = await import("@/lib/realtime-pool");
+            const freshDisposeSharedRealtime = module.disposeSharedRealtime;
+
+            await freshDisposeSharedRealtime();
+
+            expect(mockCloseSocket).not.toHaveBeenCalled();
+        });
+
+        it("should prefer public lifecycle close when available", async () => {
+            const realtime = getSharedRealtime() as {
+                close?: () => Promise<void>;
+            };
+            realtime.close = mockPublicClose;
+
+            await disposeSharedRealtime();
+
+            expect(mockPublicClose).toHaveBeenCalledTimes(1);
+            expect(mockCloseSocket).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("reset helpers", () => {
+        it("should dispose realtime when resetSharedRealtime is called", async () => {
+            getSharedRealtime();
+
+            await resetSharedRealtime();
+
+            expect(mockCloseSocket).toHaveBeenCalledTimes(1);
+        });
+
+        it("should dispose realtime and recreate client after resetSharedClient", async () => {
+            const client1 = getSharedClient();
+            getSharedRealtime();
+
+            await resetSharedClient();
+
+            const client2 = getSharedClient();
+            expect(mockCloseSocket).toHaveBeenCalledTimes(1);
+            expect(client2).not.toBe(client1);
+        });
+    });
+
+    describe("sdk compatibility", () => {
+        // realtime-pool teardown still relies on SDK-specific internals
+        // (reflection and fallback cleanup assumptions). Guarding major 26.x
+        // prevents silent breakage from upstream major changes.
+        it("should keep appwrite on the expected major for realtime cleanup assumptions", () => {
+            const packageJson = JSON.parse(
+                readFileSync(packageJsonPath, "utf8"),
+            ) as {
+                dependencies?: Record<string, string>;
+            };
+
+            expect(packageJson.dependencies?.appwrite).toMatch(/^\^?26\./);
+        });
+    });
+});
