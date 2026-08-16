@@ -14,9 +14,8 @@ jobs:
               uses: oven-sh/setup-bun@v1
               with:
                   bun-version: latest
-            - name: Move to working directory
-              run: cd apps/web
             - name: Run orphan membership cleanup
+              working-directory: apps/web
               env:
                   APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
                   # Ensure APPWRITE_ENDPOINT and APPWRITE_PROJECT are set in repository secrets or environment

@@ -22,10 +22,8 @@ jobs:
             - name: Install dependencies
               run: bun install
 
-            - name: Move to working directory
-              run: cd apps/web
-
             - name: Validate environment
+              working-directory: apps/web
               run: bun run validate-env:ci
               env:
                   NEXT_TELEMETRY_DISABLED: 1
@@ -36,6 +34,7 @@ jobs:
                   APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
 
             - name: Run tests
+              working-directory: apps/web
               run: bun run test
               env:
                   NEXT_TELEMETRY_DISABLED: 1

@@ -22,10 +22,8 @@ jobs:
             - name: Install dependencies
               run: bun install
 
-            - name: Move to working directory
-              run: cd apps/web
-
             - name: Run Appwrite setup script
+              working-directory: apps/web
               run: bun scripts/setup-appwrite.ts
               env:
                   APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
