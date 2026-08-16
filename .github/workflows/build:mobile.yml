@@ -34,7 +34,11 @@ jobs:
             - name: Install dependencies
               run: bun install
 
+            - name: Init EAS
+              working-directory: apps/mobile
+              run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli init --non-interactive
             - name: Pull EAS Env
+              working-directory: apps/mobile
               run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli env:pull --non-interactive
             - name: Restore signing keystore
               if: ${{ env.MYAPP_UPLOAD_KEYSTORE != '' }}
