@@ -10,6 +10,8 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
+        env:
+            MYAPP_UPLOAD_KEYSTORE: ${{ secrets.MYAPP_UPLOAD_KEYSTORE }}
 
         steps:
             - name: Checkout repository
@@ -35,7 +37,7 @@ jobs:
             - name: Pull EAS Env
               run: bunx eas env:pull --non-interactive
             - name: Restore signing keystore
-              if: ${{ secrets.MYAPP_UPLOAD_KEYSTORE != '' }}
+              if: ${{ env.MYAPP_UPLOAD_KEYSTORE != '' }}
               env:
                   MYAPP_UPLOAD_KEYSTORE: ${{ secrets.MYAPP_UPLOAD_KEYSTORE }}
               run: |
