@@ -35,7 +35,7 @@ jobs:
               run: bun install
 
             - name: Pull EAS Env
-              run: bunx eas-cli env:pull --non-interactive
+              run: EXPO_TOKEN=${{ secrets.EXPO_TOKEN }} bunx eas-cli env:pull --non-interactive
             - name: Restore signing keystore
               if: ${{ env.MYAPP_UPLOAD_KEYSTORE != '' }}
               env:
