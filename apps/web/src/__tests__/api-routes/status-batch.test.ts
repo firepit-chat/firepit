@@ -305,7 +305,9 @@ describe("POST /api/status/batch", () => {
 
         expect(response.status).toBe(200);
         expect(data.statuses["user-1"].customMessage).toBe("In a meeting");
-        expect(data.statuses["user-1"].expiresAt).toBe("2024-01-01T01:00:00Z");
+        expect(data.statuses["user-1"].expiresAt).toBe(
+            "2024-01-01T01:00:00.000Z",
+        );
         expect(data.statuses["user-1"].isManuallySet).toBe(true);
     });
 });
