@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { getOrCreateUserProfile, updateUserProfile } from "@/lib/appwrite-profiles";
-import { logger, returnUnauthorized } from "@/lib/newrelic-utils";
+import { logger, returnUnauthorized } from "@/lib/posthog-utils";
 
 type PatchBody = {
     dmEncryptionPublicKey: string;

@@ -9,12 +9,10 @@ import type { Message } from "@/lib/types";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";
 import { normalizeFileAttachmentsInput } from "@/lib/file-attachments";
 import { hasEveryoneMention, normalizeMentionIds } from "@/lib/mention-utils";
@@ -43,7 +41,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("GET /api/messages/[messageId]/thread");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -63,12 +60,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 ? Math.min(rawLimit, 100)
                 : 50;
         const cursor = url.searchParams.get("cursor");
-
-        addTransactionAttributes({
-            messageId,
-            userId: user.$id,
-            limit,
-        });
 
         const env = getEnvConfig();
         const { databases } = getServerClient();
@@ -160,7 +151,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/messages/[messageId]/thread");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -197,13 +187,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 { status: 400 },
             );
         }
-
-        addTransactionAttributes({
-            messageId,
-            userId: user.$id,
-            hasText: Boolean(text),
-            hasImage: Boolean(imageFileId),
-        });
 
         const env = getEnvConfig();
         const { databases } = getServerClient();

@@ -13,7 +13,7 @@ import {
     type GiphySearchResponse,
     type TenorSearchResponse,
 } from "@/lib/gif-sticker";
-import { logger, setTransactionName, trackApiCall } from "@/lib/newrelic-utils";
+import { logger, trackApiCall } from "@/lib/posthog-utils";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 const GIPHY_BASE_URL = "https://api.giphy.com/v1/gifs/search";
@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("GET /api/gifs/search");
 
         const user = await requireAuth();
 

@@ -10,10 +10,8 @@ import { parseReactions } from "@/lib/reactions-utils";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -61,7 +59,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/direct-messages/[messageId]/reactions");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -83,12 +80,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 { status: 400 },
             );
         }
-
-        addTransactionAttributes({
-            messageId,
-            userId: user.$id,
-            emoji,
-        });
 
         const env = getEnvConfig();
         const { databases } = getServerClient();
@@ -229,7 +220,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("DELETE /api/direct-messages/[messageId]/reactions");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -251,12 +241,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
                 { status: 400 },
             );
         }
-
-        addTransactionAttributes({
-            messageId,
-            userId: user.$id,
-            emoji,
-        });
 
         const env = getEnvConfig();
         const { databases } = getServerClient();

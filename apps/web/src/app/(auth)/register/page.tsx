@@ -65,11 +65,13 @@ function RegisterFormContent() {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 router.push(destination as any);
             } else {
-                if (result.verificationRequired) {
-                    const verificationMessage =
+                if (result.verificationRequired || result.approvalRequired) {
+                    const requiredMessage =
                         result.message ||
-                        "Verification required. Check your inbox for a verification link.";
-                    toast.success(verificationMessage);
+                        (result.verificationRequired
+                            ? "Verification required. Check your inbox for a verification link."
+                            : "Your account is pending approval. You'll be able to sign in once an administrator approves it.");
+                    toast.success(requiredMessage);
                     router.push(`/login?redirect=${encodeURIComponent(destination)}`);
                 } else {
                     toast.error(

@@ -7,7 +7,7 @@ function parseReactions(reactionsData: string | any[] | undefined): Array<{
 	count: number;
 }> {
 	if (!reactionsData) return [];
-	
+
 	if (typeof reactionsData === "string") {
 		try {
 			return JSON.parse(reactionsData);
@@ -15,11 +15,11 @@ function parseReactions(reactionsData: string | any[] | undefined): Array<{
 			return [];
 		}
 	}
-	
+
 	if (Array.isArray(reactionsData)) {
 		return reactionsData;
 	}
-	
+
 	return [];
 }
 
@@ -29,7 +29,7 @@ function addReactionToMessage(
 	userId: string
 ): Array<{ emoji: string; userIds: string[]; count: number }> {
 	const existingReaction = reactions.find((r) => r.emoji === emoji);
-	
+
 	if (existingReaction) {
 		if (!existingReaction.userIds.includes(userId)) {
 			existingReaction.userIds.push(userId);
@@ -42,7 +42,7 @@ function addReactionToMessage(
 			count: 1,
 		});
 	}
-	
+
 	return reactions;
 }
 
@@ -52,17 +52,17 @@ function removeReactionFromMessage(
 	userId: string
 ): Array<{ emoji: string; userIds: string[]; count: number }> {
 	const existingReaction = reactions.find((r) => r.emoji === emoji);
-	
+
 	if (existingReaction) {
 		existingReaction.userIds = existingReaction.userIds.filter((id) => id !== userId);
-		
+
 		if (existingReaction.userIds.length === 0) {
 			return reactions.filter((r) => r.emoji !== emoji);
 		}
-		
+
 		existingReaction.count = existingReaction.userIds.length;
 	}
-	
+
 	return reactions;
 }
 
@@ -72,9 +72,9 @@ describe("Message Reactions", () => {
 			const reactionsString = JSON.stringify([
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			]);
-			
+
 			const reactions = parseReactions(reactionsString);
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].emoji).toBe("👍");
 			expect(reactions[0].userIds).toContain("user1");
@@ -84,9 +84,9 @@ describe("Message Reactions", () => {
 			const reactionsArray = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			const reactions = parseReactions(reactionsArray);
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].emoji).toBe("👍");
 		});
@@ -110,9 +110,9 @@ describe("Message Reactions", () => {
 	describe("Adding Reactions", () => {
 		it("should add a new reaction to empty array", () => {
 			let reactions: Array<{ emoji: string; userIds: string[]; count: number }> = [];
-			
+
 			reactions = addReactionToMessage(reactions, "👍", "user1");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].emoji).toBe("👍");
 			expect(reactions[0].userIds).toContain("user1");
@@ -123,9 +123,9 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			reactions = addReactionToMessage(reactions, "👍", "user2");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].userIds).toHaveLength(2);
 			expect(reactions[0].userIds).toContain("user2");
@@ -136,9 +136,9 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			reactions = addReactionToMessage(reactions, "👍", "user1");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].userIds).toHaveLength(1);
 			expect(reactions[0].count).toBe(1);
@@ -148,9 +148,9 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			reactions = addReactionToMessage(reactions, "❤️", "user2");
-			
+
 			expect(reactions).toHaveLength(2);
 			expect(reactions[0].emoji).toBe("👍");
 			expect(reactions[1].emoji).toBe("❤️");
@@ -158,11 +158,11 @@ describe("Message Reactions", () => {
 
 		it("should handle multiple users on different reactions", () => {
 			let reactions: Array<{ emoji: string; userIds: string[]; count: number }> = [];
-			
+
 			reactions = addReactionToMessage(reactions, "👍", "user1");
 			reactions = addReactionToMessage(reactions, "👍", "user2");
 			reactions = addReactionToMessage(reactions, "❤️", "user3");
-			
+
 			expect(reactions).toHaveLength(2);
 			expect(reactions[0].count).toBe(2);
 			expect(reactions[1].count).toBe(1);
@@ -170,12 +170,12 @@ describe("Message Reactions", () => {
 
 		it("should handle special emoji characters", () => {
 			let reactions: Array<{ emoji: string; userIds: string[]; count: number }> = [];
-			
+
 			const specialEmojis = ["🎉", "🔥", "👀", "😂", "🚀"];
 			specialEmojis.forEach((emoji, index) => {
 				reactions = addReactionToMessage(reactions, emoji, `user${index + 1}`);
 			});
-			
+
 			expect(reactions).toHaveLength(5);
 			reactions.forEach((reaction, index) => {
 				expect(reaction.emoji).toBe(specialEmojis[index]);
@@ -188,9 +188,9 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1", "user2"], count: 2 },
 			];
-			
+
 			reactions = removeReactionFromMessage(reactions, "👍", "user1");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].userIds).toHaveLength(1);
 			expect(reactions[0].userIds).not.toContain("user1");
@@ -202,9 +202,9 @@ describe("Message Reactions", () => {
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 				{ emoji: "❤️", userIds: ["user2"], count: 1 },
 			];
-			
+
 			reactions = removeReactionFromMessage(reactions, "👍", "user1");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].emoji).toBe("❤️");
 		});
@@ -213,9 +213,9 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			reactions = removeReactionFromMessage(reactions, "👍", "user2");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].userIds).toHaveLength(1);
 			expect(reactions[0].count).toBe(1);
@@ -225,18 +225,18 @@ describe("Message Reactions", () => {
 			let reactions = [
 				{ emoji: "👍", userIds: ["user1"], count: 1 },
 			];
-			
+
 			reactions = removeReactionFromMessage(reactions, "❤️", "user1");
-			
+
 			expect(reactions).toHaveLength(1);
 			expect(reactions[0].emoji).toBe("👍");
 		});
 
 		it("should handle empty reactions array", () => {
 			let reactions: Array<{ emoji: string; userIds: string[]; count: number }> = [];
-			
+
 			reactions = removeReactionFromMessage(reactions, "👍", "user1");
-			
+
 			expect(reactions).toHaveLength(0);
 		});
 	});

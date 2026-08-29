@@ -4,7 +4,7 @@ import { useInvite } from "@/lib/appwrite-invites";
 import { logger, recordError,
     returnUnauthorized,
     getPostHogClient,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { invalidateChannelsUserCaches } from "@/lib/channels-route-cache";
 
 /**

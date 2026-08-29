@@ -7,7 +7,7 @@ import { getServerSession } from "@/lib/auth-server";
 import { muteChannel, unmuteChannel } from "@/lib/notification-settings";
 import { invalidateNotificationSettingsCache } from "@/lib/notification-triggers";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
-import { returnUnauthorized, returnForbidden, logger } from "@/lib/newrelic-utils";
+import { returnUnauthorized, returnForbidden, logger } from "@/lib/posthog-utils";
 import type { MuteDuration, NotificationLevel } from "@/lib/types";
 
 interface MuteRequestBody {

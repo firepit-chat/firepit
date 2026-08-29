@@ -12,13 +12,11 @@ import {
     logger,
     recordError,
     recordEvent,
-    setTransactionName,
     trackApiCall,
     trackMessage,
-    addTransactionAttributes,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import {
     MAX_MESSAGE_LENGTH,
     MESSAGE_TOO_LONG_ERROR,
@@ -138,7 +136,6 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
  */
 export async function GET(request: NextRequest) {
     try {
-        setTransactionName("GET /api/messages");
 
         const user = await getServerSession();
         if (!user) {
@@ -333,7 +330,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/messages");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -428,15 +424,7 @@ export async function POST(request: NextRequest) {
         const userId = user.$id;
         const userName = user.name;
 
-        addTransactionAttributes({
-            userId,
-            channelId,
-            serverId: "unresolved",
-            hasImage: !!imageFileId,
-            hasAttachments: normalizedAttachments.length > 0,
-            isReply: !!replyToId,
-            hasMentions: hasValidMentions,
-        }); // Create message permissions
+ // Create message permissions
         const permissions = perms.message(userId, {
             mod: env.teams.moderatorTeamId,
             admin: env.teams.adminTeamId,
@@ -493,8 +481,6 @@ export async function POST(request: NextRequest) {
         if (normalizedServerId) {
             transactionAttributes.serverId = normalizedServerId;
         }
-
-        addTransactionAttributes(transactionAttributes);
 
         const messageData: Record<string, unknown> = {
             userId,

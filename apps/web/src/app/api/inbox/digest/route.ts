@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { listInboxDigest } from "@/lib/inbox";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import type { InboxContextKind } from "@/lib/types";
 
 const DEFAULT_LIMIT = 50;

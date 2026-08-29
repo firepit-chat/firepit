@@ -7,7 +7,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { listPages } from "@/lib/appwrite-pagination";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 // Define explicit interfaces for Appwrite documents used in this route
 interface RoleDocument {

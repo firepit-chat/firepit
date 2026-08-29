@@ -3,7 +3,7 @@ import Expo from "expo-server-sdk";
 
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 export type PushNotificationData = {
   type: "message" | "mention" | "dm";

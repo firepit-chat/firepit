@@ -10,7 +10,7 @@ import {
     getAvatarUrl,
     updateUserProfile,
 } from "@/lib/appwrite-profiles";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const ALLOWED_AVATAR_TYPES = new Set([
     "image/jpeg",

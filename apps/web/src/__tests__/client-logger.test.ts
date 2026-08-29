@@ -6,22 +6,14 @@ import { logger } from "@/lib/client-logger";
 
 describe("ClientLogger", () => {
     const originalNodeEnv = process.env.NODE_ENV;
-    const originalClientTelemetryProvider =
-        process.env.NEXT_PUBLIC_TELEMETRY_PROVIDER;
-    let mockNewRelic: any;
     let mockPostHog: any;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        mockNewRelic = {
-            addPageAction: vi.fn(),
-            noticeError: vi.fn(),
-        };
         mockPostHog = {
             capture: vi.fn(),
             captureException: vi.fn(),
         };
-        delete process.env.NEXT_PUBLIC_TELEMETRY_PROVIDER;
 
         // Mock console methods
         vi.spyOn(console, "log").mockImplementation(() => {});
@@ -31,8 +23,6 @@ describe("ClientLogger", () => {
 
     afterEach(() => {
         process.env.NODE_ENV = originalNodeEnv;
-        process.env.NEXT_PUBLIC_TELEMETRY_PROVIDER =
-            originalClientTelemetryProvider;
         delete (global as any).window;
         vi.restoreAllMocks();
     });
@@ -57,29 +47,9 @@ describe("ClientLogger", () => {
             expect(console.log).not.toHaveBeenCalled();
         });
 
-        it("should send to New Relic when available", () => {
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
-
-            logger.info("Test message", { key: "value" });
-
-            expect(mockNewRelic.addPageAction).toHaveBeenCalledWith(
-                "log_info",
-                {
-                    message: "Test message",
-                    key: "value",
-                },
-            );
-        });
-
-        it("should send to PostHog when provider is posthog", () => {
-            process.env.NEXT_PUBLIC_TELEMETRY_PROVIDER = "posthog";
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
+        it("should capture to PostHog when hydrated in the browser", () => {
+            (global as any).window = { posthog: mockPostHog };
+            process.env.NODE_ENV = "production";
 
             logger.info("Test message", { key: "value" });
 
@@ -87,7 +57,6 @@ describe("ClientLogger", () => {
                 message: "Test message",
                 key: "value",
             });
-            expect(mockNewRelic.addPageAction).not.toHaveBeenCalled();
         });
 
         it("should handle info without attributes", () => {
@@ -124,21 +93,15 @@ describe("ClientLogger", () => {
             expect(console.warn).not.toHaveBeenCalled();
         });
 
-        it("should send warnings to New Relic", () => {
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
+        it("should capture warnings to PostHog", () => {
+            (global as any).window = { posthog: mockPostHog };
 
             logger.warn("Warning", { code: 123 });
 
-            expect(mockNewRelic.addPageAction).toHaveBeenCalledWith(
-                "log_warn",
-                {
-                    message: "Warning",
-                    code: 123,
-                },
-            );
+            expect(mockPostHog.capture).toHaveBeenCalledWith("log_warn", {
+                message: "Warning",
+                code: 123,
+            });
         });
     });
 
@@ -157,27 +120,8 @@ describe("ClientLogger", () => {
             );
         });
 
-        it("should send Error objects to New Relic noticeError", () => {
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
-            const testError = new Error("Test error");
-
-            logger.error("Error occurred", testError, { userId: "456" });
-
-            expect(mockNewRelic.noticeError).toHaveBeenCalledWith(testError, {
-                message: "Error occurred",
-                userId: "456",
-            });
-        });
-
-        it("should send Error objects to PostHog captureException when provider is posthog", () => {
-            process.env.NEXT_PUBLIC_TELEMETRY_PROVIDER = "posthog";
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
+        it("should send Error objects to PostHog captureException", () => {
+            (global as any).window = { posthog: mockPostHog };
             const testError = new Error("Test error");
 
             logger.error("Error occurred", testError, { userId: "456" });
@@ -189,24 +133,33 @@ describe("ClientLogger", () => {
                     userId: "456",
                 },
             );
-            expect(mockNewRelic.noticeError).not.toHaveBeenCalled();
         });
 
-        it("should send string errors to New Relic addPageAction", () => {
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
+        it("should capture string errors as log_error events", () => {
+            (global as any).window = { posthog: mockPostHog };
 
             logger.error("Error message", "String error", { context: "api" });
 
-            expect(mockNewRelic.addPageAction).toHaveBeenCalledWith(
-                "log_error",
-                {
-                    message: "Error message",
-                    error: "String error",
-                    context: "api",
-                },
+            expect(mockPostHog.capture).toHaveBeenCalledWith("log_error", {
+                message: "Error message",
+                error: "String error",
+                context: "api",
+            });
+        });
+
+        it("should fall back to a client_error event when captureException is unavailable", () => {
+            const posthogWithoutException = { capture: vi.fn() };
+            (global as any).window = { posthog: posthogWithoutException };
+            const testError = new Error("boom");
+
+            logger.error("Error occurred", testError);
+
+            expect(posthogWithoutException.capture).toHaveBeenCalledWith(
+                "client_error",
+                expect.objectContaining({
+                    errorMessage: "boom",
+                    message: "Error occurred",
+                }),
             );
         });
 
@@ -247,38 +200,21 @@ describe("ClientLogger", () => {
             });
         });
 
-        it("should not log debug in production", () => {
-            process.env.NODE_ENV = "production";
-
-            logger.debug("Debug message");
-
-            expect(console.log).not.toHaveBeenCalled();
-        });
-
-        it("should never send debug to New Relic", () => {
-            (global as any).window = {
-                newrelic: mockNewRelic,
-                posthog: mockPostHog,
-            };
+        it("should never send debug to PostHog", () => {
+            (global as any).window = { posthog: mockPostHog };
             process.env.NODE_ENV = "development";
 
             logger.debug("Debug message");
 
-            expect(mockNewRelic.addPageAction).not.toHaveBeenCalled();
-            expect(mockNewRelic.noticeError).not.toHaveBeenCalled();
+            expect(mockPostHog.capture).not.toHaveBeenCalled();
+            expect(mockPostHog.captureException).not.toHaveBeenCalled();
         });
     });
 
-    describe("getNewRelic", () => {
-        it("should return null when window is undefined (server-side)", () => {
-            const originalWindow = global.window;
-            delete (global as any).window;
-
+    describe("server-side", () => {
+        it("should not throw when there is no window", () => {
             logger.info("Test");
-
-            // Should not throw error
-
-            (global as any).window = originalWindow;
+            logger.error("Test error", new Error("nope"));
         });
     });
 

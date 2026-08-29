@@ -9,7 +9,7 @@ import { upsertMentionInboxItems } from "@/lib/inbox-items";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import type { DirectMessage, FileAttachment } from "@/lib/types";
 import { getAvatarUrl, getUserProfile, getUserProfilesBatch, getAvatarFrameUrlForProfile } from "@/lib/appwrite-profiles";
 import {

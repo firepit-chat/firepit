@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { getThreadReads, upsertThreadReads } from "@/lib/thread-read-store";
 import { type ThreadReadContextType } from "@/lib/thread-read-states";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const VALID_CONTEXT_TYPES: ThreadReadContextType[] = [
     "channel",

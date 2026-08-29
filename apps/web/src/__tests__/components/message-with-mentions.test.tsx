@@ -78,7 +78,7 @@ describe("MessageWithMentions", () => {
 
 		// Check for mention
 		expect(container.textContent).toContain("@TestUser");
-		
+
 		// Check for custom emoji image
 		const images = screen.getAllByRole("img");
 		expect(images.length).toBeGreaterThan(0);

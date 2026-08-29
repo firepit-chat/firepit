@@ -5,7 +5,7 @@ import {
     updateUserProfile,
     getAvatarUrl,
 } from "@/lib/appwrite-profiles";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const URL_SCHEME_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 

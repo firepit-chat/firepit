@@ -5,7 +5,7 @@ import { AppwriteException } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { AuthError, requireAdmin } from "@/lib/auth-server";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import {
     getAllPresetFrames,
     getPresetFrameStorageFileId,

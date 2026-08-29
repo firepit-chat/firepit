@@ -10,11 +10,9 @@ import { buildPinsResponse, listPinnedMessages } from "@/lib/pin-response";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -30,7 +28,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("GET /api/channels/[channelId]/pins");
 
         // Verify user is authenticated
         const user = await getServerSession();
@@ -43,11 +40,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
         }
 
         const { channelId } = await context.params;
-
-        addTransactionAttributes({
-            channelId,
-            userId: user.$id,
-        });
 
         const env = getEnvConfig();
         const { databases } = getServerClient();

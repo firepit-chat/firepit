@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { FEATURE_FLAGS, getFeatureFlag } from "@/lib/feature-flags";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 function buildLoginRedirect(requestUrl: string): {
     loginRedirectUrl: URL;

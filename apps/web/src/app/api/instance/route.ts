@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getFeatureFlag, FEATURE_FLAGS } from "@/lib/feature-flags";
+import { getSignupPolicy } from "@/lib/signup-policy";
 
 interface InstanceInfo {
 	instanceName: string;
@@ -10,6 +11,7 @@ interface InstanceInfo {
 	features: {
 		emailVerification: boolean;
 		auditLogging: boolean;
+		signupPolicy: string;
 	};
 	support: {
 		email: string | null;
@@ -23,14 +25,17 @@ interface InstanceInfo {
 }
 
 async function getInstanceFeatures(): Promise<InstanceInfo["features"]> {
-	const [emailVerification, auditLogging] = await Promise.all([
-		getFeatureFlag(FEATURE_FLAGS.ENABLE_EMAIL_VERIFICATION).catch(() => false),
-		getFeatureFlag(FEATURE_FLAGS.ENABLE_AUDIT_LOGGING).catch(() => true),
-	]);
+	const [emailVerification, auditLogging, signupPolicy] =
+		await Promise.all([
+			getFeatureFlag(FEATURE_FLAGS.ENABLE_EMAIL_VERIFICATION).catch(() => false),
+			getFeatureFlag(FEATURE_FLAGS.ENABLE_AUDIT_LOGGING).catch(() => true),
+			getSignupPolicy().catch(() => "open" as const),
+		]);
 
 	return {
 		emailVerification,
 		auditLogging,
+		signupPolicy,
 	};
 }
 

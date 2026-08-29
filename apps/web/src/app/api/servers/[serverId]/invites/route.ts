@@ -7,7 +7,7 @@ import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { logger, recordError,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const { databases } = getServerClient();
 const env = getEnvConfig();

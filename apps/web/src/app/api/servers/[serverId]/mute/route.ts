@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { muteServer, unmuteServer, isMuteExpired } from "@/lib/notification-settings";
 import { invalidateNotificationSettingsCache } from "@/lib/notification-triggers";
-import { logger, returnUnauthorized, returnForbidden } from "@/lib/newrelic-utils";
+import { logger, returnUnauthorized, returnForbidden } from "@/lib/posthog-utils";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";

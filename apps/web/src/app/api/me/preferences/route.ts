@@ -9,7 +9,7 @@ import type {
     NavigationItemPreferenceId,
     NavigationPreferences,
 } from "@/lib/types";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const DEFAULT_NAVIGATION_ITEM_ORDER = [
     "docs",

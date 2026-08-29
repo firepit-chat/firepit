@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-08-29
+
+### ✨ Features
+
+- **Password reset** - Request a reset link from the sign-in page and set a new password from a secure email link
+- **Change email** - Update your account email from Settings (with current-password confirmation and re-verification when enabled)
+- **Session management** - View all signed-in devices in Settings and revoke any of them (or sign out everywhere except the current device)
+- **Remember me** - Optional persistent sign-in; uncheck to use a session-only cookie that clears when the browser closes
+- **Signup control** - Admins can set the instance policy to open, individual approval, or no signups, and approve/reject pending signups from the admin panel
+- **Deactivate & delete account** - Temporarily deactivate your account (auto-reactivates on next sign-in) or permanently delete it from a new Danger Zone section
+- **Deleted User tombstones** - Deleted accounts show as "Deleted User" and their user ID is permanently reserved so it can never be reused
+
+### ⚙️ Improvements
+
+- Sign-in now refuses accounts awaiting approval and reactivates deactivated accounts automatically on success
+- Admin panel exposes the current signup policy and a pending-approvals queue
+- **Telemetry simplified to PostHog only** - Removed all New Relic plumbing, dependencies, and config; server and client telemetry now route exclusively to PostHog (smaller installs, less startup overhead)
+- Added `z.compile()` to one usage of zod in codebase to improve performance
+- Updated `bun test` wiring to improve passing tests to 818 up from 717 previously. (Part of bun dep bump)
+- **Account safety polish** - Deleting your account now opens a confirmation dialog with a full consequences summary and password confirmation; a persistent warning (with one-click resend) reminds you to confirm a new email before signing out; the remember-me checkbox preference and password-reset resend (with a 30s cooldown) are new conveniences on the sign-in page
+
+### 🐛 Fixes
+
+- **Session devices now identified** - The session list showed "Unknown device" and "signed in by unknown" because it read nested fields the Appwrite API doesn't return. It now maps the real device, browser, OS, and sign-in date
+- Fix TDZ in `setup-appwrite.ts` (`[error] Cannot access 'now' before initalization`).
+- Bumped zod to `4.5.4`, and bumped bun to `1.4.0` for performance improvements
+
 ## [2.0.3] - 2026-08-15
 
 ### 🐛 Fixes

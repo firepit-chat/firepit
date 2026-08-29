@@ -6,7 +6,7 @@ import { getAvatarUrl } from "@/lib/appwrite-profiles";
 import { getServerSession } from "@/lib/auth-server";
 import { getRelationshipMap } from "@/lib/appwrite-friendships";
 import { apiCache } from "@/lib/cache-utils";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const USERS_SEARCH_CACHE_TTL_MS = 10 * 1000;
 

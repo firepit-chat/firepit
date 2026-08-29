@@ -8,7 +8,7 @@ import { deleteChannel } from "@/lib/appwrite-servers";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { logger,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import type { Channel } from "@/lib/types";

@@ -14,13 +14,14 @@ import { createHash } from "node:crypto";
 
 import { getBasicStats } from "@/lib/appwrite-admin";
 import { requireAdmin } from "@/lib/auth-server";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 import { type BackfillResult, backfillServerIds } from "./actions";
 import { ServerManagement } from "./server-management";
 import { VersionCheck } from "./version-check";
 import { FeatureFlags } from "./feature-flags";
 import { AnnouncementPanel } from "./announcement-panel";
+import { SignupControls } from "./signup-controls";
 
 const quickLinkClassName =
     "inline-flex items-center justify-between rounded-3xl border border-border/60 bg-background/80 px-4 py-3 text-sm font-medium text-foreground transition-all hover:-translate-y-0.5 hover:border-border hover:bg-background";
@@ -181,6 +182,8 @@ export default async function AdminPage(props: {
             </section>
 
             <FeatureFlags userId={user.$id} />
+
+            <SignupControls userId={user.$id} />
 
             <AnnouncementPanel userId={user.$id} />
 

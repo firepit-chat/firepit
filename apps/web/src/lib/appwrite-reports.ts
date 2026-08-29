@@ -1,6 +1,6 @@
 import { ID, Permission, Query, Role } from "node-appwrite";
 
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import { getEnvConfig } from "./appwrite-core";
 import { getServerClient } from "./appwrite-server";
 

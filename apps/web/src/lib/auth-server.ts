@@ -380,6 +380,20 @@ export async function checkUserRoles(userId: string) {
 }
 
 /**
+ * Returns the raw session cookie secret, or null if there is no session
+ * cookie. Used to drive session-scoped Account calls (e.g. listSessions).
+ */
+export async function getSessionTokenFromCookie(): Promise<string | null> {
+    try {
+        const env = getEnvConfig();
+        const cookieStore = await cookies();
+        return cookieStore.get(`a_session_${env.project}`)?.value ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Require authentication - throws if no session.
  * @returns {Promise<{ $id: string; name: string; email: string; $createdAt?: string; }>} The return value.
  */

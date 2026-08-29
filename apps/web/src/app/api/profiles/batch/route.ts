@@ -12,10 +12,8 @@ import {
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { normalizeStatus } from "@/lib/status-normalization";
@@ -49,7 +47,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/profiles/batch");
 
         const session = await getServerSession();
         if (!session?.$id) {
@@ -117,12 +114,6 @@ export async function POST(request: NextRequest) {
 
             const relationship = relationshipMap.get(userId);
             return !relationship?.blockedByMe && !relationship?.blockedMe;
-        });
-
-        addTransactionAttributes({
-            requestedCount: userIds.length,
-            uniqueCount: uniqueUserIds.length,
-            visibleCount: visibleUserIds.length,
         });
 
         logger.info("Fetching batch profiles", {

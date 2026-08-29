@@ -6,7 +6,7 @@ import {
     getPredefinedAvatarFrameUrlByPresetId,
 } from "@/lib/appwrite-profiles";
 import { getUserStatus } from "@/lib/appwrite-status";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 type Props = {
 	params: Promise<{ userId: string }>;

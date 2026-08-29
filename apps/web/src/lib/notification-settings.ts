@@ -7,7 +7,7 @@ import { ID, Query } from "node-appwrite";
 import { getAdminClient } from "./appwrite-admin";
 import { getEnvConfig, perms } from "./appwrite-core";
 import { apiCache } from "./cache-utils";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 import type {
     Conversation,
     NotificationSettings,

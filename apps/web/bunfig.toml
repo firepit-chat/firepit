@@ -3,6 +3,6 @@ linker = "isolated"
 
 [test]
 root="src/__tests__/"
-preload="./src/__tests__/setup.ts"
+preload=["./src/__tests__/setup.ts", "./happydom.ts"]
 pathIgnorePatterns="src/__tests__/__helpers__/**"
 timeout=10000

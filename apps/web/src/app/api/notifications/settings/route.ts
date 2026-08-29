@@ -8,7 +8,7 @@ import {
 } from "@/lib/notification-settings";
 import { invalidateNotificationSettingsCache } from "@/lib/notification-triggers";
 import { getUserProfile } from "@/lib/appwrite-profiles";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import type {
     DirectMessagePrivacy,
     NotificationLevel,

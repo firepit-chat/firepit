@@ -7,7 +7,7 @@ import {
 } from "@/lib/appwrite-reports";
 import { getProfilesByUserIds } from "@/lib/appwrite-profiles";
 import { recordAudit } from "@/lib/appwrite-audit";
-import { logger, recordError } from "@/lib/newrelic-utils";
+import { logger, recordError } from "@/lib/posthog-utils";
 import { requireModerator } from "@/lib/auth-server";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 

@@ -5,7 +5,7 @@ import { getEnvConfig } from "./appwrite-core";
 import { getServerClient } from "./appwrite-server";
 import { getBrowserDatabases } from "./appwrite-core";
 import { listPages } from "./appwrite-pagination";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 
 const ROLES_COLLECTION_ID = "roles";
 const ROLE_ASSIGNMENTS_COLLECTION_ID = "role_assignments";

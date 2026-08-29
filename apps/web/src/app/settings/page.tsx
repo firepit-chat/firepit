@@ -38,6 +38,9 @@ import { PendingFriendRequestsBadge } from "@/components/pending-friend-requests
 import { SettingsSectionNav } from "@/components/settings-section-nav";
 import { TelemetrySettings } from "@/components/telemetry-settings";
 import { FlushCaches } from "./FlushCaches";
+import { SessionManager } from "./session-manager";
+import { EmailChangeForm } from "./email-change-form";
+import { DangerZone } from "./danger-zone";
 
 export default async function SettingsPage() {
     const user = await requireAuth().catch(() => {
@@ -71,6 +74,11 @@ export default async function SettingsPage() {
             title: "Appearance",
         },
         {
+            description: "Email, sign-in sessions, and account security.",
+            href: "#account-security",
+            title: "Security",
+        },
+        {
             description: "How and when Firepit reaches you.",
             href: "#notification-preferences",
             title: "Notifications",
@@ -94,6 +102,11 @@ export default async function SettingsPage() {
             description: "Cache and notification recovery tools.",
             href: "#troubleshooting",
             title: "Troubleshooting",
+        },
+        {
+            description: "Delete or temporarily deactivate your account.",
+            href: "#danger-zone",
+            title: "Danger zone",
         },
     ] as const;
 
@@ -437,6 +450,37 @@ export default async function SettingsPage() {
                         </section>
 
                         <section
+                            className="scroll-mt-24"
+                            id="account-security"
+                        >
+                            <Card className="rounded-4xl border border-border/60 bg-card/75 shadow-xl backdrop-blur-sm">
+                                <CardHeader className="space-y-1">
+                                    <CardTitle>
+                                        Email &amp; sign-in security
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Change your email address or review
+                                        the devices signed in to your account.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="grid gap-8 lg:grid-cols-2">
+                                    <div className="space-y-4">
+                                        <p className="text-sm font-medium text-foreground">
+                                            Change email
+                                        </p>
+                                        <EmailChangeForm />
+                                    </div>
+                                    <div className="space-y-4">
+                                        <p className="text-sm font-medium text-foreground">
+                                            Active sessions
+                                        </p>
+                                        <SessionManager />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </section>
+
+                        <section
                             className="scroll-mt-24 overflow-hidden rounded-4xl border border-border/60 bg-card/80 p-8 shadow-2xl backdrop-blur-sm sm:p-10"
                             id="notification-preferences"
                         >
@@ -523,6 +567,25 @@ export default async function SettingsPage() {
                                 </p>
                             </div>
                             <FlushCaches />
+                        </section>
+
+                        <section
+                            className="scroll-mt-24"
+                            id="danger-zone"
+                        >
+                            <Card className="rounded-4xl border border-border/60 bg-card/75 shadow-xl backdrop-blur-sm">
+                                <CardHeader className="space-y-1">
+                                    <CardTitle>Danger zone</CardTitle>
+                                    <CardDescription>
+                                        Deactivate or permanently delete your
+                                        account. Both actions require your
+                                        current password.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <DangerZone />
+                                </CardContent>
+                            </Card>
                         </section>
                     </div>
 

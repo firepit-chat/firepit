@@ -105,7 +105,7 @@ describe("Membership Counter", () => {
 			callCount++;
 			return Promise.resolve({
 				ok: true,
-				json: () => Promise.resolve({ 
+				json: () => Promise.resolve({
 					memberships: initialMemberships
 				}),
 			});

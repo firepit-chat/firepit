@@ -88,12 +88,10 @@ vi.mock("../../lib/permissions", () => ({
     ),
 }));
 
-vi.mock("../../lib/newrelic-utils", () => ({
+vi.mock("../../lib/posthog-utils", () => ({
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     recordError: vi.fn(),
-    setTransactionName: vi.fn(),
     trackApiCall: vi.fn(),
-    addTransactionAttributes: vi.fn(),
 }));
 
 describe("Pin route", () => {

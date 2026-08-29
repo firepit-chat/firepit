@@ -1,11 +1,26 @@
 "use server";
 import { createHash } from "node:crypto";
-import { Query, type Models } from "node-appwrite";
+import { Query, type Models, Users } from "node-appwrite";
 
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
+import { getServerClient } from "@/lib/appwrite-server";
+import {
+    deleteAvatarFile,
+    deleteProfileBackgroundFile,
+    getUserProfile,
+} from "@/lib/appwrite-profiles";
 import { getUserRoles } from "@/lib/appwrite-roles";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
+import {
+    approveSignup,
+    getSignupPolicy,
+    isSignupPolicy,
+    listPendingSignups,
+    setSignupPolicy,
+    type PendingSignup,
+    type SignupPolicy,
+} from "@/lib/signup-policy";
 import {
     getAllFeatureFlags,
     setFeatureFlag,
@@ -463,4 +478,102 @@ export async function dispatchAnnouncementsAction(
 
     const validatedLimit = validateAnnouncementDispatchLimit(limit);
     return dispatchScheduledAnnouncements(validatedLimit);
+}
+
+async function requireAdminRole(userId: string) {
+    const roles = await getUserRoles(userId);
+    if (!roles.isAdmin) {
+        throw new Error("Forbidden");
+    }
+    return roles;
+}
+
+/**
+ * Get the current signup policy (admin only)
+ */
+export async function getSignupPolicyAction(
+    userId: string,
+): Promise<SignupPolicy> {
+    await requireAdminRole(userId);
+    return getSignupPolicy();
+}
+
+/**
+ * Change the instance signup policy (admin only)
+ */
+export async function setSignupPolicyAction(
+    userId: string,
+    policy: SignupPolicy,
+): Promise<{ success: true }> {
+    await requireAdminRole(userId);
+
+    if (!isSignupPolicy(policy)) {
+        throw new Error("Invalid signup policy");
+    }
+
+    const success = await setSignupPolicy(policy, userId);
+    if (!success) {
+        throw new Error("Failed to update signup policy");
+    }
+    return { success: true };
+}
+
+/**
+ * List accounts awaiting approval (admin only)
+ */
+export async function listPendingSignupsAction(
+    userId: string,
+): Promise<PendingSignup[]> {
+    await requireAdminRole(userId);
+    return listPendingSignups();
+}
+
+/**
+ * Approve a pending signup (admin only)
+ */
+export async function approveSignupAction(
+    userId: string,
+    pendingUserId: string,
+): Promise<{ success: true }> {
+    await requireAdminRole(userId);
+    await approveSignup(pendingUserId);
+    return { success: true };
+}
+
+/**
+ * Reject a pending signup (admin only). Deletes the Appwrite account and any
+ * profile/asset data.
+ */
+export async function rejectSignupAction(
+    userId: string,
+    pendingUserId: string,
+): Promise<{ success: true }> {
+    await requireAdminRole(userId);
+
+    const env = getEnvConfig();
+    const { databases } = getAdminClient();
+
+    const profile = await getUserProfile(pendingUserId);
+
+    if (profile?.avatarFileId) {
+        await deleteAvatarFile(profile.avatarFileId).catch(() => {});
+    }
+    if (profile?.profileBackgroundImageFileId) {
+        await deleteProfileBackgroundFile(
+            profile.profileBackgroundImageFileId,
+        ).catch(() => {});
+    }
+    if (profile) {
+        await databases.deleteDocument(
+            env.databaseId,
+            env.collections.profiles,
+            profile.$id,
+        );
+    }
+
+    const { client } = getServerClient();
+    const users = new Users(client);
+    await users.delete({ userId: pendingUserId });
+
+    return { success: true };
 }

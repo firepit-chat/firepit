@@ -124,7 +124,7 @@ describe("withSession unauthorized flow", () => {
 	it("throws UnauthorizedError when account.get fails", async () => {
 		// Reset module caches to allow fresh import with new mock
 		vi.resetModules();
-		
+
 		vi.doMock("appwrite", () => {
 			class Client {
 				setEndpoint() {
@@ -182,7 +182,7 @@ describe("createServer integration (mocked)", () => {
 	it("creates server document with provided name", async () => {
 		// Reset modules to allow fresh mocks
 		vi.resetModules();
-		
+
 		(process.env as any).APPWRITE_ENDPOINT = "http://x";
 		(process.env as any).APPWRITE_PROJECT_ID = "p";
 		(process.env as any).APPWRITE_DATABASE_ID = "db";
@@ -191,7 +191,7 @@ describe("createServer integration (mocked)", () => {
 			"channels";
 		(process.env as any).APPWRITE_MEMBERSHIPS_COLLECTION_ID =
 			"memberships";
-		
+
 		// Remock appwrite with ID export prior to importing createServer implementation
 		vi.doMock("appwrite", () => {
 			class Client {
@@ -241,7 +241,7 @@ describe("createServer integration (mocked)", () => {
 				ID: { unique: () => "unique" },
 			};
 		});
-		
+
 	const core = await import("../lib/appwrite-core");
 	core.resetEnvCache();
 	const { createServer } = await import("../lib/appwrite-servers");

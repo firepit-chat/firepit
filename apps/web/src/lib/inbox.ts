@@ -5,7 +5,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { getAvatarUrl } from "@/lib/appwrite-profiles";
 import { listPages } from "@/lib/appwrite-pagination";
 import { getServerClient } from "@/lib/appwrite-server";
-import { logger, recordEvent, recordMetric } from "@/lib/newrelic-utils";
+import { logger, recordEvent, recordMetric } from "@/lib/posthog-utils";
 import {
     getEffectiveNotificationLevel,
     getNotificationSettings,

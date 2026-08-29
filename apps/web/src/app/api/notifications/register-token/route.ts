@@ -6,7 +6,7 @@ import Expo from "expo-server-sdk";
 import { getServerSession } from "@/lib/auth-server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger, returnUnauthorized } from "@/lib/newrelic-utils";
+import { logger, returnUnauthorized } from "@/lib/posthog-utils";
 
 /**
  * POST /api/notifications/register-token

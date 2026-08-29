@@ -10,7 +10,7 @@ import {
     logger,
     returnForbidden,
     returnUnauthorized,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 type PushPayload = {
   userId: string;

@@ -21,13 +21,11 @@ import {
     logger,
     recordError,
     recordEvent,
-    setTransactionName,
     trackApiCall,
     trackMessage,
-    addTransactionAttributes,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import {
     MAX_MESSAGE_LENGTH,
     MESSAGE_TOO_LONG_ERROR,
@@ -116,8 +114,6 @@ function normalizeDistinctIds(ids: string[], excluding?: string): string[] {
         ),
     ).sort();
 }
-
-
 
 function getReadOnlyReason(relationship: {
     blockedByMe: boolean;
@@ -376,14 +372,6 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const type = searchParams.get("type");
-
-        setTransactionName(
-            `GET /api/direct-messages?type=${type || "unknown"}`,
-        );
-        addTransactionAttributes({
-            userId: session.$id,
-            operationType: type || "unknown",
-        });
 
         // List all conversations for current user
         if (type === "conversations") {
@@ -1357,7 +1345,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/direct-messages");
 
         const session = await getServerSession();
         if (!session?.$id) {
@@ -1556,17 +1543,6 @@ export async function POST(request: NextRequest) {
 
         const hasEncryptedText =
             typeof encryptedText === "string" && encryptedText.length > 0;
-
-        addTransactionAttributes({
-            userId: session.$id,
-            conversationId: conversationId ?? "unknown",
-            hasImage: !!imageFileId,
-            hasEncryptedText,
-            hasAttachments: normalizedAttachments.length > 0,
-            attachmentCount: normalizedAttachments.length,
-            isReply: !!replyToId,
-            operation: "send-message",
-        });
 
         if (
             !conversationId ||

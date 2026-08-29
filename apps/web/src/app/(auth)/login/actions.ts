@@ -8,7 +8,12 @@ import { getEnvConfig, perms } from "@/lib/appwrite-core";
 import { invalidateSessionCacheForToken } from "@/lib/auth-server";
 import { assignDefaultRoleServer } from "@/lib/default-role";
 import { FEATURE_FLAGS, getFeatureFlag } from "@/lib/feature-flags";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
+import {
+    getApprovalStatusFromPrefs,
+    getSignupPolicy,
+    markSignupPending,
+} from "@/lib/signup-policy";
 
 type AuthActionResult =
     | { success: true; userId: string }
@@ -17,6 +22,7 @@ type AuthActionResult =
           error: string;
           message?: string;
           verificationRequired?: boolean;
+          approvalRequired?: boolean;
       };
 
 type ResendVerificationResult =
@@ -425,6 +431,59 @@ export async function loginAction(
         let shouldDeleteTemporarySession = true;
 
         try {
+            const approvalStatus = getApprovalStatusFromPrefs(
+                accountUser.prefs,
+            );
+            if (approvalStatus === "pending") {
+                await deleteSessionBestEffort(
+                    users,
+                    session.userId,
+                    session.$id,
+                );
+                shouldDeleteTemporarySession = false;
+
+                return {
+                    success: false,
+                    error:
+                        "Your account is awaiting administrator approval.",
+                    message:
+                        "Your account is awaiting administrator approval.",
+                    approvalRequired: true,
+                };
+            }
+
+            if (approvalStatus === "rejected") {
+                await deleteSessionBestEffort(
+                    users,
+                    session.userId,
+                    session.$id,
+                );
+                shouldDeleteTemporarySession = false;
+
+                return {
+                    success: false,
+                    error:
+                        "Your signup was not approved by an administrator.",
+                };
+            }
+
+            // A deactivated account is a break, not a ban: the next
+            // successful sign-in reactivates it automatically.
+            const prefs = (accountUser.prefs ?? {}) as Record<string, unknown>;
+            if (prefs.disabled === true) {
+                try {
+                    await users.updatePrefs({
+                        userId: session.userId,
+                        prefs: { ...prefs, disabled: false, disabledAt: null },
+                    });
+                } catch (reactivateError) {
+                    logger.warn("Failed to clear deactivated flag on login", {
+                        userIdHash: generateUserIdHash(session.userId),
+                        error: sanitizeAuthError(reactivateError),
+                    });
+                }
+            }
+
             if (await isEmailVerificationEnabled()) {
                 const emailVerified = Boolean(accountUser.emailVerification);
 
@@ -592,6 +651,29 @@ export async function resendVerificationAction(
 }
 
 /**
+ * Reserve a fresh random userId that is not claimed by an existing (or
+ * tombstoned) profile, so a deleted account's ID can never be reused.
+ */
+async function findAvailableUserId(): Promise<string> {
+    const { databases } = getServerClient();
+    const env = getEnvConfig();
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const candidate = crypto.randomUUID();
+        const existing = await databases.listDocuments(
+            env.databaseId,
+            env.collections.profiles,
+            [Query.equal("userId", candidate), Query.limit(1)],
+        );
+        if (existing.documents.length === 0) {
+            return candidate;
+        }
+    }
+
+    throw new Error("Unable to allocate a user ID. Please try again.");
+}
+
+/**
  * Server-side registration + login action.
  * Automatically joins the user to a default server when configured.
  *
@@ -615,17 +697,43 @@ export async function registerAction(
     }
 
     try {
+        const policy = await getSignupPolicy();
+
+        if (policy === "disabled") {
+            return {
+                success: false,
+                error:
+                    "Sign-ups are currently disabled on this instance. Contact your administrator.",
+            };
+        }
+
+        const approvalRequired = policy === "approval";
+
         // Create account
         const client = createAppwriteClient(endpoint, project);
         const account = new Account(client);
 
-        const userId = crypto.randomUUID();
+        const userId = await findAvailableUserId();
         await account.create({
             userId,
             email,
             password,
             name,
         });
+
+        // Approval policy: hold the account until an admin approves it.
+        if (approvalRequired) {
+            await markSignupPending(userId);
+
+            return {
+                success: false,
+                error:
+                    "Your account is pending approval. You'll be able to sign in once an administrator approves it.",
+                message:
+                    "Account created. It will be reviewed by an administrator before you can sign in.",
+                approvalRequired: true,
+            };
+        }
 
         // Immediately log in to create session
         const loginFormData = new FormData();
@@ -695,6 +803,86 @@ export async function registerAction(
         return {
             success: false,
             error: "Registration failed. Please try again.",
+        };
+    }
+}
+
+type ResetPasswordResult =
+    | { success: true; message: string }
+    | { success: false; error: string };
+
+/**
+ * Completes a password reset using the userId + secret from the recovery
+ * email link. Creates a new session as a side effect (matching Appwrite's
+ * updateRecovery behavior), so restore a fresh one gracefully.
+ */
+export async function resetPasswordAction(
+    formData: FormData,
+): Promise<ResetPasswordResult> {
+    const userId = formData.get("userId") as string;
+    const secret = formData.get("secret") as string;
+    const password = formData.get("password") as string;
+
+    if (!userId || !secret || !password) {
+        return { success: false, error: "Missing password reset data." };
+    }
+
+    const { endpoint, project } = getEnvConfig();
+    const apiKey = process.env.APPWRITE_API_KEY;
+
+    if (!endpoint || !project || !apiKey) {
+        return {
+            success: false,
+            error: "Password reset is not configured on this instance.",
+        };
+    }
+
+    try {
+        const client = createAppwriteClient(endpoint, project, apiKey);
+        await new Account(client).updateRecovery({
+            userId,
+            secret,
+            password,
+        });
+
+        return {
+            success: true,
+            message: "Password updated. You can now sign in.",
+        };
+    } catch (error) {
+        if (error instanceof Error) {
+            const message = error.message.toLowerCase();
+
+            if (
+                message.includes("recovery") ||
+                message.includes("token") ||
+                message.includes("invalid")
+            ) {
+                return {
+                    success: false,
+                    error:
+                        "This password reset link is invalid or has expired. Request a new one.",
+                };
+            }
+
+            if (
+                message.includes("password") &&
+                (message.includes("short") || message.includes("weak"))
+            ) {
+                return {
+                    success: false,
+                    error: "Password must be at least 8 characters long.",
+                };
+            }
+        }
+
+        logger.error("Password reset action failed", {
+            error: sanitizeAuthError(error),
+        });
+
+        return {
+            success: false,
+            error: "Password reset failed. Please try again.",
         };
     }
 }

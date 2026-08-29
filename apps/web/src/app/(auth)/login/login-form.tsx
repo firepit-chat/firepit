@@ -27,6 +27,17 @@ type LoginFormProps = {
     showResendVerification: boolean;
 };
 
+const REMEMBER_KEY = "firepit.remember";
+
+function getRemembered(): boolean {
+    if (typeof window === "undefined") return true;
+    try {
+        return window.localStorage.getItem(REMEMBER_KEY) !== "false";
+    } catch {
+        return true;
+    }
+}
+
 const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) => {
     const pathname = usePathname();
     const router = useRouter();
@@ -34,9 +45,23 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
     const { refreshUser } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [remember, setRemember] = useState(getRemembered);
     const [loading, setLoading] = useState(false);
     const [resendingVerification, setResendingVerification] = useState(false);
+    const [resettingPassword, setResettingPassword] = useState(false);
+    const [awaitingRecoveryEmail, setAwaitingRecoveryEmail] = useState(false);
+    const [recoverySent, setRecoverySent] = useState(false);
+    const [recoveryCooldown, setRecoveryCooldown] = useState(0);
     const notifiedVerificationStatusRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (recoveryCooldown <= 0) return;
+        const id = setInterval(
+            () => setRecoveryCooldown((seconds) => Math.max(0, seconds - 1)),
+            1000,
+        );
+        return () => clearInterval(id);
+    }, [recoveryCooldown]);
 
     useEffect(() => {
         const verifiedStatus = searchParams.get("verified");
@@ -78,7 +103,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             const sessionResponse = await fetch("/api/auth/session", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, remember }),
             });
 
             if (!sessionResponse.ok) {
@@ -171,6 +196,49 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
         }
     }
 
+    const onRequestPasswordReset = async () => {
+        if (!awaitingRecoveryEmail) {
+            setAwaitingRecoveryEmail(true);
+            return;
+        }
+
+        if (!email) {
+            toast.error("Enter your email to receive a reset link.");
+            return;
+        }
+
+        setResettingPassword(true);
+        try {
+            const response = await fetch("/api/auth/password-recovery", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+            const data = (await response.json().catch(() => ({}))) as {
+                message?: string;
+                error?: string;
+            };
+            // Success responses are intentionally generic (no enumeration).
+            if (data.error) {
+                toast.error(data.error);
+            } else {
+                toast.success(
+                    data.message ?? "Password reset link sent.",
+                );
+                setRecoverySent(true);
+                setRecoveryCooldown(30);
+            }
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to request a password reset.";
+            toast.error(message);
+        } finally {
+            setResettingPassword(false);
+        }
+    }
+
     return (
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
             <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
@@ -250,6 +318,79 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     value={password}
                                 />
                             </div>
+                            <div className="flex items-center justify-between gap-2">
+                                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                                    <input
+                                        checked={remember}
+                                        className="size-4 accent-primary"
+                                        id="remember-me"
+                                        name="remember"
+                                        onChange={(e) => {
+                                            setRemember(e.target.checked);
+                                            try {
+                                                window.localStorage.setItem(
+                                                    REMEMBER_KEY,
+                                                    String(e.target.checked),
+                                                );
+                                            } catch {
+                                                // Storage unavailable (private mode); preference just won't persist.
+                                            }
+                                        }}
+                                        type="checkbox"
+                                    />
+                                    Remember me
+                                </label>
+                                <button
+                                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                    disabled={resettingPassword || recoveryCooldown > 0}
+                                    onClick={onRequestPasswordReset}
+                                    type="button"
+                                >
+                                    {resettingPassword
+                                        ? "Sending..."
+                                        : "Forgot password?"}
+                                </button>
+                            </div>
+                            {awaitingRecoveryEmail && (
+                                <div className="grid gap-2 rounded-md border border-input p-3">
+                                    <Label htmlFor="recovery-email">
+                                        Email for reset link
+                                    </Label>
+                                    <Input
+                                        autoComplete="email"
+                                        id="recovery-email"
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="you@example.com"
+                                        type="email"
+                                        value={email}
+                                    />
+                                    <Button
+                                        disabled={
+                                            resettingPassword ||
+                                            (recoverySent && recoveryCooldown > 0)
+                                        }
+                                        onClick={onRequestPasswordReset}
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-full"
+                                    >
+                                        {resettingPassword
+                                            ? "Sending..."
+                                            : recoverySent
+                                              ? recoveryCooldown > 0
+                                                  ? `Resend link (${recoveryCooldown}s)`
+                                                  : "Resend link"
+                                              : "Send reset link"}
+                                    </Button>
+                                    {recoverySent && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Check your inbox for a reset link. If
+                                            it does not arrive, you can resend in
+                                            a moment.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                             <Button disabled={loading} type="submit" className="rounded-full">
                                 {loading ? "Signing in..." : "Sign in"}
                                 {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}

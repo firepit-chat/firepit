@@ -6,7 +6,7 @@ import { requireAdmin, requireAuth, requireModerator } from "@/lib/auth-server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig, perms } from "@/lib/appwrite-core";
 import { normalizeChannelType } from "@/lib/server-channel-access";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const env = getEnvConfig();
 const DATABASE_ID = env.databaseId;

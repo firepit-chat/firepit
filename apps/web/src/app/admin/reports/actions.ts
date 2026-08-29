@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth-server";
 import { resolveReport } from "@/lib/appwrite-reports";
 import { recordAudit } from "@/lib/appwrite-audit";
-import { logger, recordError } from "@/lib/newrelic-utils";
+import { logger, recordError } from "@/lib/posthog-utils";
 
 type ReportActionStatus = "resolved" | "dismissed";
 

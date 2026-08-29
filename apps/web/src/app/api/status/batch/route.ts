@@ -7,11 +7,9 @@ import { getServerSession } from "@/lib/auth-server";
 import { apiCache } from "@/lib/cache-utils";
 import {
     logger,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     returnUnauthorized,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import type { UserStatus } from "@/lib/types";
 import {
     normalizeStatus,
@@ -32,7 +30,6 @@ export async function POST(request: Request) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/status/batch");
 
         const session = await getServerSession();
         if (!session?.$id) {
@@ -60,10 +57,6 @@ export async function POST(request: Request) {
                 { status: 400 },
             );
         }
-
-        addTransactionAttributes({
-            userCount: userIds.length,
-        });
 
         if (!STATUSES_COLLECTION) {
             logger.error("Statuses collection not configured");

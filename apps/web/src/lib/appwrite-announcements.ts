@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { listPages } from "@/lib/appwrite-pagination";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import { getServerClient } from "@/lib/appwrite-server";
 import type {
     Announcement,

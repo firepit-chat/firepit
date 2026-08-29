@@ -3,7 +3,7 @@ import { Permission, Presences, Role } from "node-appwrite";
 
 import { getServerSession } from "@/lib/auth-server";
 import { getServerClient } from "@/lib/appwrite-server";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const DEFAULT_TYPING_EXPIRY_MS = 8000;
 

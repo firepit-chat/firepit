@@ -53,7 +53,7 @@ describe("Custom Emojis - Optimistic Updates", () => {
 	it("should create object URL for optimistic emoji preview", () => {
 		const file = new File(["test"], "party.png", { type: "image/png" });
 		const url = URL.createObjectURL(file);
-		
+
 		expect(url).toBe("blob:mock-url");
 		expect(URL.createObjectURL).toHaveBeenCalledWith(file);
 	});
@@ -64,10 +64,10 @@ describe("Custom Emojis - Optimistic Updates", () => {
 		];
 
 		localStorageMock.setItem("firepit_custom_emojis", JSON.stringify(mockEmojis));
-		
+
 		const stored = localStorageMock.getItem("firepit_custom_emojis");
 		expect(stored).toBeDefined();
-		
+
 		const parsed = JSON.parse(stored!);
 		expect(parsed).toEqual(mockEmojis);
 		expect(parsed[0].name).toBe("cached");
@@ -76,7 +76,7 @@ describe("Custom Emojis - Optimistic Updates", () => {
 	it("should cleanup object URL to prevent memory leaks", () => {
 		const mockUrl = "blob:mock-url";
 		URL.revokeObjectURL(mockUrl);
-		
+
 		expect(URL.revokeObjectURL).toHaveBeenCalledWith(mockUrl);
 	});
 
@@ -161,13 +161,13 @@ describe("Custom Emojis - Optimistic Updates", () => {
 		const cachedEmojis = [
 			{ fileId: "cached1", url: "/api/emoji/cached1", name: "offline" },
 		];
-		
+
 		localStorageMock.setItem("firepit_custom_emojis", JSON.stringify(cachedEmojis));
 
 		// Should be able to get from cache
 		const stored = localStorageMock.getItem("firepit_custom_emojis");
 		expect(stored).toBeDefined();
-		
+
 		const parsed = JSON.parse(stored!);
 		expect(parsed).toEqual(cachedEmojis);
 		expect(parsed[0].name).toBe("offline");
@@ -186,7 +186,7 @@ describe("Custom Emojis - Optimistic Updates", () => {
 
 		const response = await fetch("/api/custom-emojis");
 		expect(response.ok).toBe(true);
-		
+
 		const data = await response.json();
 		expect(Array.isArray(data)).toBe(true);
 		expect(data.length).toBe(2);
@@ -198,7 +198,7 @@ describe("Custom Emojis - Optimistic Updates", () => {
 describe("Custom Emojis - Realtime Synchronization", () => {
 	it("should have realtime pool utilities", async () => {
 		const realtimePool = await import("@/lib/realtime-pool");
-		
+
 		expect(typeof realtimePool.getSharedRealtime).toBe("function");
 		expect(typeof realtimePool.trackSubscription).toBe("function");
 	});
@@ -213,7 +213,7 @@ describe("Custom Emojis - Realtime Synchronization", () => {
 		};
 
 		const subscription = mockClient.subscribe("test-channel", () => {});
-		
+
 		expect(mockClient.subscribe).toHaveBeenCalledWith("test-channel", expect.any(Function));
 		await expect(subscription).resolves.toEqual(
 			expect.objectContaining({
@@ -233,7 +233,7 @@ describe("Custom Emojis - Realtime Synchronization", () => {
 		// Simulate event handler
 		const handleEvent = vi.fn();
 		handleEvent(mockEvent);
-		
+
 		expect(handleEvent).toHaveBeenCalledWith(mockEvent);
 		expect(mockEvent.events[0]).toContain("create");
 	});
@@ -277,7 +277,7 @@ describe("Custom Emojis - Realtime Synchronization", () => {
 	it("should construct correct channel name", () => {
 		const bucketId = "emojis";
 		const channel = `buckets.${bucketId}.files`;
-		
+
 		expect(channel).toBe("buckets.emojis.files");
 	});
 

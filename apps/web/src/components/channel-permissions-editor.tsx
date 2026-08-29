@@ -154,14 +154,14 @@ export function ChannelPermissionsEditor({
 	const toggleAllow = (permission: Permission) => {
 		const newAllow = new Set(allowPermissions);
 		const newDeny = new Set(denyPermissions);
-		
+
 		if (newAllow.has(permission)) {
 			newAllow.delete(permission);
 		} else {
 			newAllow.add(permission);
 			newDeny.delete(permission); // Remove from deny if adding to allow
 		}
-		
+
 		setAllowPermissions(newAllow);
 		setDenyPermissions(newDeny);
 	};
@@ -169,14 +169,14 @@ export function ChannelPermissionsEditor({
 	const toggleDeny = (permission: Permission) => {
 		const newAllow = new Set(allowPermissions);
 		const newDeny = new Set(denyPermissions);
-		
+
 		if (newDeny.has(permission)) {
 			newDeny.delete(permission);
 		} else {
 			newDeny.add(permission);
 			newAllow.delete(permission); // Remove from allow if adding to deny
 		}
-		
+
 		setAllowPermissions(newAllow);
 		setDenyPermissions(newDeny);
 	};

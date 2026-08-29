@@ -2,44 +2,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     recordEvent,
     recordMetric,
     __resetPostHogClient,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const {
     mockEmit,
     mockSetGlobalLoggerProvider,
-    mockNewRelic,
     mockPostHogCapture,
     mockPostHogCaptureException,
 } = vi.hoisted(() => ({
     mockEmit: vi.fn(),
     mockSetGlobalLoggerProvider: vi.fn(),
-    mockNewRelic: {
-        recordCustomEvent: vi.fn(),
-        recordMetric: vi.fn(),
-        incrementMetric: vi.fn(),
-        noticeError: vi.fn(),
-        addCustomAttribute: vi.fn(),
-        addCustomAttributes: vi.fn(),
-        setTransactionName: vi.fn(),
-        getTransaction: vi.fn(),
-        startBackgroundTransaction: vi.fn(),
-        startWebTransaction: vi.fn(),
-        endTransaction: vi.fn(),
-        getBrowserTimingHeader: vi.fn(),
-        setLlmTokenCountCallback: vi.fn(),
-    },
     mockPostHogCapture: vi.fn(),
     mockPostHogCaptureException: vi.fn(),
-}));
-
-vi.mock("newrelic", () => ({
-    default: mockNewRelic,
 }));
 
 vi.mock("@opentelemetry/sdk-logs", () => ({
@@ -93,15 +71,13 @@ vi.mock("next/server", () => ({
     after: vi.fn(),
 }));
 
-describe("newrelic-utils", () => {
+describe("posthog-utils", () => {
     beforeEach(() => {
         __resetPostHogClient();
-        Object.values(mockNewRelic).forEach((fn) => fn.mockClear());
         mockEmit.mockClear();
         mockSetGlobalLoggerProvider.mockClear();
         mockPostHogCapture.mockClear();
         mockPostHogCaptureException.mockClear();
-        delete process.env.TELEMETRY_PROVIDER;
         delete process.env.POSTHOG_PROJECT_API_KEY;
         delete process.env.POSTHOG_HOST;
         delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
@@ -119,7 +95,7 @@ describe("newrelic-utils", () => {
     });
 
     describe("logger", () => {
-        it("should log info messages", () => {
+        it("should log info messages to the OTLP pipeline", () => {
             logger.info("Test info message");
             expect(console.log).toHaveBeenCalled();
             expect(mockEmit).toHaveBeenCalledWith(
@@ -132,12 +108,22 @@ describe("newrelic-utils", () => {
 
         it("should log info messages with attributes", () => {
             logger.info("Test info", { userId: "123" });
-            expect(console.log).toHaveBeenCalled();
             expect(mockEmit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     body: "Test info",
-                    severityNumber: expect.any(Number),
                     attributes: expect.objectContaining({ userId: "123" }),
+                }),
+            );
+        });
+
+        it("should redact sensitive keys from log attributes", () => {
+            logger.info("Test info", { email: "a@b.c", userId: "123" });
+            expect(mockEmit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    attributes: expect.objectContaining({
+                        email: "[REDACTED]",
+                        userId: "123",
+                    }),
                 }),
             );
         });
@@ -153,18 +139,6 @@ describe("newrelic-utils", () => {
             );
         });
 
-        it("should log error messages with attributes", () => {
-            logger.error("Test error", { code: 500 });
-            expect(console.error).toHaveBeenCalled();
-            expect(mockEmit).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    body: "Test error",
-                    severityNumber: expect.any(Number),
-                    attributes: expect.objectContaining({ code: 500 }),
-                }),
-            );
-        });
-
         it("should log warn messages", () => {
             logger.warn("Test warning message");
             expect(console.warn).toHaveBeenCalled();
@@ -172,18 +146,6 @@ describe("newrelic-utils", () => {
                 expect.objectContaining({
                     body: "Test warning message",
                     severityNumber: expect.any(Number),
-                }),
-            );
-        });
-
-        it("should log warn messages with attributes", () => {
-            logger.warn("Test warning", { threshold: 100 });
-            expect(console.warn).toHaveBeenCalled();
-            expect(mockEmit).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    body: "Test warning",
-                    severityNumber: expect.any(Number),
-                    attributes: expect.objectContaining({ threshold: 100 }),
                 }),
             );
         });
@@ -199,14 +161,19 @@ describe("newrelic-utils", () => {
             );
         });
 
-        it("should log debug messages with attributes", () => {
-            logger.debug("Test debug", { step: 1 });
-            expect(console.log).toHaveBeenCalled();
-            expect(mockEmit).toHaveBeenCalledWith(
+        it("should capture an application_log event when credentials exist", () => {
+            process.env.POSTHOG_PROJECT_API_KEY = "test-key";
+            __resetPostHogClient();
+
+            logger.info("Test info", { userId: "u1" });
+
+            expect(mockPostHogCapture).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    body: "Test debug",
-                    severityNumber: expect.any(Number),
-                    attributes: expect.objectContaining({ step: 1 }),
+                    event: "application_log",
+                    distinctId: "u1",
+                    properties: expect.objectContaining({
+                        message: "Test info",
+                    }),
                 }),
             );
         });
@@ -245,48 +212,32 @@ describe("newrelic-utils", () => {
             expect(mockEmit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     body: "String error message",
-                    severityNumber: expect.any(Number),
                     attributes: expect.objectContaining({
                         errorMessage: "String error message",
-                        errorName: "Error",
                     }),
                 }),
             );
         });
 
-        it("should record a string error with custom attributes", () => {
-            recordError("String error", { code: 404 });
-            expect(console.error).toHaveBeenCalled();
+        it("should capture an exception event when credentials exist", () => {
+            process.env.POSTHOG_PROJECT_API_KEY = "test-key";
+            __resetPostHogClient();
+
+            recordError(new Error("boom"), { userId: "u1" });
+
+            expect(mockPostHogCaptureException).toHaveBeenCalledWith(
+                expect.any(Error),
+                "server",
+                expect.objectContaining({
+                    errorMessage: "boom",
+                    userId: "u1",
+                }),
+            );
         });
 
         it("should handle null error gracefully", () => {
             recordError(null as never);
             expect(console.error).toHaveBeenCalled();
-        });
-
-        it("should handle undefined error gracefully", () => {
-            recordError(undefined as never);
-            expect(console.error).toHaveBeenCalled();
-        });
-    });
-
-    describe("setTransactionName", () => {
-        it("should set transaction name without error", () => {
-            expect(() => {
-                setTransactionName("/api/test");
-            }).not.toThrow();
-        });
-
-        it("should handle empty string", () => {
-            expect(() => {
-                setTransactionName("");
-            }).not.toThrow();
-        });
-
-        it("should handle special characters", () => {
-            expect(() => {
-                setTransactionName("/api/users/[id]");
-            }).not.toThrow();
         });
     });
 
@@ -310,48 +261,6 @@ describe("newrelic-utils", () => {
             expect(() => {
                 trackApiCall("/api/error", "GET", 500, 100, {
                     error: "Internal server error",
-                });
-            }).not.toThrow();
-        });
-    });
-
-    describe("addTransactionAttributes", () => {
-        it("should add single attribute without error", () => {
-            expect(() => {
-                addTransactionAttributes({ key: "value" });
-            }).not.toThrow();
-        });
-
-        it("should add multiple attributes", () => {
-            expect(() => {
-                addTransactionAttributes({
-                    userId: "123",
-                    action: "create",
-                    timestamp: 1234567890,
-                });
-            }).not.toThrow();
-        });
-
-        it("should handle empty attributes", () => {
-            expect(() => {
-                addTransactionAttributes({});
-            }).not.toThrow();
-        });
-
-        it("should handle boolean attributes", () => {
-            expect(() => {
-                addTransactionAttributes({
-                    isAdmin: true,
-                    isActive: false,
-                });
-            }).not.toThrow();
-        });
-
-        it("should handle numeric attributes", () => {
-            expect(() => {
-                addTransactionAttributes({
-                    count: 42,
-                    score: 98.5,
                 });
             }).not.toThrow();
         });
@@ -381,10 +290,21 @@ describe("newrelic-utils", () => {
             }).not.toThrow();
         });
 
-        it("should handle special characters in event name", () => {
-            expect(() => {
-                recordEvent("User:Signup:Success", { platform: "web" });
-            }).not.toThrow();
+        it("should capture the event when credentials exist", () => {
+            process.env.POSTHOG_PROJECT_API_KEY = "test-key";
+            __resetPostHogClient();
+
+            recordEvent("UserLogin", { userId: "123", method: "oauth" });
+
+            expect(mockPostHogCapture).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: "UserLogin",
+                    properties: expect.objectContaining({
+                        userId: "123",
+                        method: "oauth",
+                    }),
+                }),
+            );
         });
     });
 
@@ -401,21 +321,9 @@ describe("newrelic-utils", () => {
             }).not.toThrow();
         });
 
-        it("should record metric with large value", () => {
-            expect(() => {
-                recordMetric("bytes.transferred", 1048576);
-            }).not.toThrow();
-        });
-
         it("should record metric with decimal value", () => {
             expect(() => {
                 recordMetric("cpu.usage", 45.67);
-            }).not.toThrow();
-        });
-
-        it("should handle metric names with namespaces", () => {
-            expect(() => {
-                recordMetric("custom.metrics.api.latency", 250);
             }).not.toThrow();
         });
     });

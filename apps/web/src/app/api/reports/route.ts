@@ -6,7 +6,7 @@ import {
     DUPLICATE_REPORT_ERROR_MESSAGE,
     DuplicateReportError,
 } from "@/lib/appwrite-reports";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const RATE_LIMIT_MAX = 5;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;

@@ -32,7 +32,7 @@
         "expo-status-bar": "~57.0.1",
         "expo-symbols": "~57.0.2",
         "expo-web-browser": "~57.0.2",
-        "lucide-react-native": "^1.35.0",
+        "lucide-react-native": "^1.37.0",
         "react": "19.2.3",
         "react-native": "0.86.2",
         "react-native-appwrite": "^0.34.0",

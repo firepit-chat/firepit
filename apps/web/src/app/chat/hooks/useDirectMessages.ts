@@ -1086,7 +1086,6 @@ export function useDirectMessages({
                     [Query.equal("conversationId", conversationId)],
                 );
 
-
                 messageSubscriptionRef.current = subscription;
 
                 if (cancelled) {

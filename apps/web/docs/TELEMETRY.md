@@ -1,34 +1,11 @@
-# Telemetry Providers
+# Telemetry
 
-Firepit supports telemetry routing to New Relic, PostHog, both, or neither.
+Firepit sends all telemetry to PostHog.
 
-This is implemented in:
+- Server helpers: `src/lib/posthog-utils.ts`
+- Client helpers: `src/lib/client-logger.ts`
 
-- Server telemetry helpers: `src/lib/newrelic-utils.ts`
-- Client telemetry helpers: `src/lib/client-telemetry.ts`
-
-## Provider Configuration
-
-### Server-side provider
-
-- Env var: `TELEMETRY_PROVIDER`
-- Allowed values: `newrelic`, `posthog`, `both`, `none`
-- Default: `newrelic`
-
-### Client-side provider
-
-- Env var: `NEXT_PUBLIC_TELEMETRY_PROVIDER`
-- Allowed values: `newrelic`, `posthog`, `both`, `none`
-- Default: `newrelic`
-
-## Credentials
-
-### New Relic
-
-- `NEW_RELIC_LICENSE_KEY`
-- `NEW_RELIC_APP_NAME`
-
-### PostHog
+## Server-side capture
 
 Server-side capture (`posthog-node`) prefers:
 
@@ -40,11 +17,18 @@ Fallback compatibility keys:
 - `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`
 - `NEXT_PUBLIC_POSTHOG_HOST`
 
-Client-side capture (`posthog-js`) uses existing browser initialization in `instrumentation-client.ts`.
+Structured logs are also forwarded through the OTLP log pipeline to the
+PostHog logs endpoint (`POSTHOG_LOGS_HOST`, defaults to the ingest host).
+
+Process-level hooks (uncaught exceptions, unhandled rejections, flush on
+shutdown) are registered in `instrumentation.ts`.
+
+## Client-side capture
+
+Client capture (`posthog-js`) uses existing browser initialization in
+`instrumentation-client.ts`.
 
 ## PostHog Privacy And Bandwidth Controls
-
-Client-side PostHog behavior is configured by these env vars:
 
 - `NEXT_PUBLIC_POSTHOG_AUTOCAPTURE` (recommended `false`)
 - `NEXT_PUBLIC_POSTHOG_SESSION_RECORDING` (recommended `false`)
@@ -98,45 +82,23 @@ If you use Next.js rewrites as a PostHog proxy path, configure:
 If you set `NEXT_PUBLIC_POSTHOG_HOST` directly to your own reverse-proxy domain,
 you can disable rewrites with `POSTHOG_REWRITE_ENABLED=false`.
 
-## Telemetry Matrix
+## Server Events
 
-### Server helper mapping
+Events emitted by `src/lib/posthog-utils.ts`:
 
-| Helper                               | New Relic output                           | PostHog output                                                                     |
-| ------------------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `recordEvent(eventType, attributes)` | `recordCustomEvent(eventType, attributes)` | capture event `eventType` with `attributes`                                        |
-| `recordMetric(name, value)`          | `recordMetric(name, value)`                | capture event `metric_recorded` with `{ metricName: name, value }`                 |
-| `incrementMetric(name, value)`       | `incrementMetric(name, value)`             | capture event `metric_incremented` with `{ metricName: name, incrementBy: value }` |
-| `recordError(error, attrs)`          | `noticeError(error, attrs)`                | capture event `error_recorded` with normalized error fields plus attrs             |
-| `logger.info/warn/error/debug`       | `ApplicationLog` custom event              | capture event `application_log`                                                    |
+| Helper                               | PostHog output                                                                     |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| `recordEvent(eventType, attributes)` | capture event `eventType` with `attributes`                                        |
+| `recordMetric(name, value)`          | capture event `metric_recorded` with `{ metricName: name, value }`                 |
+| `recordError(error, attrs)`          | `captureException` with normalized error fields plus attrs                         |
+| `logger.info/warn/error/debug`       | capture event `application_log` plus OTLP log record                               |
 
-### Client helper mapping
-
-| Helper                                   | New Relic output                    | PostHog output                                                                   |
-| ---------------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------- |
-| `recordClientAction(action, attributes)` | `addPageAction(action, attributes)` | `capture(action, attributes)`                                                    |
-| `recordClientError(error, attributes)`   | `noticeError(error, attributes)`    | `captureException(error, attributes)` or fallback `capture("client_error", ...)` |
+Client helpers emit `log_info`, `log_warn`, `log_error`, `client_error` events
+and use `captureException` for rich client errors.
 
 ## Digest Telemetry Example
 
 Digest generation in `src/lib/inbox.ts` emits:
 
-- Metric: `Custom/InboxDigest/DurationMs`
-- Metric: `Custom/InboxDigest/ReturnedItems`
-- Metric: `Custom/InboxDigest/TotalUnread`
 - Event: `InboxDigestGenerated`
-
-Under provider routing:
-
-- `newrelic`: only New Relic receives these
-- `posthog`: only PostHog receives mapped equivalents
-- `both`: both providers receive telemetry
-- `none`: no provider receives telemetry
-
-## Client Parity Coverage
-
-The following client paths now route through provider-aware helpers instead of direct New Relic-only calls:
-
-- `src/lib/client-logger.ts`
-- `src/app/error.tsx`
-- `src/app/global-error.tsx`
+- Metrics: `Custom/InboxDigest/DurationMs`, `Custom/InboxDigest/ReturnedItems`, `Custom/InboxDigest/TotalUnread`

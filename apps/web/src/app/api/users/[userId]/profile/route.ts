@@ -9,7 +9,7 @@ import { getUserStatus } from "@/lib/appwrite-status";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 export async function GET(
     _request: Request,

@@ -4,7 +4,7 @@ import { clampLimit } from "@/lib/appwrite-reports";
 import {
     getProfilesByUserIds,
 } from "@/lib/appwrite-profiles";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import { requireModerator } from "@/lib/auth-server";
 
 export async function GET(request: Request) {

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { AppwriteException } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{ fileId: string }>;
