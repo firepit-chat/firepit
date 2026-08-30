@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Signup control** - Admins can set the instance policy to open, individual approval, or no signups, and approve/reject pending signups from the admin panel
 - **Deactivate & delete account** - Temporarily deactivate your account (auto-reactivates on next sign-in) or permanently delete it from a new Danger Zone section
 - **Deleted User tombstones** - Deleted accounts show as "Deleted User" and their user ID is permanently reserved so it can never be reused
+- **Server-scoped moderation workspace** - The Moderation panel now works per server: pick a server and channel from the sidebar to review its messages. Anyone with the Manage Messages permission (or a global moderator) can soft-delete/restore, and server owners/admins (or global admins) can permanently delete. The redundant Moderation tab inside the server admin panel was replaced with a link into this workspace
 
 ### ⚙️ Improvements
 

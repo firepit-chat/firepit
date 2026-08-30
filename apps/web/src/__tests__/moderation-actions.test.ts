@@ -12,7 +12,6 @@ env.APPWRITE_ENDPOINT = "http://localhost";
 env.APPWRITE_PROJECT_ID = "test-project";
 env.APPWRITE_API_KEY = "test-api-key";
 
-vi.mock("../lib/appwrite-roles", () => ({ getUserRoles: vi.fn() }));
 vi.mock("../lib/appwrite-audit", () => ({ recordAudit: vi.fn() }));
 vi.mock("../lib/appwrite-admin", () => ({
     adminSoftDeleteMessage: vi.fn(),
@@ -20,13 +19,31 @@ vi.mock("../lib/appwrite-admin", () => ({
     adminDeleteMessage: vi.fn(),
     getAdminMessageAuditContext: vi.fn(),
 }));
+vi.mock("../lib/server-channel-access", () => ({
+    getServerPermissionsForUser: vi.fn(),
+}));
+vi.mock("../lib/appwrite-core", () => ({
+    getEnvConfig: vi.fn().mockReturnValue({
+        project: "test-project",
+        databaseId: "db",
+        collections: {
+            servers: "servers",
+            channels: "channels",
+            messages: "messages",
+        },
+    }),
+}));
+vi.mock("../lib/appwrite-server", () => ({
+    getServerClient: vi.fn().mockReturnValue({ databases: {}, client: {} }),
+}));
 vi.mock("next/headers", () => ({
     cookies: async () => ({ get: () => ({ value: "session" }) }),
 }));
 
 // Mock auth-server helper
 vi.mock("../lib/auth-server", () => ({
-    requireModerator: vi.fn(),
+    requireAuth: vi.fn(),
+    checkUserRoles: vi.fn(),
 }));
 
 // Mock Appwrite SDK for getServerSession
@@ -54,7 +71,6 @@ vi.mock("appwrite", () => {
     return mod;
 });
 
-const { getUserRoles } = await import("../lib/appwrite-roles");
 const {
     adminSoftDeleteMessage,
     adminRestoreMessage,
@@ -62,22 +78,45 @@ const {
     getAdminMessageAuditContext,
 } = await import("../lib/appwrite-admin");
 const { recordAudit } = await import("../lib/appwrite-audit");
-const { requireModerator } = await import("../lib/auth-server");
+const { getServerPermissionsForUser } = await import(
+    "../lib/server-channel-access"
+);
+const { requireAuth, checkUserRoles } = await import("../lib/auth-server");
 
-function setRole(mod: boolean, admin: boolean) {
-    (getUserRoles as any).mockResolvedValue({
+function setGlobalRoles(mod: boolean, admin: boolean) {
+    (requireAuth as any).mockResolvedValue({
+        $id: "moderatorUser",
+        name: "Mod",
+        email: "mod@example.com",
+    });
+    (checkUserRoles as any).mockResolvedValue({
         isModerator: mod,
         isAdmin: admin,
     });
-    (requireModerator as any).mockResolvedValue({
-        user: { $id: "moderatorUser", name: "Mod", email: "mod@example.com" },
-        roles: { isModerator: mod, isAdmin: admin },
+}
+
+function setServerAccess(access: {
+    isServerOwner?: boolean;
+    manageMessages?: boolean;
+    administrator?: boolean;
+}) {
+    (getServerPermissionsForUser as any).mockResolvedValue({
+        serverId: "server-1",
+        isServerOwner: access.isServerOwner ?? false,
+        isMember: true,
+        permissions: {
+            manageMessages: access.manageMessages ?? false,
+            administrator: access.administrator ?? false,
+        },
+        roleIds: [],
+        roles: [],
     });
 }
 
 beforeEach(async () => {
     vi.clearAllMocks();
-    setRole(true, true);
+    setGlobalRoles(true, true);
+    setServerAccess({ manageMessages: true });
     (getAdminMessageAuditContext as any).mockResolvedValue({
         $id: "m1",
         userId: "author-1",
@@ -88,7 +127,7 @@ beforeEach(async () => {
 });
 
 describe("moderation actions", () => {
-    it("soft delete records audit + metrics", async () => {
+    it("soft delete records audit + metrics for global admin", async () => {
         await actionSoftDelete("m1");
         expect(adminSoftDeleteMessage).toHaveBeenCalledWith(
             "m1",
@@ -105,12 +144,47 @@ describe("moderation actions", () => {
             }),
         );
     });
+
+    it("soft delete allowed for server moderator with manageMessages", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({ manageMessages: true });
+        await actionSoftDelete("m2");
+        expect(adminSoftDeleteMessage).toHaveBeenCalledWith(
+            "m2",
+            "moderatorUser",
+        );
+    });
+
+    it("soft delete allowed for server owner", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({ isServerOwner: true });
+        await actionSoftDelete("m3");
+        expect(adminSoftDeleteMessage).toHaveBeenCalledWith(
+            "m3",
+            "moderatorUser",
+        );
+    });
+
+    it("soft delete forbidden without manageMessages or global role", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({});
+        await expect(actionSoftDelete("m4")).rejects.toThrow("Forbidden");
+        expect(adminSoftDeleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("soft delete allowed for global moderator even without server perms", async () => {
+        setGlobalRoles(true, false);
+        setServerAccess({});
+        await actionSoftDelete("m5");
+        expect(adminSoftDeleteMessage).toHaveBeenCalled();
+    });
+
     it("restore records audit", async () => {
-        await actionRestore("m2");
-        expect(adminRestoreMessage).toHaveBeenCalledWith("m2");
+        await actionRestore("m6");
+        expect(adminRestoreMessage).toHaveBeenCalledWith("m6");
         expect(recordAudit).toHaveBeenCalledWith(
             "restore",
-            "m2",
+            "m6",
             "moderatorUser",
             expect.objectContaining({
                 serverId: "server-1",
@@ -118,13 +192,13 @@ describe("moderation actions", () => {
             }),
         );
     });
-    it("hard delete requires admin", async () => {
-        setRole(true, true);
-        await actionHardDelete("m3");
-        expect(adminDeleteMessage).toHaveBeenCalledWith("m3");
+
+    it("hard delete allowed for global admin", async () => {
+        await actionHardDelete("m7");
+        expect(adminDeleteMessage).toHaveBeenCalledWith("m7");
         expect(recordAudit).toHaveBeenCalledWith(
             "hard_delete",
-            "m3",
+            "m7",
             "moderatorUser",
             expect.objectContaining({
                 serverId: "server-1",
@@ -135,8 +209,39 @@ describe("moderation actions", () => {
             }),
         );
     });
-    it("hard delete forbidden for non-admin", async () => {
-        setRole(true, false);
-        await expect(actionHardDelete("m4")).rejects.toThrow("Forbidden");
+
+    it("hard delete allowed for server administrator role", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({ administrator: true, manageMessages: true });
+        await actionHardDelete("m8");
+        expect(adminDeleteMessage).toHaveBeenCalledWith("m8");
+    });
+
+    it("hard delete allowed for server owner", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({ isServerOwner: true });
+        await actionHardDelete("m9");
+        expect(adminDeleteMessage).toHaveBeenCalledWith("m9");
+    });
+
+    it("hard delete forbidden for non-admin server moderator", async () => {
+        setGlobalRoles(false, false);
+        setServerAccess({ manageMessages: true });
+        await expect(actionHardDelete("m10")).rejects.toThrow("Forbidden");
+        expect(adminDeleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("hard delete forbidden for global moderator without admin", async () => {
+        setGlobalRoles(true, false);
+        setServerAccess({ isServerOwner: false, administrator: false });
+        await expect(actionHardDelete("m11")).rejects.toThrow("Forbidden");
+        expect(adminDeleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("throws if the message does not exist", async () => {
+        (getAdminMessageAuditContext as any).mockResolvedValue(null);
+        await expect(actionSoftDelete("m12")).rejects.toThrow(
+            "Message not found",
+        );
     });
 });

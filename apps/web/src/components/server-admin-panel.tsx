@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { InviteManagerDialog } from "@/app/chat/components/InviteManagerDialog";
 import { CreateInviteDialog } from "@/app/chat/components/CreateInviteDialog";
+import NextLink from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -608,8 +609,8 @@ export function ServerAdminPanel({
                     <TabsList
                         className={`grid w-full ${
                             canEditServerSettings
-                                ? "grid-cols-6"
-                                : "grid-cols-5"
+                                ? "grid-cols-5"
+                                : "grid-cols-4"
                         }`}
                     >
                         <TabsTrigger value="overview">
@@ -629,10 +630,6 @@ export function ServerAdminPanel({
                         <TabsTrigger value="invites">
                             <Link className="h-4 w-4 mr-2" />
                             Invites
-                        </TabsTrigger>
-                        <TabsTrigger value="moderation">
-                            <Shield className="h-4 w-4 mr-2" />
-                            Moderation
                         </TabsTrigger>
                         <TabsTrigger value="audit">
                             <AlertTriangle className="h-4 w-4 mr-2" />
@@ -1272,66 +1269,20 @@ export function ServerAdminPanel({
                             <Card className="p-4">
                                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                                     <Shield className="h-5 w-5" />
-                                    Moderation Tools
+                                    Message Moderation
                                 </h3>
                                 <p className="text-sm text-muted-foreground mb-4">
-                                    Use the Members tab to take moderation
-                                    actions. This section shows recent activity.
+                                    Review and moderate this server&apos;s
+                                    messages in the moderation workspace.
                                 </p>
-
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                                        <div>
-                                            <p className="font-medium">
-                                                Banned Users
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Users currently banned from this
-                                                server
-                                            </p>
-                                        </div>
-                                        <Badge variant="destructive">
-                                            {stats.bannedUsers}
-                                        </Badge>
-                                    </div>
-
-                                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                                        <div>
-                                            <p className="font-medium">
-                                                Muted Users
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Users currently muted in this
-                                                server
-                                            </p>
-                                        </div>
-                                        <Badge variant="outline">
-                                            {stats.mutedUsers}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            </Card>
-
-                            <Card className="p-4">
-                                <h3 className="font-semibold mb-3">
-                                    Quick Actions
-                                </h3>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setActiveTab("members")}
+                                <Button asChild>
+                                    <NextLink
+                                        href={`/moderation?serverId=${encodeURIComponent(serverId)}`}
                                     >
-                                        <Users className="h-4 w-4 mr-2" />
-                                        Manage Members
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setActiveTab("audit")}
-                                    >
-                                        <AlertTriangle className="h-4 w-4 mr-2" />
-                                        View Audit Log
-                                    </Button>
-                                </div>
+                                        <Shield className="h-4 w-4 mr-2" />
+                                        Open Moderation Workspace
+                                    </NextLink>
+                                </Button>
                             </Card>
                         </TabsContent>
 
