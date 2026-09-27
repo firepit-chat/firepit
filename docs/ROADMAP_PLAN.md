@@ -18,16 +18,19 @@
 Most of the plan is parallelizable. These dependencies are not:
 
 ```
-channel_permission_overrides ──> forum (2.2) ──> voice (2.4) ──> stage (2.5)
+lint + typecheck gate (2.2) ──> everything below
+
+channel_permission_overrides (2.2) ──> forum (2.3) ──> voice un-hide (2.5) ──> stage (2.5)
         │
         └──> bots permissions (2.3)
 
-A/V canary (2.2) ──> A/V stable (2.4) ──> mobile A/V (2.5)
-                              │
-                              └──> voice channels (2.4)
+channel-type consolidation (2.2) ──> forum (2.3) ──> voice un-hide (2.5)
+
+A/V canary (2.3, own lane) ──> A/V stable (2.4) ──> mobile A/V (2.5)
+                                    │
                                     └──> stage channels (2.5)
 
-theme system (2.2) ──> per-server themes (2.3)
+theme system (2.2) ──> per-server themes (2.3) ──> ScopedTheme consumer
 
 federation schema decisions (2.2) ──> federation v1 (2.6) ──> v2 beta (2.7) ──> stable (3.0)
 bots signing primitive (2.3) ────────^
@@ -35,18 +38,27 @@ bots signing primitive (2.3) ────────^
 API contract enforcement (2.2) ──> UI/API separation (post-3.0)
 ```
 
-Two chains drive most of the schedule risk:
+**2.2 phasing.** Phase 0 (the lint and typecheck gate) gates everything else —
+it is the reason a ~30-site refactor and a 37-route spec pass are safe to land.
+After Phase 0, five tracks are independent and parallelizable: the
+`channel_permission_overrides` fix, the channel-type consolidation, themes, the
+member viewer, and OpenAPI completion (which needs Phase 0's gate and Phase 1's
+schema fix). Mobile themes is the single longest item and the most likely to
+slip.
 
-**The voice chain is the long one.** Canary in 2.2 means four releases of soak
-before mobile is viable, because React Native's WebRTC support is the binding
-constraint and that risk should not be discovered twice. Stage sits at the end
-of the chain deliberately — building it before voice is stable guarantees
-rework.
+**The voice chain is the long one.** Starting the canary in 2.3 means three
+releases of soak before mobile is viable, because React Native's WebRTC support
+is the binding constraint and that risk should not be discovered twice. Stage
+sits at the end of the chain deliberately — building it before voice is stable
+guarantees rework. Note that `voice` channels already exist at the type level;
+this chain is about un-hiding them and building the media layer, not about
+adding a channel type.
 
 **The federation chain is gated on decisions, not code.** The specification
 exists and is thorough, but it contradicts the current schema in ways that
 require choices, not documentation edits. Those choices are a one-day task in
-2.2. Leaving them until 2.6 turns a build release into a design release.
+2.2 — reserve the nullable columns, ship no behaviour. Leaving them until 2.6
+turns a build release into a design release.
 
 ---
 
@@ -79,40 +91,108 @@ Revisit only as a fast pre-pass, not as the gate.
 
 **1. Provision `channel_permission_overrides`.**
 
-The collection is read at runtime in five places and created by none:
+The collection is read at runtime in six places and created by none:
 
-- `apps/web/src/lib/appwrite-core.ts`
-- `apps/web/src/lib/server-channel-access.ts`
-- `apps/web/src/app/api/channel-permissions/route.ts` (hardcoded, not
-  env-driven)
-- `apps/web/src/app/api/channels/route.ts`
-- `apps/web/src/app/api/servers/[serverId]/permissions/route.ts`
+- `apps/web/src/lib/appwrite-core.ts` (declaration only, via `COLLECTION_DEFS`)
+- `apps/web/src/lib/server-channel-access.ts` (hardcoded)
+- `apps/web/src/app/api/channel-permissions/route.ts` (hardcoded)
+- `apps/web/src/app/api/channels/route.ts` (hardcoded)
+- `apps/web/src/app/api/servers/[serverId]/permissions/route.ts` (hardcoded)
+- `apps/web/src/app/api/messages/[messageId]/pin/route.ts` (**already correct**
+  — reads `env.collections.channelPermissionOverrides`)
 
-`scripts/setup-appwrite.ts` has no `ensureCollection` call for it, so every
-clean deploy has non-functional channel permission overrides. Forum, voice,
-stage, and bot permissions all depend on it. Add the `ensureCollection` call
-and make the route read the ID from the environment like every other
-collection.
+So the env plumbing exists and works; four sites simply bypass it. That makes
+this smaller than it looks: four constant swaps, not a new config surface. The
+`APPWRITE_CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID` variable is absent from
+`.env.local.example` and from `validate-env.ts`, which is why the bypass was
+never noticed.
+
+Schema, derived from the call sites: `channelId`, `roleId`, `userId` as
+required strings (the writer always sends both role and user, using `""` as the
+sentinel for the one that does not apply), `allow` and `deny` as string arrays,
+and four indexes — `idx_channelId`, `idx_userId`, `idx_roleId`, and a unique
+composite on `(channelId, roleId, userId)`. That composite also lets the
+hand-rolled check-then-create in `channel-permissions/route.ts` go away in
+favour of the 409-retry pattern `role_assignments` already uses.
+
+Note that `src/__tests__/scripts/setup-appwrite.test.ts` is not a real guard:
+it never imports the script and asserts tautologies like
+`expect(attr).toBeTruthy()`. Do not extend it. If a guard is wanted, export the
+collection list from the script and assert against that.
 
 **2. Enforce the API contract.**
 
-`docs/openapi-doc.yml` is maintained by discipline and required to be updated
-by `docs/FEATURE_FLAGS.md`, but nothing checks it and the only consumer is the
-first-party web client. Three steps:
+The spec is at `apps/web/docs/openapi-doc.yml` (not `docs/openapi-doc.yml`) and
+it is **camelCase and accurate** — it describes the real `/api/*` routes, with
+zero phantom paths. A stale second copy lives at `apps/mobile/docs/openapi-doc.yml`
+at `info.version: 1.8.0` against web's `1.9.0`; pick one as canonical.
 
-- Generate response types from the spec with `openapi-typescript`. One dev
-  dependency, one script, zero runtime.
-- Point both clients at the generated types instead of hand-copied shapes.
-- Add a CI check that fails when the spec and the routes disagree.
+The real gap was coverage. Counting method-level operations rather than paths
+(98 paths carry 146 operations, 3 of which are debug endpoints the spec
+intentionally omits), the spec started at **92 of 143 in-scope operations
+documented**, leaving 54 undocumented across 41 paths. There were zero phantom
+paths and zero method-level mismatches: every operation the spec did declare
+matched a real handler, so the spec was incomplete rather than wrong.
 
-This is the highest-leverage item in the plan. It stops API drift across all
-eight releases, and it is what makes the post-3.0 UI/API separation mechanical
-rather than archaeological.
+Count paths and operations separately — the two numbers were previously
+conflated, and the resulting "37 missing" figure was wrong.
+
+**This phase is done.** `bun run check:openapi` now reports
+**143/143 operations across 95 paths**, and runs as a CI gate.
+
+Two consumers made this more than internal bookkeeping:
+
+- `apps/web/src/lib/docs.ts` renders the spec as the **in-app API Reference
+  page**, so every undocumented operation was a route missing from shipped
+  product documentation. 54 operations are now visible there for the first
+  time.
+- Nothing validated the spec against reality. `apps/web/scripts/check-openapi-sync.ts`
+  (new, wired to `bun run check:openapi` and to CI) walks the handlers,
+  normalizes `[param]` to `{param}` and route groups, and fails on drift in
+  either direction. It deliberately ignores `OPTIONS`, whose only handlers are
+  CORS origin-guard preflights on the upload routes.
+
+The stale mobile copy was **not** safe to delete as-is: it was web@v1.8.0 plus
+`/api/typing`, but it also declared a `bearerAuth` security scheme on 84
+operations that web's copy omitted entirely. `auth-server.ts:337-357` really does
+accept a Bearer token (and `x-firepit-token`) before falling back to the session
+cookie, so that was genuine missing documentation rather than cruft. Its unique
+content — the `/api/typing` route and the `bearerAuth` scheme — was merged into
+the canonical copy first; the copy is now deleted, and
+`apps/web/docs/openapi-doc.yml` is the single source of truth.
+
+`apps/mobile/docs/mobile-api-route-structures.md` is a *third* hand-maintained
+route inventory. It is kept because it carries contract prose the spec does not
+(the `Authorization: Bearer` plus `x-firepit-token` rule, and the
+`contextKind`/`contextId` pairing), but it is the most likely thing to drift
+now. Prefer the spec and the check.
+
+Steps, in this order:
+
+- **Fix the `ChannelPermissionOverride` schema first.** As written
+  (`openapi-doc.yml:689`) it declares `allow`/`deny` as `type: object` maps and
+  omits `userId`, which is the opposite of what the runtime does. Generating
+  types from it mistypes the exact collection unblocker 1 is fixing.
+- Add `openapi-typescript` as a dev dependency and a generate script.
+- Document the 37 missing routes.
+- Point both clients at the generated types instead of hand-copied shapes. On
+  mobile, convert the highest-traffic endpoints first rather than all 84 types
+  at once — `firepitRequest<T>` takes an unverified `T` today, so generated
+  types only fix the shapes you actually point them at.
+- Add a CI check that fails when the spec and the routes disagree. This does not
+  need a dependency: extract paths from the YAML, diff against
+  `find apps/web/src/app/api -name route.ts`, exit non-zero on mismatch.
+
+**A gate is a prerequisite, not an afterthought.** `typecheck` currently runs in
+no CI workflow at all, and `build:web.yml` typechecks web only — so mobile,
+where 84 of ~146 hand-copied shapes live, is unguarded. Generated types are
+worthless without a gate that reads them. Add it in Phase 0.
 
 **3. Settle the federation schema decisions.**
 
 Four decisions, one day, no implementation. Each is a nullable column or a
-format choice that is cheap now and expensive after launch.
+format choice that is cheap now and expensive after launch. Reserve the columns
+now; no behaviour ships with them.
 
 | Decision | Current state | Spec requires |
 | --- | --- | --- |
@@ -122,69 +202,233 @@ format choice that is cheap now and expensive after launch.
 | Conversation ID scheme | Appwrite `ID.unique()` | Deterministic `dm_<sha256 of sorted participants>` |
 
 Plus two smaller ones: `dmEncryptionEnabled` currently lives on
-`notification_settings` rather than `profiles`, and the spec's client API is
-snake_case `/api/messages` with `conversation_id`/`content`/`media_id` against
-98 existing camelCase handlers.
+`notification_settings` rather than `profiles`, and the **federation spec**
+(`docs/specs/firepit-messaging.md`) defines a snake_case client API —
+`/api/messages` with `conversation_id`/`content`/`media_id` — against 98
+existing camelCase handlers.
+
+**These are two different contracts, and only one of them is a mismatch to fix.**
+`openapi-doc.yml` correctly documents the existing camelCase routes. The real
+two-contract conflict is federation-spec vs OpenAPI-spec: the federation spec
+models a message flat as `{id, conversation_id, sender_id, created_at}` where
+the web app nests an Appwrite document as `{$id, $createdAt, content}`. Resolving
+that belongs to federation work, not to the contract unblocker.
 
 **On the API shape: build an adapter, do not rewrite.** 98 handlers is too much
 surface to throw away, and mobile talks to those routes through its own
-622-line client. The adapter maps spec shapes onto existing handlers. Note that
-the spec's own ordering rule (§4.5.1) makes `created_at` primary and `sequence`
-a pagination cursor only, which means a per-(conversation, sender-instance)
-counter document is sufficient — no atomic counter primitive is needed.
+622-line client. The adapter maps federation spec shapes onto existing handlers.
+Note that the federation spec's own ordering rule (§4.5.1) makes `created_at`
+primary and `sequence` a pagination cursor only, which means a
+per-(conversation, sender-instance) counter document is sufficient — no atomic
+counter primitive is needed.
 
 ### Features
 
-**Themes.** Swap `next-themes` for `@teispace/next-themes`. Five call sites and
-an 11-line provider; a codemod exists for the imports. Migration behavior
-changes to check: default storage becomes `hybrid` rather than localStorage,
-`onChange` now receives `(theme, resolvedTheme)`, nested providers are no
-longer no-ops, and the package is ESM-only. Four test files already cover this
-surface and will surface any breakage.
+2.2 ships **themes and the member viewer**. Forum channels, OAuth, and the
+voice/video canary moved to 2.3 — see "Deferred out of 2.2" below for why.
 
-The swap is not for custom palettes — that is CSS custom properties against the
-existing OKLCH tokens, with no library involvement. It is for `ScopedTheme`,
-which per-server theming and the picker preview both need, and for
-cookie-authoritative storage, which removes a visible launch flash. Bundle size
-is not a factor: the package is roughly the same size as what it replaces.
+**Themes.** Two independent pieces of work.
 
-Mobile theming is a separate system — ~45 hardcoded tokens per mode in
-`apps/mobile/src/constants/theme.ts` and a 14-line `useColorScheme()`. The
-library does nothing here. Porting four Catppuccin palettes is manual work and
-is the largest mobile item in this release.
+*Web — the palette axis.* `index.css` has 31 OKLCH tokens in exactly two blocks,
+`:root` and `.dark`, selected by `attribute="class"`. Four Catppuccin palettes
+cannot be expressed that way: one class, one selector. Use `data-theme` for the
+palette and widen the `@custom-variant dark` at `index.css:4` to match all
+three dark variants — otherwise the 89 `dark:` utility occurrences across 22
+`.tsx` files render in light mode. Then 4 blocks × 31 tokens, 4 `THEME_ICONS`
+entries (`header.tsx:44-48`), both hardcoded theme arrays (`header.tsx:513-518`
+and `:611`), a theme row in Settings (there is none today — "Appearance" is
+profile background only), and the `ToasterProps["theme"]` cast at
+`sonner.tsx:19` which will silently mis-apply a fourth value.
+
+*Web — the library swap.* `next-themes` → `@teispace/next-themes`. **Four**
+production call sites (`theme-provider.tsx`, `header.tsx`, `mode-toggle.tsx`,
+`sonner.tsx`) and 4 `vi.mock` files, plus an 11-line provider. There is no
+codemod to run.
+
+*Why swap at all:* `ScopedTheme` has **zero users and is not installed** — the
+original justification was wrong. The real reasons are cookie-authoritative
+storage, which removes a visible launch flash, and unblocking per-server theming
+in 2.3. The migration behaviours that actually bite are **ESM-only** (breaks
+the 4 `vi.mock` files) and **default storage becoming `hybrid`**. Two concerns
+in the original draft do not apply: no `onChange` is passed anywhere, and there
+is exactly one provider instance, so neither the signature change nor nested
+providers are reachable.
+
+*Delete `mode-toggle.tsx` and its test.* It is dead code — nothing in production
+imports it — and it asserts the literal strings `Light`/`Dark`/`System`, so a
+fourth theme breaks it regardless.
+
+*Mobile — a separate system, and the library does nothing here.* 40 hex tokens
+per mode (not ~45) in `apps/mobile/src/constants/theme.ts`, a 14-line
+`useColorScheme()` hook, and **no theming dependency at all** — the file's header
+comment names Nativewind, Tamagui and unistyles as the alternatives
+deliberately not taken.
+
+The design constraint that makes this cheap: **keep `useTheme()` returning the
+same flat token shape**, so all 66 call sites stay untouched. What changes is
+what is behind it. `Colors` goes from 2 modes × 40 to 4 palettes × 40 (Latte
+replaces `light`; Frappé, Macchiato and Mocha replace `dark`), and a preference
+store has to be created — none exists. Copy `providers/cache-settings-context.tsx`,
+which is already `useState` + `AsyncStorage` + `createContext`.
+
+Then fix the consumers that bypass the hook: `app/_layout.tsx:39`,
+`components/app-tabs.tsx:10`, and `components/app-tabs.web.tsx:48` and `:72` all
+import `Colors` directly. `app-tabs.web.tsx:132` hardcodes
+`Colors.light.sidebarBorder` inside a `StyleSheet.create` block and cannot react
+to any theme — a live bug, not cleanup. Finally, `settings/appearance.tsx` exists
+and is 429 lines of profile background with no app-theme controls; the route and
+nav entry are already there.
 
 **Role and member viewer.** Right-rail member list sorted by role rank then
-username. The permission model is already live — `getEffectivePermissions`
-(`apps/web/src/lib/permissions.ts`) resolves admin bypass, then channel user
-override, then channel role override, then base role. The `roles` collection
-already carries `color`, `position`, `memberCount`, `defaultOnJoin`, and the
-`mentionable` flag. This release builds the surface, not the model. Mobile
-already has `server/[serverId]/roles.tsx`, so the mobile line is rank sorting
-plus parity styling.
+username.
 
-**Forum channels.** `CHANNEL_TYPE_VALUES` is a clean union and `channels.type`
-is already indexed, so adding `forum` is one union member plus UI. Post
-enforcement rides the unblocker from item 1. Mobile has no forum surface at
-all — this is a new post-list and thread-per-post screen, and it is the
-second-largest mobile item in this release.
+The permission model is already live. `roles` carries `color`, `position`,
+`memberCount`, `defaultOnJoin` and `mentionable`, all confirmed in
+`setup-appwrite.ts:1293-1315`, and `memberCount` is actively maintained by
+`api/role-assignments/route.ts:183-222`. The 8-member `Permission` union
+(`types.ts:510-518`) is unchanged by this release. This release builds the
+surface, not the model.
 
-**OAuth.** Appwrite handles the provider side server-side, so the work is a
-provider list on the login screen, `providerUserId` plumbing through
-`getOrCreateUserProfile` at `apps/web/src/app/(auth)/login/actions.ts`, and
-avatar/name mapping. The open question is how provider identities merge with
-existing profiles — decide it before writing code.
+The rail **already exists** — `chat/page.tsx:2406` is a 320px `<aside>` with
+`lg:border-l` styling, currently holding Pinned Messages and Thread. No layout
+work is needed; add a third panel.
 
-Mobile rides the existing pattern: `expo-web-browser` opens the web `/login`,
-`expo-linking` hands the session back. Both are already dependencies and this
-is the same mechanism the password-reset flow uses. Reuse it for SAML/OIDC in
-2.5 too.
+**One blocker the original plan missed:** `/api/servers/[serverId]/members`
+requires `manageRoles` (`route.ts:63-65`), so a member rail would 403 for every
+non-admin. Add a new read-only endpoint gated on `access.isMember` returning only
+viewer-relevant fields, and leave the admin endpoint's `manageRoles` gate
+intact — role-management dialogs currently read from it. Compute the highest role
+server-side so the client never needs the full role list.
+
+`getEffectivePermissions` (`permissions.ts:40-142`) resolves in this order, which
+the original summary got from the function's own incomplete docstring: `isOwner`
+bypass, then any role with `administrator`, then OR-merged base roles, then
+**channel role overrides applied in `position` order**, then the channel user
+override, then default deny. The `isOwner` bypass and the position ranking of
+role overrides are both absent from the docstring and matter for how a
+rank-sorted list reads.
+
+**Mobile is net-new work.** The original plan said `server/[serverId]/roles.tsx`
+made it "rank sorting plus parity styling". That file is a 952-line role CRUD
+**editor** — mobile has no member list at all. The parity backlog already lists
+"server stats and member list views" as outstanding. Note that `/api/roles`
+already returns `Query.orderDesc("position")`, so roles arrive pre-sorted; the
+new work is the member list and its rank-then-name sort.
+
+Both `docs/mobile-web-parity-backlog.md` and the root `ROADMAP.md` were
+corrected to reflect that this is a new mobile screen.
+
+### Deferred out of 2.2
+
+These three moved to 2.3 so 2.2 can actually ship. Each note records what the
+research changed, so 2.3 planning does not inherit the old assumptions.
+
+**Forum channels.** The original claim — "`CHANNEL_TYPE_VALUES` is a clean union
+and adding `forum` is one union member plus UI" — is wrong in a way that changes
+the estimate. `CHANNEL_TYPE_VALUES` has **zero consumers**; the union is
+restated literally in 13 other places and `normalizeChannelType` exists in **4
+hand-copied versions** that have already drifted. Miss one copy and `forum`
+silently degrades to `text` on the write path. Real cost is ~30 sites across 16
+files: 3 `normalizeChannelType` copies, 13 unions, 2 hardcoded error strings, 5
+OpenAPI enums, ~10 UI branch points, 6 test files.
+
+`channels.type` is indexed (`idx_type`, `setup-appwrite.ts:1016`) and is a plain
+32-char string with no Appwrite enum, so there is no schema change.
+
+What *is* reusable: threads are already **flattened to one level**
+(`api/messages/[messageId]/thread/route.ts:220-221`), which is exactly Discord's
+model, and mobile's thread screen **already exists** at
+`app/thread/[serverId]/[channelId]/[messageId].tsx`, already wired to
+`fetchChannelThreadMessages`. Only the post list is new. And no `thread` boolean
+is needed — `threadId !== undefined` already is the post/reply marker; a
+separate flag would be a second source of truth for a fact already in the row.
+
+Two real problems to solve: channel messages are queried with **no `threadId`
+filter** (`api/messages/route.ts:171-175`), so replies currently sit inline in
+the timeline and a post list must add `Query.isNull("threadId")` gated on channel
+type or it paginates over reply noise. And `ChannelAccess` exposes a single
+`canSend` boolean, which cannot separate create-a-post from reply-in-a-post —
+that needs a third flag plus a check in the thread POST route.
+
+Also plan for `thread_reads`: `reads` is a single JSON blob per
+`(userId, contextType, contextId)` capped around 65KB, roughly 1000 thread ids
+per channel. A popular forum channel will exceed it.
+
+**OAuth.** The original framing — "Appwrite handles the provider side
+server-side" — understates this substantially.
+
+- `getOrCreateUserProfile` is at `apps/web/src/lib/appwrite-profiles.ts:424`, not
+  in `login/actions.ts`. It takes a bare `userId` and writes only
+  `{ userId, displayName }`.
+- `loginAction` is **dead to the web UI** — its only production caller is
+  `registerAction`. The real path is `login-form.tsx:103-116` →
+  `POST /api/auth/session`. OAuth must hook the route.
+- `listProviders` was **removed** from both SDKs in Appwrite 1.6.0, so the
+  provider list must be a hardcoded constant or env allowlist.
+- `createOAuth2Session` is renamed `createOAuth2Token` in node-appwrite 27.1.0,
+  and despite the name it is a **two-step handshake**: it returns a redirect
+  URL, Appwrite redirects to `success?userId=…&secret=…`, and a second
+  `createSession({userId, secret})` call establishes the session. That second
+  step must go through a new same-origin route — the browser cannot set the
+  existing httpOnly cookie. `/api/auth/session` is the template.
+- `profiles` has **no email and no username**; avatar is `avatarFileId`, a file
+  ID, not a URL. Google returns a URL, so avatar mapping needs a new
+  SSRF-guarded remote-fetch-to-buffer path.
+- There is dead `userName` code in `editableProfileKeys` and
+  `api/profile/route.ts:173` referencing an attribute that does not exist. Any
+  `updateUserProfile({userName})` would be rejected by Appwrite. Delete it.
+- The tombstone guard is **bypassed for OAuth users**. `tombstoneUserProfile`
+  exists so a deleted account's ID can never be reused, but its only caller is
+  inside `registerAction`. An OAuth user who deleted their account would
+  silently get a fresh one with their old messages orphaned. Fix alongside.
+
+**Merge policy, decided:** auto-link when Appwrite reports the provider email as
+verified and it matches an existing account, gated strictly on the verified flag
+— that flag is the only thing standing between this and an account-takeover
+path. `Users.listIdentities` can filter on both `providerUid` and
+`providerEmail`, so this is an afternoon of work, not a design cycle.
+
+**Mobile OAuth is new work, not a reroute.** The original plan claimed it
+"rides the existing pattern" used by password reset. It does not:
+`expo-linking` is **never imported** anywhere in mobile `src`, and
+`forgot-password.tsx` just calls `requestPasswordReset` and shows "check your
+email". There is no in-app browser, no deep link, and no session handoff to
+reuse. Both deps are installed, so the mechanism is available — but it has to be
+built. Reuse the result for SAML/OIDC in 2.5.
 
 ### Canary: voice and video, web only
 
-Feature flag `canary_voice_calls`. **Its own release lane** — this is the
-correction to the original plan. A canary that shares a release with four
+Feature flag `canary_voice_calls`, shipping in 2.3 as **its own release lane**.
+This is the correction to the original plan: a canary that shares a release with
 other features cannot be reverted without reverting them, which makes it not a
-canary. Exposed to a small percentage of opted-in servers first.
+canary.
+
+**Nothing exists today.** No `webrtc`, `getUserMedia`, `RTCPeerConnection`,
+`livekit`, `jitsi`, `agora` or `twilio` anywhere outside this document, and no
+streaming dependency in either app. There is no partial or dead implementation
+to reuse. This is a greenfield build.
+
+**Two things the original plan got wrong:**
+
+*The flag is not a flag flip.* "Exposed to a small percentage of opted-in servers"
+assumes infrastructure that does not exist. `feature_flags` is a flat global
+table (`key`, `enabled`, and an unused `value` string(64)); `servers` has no
+rollout column; `getFeatureFlag` returns `Promise<boolean>` and is used in ~10
+places; the one public client endpoint is hardcoded to a single key. Either
+build the rollout helper and a per-server flag function, or simplify the gate to
+a single global admin toggle. Decide before writing the flag.
+
+*`voice` channels already exist.* `voice` is already in `CHANNEL_TYPE_VALUES`,
+already validated in both channel routes, and already rendered on mobile. Web
+**hides it deliberately** (`category-settings-panel.tsx:831-833`) and there is a
+test asserting the hiding (`admin-server-management.test.tsx:93-104`:
+`expect(optionValues).not.toContain("voice")`). So 2.4's "voice channels" is
+un-hiding a suppressed type plus the media work, not a new type. The original
+framing inverted the actual cost distribution.
+
+There is also **no call permission** on roles. The 2.4 exit criterion
+"permission gating verified against the role matrix" needs a new role flag and a
+new branch in `getEffectivePermissions`; neither exists.
 
 Media transport sits behind a `CallProvider` interface from the first commit,
 with the selected provider as a per-instance admin setting. This is the one
@@ -205,13 +449,71 @@ load, and permission gating verified against the role matrix.
 
 ### Flags
 
-`canary_voice_calls`, `canary_forum_channels`, `oauth_login`
-
-Rollback for all three is a flag flip. None of them require a migration.
+`oauth_login` and `canary_forum_channels` in 2.3; `canary_voice_calls` follows in
+its own lane. Neither of the first two requires a migration, so rollback is a
+flag flip — but note the `canary_voice_calls` caveat above about the flag system
+not yet supporting per-server rollout.
 
 ---
 
 ## 2.3 — Server Identity and Ecosystem Beta
+
+2.3 absorbs the three features deferred out of 2.2: **forum channels**,
+**OAuth**, and the **A/V canary** in its own release lane. All three are
+detailed under "Deferred out of 2.2" in the 2.2 section above — read those
+notes before estimating, because the original assumptions in each were wrong
+and the corrected numbers are larger.
+
+### Forum channels
+
+Depends on the 2.2 `channel_permission_overrides` fix and the 2.2 channel-type
+consolidation. Roughly 30 sites across 16 files, with two design decisions to
+make first: how `ChannelAccess` separates create-a-post from
+reply-in-a-post, and what happens when `thread_reads.reads` exceeds its ~65KB
+cap. Reuses the existing flattened thread model and both existing thread
+screens; only the post list is new.
+
+### OAuth and Google sign-in
+
+Merge policy is decided: auto-link on a verified provider-email match, gated
+strictly on Appwrite's verified flag. The build is larger than it first appears
+— a new same-origin callback route for the `createSession` step, a hardcoded
+provider allowlist (`listProviders` no longer exists in the SDKs), a new
+SSRF-guarded avatar fetch, and a brand-new mobile deep-link plus session handoff
+that has no existing mechanism to reuse.
+
+### 2.2 exit criteria
+
+The gate, which gates the gate:
+
+- `bun run lint` and `bun run typecheck` pass in both workspaces with zero
+  errors, and `test:web.yml` fails on a type error in either one.
+
+Infrastructure:
+
+- A clean `setup-appwrite.ts` run provisions `channel_permission_overrides`,
+  and channel permission overrides demonstrably work on a fresh environment.
+- `rg '"text", "voice", "announcement"'` returns only the canonical
+  `CHANNEL_TYPE_VALUES` definition.
+- `bun run check:openapi` reports all 143 in-scope operations documented with
+  zero missing and zero phantom (done), `ChannelPermissionOverride` matches the
+  runtime (done), the `bearerAuth` path is documented alongside `sessionCookie`
+  (done), generated types exist, and CI fails when a route is added or changed
+  without a spec update (done — the gate is wired; only client generation
+  remains).
+- The four federation columns are reserved and documented, with no behaviour
+  shipped against them.
+
+User-facing:
+
+- Four Catppuccin palettes are selectable and persist across reload on both
+  platforms, with no launch flash on web.
+- A non-admin server member sees the right-rail member list sorted by rank then
+  name; a non-member gets a 403.
+- Mobile ships a member list screen. It is net-new, not a port.
+
+Explicitly not exit criteria for 2.2: forums, OAuth, or any calling. If those
+appear, they have leaked from 2.3.
 
 ### Per-server profiles
 
@@ -266,13 +568,19 @@ silently disagree.
 
 ### Calling stabilization
 
-Promote from canary using 2.2–2.3 data against the exit criteria above. Expect
+Promote from canary using 2.3 data against the exit criteria above. Expect
 this release to be dominated by defect work rather than features.
 
 ### Voice channels
 
-First-class channel type. Depends on the calling stack being stable, which is
-why it is here and not 2.2.
+Not a new type. `voice` is already in `CHANNEL_TYPE_VALUES`, already validated
+in both channel routes, and already rendered on mobile. Web hides it
+deliberately (`category-settings-panel.tsx:831-833`) and
+`admin-server-management.test.tsx:93-104` asserts the hiding
+(`expect(optionValues).not.toContain("voice")`). This is un-hiding a suppressed
+type and wiring it to the stable calling stack. There is also no call
+permission on roles yet — the exit criterion above requires a new role flag
+and a branch in `getEffectivePermissions`.
 
 ### PWA hardening
 
@@ -472,7 +780,7 @@ with them.
 
 ### The actual project
 
-**The eight `"use server"` modules are the friction.** Server actions are a
+**The nine `"use server"` modules are the friction** (3,747 lines total). Server actions are a
 Next-specific RPC mechanism, not an HTTP API surface. Each must either become a
 route handler the client calls over HTTP, or stay in the Next app — which means
 the Next app is still the API. And `docs/openapi-doc.yml` does not cover them,

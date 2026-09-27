@@ -17,6 +17,7 @@
         "lint:fix": "eslint \"**/*.{ts,tsx,js,mjs,cjs}\" --fix",
         "typecheck": "tsc --noEmit",
         "check": "bun run lint",
+        "check:openapi": "bun scripts/check-openapi-sync.ts",
         "setup": "bun scripts/setup-appwrite.ts",
         "validate-env": "bun scripts/validate-env.ts",
         "validate-env:ci": "bun scripts/validate-ci-env.ts",

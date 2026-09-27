@@ -474,7 +474,9 @@ export default function DirectMessageScreen() {
     setUnreadCount(0);
   }, [normalizedConversationId, messages]);
 
-  markDmReadRef.current = markDmRead;
+  useEffect(() => {
+    markDmReadRef.current = markDmRead;
+  });
 
   useEffect(() => {
     if (messageIndex >= 0 && listRef.current) {

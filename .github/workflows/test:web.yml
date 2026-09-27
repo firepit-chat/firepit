@@ -44,5 +44,12 @@ jobs:
                   NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
                   APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
 
+            - name: Run typecheck
+              run: bun run typecheck
+
+            - name: Check OpenAPI spec matches route handlers
+              working-directory: apps/web
+              run: bun run check:openapi
+
             - name: Run linter
               run: bun run lint

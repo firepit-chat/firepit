@@ -73,7 +73,7 @@ export default function ForgotPasswordScreen() {
                                     themeColor="mutedForeground"
                                     style={styles.copy}
                                 >
-                                    Enter your email and we'll send you a link
+                                    Enter your email and we’ll send you a link
                                     to reset your password.
                                 </ThemedText>
                             </ThemedView>

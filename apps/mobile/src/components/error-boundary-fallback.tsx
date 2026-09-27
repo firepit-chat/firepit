@@ -34,7 +34,7 @@ export function ErrorBoundaryFallback({
         <ThemedText style={styles.emoji}>⚠️</ThemedText>
         <ThemedText style={styles.title}>Something went wrong</ThemedText>
         <ThemedText style={styles.message}>
-          An unexpected error occurred. We've logged the details and you can try
+          An unexpected error occurred. We’ve logged the details and you can try
           again.
         </ThemedText>
         <Pressable

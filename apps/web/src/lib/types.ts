@@ -168,6 +168,15 @@ export type Server = {
 export const CHANNEL_TYPE_VALUES = ["text", "voice", "announcement"] as const;
 export type ChannelType = (typeof CHANNEL_TYPE_VALUES)[number];
 
+/**
+ * Coerces an untrusted channel type to a known one, defaulting to "text".
+ * Lives here rather than in a server module so client components can use it
+ * without importing server-only code.
+ */
+export function normalizeChannelType(value: unknown): ChannelType {
+    return CHANNEL_TYPE_VALUES.find((type) => type === value) ?? "text";
+}
+
 export type Channel = {
     $id: string;
     serverId: string;

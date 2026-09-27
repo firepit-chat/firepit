@@ -25,12 +25,18 @@ type Option = { id: string; text: string };
 export function PollCreationModal({ visible, onClose, onSubmit }: Props) {
   const theme = useTheme();
   const [question, setQuestion] = useState("");
-  const optionIdRef = useRef(0);
-  const createOption = (): Option => ({
-    id: `poll-option-${++optionIdRef.current}`,
-    text: "",
-  });
-  const [options, setOptions] = useState<Option[]>([createOption(), createOption()]);
+  const optionIdRef = useRef(2);
+  const createOption = (): Option => {
+    optionIdRef.current += 1;
+    return {
+      id: `poll-option-${optionIdRef.current}`,
+      text: "",
+    };
+  };
+  const [options, setOptions] = useState<Option[]>([
+    { id: "poll-option-1", text: "" },
+    { id: "poll-option-2", text: "" },
+  ]);
 
   const updateOption = (index: number, text: string) => {
     setOptions((prev) =>
