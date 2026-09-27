@@ -10,7 +10,7 @@ import type { ChannelPermissionOverride } from "@/lib/types";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import {
     getServerPermissionsForUser,
     hasAccessToCategory,
@@ -24,7 +24,6 @@ const channelPermissionOverridesCollectionId = "channel_permission_overrides";
 function getDatabases() {
     return getServerClient().databases;
 }
-
 
 function mapOverride(
     doc: Record<string, unknown>,

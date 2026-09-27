@@ -31,8 +31,7 @@ export function TelemetrySettings() {
     const isDisabled = !isLoaded || !userId || isSaving;
 
     return (
-        <div className="rounded-2xl border border-border/60 bg-background/70 p-5">
-            <div className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card/70 p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2">
                         <Activity className="h-4 w-4 text-primary" />
@@ -61,6 +60,5 @@ export function TelemetrySettings() {
                     }
                 />
             </div>
-        </div>
     );
 }

@@ -34,7 +34,7 @@ vi.mock("@/lib/appwrite-core", () => ({
 	})),
 }));
 
-vi.mock("@/lib/newrelic-utils", () => ({
+vi.mock("@/lib/posthog-utils", () => ({
 	returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
 	returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
 	logger: {
@@ -43,9 +43,7 @@ vi.mock("@/lib/newrelic-utils", () => ({
 		error: vi.fn(),
 	},
 	recordError: vi.fn(),
-	setTransactionName: vi.fn(),
 	trackApiCall: vi.fn(),
-	addTransactionAttributes: vi.fn(),
 }));
 
 describe("DM Reactions API", () => {
@@ -54,7 +52,7 @@ describe("DM Reactions API", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		
+
 		// Dynamically import the route handlers
 		const module = await import("../../app/api/direct-messages/[messageId]/reactions/route");
 		POST = module.POST;

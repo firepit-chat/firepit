@@ -1009,6 +1009,7 @@ async function setupChannels() {
     await ensureStringAttribute("channels", "topic", 500, false);
     await ensureStringAttribute("channels", "categoryId", LEN_ID, false);
     await ensureIntegerAttribute("channels", "position", false, 0, 0);
+    await ensureBooleanAttribute("channels", "nsfw", false);
     // Note: Using system $createdAt attribute for ordering, no custom attribute needed
     await ensureIndex("channels", "idx_serverId", "key", ["serverId"]);
     await ensureIndex("channels", "idx_categoryId", "key", ["categoryId"]);
@@ -1354,6 +1355,8 @@ async function setupProfiles() {
         ["profileBackgroundImageChangedAt", LEN_TS, false],
         ["avatarFramePreset", 64, false],
         ["dmEncryptionPublicKey", 256, false],
+        ["deletedAt", LEN_TS, false],
+        ["deletedEmail", 255, false],
     ];
     for (const [k, size, req] of fields) {
         await ensureStringAttribute("profiles", k, size, req);
@@ -1386,6 +1389,7 @@ async function setupFeatureFlags() {
         await ensureStringAttribute("feature_flags", k, size, req);
     }
     await ensureBooleanAttribute("feature_flags", "enabled", true);
+    await ensureStringAttribute("feature_flags", "value", 64, false);
     await ensureIndex("feature_flags", "idx_key", "key", ["key"]);
 
     await ensureFeatureFlagDocument({
@@ -1418,17 +1422,28 @@ async function setupFeatureFlags() {
         enabled: false,
         key: "enable_tenor_gif_search",
     });
+    await ensureFeatureFlagDocument({
+        description:
+            "Signup policy: open, individual approval, or signups disabled",
+        enabled: true,
+        key: "signup_policy",
+        value: "open",
+    });
 }
 
 async function ensureFeatureFlagDocument(params: {
     description: string;
     enabled: boolean;
     key: string;
+    value?: string;
 }) {
     const { description, enabled, key } = params;
+    const value = params.value;
+    const now = new Date().toISOString();
+    const valuePayload = value !== undefined ? { value } : {};
+    const descriptionUpdatedAt = { description, updatedAt: now, ...valuePayload };
 
     const documentId = createFeatureFlagDocumentId(key);
-    const now = new Date().toISOString();
     let operation: "added" | "updated" = "added";
 
     const deterministicDocument = (await tryVariants([
@@ -1454,14 +1469,12 @@ async function ensureFeatureFlagDocument(params: {
         await tryVariants([
             () =>
                 dbAny.updateDocument(DB_ID, "feature_flags", documentId, {
-                    description,
-                    updatedAt: now,
+                    ...descriptionUpdatedAt,
                 }),
             () =>
                 dbAny.updateDocument?.({
                     data: {
-                        description,
-                        updatedAt: now,
+                        ...descriptionUpdatedAt,
                     },
                     databaseId: DB_ID,
                     collectionId: "feature_flags",
@@ -1495,27 +1508,25 @@ async function ensureFeatureFlagDocument(params: {
         );
     }
 
-    await tryVariants([
-        () =>
-            dbAny.createDocument(DB_ID, "feature_flags", documentId, {
-                description,
-                enabled,
-                key,
-                updatedAt: now,
-            }),
-        () =>
-            dbAny.createDocument?.({
-                data: {
-                    description,
+await tryVariants([
+            () =>
+                dbAny.createDocument(DB_ID, "feature_flags", documentId, {
+                    ...descriptionUpdatedAt,
                     enabled,
                     key,
-                    updatedAt: now,
-                },
-                databaseId: DB_ID,
-                collectionId: "feature_flags",
-                documentId,
-            }),
-    ]).catch(async (error) => {
+                }),
+            () =>
+                dbAny.createDocument?.({
+                    data: {
+                        ...descriptionUpdatedAt,
+                        enabled,
+                        key,
+                    },
+                    databaseId: DB_ID,
+                    collectionId: "feature_flags",
+                    documentId,
+                }),
+        ]).catch(async (error) => {
         if (!isDuplicateConflictError(error)) {
             throw error;
         }
@@ -1558,14 +1569,12 @@ async function ensureFeatureFlagDocument(params: {
         await tryVariants([
             () =>
                 dbAny.updateDocument(DB_ID, "feature_flags", documentId, {
-                    description,
-                    updatedAt: now,
+                    ...descriptionUpdatedAt,
                 }),
             () =>
                 dbAny.updateDocument?.({
                     data: {
-                        description,
-                        updatedAt: now,
+                        ...descriptionUpdatedAt,
                     },
                     databaseId: DB_ID,
                     collectionId: "feature_flags",

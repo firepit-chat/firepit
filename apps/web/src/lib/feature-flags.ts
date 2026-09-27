@@ -8,7 +8,7 @@ import {
     getFeatureFlagDescription,
     type FeatureFlagKey,
 } from "./feature-flags-definitions";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 import { getServerClient } from "./appwrite-server";
 import type { FeatureFlag } from "./types";
 

@@ -469,7 +469,7 @@ export function DirectMessageView({
     return (
         <div className="min-w-0 space-y-4">
             {/* Header */}
-            <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-border/80 pb-3">
                 {onBack && (
                     <Button onClick={onBack} size="sm" variant="ghost">
                         <ArrowLeft className="size-4" />
@@ -529,7 +529,7 @@ export function DirectMessageView({
             </div>
 
             {readOnly ? (
-                <div className="flex items-start gap-2 rounded-2xl border border-amber-300/70 bg-amber-50/80 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                <div className="flex items-start gap-2 rounded-md border border-amber-300/70 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
                     <Lock className="mt-0.5 size-4 shrink-0" />
                     <div>
                         <p className="font-medium">Messaging disabled</p>
@@ -545,7 +545,7 @@ export function DirectMessageView({
                     <MentionHelpTooltip />
                     {unreadAnchorMessageId &&
                     (onJumpToUnread || onCatchUpUnread) ? (
-                        <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
                             <div>
                                 <p className="font-medium text-foreground">
                                     Unread activity available
@@ -580,7 +580,7 @@ export function DirectMessageView({
                     ) : null}
 
                     <div
-                        className="min-w-0 w-full space-y-3 overflow-y-auto rounded-3xl border border-border/60 bg-background/70 p-4 shadow-inner"
+                        className="min-w-0 w-full space-y-3 overflow-y-auto p-3"
                         data-message-scroll-container="true"
                         ref={messagesContainerRef}
                         style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
@@ -731,7 +731,7 @@ export function DirectMessageView({
                                         <div key={message.$id}>
                                             {unreadAnchorMessageId ===
                                             message.$id ? (
-                                                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                                                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-primary">
                                                     <span className="h-px flex-1 bg-primary/30" />
                                                     First unread
                                                     <span className="h-px flex-1 bg-primary/30" />
@@ -1149,7 +1149,7 @@ export function DirectMessageView({
 
                     <>
                         {replyingToMessage ? (
-                            <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
+                            <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm">
                                 <div className="truncate">
                                     Replying to{" "}
                                     <span className="font-medium">
@@ -1169,7 +1169,7 @@ export function DirectMessageView({
                         ) : null}
 
                         {editingMessageId ? (
-                            <div className="flex items-center justify-between rounded-2xl border border-blue-200/60 bg-blue-50/60 px-4 py-3 text-sm dark:border-blue-500/40 dark:bg-blue-950/30">
+                            <div className="flex items-center justify-between rounded-md border border-blue-200/60 bg-blue-50/60 px-3 py-2 text-sm dark:border-blue-500/40 dark:bg-blue-950/30">
                                 <span className="text-blue-700 dark:text-blue-300">
                                     Editing message
                                 </span>
@@ -1184,7 +1184,7 @@ export function DirectMessageView({
                             </div>
                         ) : null}
 
-                        <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
+                        <div className="space-y-3 p-2.5">
                             {imagePreview ? (
                                 <div className="relative inline-block">
                                     <img
@@ -1280,7 +1280,7 @@ export function DirectMessageView({
                                             ? "Edit message"
                                             : "Message"
                                     }
-                                    className="flex-1 rounded-2xl border-border/60"
+                                    className="flex-1 rounded-lg border-border/60"
                                     disabled={composerDisabled}
                                     onChange={(newValue) => {
                                         setText(newValue);
@@ -1295,7 +1295,7 @@ export function DirectMessageView({
                                     value={text}
                                 />
                                 <Button
-                                    className="shrink-0 rounded-2xl"
+                                    className="shrink-0 rounded-lg"
                                     disabled={
                                         composerDisabled ||
                                         (!text.trim() &&
@@ -1318,9 +1318,9 @@ export function DirectMessageView({
                     </>
                 </div>
 
-                <aside className="min-w-0 space-y-3 rounded-2xl border border-border/60 bg-background/80 p-3">
-                    <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
-                        <div className="mb-2 flex items-center gap-2 font-medium text-sm">
+                <aside className="min-w-0 space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm font-medium">
                             <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                             Pinned Messages
                         </div>
@@ -1348,9 +1348,9 @@ export function DirectMessageView({
                         />
                     </div>
 
-                    <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
-                        <div className="mb-2 flex items-center justify-between">
-                            <h3 className="font-medium text-sm">Thread</h3>
+                    <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium">Thread</h3>
                             {activeThreadParent && onCloseThread && (
                                 <Button
                                     onClick={onCloseThread}

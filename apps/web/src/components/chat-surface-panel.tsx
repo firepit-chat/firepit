@@ -113,7 +113,7 @@ type ChatSurfacePanelProps = {
 
 function UnreadBoundary() {
     return (
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-primary">
             <span className="h-px flex-1 bg-primary/30" />
             First unread
             <span className="h-px flex-1 bg-primary/30" />
@@ -319,7 +319,7 @@ export function ChatSurfacePanel({
 
     if (!showSurface) {
         return (
-            <div className="flex h-[60vh] items-center justify-center rounded-3xl border border-dashed border-border/60 bg-background/60 p-10 text-center text-sm text-muted-foreground">
+            <div className="flex h-[60vh] items-center justify-center rounded-xl border border-dashed border-border/60 p-10 text-center text-sm text-muted-foreground">
                 <div>
                     <p className="font-medium text-foreground">
                         {placeholderTitle}
@@ -333,7 +333,7 @@ export function ChatSurfacePanel({
     return (
         <div className="space-y-3">
             {unreadAnchorMessageId && (onJumpToUnread || onCatchUpUnread) ? (
-                <div className="flex items-center justify-between rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
+                <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
                     <div>
                         <p className="font-medium text-foreground">
                             Unread activity available
@@ -370,7 +370,7 @@ export function ChatSurfacePanel({
                 className={
                     useVirtualScrolling
                         ? "relative min-w-0 w-full"
-                        : `relative min-w-0 w-full overflow-y-auto rounded-3xl border border-border/60 bg-background/70 shadow-inner ${
+                        : `relative min-w-0 w-full overflow-y-auto ${
                               compactMessages
                                   ? "space-y-2 p-3"
                                   : "space-y-3 p-4"
@@ -486,9 +486,9 @@ export function ChatSurfacePanel({
                     </>
                 )}
                 {showLoadingOverlay ? (
-                    <div className="pointer-events-none absolute inset-0 rounded-3xl bg-background/80 backdrop-blur-[1px]">
+                    <div className="pointer-events-none absolute inset-0 rounded-xl bg-background/80 backdrop-blur-[1px]">
                         <div className="flex h-full items-start justify-center pt-6">
-                            <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                            <div className="inline-flex items-center gap-2 rounded-full bg-muted/80 px-3 py-1.5 text-xs text-muted-foreground">
                                 <Loader2 className="size-3.5 animate-spin" />
                                 Updating messages...
                             </div>
@@ -511,12 +511,9 @@ export function ChatSurfacePanel({
             )}
 
             {composer && (
-                <div
-                    className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4"
-                    ref={composerContainerRef}
-                >
+                <div className="space-y-3 p-2.5" ref={composerContainerRef}>
                     {composer.replyingTo && (
-                        <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3 text-sm">
+                        <div className="flex items-center justify-between rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-sm">
                             <div className="truncate">
                                 Replying to{" "}
                                 <span className="font-medium">
@@ -537,7 +534,7 @@ export function ChatSurfacePanel({
                     )}
 
                     {editingMessageId && composer.onCancelEdit && (
-                        <div className="flex items-center justify-between rounded-2xl border border-blue-200/60 bg-blue-50/60 px-4 py-3 text-sm dark:border-blue-500/40 dark:bg-blue-950/30">
+                        <div className="flex items-center justify-between rounded-md border border-blue-200/60 bg-blue-50/60 px-3 py-2 text-sm dark:border-blue-500/40 dark:bg-blue-950/30">
                             <span className="text-blue-700 dark:text-blue-300">
                                 Editing message
                             </span>
@@ -595,7 +592,7 @@ export function ChatSurfacePanel({
                         <div
                             aria-atomic="true"
                             aria-live="polite"
-                            className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
+                            className="rounded-md border border-border/60 bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground"
                             role="status"
                         >
                             {composer.readOnlyMessage}
@@ -659,7 +656,7 @@ export function ChatSurfacePanel({
                             aria-label={
                                 editingMessageId ? "Edit message" : "Message"
                             }
-                            className="flex-1 rounded-2xl border-border/60"
+                            className="flex-1 rounded-lg border-border/60"
                             disabled={composerDisabled}
                             onChange={composer.onTextChange}
                             onKeyDown={(event) => {
@@ -681,7 +678,7 @@ export function ChatSurfacePanel({
                             canMentionEveryone={canMentionEveryone}
                         />
                         <Button
-                            className="shrink-0 rounded-2xl"
+                            className="shrink-0 rounded-lg"
                             disabled={
                                 composerDisabled ||
                                 (!composer.text.trim() &&

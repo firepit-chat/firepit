@@ -1,7 +1,7 @@
 import { ID, Query } from "node-appwrite";
 import { createHash } from "node:crypto";
 import { nanoid } from "nanoid";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import { listPages } from "@/lib/appwrite-pagination";
 import type { ServerInvite } from "./types";
 import { getEnvConfig } from "./appwrite-core";

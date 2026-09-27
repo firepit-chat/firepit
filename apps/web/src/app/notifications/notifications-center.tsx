@@ -96,9 +96,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
     return (
         <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             <div className="grid gap-8">
-                <section className="grid gap-6 overflow-hidden rounded-4xl border border-border/70 bg-card/85 p-8 shadow-2xl backdrop-blur-sm sm:p-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
+                <section className="grid gap-6 p-8 sm:p-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
                     <div className="space-y-6">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                             <Bell className="h-3.5 w-3.5 text-primary" />
                             Notifications
                         </div>
@@ -112,12 +112,12 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <Button asChild className="rounded-full shadow-lg shadow-primary/15">
+                            <Button asChild className="rounded-lg">
                                 <Link href={"/chat" as Route}>Back to chat</Link>
                             </Button>
                             <Button
                                 asChild
-                                className="rounded-full border-border/70 bg-background/70 backdrop-blur"
+                                className="rounded-lg border-border/70"
                                 variant="outline"
                             >
                                 <Link href={"/settings#notification-preferences" as Route}>
@@ -127,24 +127,24 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     Unread
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                                     {inboxApi.unreadCount}
                                 </p>
                             </div>
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     Mentions
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                                     {unreadByFilter.mentions}
                                 </p>
                             </div>
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     DMs
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
@@ -154,7 +154,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                         </div>
                     </div>
 
-                    <div className="space-y-3 rounded-3xl border border-border/60 bg-background/70 p-5 shadow-lg">
+                    <div className="space-y-3 rounded-xl border border-border/80 p-4">
                         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                             <Sparkles className="h-4 w-4 text-primary" />
                             Quick actions
@@ -170,7 +170,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                     </div>
                 </section>
 
-                <section className="rounded-4xl border border-border/60 bg-card/80 p-6 shadow-2xl backdrop-blur-sm sm:p-8">
+                <section className="p-6 sm:p-8">
                     <div className="flex flex-wrap gap-2">
                         {FILTERS.map((filter) => {
                             const Icon = filter.icon;
@@ -180,7 +180,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             return (
                                 <Button
                                     aria-pressed={active}
-                                    className="rounded-full"
+                                    className="rounded-lg"
                                     key={filter.value}
                                     onClick={() => setSelectedFilter(filter.value)}
                                     size="sm"
@@ -205,7 +205,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             <div className="space-y-3">
                                 {["s1", "s2", "s3", "s4"].map((id) => (
                                     <div
-                                        className="rounded-3xl border border-border/60 bg-background/70 p-4"
+                                        className="rounded-md border border-border/60 bg-background/60 p-3"
                                         key={id}
                                     >
                                         <Skeleton className="h-4 w-36" />
@@ -215,7 +215,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                 ))}
                             </div>
                                 ) : filteredItems.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border/60 bg-background/60 p-10 text-center">
+                            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 p-10 text-center">
                                 <Bell className="mb-3 h-8 w-8 text-muted-foreground" />
                                 <p className="text-sm font-medium text-foreground">
                                     No notifications for this filter
@@ -227,7 +227,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             ) : (
                                 filteredItems.map((item) => (
                                     <button
-                                        className="flex w-full items-start gap-3 rounded-3xl border border-border/60 bg-background/70 p-4 text-left transition hover:border-border hover:bg-background"
+                                        className="flex w-full items-start gap-3 rounded-md border border-border/60 bg-background/60 p-3 text-left transition-colors hover:bg-background/80"
                                         key={item.id}
                                         onClick={() => navigateToItem(item)}
                                         onKeyDown={(e) => {
@@ -256,7 +256,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                                 })}
                                             </span>
                                         </div>
-                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
                                             <span>{getItemFilterLabel(item)}</span>
                                             <span>
                                                 {item.contextKind === "channel"
@@ -275,9 +275,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                     </div>
                 </section>
 
-                <section className="rounded-4xl border border-border/60 bg-card/80 p-6 shadow-2xl backdrop-blur-sm sm:p-8">
+                <section className="p-6 sm:p-8">
                     <div className="mb-6 space-y-2">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <MessageSquare className="h-3.5 w-3.5 text-primary" />
                             Fine-grained controls
                         </div>

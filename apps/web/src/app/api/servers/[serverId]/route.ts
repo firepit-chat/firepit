@@ -20,7 +20,7 @@ import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const MAX_SERVER_NAME_LENGTH = 100;
 const MAX_SERVER_DESCRIPTION_LENGTH = 500;

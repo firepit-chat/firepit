@@ -111,7 +111,7 @@ export function DocsMarkdown({ content }: DocsMarkdownProps) {
                     code: ({ children, className }) => {
                         if (className) {
                             return (
-                                <code className="block overflow-x-auto rounded-2xl border border-border/60 bg-muted/70 px-4 py-3 font-mono text-xs leading-6 text-foreground">
+                                <code className="block overflow-x-auto rounded-lg border border-border/60 bg-muted/70 px-4 py-3 font-mono text-xs leading-6 text-foreground">
                                     {children}
                                 </code>
                             );
@@ -125,7 +125,7 @@ export function DocsMarkdown({ content }: DocsMarkdownProps) {
                     },
                     pre: ({ children }) => <>{children}</>,
                     table: ({ children }) => (
-                        <div className="overflow-x-auto rounded-2xl border border-border/60 bg-background/70">
+                        <div className="overflow-x-auto rounded-lg border border-border/60 bg-background/70">
                             <table className="min-w-full border-collapse text-left text-sm">
                                 {children}
                             </table>

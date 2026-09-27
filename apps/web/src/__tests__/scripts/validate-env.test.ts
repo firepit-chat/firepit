@@ -212,15 +212,6 @@ describe("Environment Variable Validation Script", () => {
     });
 
     describe("Optional Environment Variables", () => {
-        it("should allow NEWRELIC_LICENSE_KEY to be undefined for local dev", () => {
-            // New Relic is optional for local development
-            const newRelicKey = process.env.NEWRELIC_LICENSE_KEY;
-            // Test passes if it's either defined or undefined
-            expect(
-                newRelicKey === undefined || typeof newRelicKey === "string",
-            ).toBe(true);
-        });
-
         it("should allow custom NEXT_PUBLIC_BASE_URL", () => {
             const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
             if (baseUrl) {
@@ -278,16 +269,18 @@ describe("Environment Variable Validation Script", () => {
             }
         });
 
-        it("should have New Relic configured in production", () => {
+        it("should have PostHog configured in production", () => {
             const nodeEnv = process.env.NODE_ENV;
-            const newRelicKey = process.env.NEWRELIC_LICENSE_KEY;
+            const posthogKey =
+                process.env.POSTHOG_PROJECT_API_KEY ??
+                process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 
             if (nodeEnv === "production") {
-                // In production, New Relic should be configured
+                // In production, PostHog should be configured
                 // This is a warning, not a hard requirement
-                const hasNewRelic =
-                    newRelicKey !== undefined && newRelicKey.trim().length > 0;
-                expect(hasNewRelic || nodeEnv !== "production").toBe(true);
+                const hasPostHog =
+                    posthogKey !== undefined && posthogKey.trim().length > 0;
+                expect(hasPostHog || nodeEnv !== "production").toBe(true);
             }
         });
     });

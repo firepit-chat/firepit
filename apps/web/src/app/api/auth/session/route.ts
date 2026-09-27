@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
-import { Account, Client } from "node-appwrite";
+import { Account, Client, Users } from "node-appwrite";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { debugAuth, describeAuthHeader } from "@/lib/auth-server";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { getApprovalStatusFromPrefs } from "@/lib/signup-policy";
 
 const SESSION_LOGIN_RATE_LIMIT = {
     maxRequests: 5,
@@ -112,6 +113,45 @@ export async function POST(request: Request) {
             email,
             password,
         });
+
+        // Admin-control gates: pending/rejected signups can't sign in, and a
+        // deactivated account reactivates on its next successful sign-in.
+        const users = new Users(client);
+        const accountUser = await users.get(session.userId);
+        const prefs = (accountUser.prefs ?? {}) as Record<string, unknown>;
+        const approvalStatus = getApprovalStatusFromPrefs(prefs);
+
+        if (approvalStatus === "pending" || approvalStatus === "rejected") {
+            await users
+                .deleteSession({
+                    userId: session.userId,
+                    sessionId: session.$id,
+                })
+                .catch(() => {});
+
+            debugAuth(
+                `POST /api/auth/session blocked: userId=${session.userId}, status=${approvalStatus}`,
+            );
+
+            return NextResponse.json(
+                {
+                    error:
+                        approvalStatus === "pending"
+                            ? "Your account is awaiting administrator approval."
+                            : "Your signup was not approved by an administrator.",
+                },
+                { status: 403 },
+            );
+        }
+
+        if (prefs.disabled === true) {
+            await users
+                .updatePrefs({
+                    userId: session.userId,
+                    prefs: { ...prefs, disabled: false, disabledAt: null },
+                })
+                .catch(() => {});
+        }
 
         debugAuth(
             `POST /api/auth/session success: userId=${session.userId}, hasSecret=${Boolean(session.secret)}`,

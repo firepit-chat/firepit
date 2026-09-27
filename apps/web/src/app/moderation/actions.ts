@@ -8,7 +8,10 @@ import {
     adminRestoreMessage,
     adminSoftDeleteMessage,
 } from "../../lib/appwrite-admin";
-import { requireModerator } from "../../lib/auth-server";
+import { getEnvConfig } from "../../lib/appwrite-core";
+import { getServerClient } from "../../lib/appwrite-server";
+import { checkUserRoles, requireAuth } from "../../lib/auth-server";
+import { getServerPermissionsForUser } from "../../lib/server-channel-access";
 
 // Simple in-memory rate limiting (best effort, per runtime instance)
 const ACTION_WINDOW_MS = 5000;
@@ -35,9 +38,83 @@ function checkRate(userId: string, action: string, messageId: string) {
     lastActionKey[key] = now;
 }
 
-async function assertModerator() {
-    const { user } = await requireModerator();
-    return { userId: user.$id };
+type ResolvedGate = {
+    user: { $id: string; name: string; email: string };
+    roles: Awaited<ReturnType<typeof checkUserRoles>>;
+    message: NonNullable<
+        Awaited<ReturnType<typeof getAdminMessageAuditContext>>
+    >;
+};
+
+async function resolveMessageGate(messageId: string): Promise<ResolvedGate> {
+    const user = await requireAuth();
+    const roles = await checkUserRoles(user.$id);
+    const message = await getAdminMessageAuditContext(messageId);
+    if (!message) {
+        throw new Error("Message not found");
+    }
+    return { user, roles, message };
+}
+
+function canSoftDelete(
+    roles: Awaited<ReturnType<typeof checkUserRoles>>,
+    message: NonNullable<
+        Awaited<ReturnType<typeof getAdminMessageAuditContext>>
+    >,
+    access: Awaited<
+        ReturnType<typeof getServerPermissionsForUser>
+    > | null,
+) {
+    if (roles.isModerator || roles.isAdmin) {
+        return true;
+    }
+    if (!message.serverId) {
+        return false;
+    }
+    return (
+        access?.isServerOwner === true ||
+        access?.permissions.manageMessages === true
+    );
+}
+
+function canHardDelete(
+    roles: Awaited<ReturnType<typeof checkUserRoles>>,
+    message: NonNullable<
+        Awaited<ReturnType<typeof getAdminMessageAuditContext>>
+    >,
+    access: Awaited<
+        ReturnType<typeof getServerPermissionsForUser>
+    > | null,
+) {
+    if (roles.isAdmin) {
+        return true;
+    }
+    if (!message.serverId) {
+        return false;
+    }
+    return (
+        access?.isServerOwner === true ||
+        access?.permissions.administrator === true
+    );
+}
+
+async function resolveServerAccess(
+    userId: string,
+    message: NonNullable<
+        Awaited<ReturnType<typeof getAdminMessageAuditContext>>
+    >,
+): Promise<Awaited<ReturnType<typeof getServerPermissionsForUser>> | null> {
+    if (!message.serverId) {
+        return null;
+    }
+    const env = getEnvConfig();
+    const { databases } = getServerClient();
+    return getServerPermissionsForUser(
+        databases,
+        env,
+        message.serverId,
+        userId,
+    );
 }
 
 function trimMessagePreview(text?: string) {
@@ -83,9 +160,16 @@ function buildMessageAuditMeta(
 }
 
 export async function actionSoftDelete(messageId: string) {
-    const { userId } = await assertModerator();
+    const gate = await resolveMessageGate(messageId);
+    const access = await resolveServerAccess(gate.user.$id, gate.message);
+    if (!canSoftDelete(gate.roles, gate.message, access)) {
+        throw new Error(
+            "Forbidden: You need the manage messages permission in this server",
+        );
+    }
+    const userId = gate.user.$id;
     checkRate(userId, "soft_delete", messageId);
-    const message = await getAdminMessageAuditContext(messageId);
+    const message = gate.message;
     await adminSoftDeleteMessage(messageId, userId);
     await recordAudit(
         "soft_delete",
@@ -98,9 +182,16 @@ export async function actionSoftDelete(messageId: string) {
 }
 
 export async function actionRestore(messageId: string) {
-    const { userId } = await assertModerator();
+    const gate = await resolveMessageGate(messageId);
+    const access = await resolveServerAccess(gate.user.$id, gate.message);
+    if (!canSoftDelete(gate.roles, gate.message, access)) {
+        throw new Error(
+            "Forbidden: You need the manage messages permission in this server",
+        );
+    }
+    const userId = gate.user.$id;
     checkRate(userId, "restore", messageId);
-    const message = await getAdminMessageAuditContext(messageId);
+    const message = gate.message;
     await adminRestoreMessage(messageId);
     await recordAudit(
         "restore",
@@ -113,15 +204,16 @@ export async function actionRestore(messageId: string) {
 }
 
 export async function actionHardDelete(messageId: string) {
-    const { user, roles } = await requireModerator();
-    if (!roles.isAdmin) {
+    const gate = await resolveMessageGate(messageId);
+    const access = await resolveServerAccess(gate.user.$id, gate.message);
+    if (!canHardDelete(gate.roles, gate.message, access)) {
         throw new Error(
             "Forbidden: Only admins can permanently delete messages",
         );
     }
-    const userId = user.$id;
+    const userId = gate.user.$id;
     checkRate(userId, "hard_delete", messageId);
-    const message = await getAdminMessageAuditContext(messageId);
+    const message = gate.message;
     await adminDeleteMessage(messageId);
     await recordAudit(
         "hard_delete",

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { NotificationsCenter } from "./notifications-center";
 import { AuthError, requireAuth } from "@/lib/auth-server";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const AUTH_ERROR_REGEX =
     /\b(?:not authenticated|not authorized|unauthenticated|authentication|auth)\b/i;

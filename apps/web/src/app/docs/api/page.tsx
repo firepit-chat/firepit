@@ -108,10 +108,10 @@ export default async function DocsApiPage() {
     return (
         <DocsShell
             aside={
-                <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-4 shadow-sm backdrop-blur-sm">
+                <div className="rounded-xl border border-border/80 p-4">
                     <div className="mb-3 flex items-center gap-2">
                         <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        <span className="text-xs font-semibold text-muted-foreground">
                             Jump To Tag
                         </span>
                     </div>
@@ -136,12 +136,12 @@ export default async function DocsApiPage() {
         >
             <div className="space-y-8">
                 <div className="grid gap-4 md:grid-cols-3">
-                    <div className="flex items-center gap-4 rounded-3xl border border-border/60 bg-card/70 p-5 shadow-sm backdrop-blur-sm">
-                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-card p-4">
+                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <GitBranch className="h-5 w-5" />
                         </span>
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="text-xs font-semibold text-muted-foreground">
                                 Version
                             </div>
                             <div className="mt-1 font-mono text-xl font-semibold tracking-tight">
@@ -149,12 +149,12 @@ export default async function DocsApiPage() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 rounded-3xl border border-border/60 bg-card/70 p-5 shadow-sm backdrop-blur-sm">
-                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-card p-4">
+                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <Zap className="h-5 w-5" />
                         </span>
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="text-xs font-semibold text-muted-foreground">
                                 Operations
                             </div>
                             <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
@@ -162,12 +162,12 @@ export default async function DocsApiPage() {
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-4 rounded-3xl border border-border/60 bg-card/70 p-5 shadow-sm backdrop-blur-sm">
-                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <div className="flex items-center gap-4 rounded-xl border border-border/80 bg-card p-4">
+                        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                             <Layers3 className="h-5 w-5" />
                         </span>
                         <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="text-xs font-semibold text-muted-foreground">
                                 Tags
                             </div>
                             <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">
@@ -177,7 +177,7 @@ export default async function DocsApiPage() {
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-6 shadow-sm backdrop-blur-sm">
+                <div className="rounded-xl border border-border/80 bg-card p-6">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <h2 className="text-lg font-semibold tracking-tight">
@@ -196,7 +196,7 @@ export default async function DocsApiPage() {
                     <div className="mt-5 grid gap-4 xl:grid-cols-2">
                         {operationTags.map((tag) => (
                             <div
-                                className="overflow-hidden rounded-2xl border border-border/50 bg-background/60 p-4"
+                                className="rounded-md border border-border/60 bg-background/60 p-3.5"
                                 key={`${tag.name}-index`}
                             >
                                 <div className="flex items-center justify-between gap-3">
@@ -239,14 +239,14 @@ export default async function DocsApiPage() {
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-6 shadow-sm backdrop-blur-sm">
+                <div className="rounded-xl border border-border/80 bg-card p-6">
                     <h2 className="text-lg font-semibold tracking-tight">
                         Servers
                     </h2>
                     <div className="mt-4 grid gap-3 md:grid-cols-2">
                         {apiReference.servers.map((server) => (
                             <div
-                                className="overflow-hidden rounded-2xl border border-border/50 bg-background/60 px-4 py-3"
+                                className="rounded-md border border-border/60 bg-background/60 px-3.5 py-2.5"
                                 key={server.url}
                             >
                                 <div className="font-mono text-sm text-foreground">
@@ -263,7 +263,7 @@ export default async function DocsApiPage() {
                 <div className="space-y-4">
                     {apiReference.tags.map((tag) => (
                         <section
-                            className="overflow-hidden rounded-3xl border border-border/60 bg-card/70 p-6 shadow-sm backdrop-blur-sm"
+                            className="rounded-xl border border-border/80 bg-card p-6"
                             id={getTagAnchorId(tag.name)}
                             key={tag.name}
                         >
@@ -292,7 +292,7 @@ export default async function DocsApiPage() {
                                 <div className="mt-5 space-y-4">
                                     {tag.operations.map((operation) => (
                                         <article
-                                            className={`rounded-2xl border border-border/50 border-l-4 ${methodBorderColor(operation.method)} bg-card/60 p-5`}
+                                            className={`rounded-md border border-border/50 border-l-4 ${methodBorderColor(operation.method)} bg-card/60 p-4`}
                                             id={operation.anchorId}
                                             key={`${operation.method}-${operation.path}`}
                                         >
@@ -341,8 +341,8 @@ export default async function DocsApiPage() {
 
                                             <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
                                                 <div className="space-y-4">
-                                                    <section className="rounded-2xl border border-border/50 bg-background/70 p-4">
-                                                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                    <section className="rounded-md border border-border/60 bg-background/60 p-3.5">
+                                                        <div className="text-xs font-semibold text-muted-foreground">
                                                             Parameters
                                                         </div>
                                                         {operation.parameters
@@ -391,7 +391,7 @@ export default async function DocsApiPage() {
                                                                                             }
                                                                                         </div>
                                                                                         {parameter.required ? (
-                                                                                            <div className="mt-1 text-xs uppercase tracking-wide text-rose-600 dark:text-rose-300">
+                                                                                            <div className="mt-1 text-xs text-rose-600 dark:text-rose-300">
                                                                                                 required
                                                                                             </div>
                                                                                         ) : null}
@@ -424,8 +424,8 @@ export default async function DocsApiPage() {
                                                         )}
                                                     </section>
 
-                                                    <section className="rounded-2xl border border-border/50 bg-background/70 p-4">
-                                                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                    <section className="rounded-md border border-border/60 bg-background/60 p-3.5">
+                                                        <div className="text-xs font-semibold text-muted-foreground">
                                                             Request Body
                                                         </div>
                                                         {operation.requestBody ? (
@@ -467,8 +467,8 @@ export default async function DocsApiPage() {
                                                                         }
                                                                     </span>
                                                                 </div>
-                                                                <div className="rounded-xl border border-border/50 bg-card/50 p-3">
-                                                                    <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                                <div className="rounded-md border border-border/50 bg-card/50 p-3">
+                                                                    <div className="mb-3 text-xs font-semibold text-muted-foreground">
                                                                         Body
                                                                         Fields
                                                                     </div>
@@ -489,15 +489,15 @@ export default async function DocsApiPage() {
                                                     </section>
                                                 </div>
 
-                                                <section className="rounded-2xl border border-border/50 bg-background/70 p-4">
-                                                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                <section className="rounded-md border border-border/60 bg-background/60 p-3.5">
+                                                    <div className="text-xs font-semibold text-muted-foreground">
                                                         Responses
                                                     </div>
                                                     <div className="mt-3 space-y-3">
                                                         {operation.responses.map(
                                                             (response) => (
                                                                 <div
-                                                                    className="rounded-xl border border-border/50 bg-card/60 p-3"
+                                                                    className="rounded-md border border-border/50 bg-card/60 p-3"
                                                                     key={[
                                                                         operation.method,
                                                                         operation.path,
@@ -547,8 +547,8 @@ export default async function DocsApiPage() {
                                                                                 }
                                                                             </span>
                                                                         </div>
-                                                                        <div className="rounded-xl border border-border/50 bg-background/70 p-3">
-                                                                            <div className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                                                                        <div className="rounded-md border border-border/50 bg-background/70 p-3">
+                                                                            <div className="mb-3 text-xs font-semibold text-muted-foreground">
                                                                                 Response
                                                                                 Fields
                                                                             </div>

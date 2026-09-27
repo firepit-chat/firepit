@@ -37,7 +37,7 @@ export function MentionHelpTooltip() {
 						💡 Tip: Mention users in your messages
 					</p>
 					<p className="mb-2 text-blue-800 dark:text-blue-200">
-						Type <kbd className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs dark:bg-blue-900">@</kbd> 
+						Type <kbd className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-xs dark:bg-blue-900">@</kbd>
 						{" "}followed by a name to mention someone. They&apos;ll see a highlighted notification!
 					</p>
 					<p className="text-xs text-blue-700 dark:text-blue-300">

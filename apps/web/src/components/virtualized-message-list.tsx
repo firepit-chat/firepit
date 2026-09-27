@@ -56,7 +56,7 @@ type VirtualizedMessageListProps = {
 
 function UnreadBoundary() {
     return (
-        <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+        <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-primary">
             <span className="h-px flex-1 bg-primary/30" />
             First unread
             <span className="h-px flex-1 bg-primary/30" />
@@ -112,8 +112,8 @@ export function VirtualizedMessageList({
     return (
         <Virtuoso
             className={`min-w-0 w-full ${
-                isCompact ? "rounded-2xl p-3" : "rounded-3xl p-4"
-            } border border-border/60 bg-background/70 shadow-inner`}
+                isCompact ? "p-3" : "p-4"
+            }`}
             style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
             computeItemKey={(_, message) => message.id}
             data={messages}

@@ -6,7 +6,7 @@ import {
     getAnnouncementRuntimeSettings,
     parseLimit,
 } from "@/lib/appwrite-announcements";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 export async function POST(request: Request) {
     const { dispatcherSecret, systemSenderUserId } =

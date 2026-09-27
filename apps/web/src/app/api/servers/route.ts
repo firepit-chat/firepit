@@ -5,7 +5,7 @@ import { Query } from "node-appwrite";
 import { getServerSession } from "@/lib/auth-server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import type { Server } from "@/lib/types";
 import { listPages } from "@/lib/appwrite-pagination";
 import { getActualMemberCounts } from "@/lib/membership-count";

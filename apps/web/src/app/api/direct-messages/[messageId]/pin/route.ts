@@ -5,7 +5,7 @@ import { ID, Query } from "node-appwrite";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
-import { returnForbidden, logger } from "@/lib/newrelic-utils";
+import { returnForbidden, logger } from "@/lib/posthog-utils";
 import type { DirectMessage, PinnedMessage } from "@/lib/types";
 
 const PIN_LIMIT = 50;

@@ -15,7 +15,7 @@ import {
     DIRECT_MESSAGE_PRIVACY_VALUES,
     NOTIFICATION_LEVEL_VALUES,
 } from "@/lib/types";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 function isNotificationLevel(
     value: FormDataEntryValue | null,

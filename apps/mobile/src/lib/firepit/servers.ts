@@ -31,6 +31,7 @@ export async function createChannel(
         type?: "text" | "voice" | "announcement";
         topic?: string;
         categoryId?: string | null;
+        nsfw?: boolean;
     },
 ) {
     return firepitRequest<ChannelResponse>({
@@ -52,6 +53,7 @@ export async function updateChannel(
         position?: number;
         type?: "text" | "voice" | "announcement";
         topic?: string | null;
+        nsfw?: boolean;
     },
 ) {
     return firepitRequest<ChannelResponse>({

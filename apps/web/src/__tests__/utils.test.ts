@@ -230,11 +230,11 @@ describe("Utils - formatMessageTimestamp", () => {
 		const { formatMessageTimestamp } = await import("../lib/utils");
 		const testDate = "2025-01-15T14:30:00.000Z";
 		const result = formatMessageTimestamp(testDate);
-		
+
 		// Should contain both date and time components
 		expect(result).toBeTruthy();
 		expect(result).toContain(" ");
-		
+
 		// Verify it's not just time (which was the old behavior)
 		const date = new Date(testDate);
 		const timeStr = date.toLocaleTimeString();
@@ -245,7 +245,7 @@ describe("Utils - formatMessageTimestamp", () => {
 		const { formatMessageTimestamp } = await import("../lib/utils");
 		const isoDate = "2025-03-20T09:15:30.000Z";
 		const result = formatMessageTimestamp(isoDate);
-		
+
 		expect(result).toBeTruthy();
 		expect(typeof result).toBe("string");
 	});
@@ -254,11 +254,11 @@ describe("Utils - formatMessageTimestamp", () => {
 		const { formatMessageTimestamp } = await import("../lib/utils");
 		const testDate = "2025-06-10T18:45:00.000Z";
 		const result = formatMessageTimestamp(testDate);
-		
+
 		const date = new Date(testDate);
 		const dateStr = date.toLocaleDateString();
 		const timeStr = date.toLocaleTimeString();
-		
+
 		// Result should be combination of date and time
 		expect(result).toBe(`${dateStr} ${timeStr}`);
 	});

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { createServer } from "@/lib/appwrite-servers";
 import { getServerSession } from "@/lib/auth-server";
 import { FEATURE_FLAGS, getFeatureFlag } from "@/lib/feature-flags";
-import { logger, getPostHogClient } from "@/lib/newrelic-utils";
+import { logger, getPostHogClient } from "@/lib/posthog-utils";
 import { normalizeServerFileId } from "@/lib/server-metadata";
 
 const MAX_SERVER_NAME_LENGTH = 100;

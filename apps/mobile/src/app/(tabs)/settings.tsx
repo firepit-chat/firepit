@@ -12,6 +12,7 @@ import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { useCacheSettings } from "@/providers/cache-settings-context";
 import { type CacheStrategy } from "@/lib/cache/CacheManager";
 import { APP_VERSION } from "@/lib/update/constants";
+import { resendAccountVerification } from "@/lib/firepit";
 
 function StatusPill({
     label,
@@ -211,10 +212,11 @@ function safeHostname(url: string): string {
 
 export default function SettingsTabScreen() {
     const theme = useTheme();
-    const { currentUser, instanceUrl, notificationPreferences } =
+    const { currentUser, instanceUrl, accessToken, notificationPreferences } =
         useFirepitBootstrap();
 
     const [notifPermission, setNotifPermission] = useState(false);
+    const [verifyingEmail, setVerifyingEmail] = useState(false);
     useEffect(() => {
         let cancelled = false;
         Notifications.getPermissionsAsync().then(({ status }) => {
@@ -227,6 +229,37 @@ export default function SettingsTabScreen() {
 
     const notifEnabled =
         notifPermission || (notificationPreferences?.enabled ?? false);
+
+    const handleResendVerification = async () => {
+        if (!instanceUrl || !accessToken) return;
+        setVerifyingEmail(true);
+        try {
+            const result = await resendAccountVerification(
+                instanceUrl,
+                accessToken,
+            );
+            if (result.success) {
+                Alert.alert(
+                    "Verification email sent",
+                    result.message ?? "Check your inbox.",
+                );
+            } else {
+                Alert.alert(
+                    "Could not send",
+                    result.error ?? "Try again shortly.",
+                );
+            }
+        } catch (error) {
+            Alert.alert(
+                "Could not send",
+                error instanceof Error
+                    ? error.message
+                    : "This server may not support email verification.",
+            );
+        } finally {
+            setVerifyingEmail(false);
+        }
+    };
 
     return (
         <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -307,7 +340,47 @@ export default function SettingsTabScreen() {
                                         {currentUser?.email ?? "Not available"}
                                     </ThemedText>
                                 </View>
+                                {currentUser?.emailVerified === false ? (
+                                    <View style={styles.accountRow}>
+                                        <ThemedText type="code" themeColor="mutedForeground">
+                                            Verification
+                                        </ThemedText>
+                                        <Pressable
+                                            accessibilityRole="button"
+                                            disabled={verifyingEmail}
+                                            onPress={() => void handleResendVerification()}
+                                            style={({ pressed }) => ({
+                                                opacity: pressed || verifyingEmail ? 0.6 : 1,
+                                            })}
+                                        >
+                                            <ThemedText type="smallBold" themeColor="accent">
+                                                {verifyingEmail ? "Sending…" : "Verify email"}
+                                            </ThemedText>
+                                        </Pressable>
+                                    </View>
+                                ) : null}
                             </View>
+                            <SettingsRow
+                                label="Change Email"
+                                description="Switch the email address on your account"
+                                onPress={() =>
+                                    router.push("/settings/change-email" as never)
+                                }
+                            />
+                            <SettingsRow
+                                label="Devices"
+                                description="View and revoke signed-in sessions"
+                                onPress={() =>
+                                    router.push("/settings/devices" as never)
+                                }
+                            />
+                            <SettingsRow
+                                label="Danger Zone"
+                                description="Deactivate or permanently delete your account"
+                                onPress={() =>
+                                    router.push("/settings/danger-zone" as never)
+                                }
+                            />
                         </View>
 
                         {/* Profile category */}
@@ -357,7 +430,7 @@ export default function SettingsTabScreen() {
                             />
                             <SettingsRow
                                 label="Privacy & Blocking"
-                                description="View and manage blocked users"
+                                description="View and manage blocked users and age-restricted content"
                                 onPress={() =>
                                     router.push("/settings/privacy" as never)
                                 }

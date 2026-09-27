@@ -1,8 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { ID } from "node-appwrite";
-import { requireAuth } from "@/lib/auth-server";
+import {
+    getSessionTokenFromCookie,
+    requireAuth,
+} from "@/lib/auth-server";
 import {
     deleteAvatarFile,
     deleteProfileBackgroundFile,
@@ -12,7 +16,14 @@ import {
 } from "@/lib/appwrite-profiles";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
+import {
+    type AccountActionResult,
+    changeAccountEmail,
+    deactivateAccount,
+    deleteAccount,
+    resendAccountVerification,
+} from "@/lib/account-actions";
 import {
     getEligibleFramesForUser,
     isUserEligibleForFrame,
@@ -454,4 +465,85 @@ export async function getAvailableFramesAction() {
         currentPreset: profile.avatarFramePreset,
         eligibilityKnown: accountCreatedAt !== null,
     };
+}
+
+/**
+ * Changes the account email. Requires the current password; after the change
+ * a verification email is sent when email verification is enabled.
+ */
+export async function changeEmailAction(
+    formData: FormData,
+): Promise<AccountActionResult> {
+    const user = await requireAuth();
+    const result = await changeAccountEmail(user, {
+        email: (formData.get("email") as string) ?? "",
+        password: (formData.get("password") as string) ?? "",
+    });
+
+    if (result.success) {
+        revalidatePath("/settings");
+    }
+
+    return result;
+}
+
+/**
+ * Re-sends the email-change verification link using the caller's active
+ * session, so a settings user doesn't have to re-enter their password.
+ */
+export async function resendEmailVerificationAction(): Promise<AccountActionResult> {
+    const user = await requireAuth();
+    const token = await getSessionTokenFromCookie();
+    return resendAccountVerification(user, token);
+}
+
+/**
+ * Deactivates the account. Marked in Appwrite prefs so the login gate can
+ * reactivate automatically on the next successful sign-in ("take a break").
+ */
+export async function deactivateAccountAction(
+    formData: FormData,
+): Promise<AccountActionResult> {
+    const user = await requireAuth();
+    const password = (formData.get("password") as string) ?? "";
+    const result = await deactivateAccount(user, password);
+
+    if (result.success) {
+        // Kill the browser cookie; the account is now deactivated.
+        try {
+            const env = getEnvConfig();
+            const cookieStore = await cookies();
+            cookieStore.delete(`a_session_${env.project}`);
+        } catch {
+            // Best-effort; the account is deactivated either way.
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Permanently deletes the account: wipes custom files (avatar, background),
+ * hard-deletes the Appwrite user, and replaces the profile with a permanent
+ * "Deleted User" tombstone so the userId can never be reused.
+ */
+export async function deleteAccountAction(
+    formData: FormData,
+): Promise<AccountActionResult> {
+    const user = await requireAuth();
+    const password = (formData.get("password") as string) ?? "";
+    const sessionToken = await getSessionTokenFromCookie();
+    const result = await deleteAccount(user, password, sessionToken);
+
+    if (result.success) {
+        try {
+            const env = getEnvConfig();
+            const cookieStore = await cookies();
+            cookieStore.delete(`a_session_${env.project}`);
+        } catch {
+            // Best-effort; the account is deleted either way.
+        }
+    }
+
+    return result;
 }

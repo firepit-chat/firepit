@@ -83,7 +83,7 @@ function setCachedSession(key: string, data: SessionUser | null): void {
 // e.g. "Basic <creds>, Bearer <token>". A single bare value is treated
 // as a legacy raw session secret. Other schemes (Basic, Digest, ...)
 // are never mistaken for a token.
-function extractBearerToken(authHeader: string): string | undefined {
+export function extractBearerToken(authHeader: string): string | undefined {
     const values = authHeader.split(",").map((v) => v.trim());
     for (const value of values) {
         const parts = value.split(/\s+/, 2);
@@ -377,6 +377,20 @@ export async function getServerSession(): Promise<SessionUser | null> {
  */
 export async function checkUserRoles(userId: string) {
     return getUserRoles(userId);
+}
+
+/**
+ * Returns the raw session cookie secret, or null if there is no session
+ * cookie. Used to drive session-scoped Account calls (e.g. listSessions).
+ */
+export async function getSessionTokenFromCookie(): Promise<string | null> {
+    try {
+        const env = getEnvConfig();
+        const cookieStore = await cookies();
+        return cookieStore.get(`a_session_${env.project}`)?.value ?? null;
+    } catch {
+        return null;
+    }
 }
 
 /**

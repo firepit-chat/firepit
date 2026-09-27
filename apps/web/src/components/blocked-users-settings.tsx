@@ -31,7 +31,7 @@ export function BlockedUsersSettings() {
     }
 
     return (
-        <Card className="rounded-3xl border border-border/60 bg-card/70 shadow-lg">
+        <Card className="rounded-xl border border-border/80">
             <CardHeader className="space-y-1">
                 <CardTitle>Blocked users</CardTitle>
                 <CardDescription>
@@ -45,7 +45,7 @@ export function BlockedUsersSettings() {
                         Loading blocked users...
                     </p>
                 ) : items.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-border/60 bg-background/60 px-4 py-6 text-sm text-muted-foreground">
+                    <div className="rounded-md border border-dashed border-border/60 px-3 py-4 text-sm text-muted-foreground">
                         You have not blocked anyone.
                     </div>
                 ) : (
@@ -55,7 +55,7 @@ export function BlockedUsersSettings() {
                         return (
                             <div
                                 key={item.block.$id}
-                                className="flex flex-col gap-3 rounded-2xl border border-border/60 bg-background/70 p-4 md:flex-row md:items-center md:justify-between"
+                                className="flex flex-col gap-3 rounded-md border border-border/60 bg-background/60 px-3 py-2.5 transition-colors hover:bg-background/80 md:flex-row md:items-center md:justify-between"
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="relative size-12 overflow-hidden rounded-full border border-border/60 bg-muted">

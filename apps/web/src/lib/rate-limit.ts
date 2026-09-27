@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
 
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 
 interface RateLimitEntry {
     count: number;

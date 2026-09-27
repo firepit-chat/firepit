@@ -240,7 +240,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
     };
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+        <section className="rounded-xl border border-border/80 bg-card p-6">
             <div className="mb-4 flex items-start justify-between gap-4">
                 <div>
                     <div className="mb-2 flex items-center gap-2">
@@ -271,7 +271,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                 </Button>
             </div>
 
-            <div className="grid gap-4 rounded-2xl border border-border/60 bg-background/80 p-4">
+            <div className="grid gap-4 rounded-md border border-border/60 bg-background/60 px-3 py-2.5">
                 <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                         <Label htmlFor="announcement-title">Title</Label>
@@ -371,7 +371,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
 
             <div className="mt-6">
                 <div className="mb-3 flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                    <h3 className="text-sm font-semibold text-muted-foreground">
                         Recent announcements
                     </h3>
 
@@ -410,7 +410,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                 </div>
 
                 {error && (
-                    <p className="rounded-2xl border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                         {error}
                     </p>
                 )}
@@ -431,7 +431,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                     <div className="space-y-3">
                         {announcements.map((announcement) => (
                             <article
-                                className="rounded-2xl border border-border/60 bg-background/80 p-4"
+                                className="rounded-md border border-border/60 bg-background/60 px-3 py-2.5"
                                 key={announcement.$id}
                             >
                                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -439,7 +439,7 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                                         {announcement.title || "Untitled announcement"}
                                     </h4>
                                     <span
-                                        className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${getStatusBadgeClass(
+                                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClass(
                                             announcement.status,
                                         )}`}
                                     >

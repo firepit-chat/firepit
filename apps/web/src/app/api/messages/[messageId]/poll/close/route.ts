@@ -12,7 +12,7 @@ import {
     getChannelAccessForUser,
     getServerPermissionsForUser,
 } from "@/lib/server-channel-access";
-import { returnUnauthorized, returnForbidden } from "@/lib/newrelic-utils";
+import { returnUnauthorized, returnForbidden } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{

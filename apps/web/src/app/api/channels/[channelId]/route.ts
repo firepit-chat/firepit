@@ -8,7 +8,7 @@ import { deleteChannel } from "@/lib/appwrite-servers";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { logger,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import type { Channel } from "@/lib/types";
@@ -46,6 +46,7 @@ function normalizeChannel(doc: Record<string, unknown>): Channel {
                 : undefined,
         position:
             typeof doc.position === "number" ? doc.position : undefined,
+        nsfw: doc.nsfw === true,
         $createdAt: String(doc.$createdAt ?? ""),
         $updatedAt:
             typeof doc.$updatedAt === "string" ? doc.$updatedAt : undefined,
@@ -148,7 +149,10 @@ export async function PATCH(
 
         const body = parsed as Record<string, unknown>;
 
-        const updateData: Record<string, string | number | null> = {};
+        const updateData: Record<
+            string,
+            string | number | boolean | null
+        > = {};
         if (body.name !== undefined) {
             if (typeof body.name !== "string") {
                 return NextResponse.json({ error: "name must be a string" }, { status: 400 });
@@ -233,6 +237,16 @@ export async function PATCH(
             }
 
             updateData.topic = nextTopic;
+        }
+
+        if (body.nsfw !== undefined) {
+            if (typeof body.nsfw !== "boolean") {
+                return NextResponse.json(
+                    { error: "nsfw must be a boolean" },
+                    { status: 400 },
+                );
+            }
+            updateData.nsfw = body.nsfw;
         }
 
         if (Object.keys(updateData).length === 0) {

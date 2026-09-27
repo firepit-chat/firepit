@@ -47,6 +47,8 @@ const UserProfileSchema = z.object({
     status: UserStatusSchema.optional(),
 });
 
+const CompiledUserProfileSchema = z.compile(UserProfileSchema);
+
 type UserProfile = z.infer<typeof UserProfileSchema>;
 
 type UserProfileModalProps = {
@@ -60,7 +62,7 @@ type UserProfileModalProps = {
 };
 
 function isUserProfile(value: unknown): value is UserProfile {
-    return UserProfileSchema.safeParse(value).success;
+    return CompiledUserProfileSchema.safeParse(value).success;
 }
 
 function getStatusColor(

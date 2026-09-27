@@ -37,6 +37,7 @@ type Props = {
     initialMessages: ModerationMessage[];
     badgeMap: Record<string, string[]>;
     isAdmin: boolean;
+    channelId?: string;
 };
 
 function isOptionalString(value: unknown): value is string | undefined {
@@ -172,6 +173,7 @@ export function ModerationMessageList({
     initialMessages,
     badgeMap,
     isAdmin,
+    channelId,
 }: Props) {
     const [messages, setMessages] = useState(initialMessages);
     const router = useRouter();
@@ -247,11 +249,16 @@ export function ModerationMessageList({
                                 prev.filter((m) => m.$id !== payload.$id),
                             );
                         } else if (hasCreateEvent) {
-                            // Add new message at the top if it does not already exist
+                            // Add new message at the top if it matches the
+                            // scoped channel and does not already exist
                             setMessages((prev) =>
-                                prev.some((m) => m.$id === payload.$id)
+                                channelId &&
+                                payload.channelId &&
+                                payload.channelId !== channelId
                                     ? prev
-                                    : [payload, ...prev],
+                                    : prev.some((m) => m.$id === payload.$id)
+                                      ? prev
+                                      : [payload, ...prev],
                             );
                         }
                     },
@@ -430,7 +437,7 @@ export function ModerationMessageList({
 
                 return (
                     <div
-                        className={`rounded-lg border bg-card p-4 shadow-sm transition-all ${removed ? "border-destructive/50 bg-destructive/5" : ""}`}
+                        className={`rounded-md border border-border/60 bg-card/60 p-3.5 ${removed ? "border-destructive/50 bg-destructive/5" : ""}`}
                         key={m.$id}
                     >
                         <div className="flex items-start justify-between gap-4">

@@ -13,7 +13,7 @@ import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { apiCache } from "@/lib/cache-utils";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import { listPages } from "@/lib/appwrite-pagination";
-import { returnForbidden, logger } from "@/lib/newrelic-utils";
+import { returnForbidden, logger } from "@/lib/posthog-utils";
 
 const ROLE_ASSIGNMENTS_COLLECTION_ID = "role_assignments";
 const ROLES_COLLECTION_ID = "roles";
@@ -161,6 +161,14 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (body.nsfw !== undefined && typeof body.nsfw !== "boolean") {
+            return NextResponse.json(
+                { error: "nsfw must be a boolean" },
+                { status: 400 },
+            );
+        }
+        const nsfw = body.nsfw ?? false;
+
         const env = getEnvConfig();
         const { databases } = getServerClient();
         const serverAccess = await getServerPermissionsForUser(
@@ -206,6 +214,7 @@ export async function POST(request: NextRequest) {
                 type,
                 topic,
                 position: highestPosition + 1,
+                nsfw,
             },
         );
 
@@ -234,6 +243,7 @@ export async function POST(request: NextRequest) {
                         typeof channel.position === "number"
                             ? channel.position
                             : undefined,
+                    nsfw: channel.nsfw === true,
                     $createdAt: String(channel.$createdAt ?? ""),
                     $updatedAt:
                         typeof channel.$updatedAt === "string"
@@ -377,6 +387,7 @@ export async function GET(request: NextRequest) {
                         : undefined,
                 position:
                     typeof d.position === "number" ? d.position : undefined,
+                nsfw: d.nsfw === true,
                 $createdAt: String(d.$createdAt ?? ""),
                 $updatedAt: d.$updatedAt ? String(d.$updatedAt) : undefined,
             } satisfies Channel;

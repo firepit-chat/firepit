@@ -9,13 +9,11 @@ import { getServerSession } from "@/lib/auth-server";
 import {
 	logger,
 	recordError,
-	setTransactionName,
 	trackApiCall,
-	addTransactionAttributes,
 	recordEvent,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { assignDefaultRoleServer } from "@/lib/default-role";
 import { invalidateChannelsUserCaches } from "@/lib/channels-route-cache";
 import type { Membership } from "@/lib/types";
@@ -71,10 +69,9 @@ function isConflictError(error: unknown): boolean {
  */
 export async function POST(request: NextRequest) {
 	const startTime = Date.now();
-	
+
 	try {
-		setTransactionName("POST /api/servers/join");
-		
+
 		// Verify user is authenticated
 		const user = await getServerSession();
 		if (!user) {
@@ -120,11 +117,6 @@ export async function POST(request: NextRequest) {
 
 		// Use authenticated user's ID, not from request body (security)
 		const userId = user.$id;
-		
-		addTransactionAttributes({
-			userId,
-			serverId,
-		});
 
 		const { databases } = getServerClient();
 
@@ -206,7 +198,7 @@ export async function POST(request: NextRequest) {
 			}
 			throw error;
 		}
-		
+
 		// Assign default role to the new member
 		try {
 			await assignDefaultRoleServer(serverId, userId);
@@ -220,7 +212,7 @@ export async function POST(request: NextRequest) {
 						: String(defaultRoleError),
 			});
 		}
-		
+
 		trackApiCall(
 			"/api/servers/join",
 			"POST",
@@ -228,12 +220,12 @@ export async function POST(request: NextRequest) {
 			Date.now() - dbStartTime,
 			{ operation: "joinServer", serverId }
 		);
-		
+
 		recordEvent("ServerJoin", {
 			userId,
 			serverId,
 		});
-		
+
 		logger.info("User joined server", {
 			userId,
 			serverId,
@@ -265,12 +257,12 @@ export async function POST(request: NextRequest) {
 				endpoint: "/api/servers/join",
 			}
 		);
-		
+
 		logger.error("Failed to join server", {
 			error: error instanceof Error ? error.message : String(error),
 			duration: Date.now() - startTime,
 		});
-		
+
 		trackApiCall(
 			"/api/servers/join",
 			"POST",
@@ -278,7 +270,7 @@ export async function POST(request: NextRequest) {
 			Date.now() - startTime,
 			{ operation: "joinServer" }
 		);
-		
+
 		return NextResponse.json(
 			{
 				error: "Failed to join server",

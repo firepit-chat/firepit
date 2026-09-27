@@ -4,7 +4,7 @@ import { Query } from "node-appwrite";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";

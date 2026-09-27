@@ -15,7 +15,7 @@ vi.mock("@/lib/appwrite-invites");
 vi.mock("@/lib/server-channel-access", () => ({
     getServerPermissionsForUser: mockGetServerPermissionsForUser,
 }));
-vi.mock("@/lib/newrelic-utils", () => ({
+vi.mock("@/lib/posthog-utils", () => ({
     returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
     returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() },

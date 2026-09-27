@@ -68,7 +68,7 @@ export function FeatureFlags({ userId }: FeatureFlagsProps) {
 
     if (loading) {
         return (
-            <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+            <section className="rounded-xl border border-border/80 bg-card p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <Settings className="h-5 w-5 text-muted-foreground" />
                     <h2 className="text-lg font-semibold">Feature Flags</h2>
@@ -92,7 +92,7 @@ export function FeatureFlags({ userId }: FeatureFlagsProps) {
     );
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+        <section className="rounded-xl border border-border/80 bg-card p-6">
             <div className="flex items-center gap-3 mb-4">
                 <Settings className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-lg font-semibold">Feature Flags</h2>
@@ -112,7 +112,7 @@ export function FeatureFlags({ userId }: FeatureFlagsProps) {
                     return (
                         <div
                             key={key}
-                            className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/80 p-4"
+                            className="flex items-center justify-between rounded-md border border-border/60 bg-background/60 px-3 py-2.5"
                         >
                             <div className="flex-1">
                                 <Label

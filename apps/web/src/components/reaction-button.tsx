@@ -26,7 +26,7 @@ export function ReactionButton({
 }: ReactionButtonProps) {
 	const [loading, setLoading] = useState(false);
 	const isMountedRef = useRef(true);
-	
+
 	const hasReacted = currentUserId
 		? reaction.userIds.includes(currentUserId)
 		: false;

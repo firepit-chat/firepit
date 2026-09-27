@@ -1,5 +1,5 @@
 import { FEATURE_FLAGS, getFeatureFlag } from "@/lib/feature-flags";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 import LoginForm from "./login-form";
 

@@ -2,7 +2,7 @@ import { Query } from "node-appwrite";
 import type { Databases } from "node-appwrite";
 
 import type { EnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import { chunkValues, listPages } from "@/lib/appwrite-pagination";
 import {
     buildMessagePoll,

@@ -4,7 +4,7 @@ import { getBrowserDatabases, getEnvConfig } from "./appwrite-core";
 import { getServerClient } from "./appwrite-server";
 import { getAdminClient } from "./appwrite-admin";
 import { getFeatureFlag, FEATURE_FLAGS } from "./feature-flags";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 
 /**
  * Returns databases.

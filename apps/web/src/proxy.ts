@@ -9,6 +9,7 @@ const PUBLIC_ROUTES = [
     "/",
     "/login",
     "/register",
+    "/reset-password",
     "/docs",
     "/manifest.json",
     "/manifest.webmanifest",

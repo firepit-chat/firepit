@@ -12,7 +12,7 @@ import {
     getPollStateForMessage,
 } from "@/lib/polls-server";
 import { getChannelAccessForUser } from "@/lib/server-channel-access";
-import { returnUnauthorized, returnForbidden } from "@/lib/newrelic-utils";
+import { returnUnauthorized, returnForbidden } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -100,7 +100,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
             { status: 400 },
         );
     }
-
 
     const reqBody = body as { optionId?: unknown };
     const optionId =

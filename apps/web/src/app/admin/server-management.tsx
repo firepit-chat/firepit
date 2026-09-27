@@ -590,7 +590,7 @@ export function ServerManagement({
                                                     <span>
                                                         # {channel.name}
                                                     </span>
-                                                    <span className="rounded border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                                                    <span className="rounded border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                                                         {channel.type}
                                                     </span>
                                                     <Button

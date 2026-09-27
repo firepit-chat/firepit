@@ -52,7 +52,7 @@ export const EmojiRenderer = memo(function EmojiRenderer({
     } else {
       // Try to convert to standard emoji using node-emoji
       const standardEmoji = emoji.get(emojiName);
-      
+
       if (standardEmoji && standardEmoji !== `:${emojiName}:`) {
         // Found a standard emoji, render as Unicode character
         parts.push(standardEmoji);

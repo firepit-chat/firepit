@@ -176,6 +176,7 @@ export type Channel = {
     topic?: string;
     categoryId?: string;
     position?: number;
+    nsfw?: boolean;
     $createdAt: string;
     $updatedAt?: string;
 };
@@ -198,6 +199,8 @@ export type FeatureFlag = {
     description?: string;
     updatedAt?: string;
     updatedBy?: string;
+    // Optional string value for flags that carry a state (e.g. signup policy).
+    value?: string;
 };
 
 const ANNOUNCEMENT_PRIORITY_VALUES = ["normal", "urgent"] as const;
@@ -467,6 +470,7 @@ export type NavigationPreferences = {
     showSettingsInNavigation: boolean;
     showAddFriendInHeader: boolean;
     telemetryEnabled: boolean;
+    skipNsfwWarning: boolean;
     navigationItemOrder: NavigationItemPreferenceId[];
 };
 
@@ -492,6 +496,10 @@ export type UserProfileData = {
     profileBackgroundImageFileId?: string;
     profileBackgroundImageChangedAt?: string;
     dmEncryptionPublicKey?: string;
+    // Tombstone: set when the account was deleted (this profile becomes the
+    // "Deleted User" record that keeps the userId from being reused).
+    deletedAt?: string;
+    deletedEmail?: string;
     status?: {
         status: PresenceStatus;
         customMessage?: string;

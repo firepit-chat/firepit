@@ -26,7 +26,7 @@ describe("Invite Integration Tests", () => {
   describe("Full Invite Flow", () => {
     it("should complete create → validate → use → exhaust lifecycle", async () => {
       const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-      
+
       // Step 1: Create invite with max uses = 1
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -410,7 +410,7 @@ describe("Invite Integration Tests", () => {
 
       const res = await fetch("/api/invites/track123/usage");
       const usage = await res.json();
-      
+
       expect(Array.isArray(usage)).toBe(true);
       expect(usage.length).toBe(2);
       expect(usage[0].inviteCode).toBe("track123");

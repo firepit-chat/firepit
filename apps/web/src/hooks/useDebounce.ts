@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from "react";
 /**
  * Debounced batch update hook
  * Batches multiple state updates within a time window to reduce re-renders
- * 
+ *
  * @param callback - Function to call with batched updates
  * @param delay - Debounce delay in milliseconds (default: 150ms)
  * @returns Function to schedule updates

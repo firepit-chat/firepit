@@ -178,7 +178,7 @@ export function ApiSchemaPanel({
 
             {visibleRows.length > 0 ? (
                 <div className="overflow-hidden rounded-xl border border-border/50 bg-card/40">
-                    <div className="hidden gap-x-4 border-b border-border/50 bg-muted/50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.7fr)_minmax(0,1fr)]">
+                    <div className="hidden gap-x-4 border-b border-border/50 bg-muted/50 px-3 py-2 text-xs font-semibold text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1.2fr)_minmax(180px,0.7fr)_minmax(0,1fr)]">
                         <div>Field</div>
                         <div>Type</div>
                         <div>Notes</div>
@@ -226,7 +226,7 @@ export function ApiSchemaPanel({
                                                 {field.path}
                                             </span>
                                             <span
-                                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                                                className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                                                     field.required
                                                         ? "bg-rose-500/10 text-rose-700 dark:text-rose-300"
                                                         : "bg-muted text-muted-foreground"
@@ -253,7 +253,7 @@ export function ApiSchemaPanel({
                                     </div>
 
                                     <div className="min-w-0">
-                                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:hidden">
+                                        <div className="mb-1 text-[10px] font-semibold text-muted-foreground sm:hidden">
                                             Type
                                         </div>
                                         <div className="font-mono text-xs text-muted-foreground sm:text-sm">
@@ -267,7 +267,7 @@ export function ApiSchemaPanel({
                                     </div>
 
                                     <div className="min-w-0 text-sm text-muted-foreground">
-                                        <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground sm:hidden">
+                                        <div className="mb-1 text-[10px] font-semibold text-muted-foreground sm:hidden">
                                             Notes
                                         </div>
                                         {field.description ? (

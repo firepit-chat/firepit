@@ -9,11 +9,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     recordEvent,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
     .split(",")
@@ -179,8 +177,6 @@ export async function POST(request: NextRequest) {
             return respond({ error: "Origin is not allowed" }, { status: 403 });
         }
 
-        setTransactionName("POST /api/upload-image");
-
         logger.info("Starting image upload");
         const session = await getServerSession();
         if (!session?.$id) {
@@ -188,8 +184,6 @@ export async function POST(request: NextRequest) {
             return respond({ error: "Unauthorized" }, { status: 401 });
         }
         logger.info("Session verified", { userId: session.$id });
-
-        addTransactionAttributes({ userId: session.$id });
 
         // Rate limiting: 10 uploads per 5 minutes
         const rateLimitResult = checkRateLimit(`upload-image:${session.$id}`, {
@@ -372,8 +366,6 @@ export async function DELETE(request: NextRequest) {
             return respond({ error: "Origin is not allowed" }, { status: 403 });
         }
 
-        setTransactionName("DELETE /api/upload-image");
-
         const session = await getServerSession();
         if (!session?.$id) {
             logger.warn("Unauthorized delete attempt");
@@ -396,8 +388,6 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
-        addTransactionAttributes({ userId: session.$id });
-
         const env = getEnvConfig();
 
         const { searchParams } = new URL(request.url);
@@ -412,8 +402,6 @@ export async function DELETE(request: NextRequest) {
             logger.warn("Invalid fileId provided for delete", { fileId });
             return respond({ error: "Invalid fileId" }, { status: 400 });
         }
-
-        addTransactionAttributes({ fileId });
 
         const { storage } = getServerClient();
 

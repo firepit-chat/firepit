@@ -133,7 +133,7 @@ describe("ReactionButton Component", () => {
 	});
 
 	it("should disable button while loading", async () => {
-		const onToggle = vi.fn<(emoji: string, isAdding: boolean) => Promise<void>>(() => 
+		const onToggle = vi.fn<(emoji: string, isAdding: boolean) => Promise<void>>(() =>
 			new Promise((resolve) => setTimeout(resolve, 100))
 		);
 		const reaction = {
@@ -151,9 +151,9 @@ describe("ReactionButton Component", () => {
 		);
 
 		const button = screen.getByRole("button");
-		
+
 		fireEvent.click(button);
-		
+
 		// Button should be disabled while loading
 		expect(button).toBeDisabled();
 	});
@@ -269,11 +269,11 @@ describe("ReactionPicker Component", () => {
 
 	it("should call onSelectEmoji prop function", async () => {
 		const onSelectEmoji = vi.fn().mockResolvedValue(undefined);
-		
+
 		// This test validates the prop is passed correctly
 		// Full integration testing of emoji picker would require mocking the EmojiPicker component
 		render(<ReactionPicker onSelectEmoji={onSelectEmoji} />);
-		
+
 		expect(onSelectEmoji).toBeDefined();
 	});
 });

@@ -6,7 +6,7 @@ import type { CustomEmoji } from "@/lib/types";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 

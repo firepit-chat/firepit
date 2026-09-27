@@ -983,22 +983,11 @@ export function NotificationSettings({
                                                         className="rounded-lg border border-border/70 p-3"
                                                     >
                                                         <div className="flex items-start justify-between gap-3">
-                                                            <div className="min-w-0 space-y-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <p className="truncate text-sm font-medium text-foreground">
-                                                                        {labelEntry?.title ??
-                                                                            overrideId}
-                                                                    </p>
-                                                                    <span
-                                                                        className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${getOverrideStatusClassName(
-                                                                            status.tone,
-                                                                        )}`}
-                                                                    >
-                                                                        {
-                                                                            status.label
-                                                                        }
-                                                                    </span>
-                                                                </div>
+                                                            <div className="min-w-0 flex-1 space-y-1">
+                                                                <p className="break-words text-sm font-medium leading-snug text-foreground">
+                                                                    {labelEntry?.title ??
+                                                                        overrideId}
+                                                                </p>
                                                                 {labelEntry?.subtitle ? (
                                                                     <p className="truncate text-xs text-muted-foreground">
                                                                         {
@@ -1013,57 +1002,66 @@ export function NotificationSettings({
                                                                         }
                                                                     </p>
                                                                 ) : null}
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {formatNotificationLevel(
-                                                                        override.level,
-                                                                    )}
-                                                                </p>
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {formatMutedUntil(
-                                                                        override.mutedUntil,
-                                                                    )}
-                                                                </p>
                                                                 <p className="truncate font-mono text-[11px] text-muted-foreground/80">
                                                                     {overrideId}
                                                                 </p>
                                                             </div>
-                                                            <div className="flex shrink-0 items-center gap-1">
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() =>
-                                                                        openManageOverrideDialog(
-                                                                            section.key,
-                                                                            overrideId,
-                                                                            override,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        overrideMutationKey ===
-                                                                        section.key
-                                                                    }
+                                                            <div className="flex shrink-0 flex-col items-end gap-2">
+                                                                <span
+                                                                    className={`shrink-0 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${getOverrideStatusClassName(
+                                                                        status.tone,
+                                                                    )}`}
                                                                 >
-                                                                    Manage
-                                                                </Button>
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    onClick={() =>
-                                                                        void clearOverride(
-                                                                            section.key,
-                                                                            overrideId,
-                                                                        )
-                                                                    }
-                                                                    disabled={
-                                                                        overrideMutationKey ===
-                                                                        section.key
-                                                                    }
-                                                                    aria-label={`Clear notification override ${overrideId}`}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
+                                                                    {status.label}
+                                                                </span>
+                                                                <p className="text-right text-xs text-muted-foreground">
+                                                                    {formatNotificationLevel(
+                                                                        override.level,
+                                                                    )}
+                                                                </p>
+                                                                <p className="max-w-40 break-words text-right text-xs text-muted-foreground">
+                                                                    {formatMutedUntil(
+                                                                        override.mutedUntil,
+                                                                    )}
+                                                                </p>
+                                                                <div className="flex items-center gap-1">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        onClick={() =>
+                                                                            openManageOverrideDialog(
+                                                                                section.key,
+                                                                                overrideId,
+                                                                                override,
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            overrideMutationKey ===
+                                                                            section.key
+                                                                        }
+                                                                    >
+                                                                        Manage
+                                                                    </Button>
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        onClick={() =>
+                                                                            void clearOverride(
+                                                                                section.key,
+                                                                                overrideId,
+                                                                            )
+                                                                        }
+                                                                        disabled={
+                                                                            overrideMutationKey ===
+                                                                            section.key
+                                                                        }
+                                                                        aria-label={`Clear notification override ${overrideId}`}
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

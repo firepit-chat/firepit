@@ -488,10 +488,12 @@ describe("Login Security", () => {
         const { registerAction } = await import("@/app/(auth)/login/actions");
 
         mockDatabases.listDocuments
+            .mockResolvedValueOnce({ documents: [] }) // signup policy lookup
+            .mockResolvedValueOnce({ documents: [] }) // userId collision check
             .mockResolvedValueOnce({
                 documents: [{ $id: "server-default", defaultOnSignup: true }],
             })
-            .mockResolvedValueOnce({ documents: [] });
+            .mockResolvedValueOnce({ documents: [] }); // existing membership
 
         const formData = new FormData();
         formData.set("email", "newuser@example.com");
@@ -517,10 +519,12 @@ describe("Login Security", () => {
         const { registerAction } = await import("@/app/(auth)/login/actions");
 
         mockDatabases.listDocuments
-            .mockResolvedValueOnce({ documents: [] })
+            .mockResolvedValueOnce({ documents: [] }) // signup policy lookup
+            .mockResolvedValueOnce({ documents: [] }) // userId collision check
+            .mockResolvedValueOnce({ documents: [] }) // default signup server
             .mockResolvedValueOnce({
                 documents: [{ $id: "server-a" }, { $id: "server-b" }],
-            });
+            }); // single-server fallback
 
         const formData = new FormData();
         formData.set("email", "newuser@example.com");

@@ -7,17 +7,17 @@ import { Input } from "../../components/ui/input";
 describe("Input Component", () => {
 	it("should render input field", () => {
 		render(<Input placeholder="Enter text" />);
-		
+
 		expect(screen.getByPlaceholderText("Enter text")).toBeInTheDocument();
 	});
 
 	it("should accept text input", async () => {
 		const user = userEvent.setup();
 		render(<Input placeholder="Enter text" />);
-		
+
 		const input = screen.getByPlaceholderText("Enter text");
 		await user.type(input, "Hello World");
-		
+
 		expect(input).toHaveValue("Hello World");
 	});
 
@@ -37,21 +37,21 @@ describe("Input Component", () => {
 
 	it("should be disabled when disabled prop is true", () => {
 		render(<Input disabled placeholder="Disabled input" />);
-		
+
 		const input = screen.getByPlaceholderText("Disabled input");
 		expect(input).toBeDisabled();
 	});
 
 	it("should have default value", () => {
 		render(<Input defaultValue="Default text" />);
-		
+
 		const input = screen.getByDisplayValue("Default text");
 		expect(input).toHaveValue("Default text");
 	});
 
 	it("should apply custom className", () => {
 		render(<Input className="custom-class" placeholder="Custom" />);
-		
+
 		const input = screen.getByPlaceholderText("Custom");
 		expect(input).toHaveClass("custom-class");
 	});
@@ -62,25 +62,25 @@ describe("Input Component", () => {
 		const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
 			value = e.target.value;
 		};
-		
+
 		render(<Input onChange={handleChange} placeholder="Type here" />);
-		
+
 		const input = screen.getByPlaceholderText("Type here");
 		await user.type(input, "Test");
-		
+
 		expect(value).toBe("Test");
 	});
 
 	it("should be required when required prop is true", () => {
 		render(<Input required placeholder="Required input" />);
-		
+
 		const input = screen.getByPlaceholderText("Required input");
 		expect(input).toBeRequired();
 	});
 
 	it("should have aria-label for accessibility", () => {
 		render(<Input aria-label="Username input" placeholder="Username" />);
-		
+
 		const input = screen.getByLabelText("Username input");
 		expect(input).toBeInTheDocument();
 	});

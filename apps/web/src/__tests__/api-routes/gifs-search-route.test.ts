@@ -16,14 +16,12 @@ const {
     mockLoggerError,
     mockLoggerWarn,
     mockRequireAuth,
-    mockSetTransactionName,
     mockTrackApiCall,
 } = vi.hoisted(() => ({
     mockCheckRateLimit: vi.fn(),
     mockLoggerError: vi.fn(),
     mockLoggerWarn: vi.fn(),
     mockRequireAuth: vi.fn(),
-    mockSetTransactionName: vi.fn(),
     mockTrackApiCall: vi.fn(),
 }));
 
@@ -32,14 +30,13 @@ vi.mock("@/lib/auth-server", () => ({
     requireAuth: mockRequireAuth,
 }));
 
-vi.mock("@/lib/newrelic-utils", () => ({
+vi.mock("@/lib/posthog-utils", () => ({
     returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
     returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: {
         error: mockLoggerError,
         warn: mockLoggerWarn,
     },
-    setTransactionName: mockSetTransactionName,
     trackApiCall: mockTrackApiCall,
 }));
 

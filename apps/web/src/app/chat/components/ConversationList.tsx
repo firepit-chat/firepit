@@ -173,7 +173,7 @@ export function ConversationList({
                 key={conversation.$id}
             >
                 <button
-                    className={`flex flex-1 items-center gap-3 rounded-lg p-3 text-left transition-colors ${
+                    className={`flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
                         isSelected ? "bg-accent" : "hover:bg-accent/50"
                     }`}
                     onClick={() => onSelectConversation(conversation)}
@@ -362,7 +362,7 @@ export function ConversationList({
                     <div className="space-y-4 border-border/60 border-b p-3">
                         {incomingRequests.length > 0 ? (
                             <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                     <Clock3 className="size-3.5" />
                                     Pending Requests
                                 </div>
@@ -374,7 +374,7 @@ export function ConversationList({
 
                                         return (
                                             <div
-                                                className="rounded-xl border border-border/60 bg-background/70 p-2"
+                                                className="rounded-md border border-border/60 bg-background/60 p-2"
                                                 key={entry.friendship.$id}
                                             >
                                                 <div className="flex items-center gap-2">
@@ -460,7 +460,7 @@ export function ConversationList({
                         ) : null}
 
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                                 <Users className="size-3.5" />
                                 Friends
                             </div>

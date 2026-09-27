@@ -12,7 +12,7 @@ import {
     getActualMemberCount,
     getActualMemberCounts,
 } from "./membership-count";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 import {
     mapServerDocument,
     normalizeServerDescription,

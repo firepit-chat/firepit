@@ -7,6 +7,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     TextInput,
     View,
 } from "react-native";
@@ -34,9 +35,10 @@ type ChannelDraft = {
     name: string;
     type: "text" | "voice" | "announcement";
     topic: string;
+    nsfw: boolean;
 };
 
-const EMPTY_DRAFT: ChannelDraft = { name: "", type: "text", topic: "" };
+const EMPTY_DRAFT: ChannelDraft = { name: "", type: "text", topic: "", nsfw: false };
 
 function StatusPill({
     label,
@@ -54,6 +56,36 @@ function StatusPill({
                 {label}
             </ThemedText>
         </ThemedView>
+    );
+}
+
+function NsfwToggle({
+    value,
+    onValueChange,
+}: {
+    value: boolean;
+    onValueChange: (value: boolean) => void;
+}) {
+    const theme = useTheme();
+    return (
+        <View style={styles.nsfwRow}>
+            <View style={styles.nsfwCopy}>
+                <ThemedText type="smallBold">18+ channel</ThemedText>
+                <ThemedText
+                    type="code"
+                    themeColor="mutedForeground"
+                    style={styles.nsfwHint}
+                >
+                    Show an age confirmation before members view messages here.
+                </ThemedText>
+            </View>
+            <Switch
+                value={value}
+                onValueChange={onValueChange}
+                trackColor={{ false: theme.border, true: theme.primary }}
+                thumbColor={value ? "#FFFFFF" : "#888888"}
+            />
+        </View>
     );
 }
 
@@ -189,6 +221,7 @@ export default function ChannelManagementScreen() {
                 name,
                 type: createDraft.type,
                 topic: createDraft.topic.trim() || undefined,
+                nsfw: createDraft.nsfw,
             });
             setShowCreate(false);
             setCreateDraft(EMPTY_DRAFT);
@@ -215,6 +248,7 @@ export default function ChannelManagementScreen() {
                 name,
                 type: editDraft.type,
                 topic: editDraft.topic.trim() || null,
+                nsfw: editDraft.nsfw,
             });
             setShowEdit(false);
             setEditingChannel(null);
@@ -256,6 +290,7 @@ export default function ChannelManagementScreen() {
             name: channel.name ?? "",
             type: (channel.type as "text" | "voice" | "announcement") ?? "text",
             topic: channel.topic ?? "",
+            nsfw: Boolean(channel.nsfw),
         });
         setShowEdit(true);
     };
@@ -497,6 +532,12 @@ export default function ChannelManagementScreen() {
                                     ),
                                 )}
                             </View>
+                            <NsfwToggle
+                                value={createDraft.nsfw}
+                                onValueChange={(nsfw) =>
+                                    setCreateDraft((d) => ({ ...d, nsfw }))
+                                }
+                            />
                             <TextInput
                                 placeholder="Topic (optional)"
                                 placeholderTextColor={theme.mutedForeground}
@@ -609,6 +650,12 @@ export default function ChannelManagementScreen() {
                                     ),
                                 )}
                             </View>
+                            <NsfwToggle
+                                value={editDraft.nsfw}
+                                onValueChange={(nsfw) =>
+                                    setEditDraft((d) => ({ ...d, nsfw }))
+                                }
+                            />
                             <TextInput
                                 placeholder="Topic (optional)"
                                 placeholderTextColor={theme.mutedForeground}
@@ -923,6 +970,15 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         gap: Spacing.two,
     },
+    nsfwRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: Spacing.three,
+        paddingVertical: Spacing.one,
+    },
+    nsfwCopy: { flex: 1, gap: 2 },
+    nsfwHint: { fontSize: 11, lineHeight: 16 },
     typePill: {
         flex: 1,
         minHeight: 40,

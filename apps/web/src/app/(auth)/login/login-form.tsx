@@ -27,6 +27,17 @@ type LoginFormProps = {
     showResendVerification: boolean;
 };
 
+const REMEMBER_KEY = "firepit.remember";
+
+function getRemembered(): boolean {
+    if (typeof window === "undefined") return true;
+    try {
+        return window.localStorage.getItem(REMEMBER_KEY) !== "false";
+    } catch {
+        return true;
+    }
+}
+
 const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) => {
     const pathname = usePathname();
     const router = useRouter();
@@ -34,9 +45,23 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
     const { refreshUser } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [remember, setRemember] = useState(getRemembered);
     const [loading, setLoading] = useState(false);
     const [resendingVerification, setResendingVerification] = useState(false);
+    const [resettingPassword, setResettingPassword] = useState(false);
+    const [awaitingRecoveryEmail, setAwaitingRecoveryEmail] = useState(false);
+    const [recoverySent, setRecoverySent] = useState(false);
+    const [recoveryCooldown, setRecoveryCooldown] = useState(0);
     const notifiedVerificationStatusRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (recoveryCooldown <= 0) return;
+        const id = setInterval(
+            () => setRecoveryCooldown((seconds) => Math.max(0, seconds - 1)),
+            1000,
+        );
+        return () => clearInterval(id);
+    }, [recoveryCooldown]);
 
     useEffect(() => {
         const verifiedStatus = searchParams.get("verified");
@@ -78,7 +103,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             const sessionResponse = await fetch("/api/auth/session", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, remember }),
             });
 
             if (!sessionResponse.ok) {
@@ -171,19 +196,57 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
         }
     }
 
+    const onRequestPasswordReset = async () => {
+        if (!awaitingRecoveryEmail) {
+            setAwaitingRecoveryEmail(true);
+            return;
+        }
+
+        if (!email) {
+            toast.error("Enter your email to receive a reset link.");
+            return;
+        }
+
+        setResettingPassword(true);
+        try {
+            const response = await fetch("/api/auth/password-recovery", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            });
+            const data = (await response.json().catch(() => ({}))) as {
+                message?: string;
+                error?: string;
+            };
+            // Success responses are intentionally generic (no enumeration).
+            if (data.error) {
+                toast.error(data.error);
+            } else {
+                toast.success(
+                    data.message ?? "Password reset link sent.",
+                );
+                setRecoverySent(true);
+                setRecoveryCooldown(30);
+            }
+        } catch (err) {
+            const message =
+                err instanceof Error
+                    ? err.message
+                    : "Failed to request a password reset.";
+            toast.error(message);
+        } finally {
+            setResettingPassword(false);
+        }
+    }
+
     return (
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
             <div className="grid w-full gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)]">
-                <section className="relative overflow-hidden rounded-4xl border border-border/70 bg-card/85 p-8 shadow-2xl backdrop-blur-sm sm:p-10">
-                    <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(249,115,22,0.16),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(45,212,191,0.12),transparent_28%)]"
-                    />
-
-                    <div className="relative space-y-8">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                <section className="p-8 sm:p-10">
+                    <div className="space-y-6">
+                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                             <Flame className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-                            Firepit login
+                            Firepit
                         </div>
 
                         <div className="space-y-4">
@@ -191,34 +254,34 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                 Sign in and return to your workspace.
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                                Access your chats, inbox, settings, and admin tools from one entry point. The redesign keeps the sign-in flow simple and focused.
+                                Access your chats, inbox, settings, and admin tools from one entry point.
                             </p>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-2xl border border-border/50 bg-background/60 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Chat</p>
-                                <p className="mt-2 text-sm text-foreground">Jump straight back into servers and direct messages.</p>
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <p className="text-xs font-semibold text-muted-foreground">Chat</p>
+                                <p className="mt-1 text-sm text-foreground">Jump straight back into servers and direct messages.</p>
                             </div>
-                            <div className="rounded-2xl border border-border/50 bg-background/60 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Security</p>
-                                <p className="mt-2 text-sm text-foreground">Session handling stays cookie-based and server-controlled.</p>
+                            <div>
+                                <p className="text-xs font-semibold text-muted-foreground">Security</p>
+                                <p className="mt-1 text-sm text-foreground">Session handling stays cookie-based and server-controlled.</p>
                             </div>
-                            <div className="rounded-2xl border border-border/50 bg-background/60 p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Profile</p>
-                                <p className="mt-2 text-sm text-foreground">Continue into onboarding if your account still needs setup.</p>
+                            <div>
+                                <p className="text-xs font-semibold text-muted-foreground">Profile</p>
+                                <p className="mt-1 text-sm text-foreground">Continue into onboarding if your account still needs setup.</p>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <Card className="rounded-4xl border border-border/70 bg-card/85 shadow-2xl backdrop-blur-sm">
+                <Card className="rounded-xl border border-border/80">
                     <CardHeader className="space-y-2">
-                        <div className="inline-flex items-center gap-2 rounded-full bg-muted/50 px-3 py-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Shield className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
                             Secure access
                         </div>
-                        <CardTitle className="text-2xl font-semibold tracking-tight">Sign in to Firepit</CardTitle>
+                        <CardTitle className="text-xl font-semibold tracking-tight">Sign in to Firepit</CardTitle>
                         <CardDescription className="leading-6">
                             Use your Appwrite account to reach chat, onboarding, and workspace controls.
                         </CardDescription>
@@ -250,7 +313,80 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     value={password}
                                 />
                             </div>
-                            <Button disabled={loading} type="submit" className="rounded-full">
+                            <div className="flex items-center justify-between gap-2">
+                                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                                    <input
+                                        checked={remember}
+                                        className="size-4 accent-primary"
+                                        id="remember-me"
+                                        name="remember"
+                                        onChange={(e) => {
+                                            setRemember(e.target.checked);
+                                            try {
+                                                window.localStorage.setItem(
+                                                    REMEMBER_KEY,
+                                                    String(e.target.checked),
+                                                );
+                                            } catch {
+                                                // Storage unavailable (private mode); preference just won't persist.
+                                            }
+                                        }}
+                                        type="checkbox"
+                                    />
+                                    Remember me
+                                </label>
+                                <button
+                                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                    disabled={resettingPassword || recoveryCooldown > 0}
+                                    onClick={onRequestPasswordReset}
+                                    type="button"
+                                >
+                                    {resettingPassword
+                                        ? "Sending..."
+                                        : "Forgot password?"}
+                                </button>
+                            </div>
+                            {awaitingRecoveryEmail && (
+                                <div className="grid gap-2 rounded-md border border-input p-3">
+                                    <Label htmlFor="recovery-email">
+                                        Email for reset link
+                                    </Label>
+                                    <Input
+                                        autoComplete="email"
+                                        id="recovery-email"
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="you@example.com"
+                                        type="email"
+                                        value={email}
+                                    />
+                                    <Button
+                                        disabled={
+                                            resettingPassword ||
+                                            (recoverySent && recoveryCooldown > 0)
+                                        }
+                                        onClick={onRequestPasswordReset}
+                                        type="button"
+                                        variant="outline"
+                                        className="rounded-lg"
+                                    >
+                                        {resettingPassword
+                                            ? "Sending..."
+                                            : recoverySent
+                                              ? recoveryCooldown > 0
+                                                  ? `Resend link (${recoveryCooldown}s)`
+                                                  : "Resend link"
+                                              : "Send reset link"}
+                                    </Button>
+                                    {recoverySent && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Check your inbox for a reset link. If
+                                            it does not arrive, you can resend in
+                                            a moment.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                            <Button disabled={loading} type="submit" className="rounded-lg">
                                 {loading ? "Signing in..." : "Sign in"}
                                 {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
                             </Button>
@@ -260,7 +396,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     onClick={onResendVerification}
                                     type="button"
                                     variant="outline"
-                                    className="rounded-full"
+                                    className="rounded-lg"
                                 >
                                     {resendingVerification
                                         ? "Resending..."

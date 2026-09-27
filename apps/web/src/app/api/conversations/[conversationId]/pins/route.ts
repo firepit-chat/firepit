@@ -5,7 +5,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { getServerSession } from "@/lib/auth-server";
 import { buildPinsResponse, listPinnedMessages } from "@/lib/pin-response";
-import { returnForbidden, logger } from "@/lib/newrelic-utils";
+import { returnForbidden, logger } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{

@@ -8,7 +8,7 @@ import {
 } from "@/lib/appwrite-invites";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger, recordError } from "@/lib/newrelic-utils";
+import { logger, recordError } from "@/lib/posthog-utils";
 
 /**
  * GET /api/invites/[code] - Get invite preview (public endpoint)

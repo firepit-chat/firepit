@@ -47,14 +47,12 @@ vi.mock("@/lib/appwrite-core", () => ({
     })),
 }));
 
-vi.mock("@/lib/newrelic-utils", () => ({
+vi.mock("@/lib/posthog-utils", () => ({
     returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
     returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     recordError: vi.fn(),
-    setTransactionName: vi.fn(),
     trackApiCall: vi.fn(),
-    addTransactionAttributes: vi.fn(),
 }));
 
 vi.mock("node-appwrite", () => ({

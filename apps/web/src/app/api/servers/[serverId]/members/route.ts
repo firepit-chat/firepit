@@ -4,7 +4,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { listPages, chunkValues } from "@/lib/appwrite-pagination";
 import { getServerSession } from "@/lib/auth-server";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
@@ -64,7 +64,6 @@ export async function GET(request: Request, context: RouteContext) {
         if (!access.isMember || !access.permissions.manageRoles) {
             return returnForbidden();
         }
-
 
         // Get all memberships and role assignments in parallel
         const [

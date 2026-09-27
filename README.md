@@ -186,6 +186,9 @@ bun run web:validate-env:ci
 
 ## 📚 Documentation
 
+- [Roadmap](./ROADMAP.md) — what ships in each version, and why it's sequenced there
+- [Roadmap Plan](./docs/ROADMAP_PLAN.md) — per-release scope, flags, rollback criteria, and the dependency order
+- [Federation Protocol](./docs/specs/firepit-messaging.md) — the firepit messaging protocol specification
 - [Monorepo Architecture](./docs/monorepo.md)
 - **Web App**: See [apps/web/README.md](./apps/web/README.md) and [apps/web/docs/](./apps/web/docs/)
 - **Mobile App**: See [apps/mobile/README.md](./apps/mobile/README.md) and [apps/mobile/docs/](./apps/mobile/docs/)

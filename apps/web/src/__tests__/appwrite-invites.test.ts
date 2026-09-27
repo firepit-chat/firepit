@@ -1,8 +1,8 @@
 /**
  * Server Invite System - Behavior Documentation
- * 
+ *
  * This file documents the expected behavior of the server invite system.
- * 
+ *
  * Core Features:
  * - Unique 10-character invite codes
  * - Optionally expire at a specific date/time
@@ -10,20 +10,20 @@
  * - Grant temporary or permanent memberships
  * - Track who used each invite and when
  * - Revocable by admins/moderators
- * 
+ *
  * Validation Rules:
  * - Invites must exist and match the code exactly
  * - Expired invites are rejected
  * - Invites at max uses are rejected
  * - Users already in the server cannot use an invite
- * 
+ *
  * Security:
  * - Only admins/mods can create invites
  * - Only admins/mods can revoke invites
  * - Only admins/mods can view invite usage
  * - Public users can validate and use invites
  * - Rate limiting prevents abuse
- * 
+ *
  * @see /docs/SERVER_INVITES.md for full documentation
  */
 

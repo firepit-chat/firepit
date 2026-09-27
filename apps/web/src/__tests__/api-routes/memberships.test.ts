@@ -44,7 +44,7 @@ describe("Memberships API", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
-		
+
 		// Dynamically import the route handler
 		const module = await import("../../app/api/memberships/route");
 		GET = module.GET;

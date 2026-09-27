@@ -8,13 +8,11 @@ import { getServerSession } from "@/lib/auth-server";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     recordEvent,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import {
     ALLOWED_STATUSES,
     normalizeStatus,
@@ -86,7 +84,6 @@ export async function POST(request: Request) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("POST /api/status");
 
         const session = await getServerSession();
         if (!session?.$id) {
@@ -114,12 +111,6 @@ export async function POST(request: Request) {
                 { status: 400 },
             );
         }
-
-        addTransactionAttributes({
-            userId,
-            status,
-            isManuallySet: !!isManuallySet,
-        });
 
         if (!STATUSES_COLLECTION) {
             logger.error("Statuses collection not configured");

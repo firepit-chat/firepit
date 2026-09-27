@@ -74,7 +74,7 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
     (async () => {
       try {
         setInitialLoading(true);
-        
+
         // Use SWR (stale-while-revalidate) to serve cached data instantly while revalidating
         const serverReq = apiCache.swr(
           `servers:initial:${userId}`,
@@ -83,7 +83,7 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
             .then((data) => data as { servers: Server[]; nextCursor: string | null }),
           CACHE_TTL.SERVERS
         );
-        
+
         const membershipReq = membershipEnabled
           ? apiCache.swr(
               `memberships:${userId}`,
@@ -93,7 +93,7 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
               CACHE_TTL.MEMBERSHIPS
             )
           : Promise.resolve<Membership[]>([]);
-        
+
         const [{ servers: first, nextCursor }, mems] = await Promise.all([
           serverReq,
           membershipReq,
@@ -301,22 +301,22 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
       if (membershipEnabled) {
         apiCache.clear(`memberships:${userId}`);
       }
-      
+
       const serverReq = fetch("/api/servers?limit=25")
         .then((res) => res.json())
         .then((data) => data as { servers: Server[]; nextCursor: string | null });
-      
+
       const membershipReq = membershipEnabled
         ? fetch("/api/memberships")
             .then((res) => res.json())
             .then((data) => data.memberships as Membership[])
         : Promise.resolve<Membership[]>([]);
-      
+
       const [{ servers: first, nextCursor }, mems] = await Promise.all([
         serverReq,
         membershipReq,
       ]);
-      
+
       setCursor(nextCursor);
       setMemberships(mems);
       setServers(filterAllowedServers(first, mems));

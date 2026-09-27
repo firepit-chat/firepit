@@ -8,7 +8,7 @@ import {
     logger,
     returnUnauthorized,
     returnForbidden,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { invalidateChannelAccessCache } from "@/lib/server-channel-access";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";

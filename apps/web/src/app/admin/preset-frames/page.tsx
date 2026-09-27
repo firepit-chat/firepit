@@ -5,7 +5,7 @@ import { AppwriteException } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { AuthError, requireAdmin } from "@/lib/auth-server";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 import {
     getAllPresetFrames,
     getPresetFrameStorageFileId,
@@ -154,7 +154,7 @@ export default async function AdminPresetFramesPage() {
 
     return (
         <main className="mx-auto w-full max-w-6xl space-y-8 px-6 py-10">
-            <section className="rounded-3xl border border-border/60 bg-card/70 p-8 shadow-xl">
+            <section className="rounded-xl border border-border/80 bg-card p-8">
                 <h1 className="text-3xl font-semibold tracking-tight">
                     Preset frame asset manager
                 </h1>
@@ -180,7 +180,7 @@ export default async function AdminPresetFramesPage() {
 
                     return (
                         <article
-                            className="rounded-3xl border border-border/60 bg-card/70 p-5 shadow-sm"
+                            className="rounded-lg border border-border/60 bg-card/70 p-5"
                             key={frame.id}
                         >
                             <div className="flex items-start justify-between gap-3">

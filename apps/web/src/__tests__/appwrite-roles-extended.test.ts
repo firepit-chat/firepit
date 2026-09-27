@@ -130,7 +130,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 			(process.env as Record<string, string>).APPWRITE_ADMIN_USER_IDS =
 				"override-admin-1,override-admin-2";
 
-
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
 			const result = await getUserRoles("override-admin-1");
@@ -142,7 +141,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 		it("should handle moderator overrides from environment", async () => {
 			(process.env as Record<string, string>).APPWRITE_MODERATOR_USER_IDS =
 				"override-mod-1";
-
 
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
@@ -157,7 +155,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 				.APPWRITE_ADMIN_TEAM_ID;
 			delete (process.env as Record<string, string>)
 				.APPWRITE_MODERATOR_TEAM_ID;
-
 
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
@@ -234,7 +231,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 				});
 			setTeamMemberships("team-vip", ["vip-user"]);
 
-
 			const { getUserRoleTags } = await import("../lib/appwrite-roles");
 
 			const result = await getUserRoleTags("vip-user");
@@ -247,7 +243,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 		it("should handle invalid JSON in team map gracefully", async () => {
 			(process.env as Record<string, string>).ROLE_TEAM_MAP =
 				"invalid-json{";
-
 
 			const { getUserRoleTags } = await import("../lib/appwrite-roles");
 
@@ -263,7 +258,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 				});
 			setTeamMemberships("team-admin", ["admin-user"]);
 			setTeamMemberships("team-custom-admin", ["admin-user"]);
-
 
 			const { getUserRoleTags } = await import("../lib/appwrite-roles");
 
@@ -351,7 +345,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 			(process.env as Record<string, string>).APPWRITE_ADMIN_USER_IDS =
 				" user1 , user2 ,user3  ";
 
-
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
 			const result1 = await getUserRoles("user1");
@@ -366,7 +359,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 		it("should handle empty override strings", async () => {
 			(process.env as Record<string, string>).APPWRITE_ADMIN_USER_IDS = "";
 			(process.env as Record<string, string>).APPWRITE_MODERATOR_USER_IDS = "";
-
 
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
@@ -397,7 +389,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 				},
 			}));
 
-
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 
 			// Should not throw, returns false roles
@@ -416,7 +407,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 
 			setTeamMemberships("team-gold", ["rich-user"]);
 			setTeamMemberships("team-silver", ["rich-user"]);
-
 
 			const { getUserRoleTags } = await import("../lib/appwrite-roles");
 
@@ -451,7 +441,6 @@ describe("appwrite-roles - Extended Coverage", () => {
 
 		it("should work without API key (browser mode)", async () => {
 			delete (process.env as Record<string, string>).APPWRITE_API_KEY;
-
 
 			const { getUserRoles } = await import("../lib/appwrite-roles");
 

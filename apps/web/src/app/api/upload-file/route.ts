@@ -16,11 +16,9 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-    addTransactionAttributes,
     recordEvent,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
     .split(",")
@@ -514,8 +512,6 @@ export async function POST(request: NextRequest) {
             return respond({ error: "Origin is not allowed" }, { status: 403 });
         }
 
-        setTransactionName("POST /api/upload-file");
-
         logger.info("Starting file upload");
         const session = await getServerSession();
         if (!session?.$id) {
@@ -523,8 +519,6 @@ export async function POST(request: NextRequest) {
             return respond({ error: "Unauthorized" }, { status: 401 });
         }
         logger.info("Session verified", { userId: session.$id });
-
-        addTransactionAttributes({ userId: session.$id });
 
         // Rate limiting: 10 uploads per 5 minutes
         const rateLimitResult = checkRateLimit(`upload:${session.$id}`, {
@@ -755,15 +749,11 @@ export async function DELETE(request: NextRequest) {
             return respond({ error: "Origin is not allowed" }, { status: 403 });
         }
 
-        setTransactionName("DELETE /api/upload-file");
-
         const session = await getServerSession();
         if (!session?.$id) {
             logger.warn("Unauthorized delete attempt");
             return respond({ error: "Unauthorized" }, { status: 401 });
         }
-
-        addTransactionAttributes({ userId: session.$id });
 
         const env = getEnvConfig();
 
@@ -774,8 +764,6 @@ export async function DELETE(request: NextRequest) {
             logger.warn("No fileId provided for delete");
             return respond({ error: "No fileId provided" }, { status: 400 });
         }
-
-        addTransactionAttributes({ fileId });
 
         const deleteRateLimitResult = checkRateLimit(
             `upload-delete:${session.$id}`,

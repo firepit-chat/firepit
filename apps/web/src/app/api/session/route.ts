@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { Account, Client } from "node-appwrite";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
     .split(",")
@@ -109,9 +109,10 @@ export async function POST(request: Request) {
             );
         }
 
-        const { session, project } = parsed as {
+        const { session, project, remember } = parsed as {
             session?: unknown;
             project?: unknown;
+            remember?: unknown;
         };
 
         if (typeof session !== "string" || typeof project !== "string") {
@@ -143,11 +144,15 @@ export async function POST(request: Request) {
         }
 
         const cookieStore = await cookies();
+        // Remember-me: persistent 1-year cookie by default. When unchecked the
+        // cookie is session-only (no maxAge) and clears when the browser closes.
+        const rememberMe = remember === undefined || remember === true;
+
         cookieStore.set(`a_session_${env.project}`, session, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
-            maxAge: 60 * 60 * 24 * 365,
+            ...(rememberMe ? { maxAge: 60 * 60 * 24 * 365 } : {}),
             path: "/",
         });
 

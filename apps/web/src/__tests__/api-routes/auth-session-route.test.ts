@@ -4,10 +4,16 @@ const {
     mockCheckRateLimit,
     mockCreateEmailPasswordSession,
     mockGetClientIp,
+    mockUsersGet,
+    mockUsersDeleteSession,
+    mockUsersUpdatePrefs,
 } = vi.hoisted(() => ({
     mockCheckRateLimit: vi.fn(),
     mockCreateEmailPasswordSession: vi.fn(),
     mockGetClientIp: vi.fn(),
+    mockUsersGet: vi.fn(async () => ({ $id: "user-1", prefs: {} })),
+    mockUsersDeleteSession: vi.fn(async () => {}),
+    mockUsersUpdatePrefs: vi.fn(async () => {}),
 }));
 
 vi.mock("node-appwrite", () => ({
@@ -18,6 +24,23 @@ vi.mock("node-appwrite", () => ({
         setEndpoint = vi.fn().mockReturnThis();
         setProject = vi.fn().mockReturnThis();
         setKey = vi.fn().mockReturnThis();
+    },
+    Query: {},
+    ID: { unique: vi.fn() },
+    Users: class {
+        get = mockUsersGet;
+        deleteSession = mockUsersDeleteSession;
+        updatePrefs = mockUsersUpdatePrefs;
+    },
+}));
+
+vi.mock("@/lib/signup-policy", () => ({
+    getApprovalStatusFromPrefs: (prefs: unknown) => {
+        const status = (prefs as { approvalStatus?: string } | null)
+            ?.approvalStatus;
+        if (status === "pending") return "pending";
+        if (status === "rejected") return "rejected";
+        return "approved";
     },
 }));
 
@@ -162,5 +185,65 @@ describe("POST /api/auth/session", () => {
         expect(response.status).toBe(429);
         expect(response.headers.get("Retry-After")).toBe("60");
         expect(mockCreateEmailPasswordSession).not.toHaveBeenCalled();
+    });
+
+    it("blocks sign-in and revokes the temp session when approval is pending", async () => {
+        mockCreateEmailPasswordSession.mockResolvedValue({
+            $id: "sess-1",
+            userId: "user-1",
+            secret: "secret-1",
+        });
+        mockUsersGet.mockResolvedValueOnce({
+            $id: "user-1",
+            prefs: { approvalStatus: "pending" },
+        });
+
+        const response = await POST(
+            new Request("http://localhost/api/auth/session", {
+                method: "POST",
+                body: JSON.stringify({
+                    email: "user@example.com",
+                    password: "pw",
+                }),
+            }),
+        );
+        const data = await response.json();
+
+        expect(response.status).toBe(403);
+        expect(data.error).toMatch(/awaiting/i);
+        expect(mockUsersDeleteSession).toHaveBeenCalledWith({
+            userId: "user-1",
+            sessionId: "sess-1",
+        });
+    });
+
+    it("reactivates a deactivated account on sign-in", async () => {
+        mockCreateEmailPasswordSession.mockResolvedValue({
+            $id: "sess-1",
+            userId: "user-1",
+            secret: "secret-1",
+        });
+        mockUsersGet.mockResolvedValueOnce({
+            $id: "user-1",
+            prefs: { disabled: true, disabledAt: "2026-01-01T00:00:00Z" },
+        });
+
+        const response = await POST(
+            new Request("http://localhost/api/auth/session", {
+                method: "POST",
+                body: JSON.stringify({
+                    email: "user@example.com",
+                    password: "pw",
+                }),
+            }),
+        );
+        const data = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(mockUsersUpdatePrefs).toHaveBeenCalledWith({
+            userId: "user-1",
+            prefs: { disabled: false, disabledAt: null },
+        });
+        expect(data.session).toBe("secret-1");
     });
 });

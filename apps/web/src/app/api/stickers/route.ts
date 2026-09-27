@@ -3,13 +3,12 @@ import { NextResponse } from "next/server";
 
 import { AuthError, requireAuth } from "@/lib/auth-server";
 import { getBuiltinStickerPacks } from "@/lib/gif-sticker";
-import { setTransactionName, trackApiCall } from "@/lib/newrelic-utils";
+import {  trackApiCall } from "@/lib/posthog-utils";
 
 export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("GET /api/stickers");
 
         await requireAuth();
 

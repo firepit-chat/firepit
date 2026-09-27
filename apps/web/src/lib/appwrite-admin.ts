@@ -2,7 +2,7 @@ import { AppwriteException, Query } from "node-appwrite";
 
 import { getEnvConfig } from "./appwrite-core";
 import { getServerClient } from "./appwrite-server";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 import type { FileAttachment } from "./types";
 
 /**

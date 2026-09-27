@@ -43,6 +43,7 @@ export type CurrentUser = {
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
     email?: string;
+    emailVerified?: boolean;
     roles?: Record<string, unknown>;
 };
 
@@ -112,6 +113,7 @@ export type Channel = {
     categoryId?: string | null;
     position?: number | null;
     isPrivate?: boolean;
+    nsfw?: boolean;
     unreadCount?: number;
     memberCount?: number;
     lastMessageAt?: string | null;
@@ -791,4 +793,63 @@ export type CreateAnnouncementResponse = {
     success?: boolean;
     announcement?: Announcement;
     error?: string;
+};
+
+export type AccountActionResult = {
+    success?: boolean;
+    message?: string;
+    verificationSent?: boolean;
+    error?: string;
+};
+
+export type SessionEntry = {
+    $id?: string;
+    createdAt?: string;
+    expiresAt?: string;
+    current?: boolean;
+    os?: string | null;
+    osVersion?: string | null;
+    client?: string | null;
+    clientType?: string | null;
+    device?: string | null;
+    deviceModel?: string | null;
+};
+
+export type SessionListResponse = {
+    sessions?: SessionEntry[];
+};
+
+export type SignupPolicy = "open" | "approval" | "disabled";
+
+export type PendingSignup = {
+    userId?: string;
+    name?: string;
+    email?: string;
+    createdAt?: string;
+};
+
+export type SignupControlsResponse = {
+    policy?: SignupPolicy;
+    pending?: PendingSignup[];
+};
+
+export type ModerationMessageEntry = {
+    $id?: string;
+    text?: string;
+    imageUrl?: string;
+    userId?: string;
+    userName?: string;
+    senderDisplay?: string;
+    channelId?: string;
+    serverId?: string;
+    removedAt?: string;
+    removedBy?: string;
+    removedByDisplay?: string;
+    createdAt?: string;
+    [key: string]: unknown;
+};
+
+export type ModerationMessagesResponse = {
+    items?: ModerationMessageEntry[];
+    nextCursor?: string | null;
 };

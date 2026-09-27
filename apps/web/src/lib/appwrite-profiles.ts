@@ -7,7 +7,7 @@
 import { ID, Query } from "node-appwrite";
 import { getAdminClient } from "./appwrite-admin";
 import { getEnvConfig } from "./appwrite-core";
-import { logger } from "./newrelic-utils";
+import { logger } from "./posthog-utils";
 import {
     getPresetFrameImageUrl,
     getPresetFrameStorageFileId,
@@ -30,6 +30,7 @@ type UserProfile = {
     showSettingsInNavigation?: boolean;
     showAddFriendInHeader?: boolean;
     telemetryEnabled?: boolean;
+    skipNsfwWarning?: boolean;
     navigationItemOrder?: NavigationItemPreferenceId[] | string;
     profileBackgroundColor?: string;
     profileBackgroundGradient?: string;
@@ -37,6 +38,8 @@ type UserProfile = {
     profileBackgroundImageChangedAt?: string;
     avatarFramePreset?: string;
     dmEncryptionPublicKey?: string;
+    deletedAt?: string;
+    deletedEmail?: string;
     $createdAt: string;
     $updatedAt: string;
 };
@@ -54,6 +57,7 @@ const editableProfileKeys = [
     "showSettingsInNavigation",
     "showAddFriendInHeader",
     "telemetryEnabled",
+    "skipNsfwWarning",
     "navigationItemOrder",
     "profileBackgroundColor",
     "profileBackgroundGradient",
@@ -298,7 +302,7 @@ export async function resolveProfileIdentifiers(identifiers: string[]) {
  * Create a new user profile
  *
  * @param {string} userId - The user id value.
- * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; telemetryEnabled?: boolean | undefined; skipNsfwWarning?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
  * @returns {Promise<UserProfile>} The return value.
  */
 export async function createUserProfile(
@@ -328,7 +332,7 @@ export async function createUserProfile(
  * Update a user's profile
  *
  * @param {string} profileId - The profile id value.
- * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; telemetryEnabled?: boolean | undefined; skipNsfwWarning?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
  * @returns {Promise<UserProfile>} The return value.
  */
 export async function updateUserProfile(
@@ -447,6 +451,66 @@ export async function deleteAvatarFile(fileId: string): Promise<void> {
     } catch {
         // Don't throw - avatar deletion is not critical
     }
+}
+
+/**
+ * Converts a profile into a permanent "Deleted User" tombstone kept for the
+ * account. Keeps the userId claimed forever so the account ID can't
+ * be reused by a future signup.
+ *
+ * @param {UserProfile | null} profile - The profile doc to tombstone.
+ * @param {string} email - The account email at deletion time, recorded for audit.
+ * @param {string} userId - The userId used to create a tombstone if no profile exists yet.
+ * @returns {Promise<void>} The return value.
+ */
+export async function tombstoneUserProfile(
+    profile: UserProfile | null,
+    userId: string,
+    email: string,
+): Promise<void> {
+    const { databases } = getAdminClient();
+    const env = getEnvConfig();
+    const now = new Date().toISOString();
+
+    if (profile) {
+        await databases.updateDocument(
+            env.databaseId,
+            env.collections.profiles,
+            profile.$id,
+            {
+                userName: null,
+                displayName: "Deleted User",
+                bio: null,
+                pronouns: null,
+                avatarFileId: null,
+                location: null,
+                website: null,
+                profileBackgroundColor: null,
+                profileBackgroundGradient: null,
+                profileBackgroundImageFileId: null,
+                profileBackgroundImageChangedAt: null,
+                avatarFramePreset: null,
+                dmEncryptionPublicKey: null,
+                deletedAt: now,
+                deletedEmail: email,
+            },
+        );
+        invalidateProfileCache(profile.$id, userId);
+        return;
+    }
+
+    await databases.createDocument(
+        env.databaseId,
+        env.collections.profiles,
+        ID.unique(),
+        {
+            userId,
+            displayName: "Deleted User",
+            deletedAt: now,
+            deletedEmail: email,
+        },
+    );
+    invalidateProfileCache(undefined, userId);
 }
 
 /**

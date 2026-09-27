@@ -17,9 +17,8 @@ import { getAvatarUrl, resolveProfileUserId } from "@/lib/appwrite-profiles";
 import {
     logger,
     recordError,
-    setTransactionName,
     trackApiCall,
-} from "@/lib/newrelic-utils";
+} from "@/lib/posthog-utils";
 
 type SearchResult = {
     type: "channel" | "dm";
@@ -205,7 +204,6 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-        setTransactionName("GET /api/search/messages");
 
         // Verify user is authenticated
         const user = await getServerSession();

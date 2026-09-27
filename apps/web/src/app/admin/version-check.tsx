@@ -29,7 +29,7 @@ export function VersionCheck() {
             return null;
         }
         return (
-            <div className="overflow-hidden rounded-3xl border border-amber-500/60 bg-amber-500/10 p-4 shadow-lg">
+            <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4">
                 <div className="flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
                     <div className="space-y-1">
@@ -65,7 +65,7 @@ export function VersionCheck() {
 
     if (loading) {
         return (
-            <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+            <div className="rounded-xl border border-border/80 bg-card p-6">
                 <div className="flex items-center gap-3">
                     <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
                     <p className="text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export function VersionCheck() {
         return (
             <div className="space-y-3">
                 {renderCanaryNotice(versionInfo.isCanary)}
-                <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+                <div className="rounded-xl border border-border/80 bg-card p-6">
                     <div className="flex items-center gap-3">
                         <AlertCircle className="h-5 w-5 text-muted-foreground" />
                         <div className="flex-1">
@@ -119,7 +119,7 @@ export function VersionCheck() {
         return (
             <div className="space-y-3">
                 {renderCanaryNotice(versionInfo.isCanary)}
-                <div className="overflow-hidden rounded-3xl border border-amber-500/60 bg-amber-500/10 p-6 shadow-lg">
+                <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-6">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <div className="flex items-start gap-3">
                             <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
@@ -146,7 +146,7 @@ export function VersionCheck() {
                                 href={versionInfo.releaseUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 rounded-2xl border border-amber-500/60 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-500/30"
+                                className="inline-flex items-center gap-2 rounded-lg border border-amber-500/60 bg-amber-500/20 px-4 py-2 text-sm font-medium text-foreground transition hover:bg-amber-500/30"
                             >
                                 View release
                                 <span aria-hidden="true">→</span>
@@ -161,7 +161,7 @@ export function VersionCheck() {
     return (
         <div className="space-y-3">
             {renderCanaryNotice(versionInfo.isCanary)}
-            <div className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+            <div className="rounded-xl border border-border/80 bg-card p-6">
                 <div className="flex items-center gap-3">
                     <CheckCircle className="h-5 w-5 text-green-500" />
                     <div className="flex-1">

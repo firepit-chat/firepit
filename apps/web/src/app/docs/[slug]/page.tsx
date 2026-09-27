@@ -46,8 +46,8 @@ export default async function DocsDetailPage({ params }: Props) {
         <DocsShell
             aside={
                 toc.length > 0 ? (
-                    <div className="rounded-4xl border border-border/60 bg-card/75 p-4 shadow-xl backdrop-blur-sm">
-                        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    <div className="rounded-xl border border-border/80 p-4">
+                        <div className="mb-3 text-xs font-semibold text-muted-foreground">
                             On This Page
                         </div>
                         <div className="space-y-2">
@@ -68,7 +68,7 @@ export default async function DocsDetailPage({ params }: Props) {
             description={page.description}
             title={page.title}
         >
-            <section className="rounded-4xl border border-border/60 bg-card/75 p-8 shadow-xl backdrop-blur-sm">
+            <section className="rounded-xl border border-border/80 p-8">
                 <DocsMarkdown content={page.content} />
             </section>
         </DocsShell>

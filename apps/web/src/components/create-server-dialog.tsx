@@ -52,8 +52,8 @@ export function CreateServerDialog({
 				}),
 			});
 
-			const result = await response.json() as { 
-				success: boolean; 
+			const result = await response.json() as {
+				success: boolean;
 				server?: { name: string };
 				error?: string;
 			};

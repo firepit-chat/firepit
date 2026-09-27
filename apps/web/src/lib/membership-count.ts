@@ -1,7 +1,7 @@
 import { Query } from "appwrite";
 import { getEnvConfig } from "./appwrite-core";
 import { listPages, chunkValues } from "./appwrite-pagination";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 type MemberCountDatabases = {
     listDocuments: {

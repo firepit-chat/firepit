@@ -51,7 +51,7 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                 <Button
                     type="button"
                     aria-label="Open notifications"
-                    className="relative rounded-2xl"
+                    className="relative rounded-lg"
                     variant="outline"
                 >
                     <Bell className="h-5 w-5" />
@@ -64,7 +64,7 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
-                className="w-[24rem] max-w-[calc(100vw-1rem)] rounded-3xl border border-border/60 bg-card/95 p-2 shadow-2xl backdrop-blur-sm"
+                className="w-[24rem] max-w-[calc(100vw-1rem)] rounded-xl border border-border/60 bg-card/95 p-2 shadow-lg"
             >
                 <div className="px-3 py-2">
                     <p className="text-sm font-semibold text-foreground">
@@ -93,7 +93,7 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                     <div className="space-y-1 px-1 py-1">
                         {recentItems.map((item) => (
                             <DropdownMenuItem
-                                className="cursor-pointer rounded-2xl p-0"
+                                className="cursor-pointer rounded-md p-0"
                                 key={item.id}
                                 onSelect={() => {
                                     const destination =
@@ -117,7 +117,7 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                                     router.push(href as Route);
                                 }}
                             >
-                                <div className="flex w-full items-start gap-3 rounded-2xl px-3 py-2 text-left">
+                                <div className="flex w-full items-start gap-3 px-2 py-2 text-left">
                                     <Avatar
                                         alt={item.authorLabel}
                                         fallback={item.authorLabel}
@@ -135,7 +135,7 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                                                 )}
                                             </span>
                                         </div>
-                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+                                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
                                             <span>
                                                 {item.kind === "mention"
                                                     ? "Mention"
@@ -163,14 +163,14 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                 <DropdownMenuSeparator />
 
                 <div className="grid gap-2 px-3 py-2">
-                    <Button asChild className="w-full rounded-2xl" size="sm">
+                    <Button asChild className="w-full rounded-lg" size="sm">
                         <Link href="/notifications">
                             Open notification center
                         </Link>
                     </Button>
                     <Button
                         asChild
-                        className="w-full rounded-2xl"
+                        className="w-full rounded-lg"
                         size="sm"
                         variant="outline"
                     >

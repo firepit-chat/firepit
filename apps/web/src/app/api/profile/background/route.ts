@@ -9,7 +9,7 @@ import {
     updateProfileBackgroundImageState,
 } from "@/lib/appwrite-profiles";
 import { getAdminClient } from "@/lib/appwrite-admin";
-import { logger } from "@/lib/newrelic-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const ALLOWED_BACKGROUND_TYPES = new Set([
     "image/jpeg",
