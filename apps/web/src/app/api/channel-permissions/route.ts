@@ -15,7 +15,6 @@ import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 
 const env = getEnvConfig();
 const databaseId = env.databaseId || "main";
-const overridesCollectionId = "channel_permission_overrides";
 
 const validPermissions: Permission[] = [
     "readMessages",
@@ -119,7 +118,7 @@ export async function GET(request: NextRequest) {
 
         const overrides = await databases.listDocuments(
             databaseId,
-            overridesCollectionId,
+            env.collections.channelPermissionOverrides,
             [Query.equal("channelId", channelId), Query.limit(100)],
         );
 
@@ -179,37 +178,6 @@ export async function POST(request: NextRequest) {
         }
         const { allowArray, denyArray } = allowDeny;
 
-        // Check if override already exists
-        const queries = [Query.equal("channelId", channelId), Query.limit(1)];
-
-        if (roleId) {
-            queries.push(
-                Query.equal("roleId", roleId),
-                Query.equal("userId", ""),
-            );
-        }
-        if (userId) {
-            queries.push(
-                Query.equal("userId", userId),
-                Query.equal("roleId", ""),
-            );
-        }
-
-        const existing = await databases.listDocuments(
-            databaseId,
-            overridesCollectionId,
-            queries,
-        );
-
-        if (existing.documents.length > 0) {
-            return NextResponse.json(
-                {
-                    error: "Override already exists for this role/user in this channel",
-                },
-                { status: 400 },
-            );
-        }
-
         // Create override
         const overrideData: Record<string, unknown> = {
             channelId,
@@ -225,12 +193,28 @@ export async function POST(request: NextRequest) {
             overrideData.roleId = ""; // Ensure roleId is empty string for user overrides
         }
 
-        const override = await databases.createDocument(
-            databaseId,
-            overridesCollectionId,
-            ID.unique(),
-            overrideData,
-        );
+        // Existence is enforced by the unique (channelId, roleId, userId) index
+        // rather than a read-then-write check, which raced under concurrency.
+        let override;
+        try {
+            override = await databases.createDocument(
+                databaseId,
+                env.collections.channelPermissionOverrides,
+                ID.unique(),
+                overrideData,
+            );
+        } catch (createError) {
+            const candidate = createError as { code?: unknown };
+            if (candidate.code === 409) {
+                return NextResponse.json(
+                    {
+                        error: "Override already exists for this role/user in this channel",
+                    },
+                    { status: 400 },
+                );
+            }
+            throw createError;
+        }
 
         invalidateChannelsServerCaches(authResult.serverId);
         invalidateChannelAccessCache(databaseId, channelId);
@@ -263,7 +247,7 @@ export async function PUT(request: NextRequest) {
 
         const existingOverride = await databases.getDocument(
             databaseId,
-            overridesCollectionId,
+            env.collections.channelPermissionOverrides,
             overrideId,
         );
         const channelId = String(existingOverride.channelId);
@@ -286,7 +270,7 @@ export async function PUT(request: NextRequest) {
 
         const override = await databases.updateDocument(
             databaseId,
-            overridesCollectionId,
+            env.collections.channelPermissionOverrides,
             overrideId,
             {
                 allow: allowArray,
@@ -325,7 +309,7 @@ export async function DELETE(request: NextRequest) {
 
         const existingOverride = await databases.getDocument(
             databaseId,
-            overridesCollectionId,
+            env.collections.channelPermissionOverrides,
             overrideId,
         );
         const channelId = String(existingOverride.channelId);
@@ -338,7 +322,7 @@ export async function DELETE(request: NextRequest) {
 
         await databases.deleteDocument(
             databaseId,
-            overridesCollectionId,
+            env.collections.channelPermissionOverrides,
             overrideId,
         );
 
