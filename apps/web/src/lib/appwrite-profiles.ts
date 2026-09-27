@@ -30,6 +30,7 @@ type UserProfile = {
     showSettingsInNavigation?: boolean;
     showAddFriendInHeader?: boolean;
     telemetryEnabled?: boolean;
+    skipNsfwWarning?: boolean;
     navigationItemOrder?: NavigationItemPreferenceId[] | string;
     profileBackgroundColor?: string;
     profileBackgroundGradient?: string;
@@ -56,6 +57,7 @@ const editableProfileKeys = [
     "showSettingsInNavigation",
     "showAddFriendInHeader",
     "telemetryEnabled",
+    "skipNsfwWarning",
     "navigationItemOrder",
     "profileBackgroundColor",
     "profileBackgroundGradient",
@@ -300,7 +302,7 @@ export async function resolveProfileIdentifiers(identifiers: string[]) {
  * Create a new user profile
  *
  * @param {string} userId - The user id value.
- * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; telemetryEnabled?: boolean | undefined; skipNsfwWarning?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
  * @returns {Promise<UserProfile>} The return value.
  */
 export async function createUserProfile(
@@ -330,7 +332,7 @@ export async function createUserProfile(
  * Update a user's profile
  *
  * @param {string} profileId - The profile id value.
- * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
+ * @param {{ userName?: string | undefined; displayName?: string | undefined; bio?: string | undefined; pronouns?: string | undefined; avatarFileId?: string | undefined; location?: string | undefined; website?: string | undefined; showDocsInNavigation?: boolean | undefined; showFriendsInNavigation?: boolean | undefined; showSettingsInNavigation?: boolean | undefined; showAddFriendInHeader?: boolean | undefined; telemetryEnabled?: boolean | undefined; skipNsfwWarning?: boolean | undefined; navigationItemOrder?: string | NavigationItemPreferenceId[] | undefined; }} data - The data value.
  * @returns {Promise<UserProfile>} The return value.
  */
 export async function updateUserProfile(

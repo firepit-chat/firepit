@@ -47,9 +47,9 @@ export default async function DocsIndexPage() {
             title="Documentation Hub"
         >
             <div className="space-y-8">
-                <section className="grid gap-6 overflow-hidden rounded-4xl border border-border/60 bg-card/75 p-6 shadow-2xl backdrop-blur-sm lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] lg:p-8">
+                <section className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)] lg:p-8">
                     <div className="space-y-6">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
                             <Sparkles className="h-3.5 w-3.5 text-primary" />
                             Docs at a glance
                         </div>
@@ -64,14 +64,14 @@ export default async function DocsIndexPage() {
 
                         <div className="flex flex-wrap gap-3">
                             <Link
-                                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/15 transition-transform hover:-translate-y-0.5"
+                                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
                                 href={"/docs/api" as Route}
                             >
                                 Open API Reference
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                             <Link
-                                className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/70 px-5 py-2.5 text-sm font-medium text-foreground backdrop-blur transition-transform hover:-translate-y-0.5 hover:border-border"
+                                className="inline-flex items-center gap-2 rounded-lg border border-border/70 px-5 py-2.5 text-sm font-medium text-foreground"
                                 href={"/chat" as Route}
                             >
                                 Open chat workspace
@@ -79,24 +79,24 @@ export default async function DocsIndexPage() {
                         </div>
 
                         <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     Guides
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                                     {docsPages.length}
                                 </p>
                             </div>
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     Operations
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
                                     {apiReference.operationCount}
                                 </p>
                             </div>
-                            <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                            <div className="rounded-xl border border-border/80 bg-card p-4">
+                                <p className="text-xs font-semibold text-muted-foreground">
                                     Tags
                                 </p>
                                 <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
@@ -106,9 +106,9 @@ export default async function DocsIndexPage() {
                         </div>
                     </div>
 
-                    <div className="space-y-4 rounded-3xl border border-border/60 bg-background/70 p-5 shadow-lg">
+                    <div className="space-y-4 rounded-xl border border-border/80 p-5">
                         <div className="flex items-start gap-3">
-                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                 <FileCode2 className="h-5 w-5" />
                             </span>
                             <div>
@@ -122,16 +122,16 @@ export default async function DocsIndexPage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl border border-border/50 bg-card/70 px-4 py-3">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="px-1 py-1">
+                                <div className="text-[11px] font-semibold text-muted-foreground">
                                     OpenAPI version
                                 </div>
                                 <div className="mt-1 font-mono text-sm font-medium text-foreground">
                                     {apiReference.version}
                                 </div>
                             </div>
-                            <div className="rounded-2xl border border-border/50 bg-card/70 px-4 py-3">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="px-1 py-1">
+                                <div className="text-[11px] font-semibold text-muted-foreground">
                                     Featured tags
                                 </div>
                                 <div className="mt-1 font-mono text-sm font-medium text-foreground">
@@ -140,8 +140,8 @@ export default async function DocsIndexPage() {
                             </div>
                         </div>
 
-                        <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="px-1 py-1">
+                            <div className="text-[11px] font-semibold text-muted-foreground">
                                 Entry points
                             </div>
                             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
@@ -160,12 +160,12 @@ export default async function DocsIndexPage() {
 
                             return (
                                 <Link
-                                    className="group overflow-hidden rounded-4xl border border-border/60 bg-card/75 p-6 shadow-xl backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:shadow-2xl"
+                                    className="group rounded-xl border border-border/80 bg-card p-6 transition-colors hover:bg-muted/40"
                                     href={`/docs/${page.slug}` as Route}
                                     key={page.slug}
                                 >
                                     <div className="space-y-4">
-                                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+                                        <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
                                             <Icon className="h-5 w-5" />
                                         </span>
                                         <div>
@@ -186,9 +186,9 @@ export default async function DocsIndexPage() {
                         })}
                     </div>
 
-                    <div className="overflow-hidden rounded-4xl border border-border/60 bg-card/75 p-6 shadow-xl backdrop-blur-sm">
+                    <div className="rounded-xl border border-border/80 p-6">
                         <div className="flex items-start gap-3">
-                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                 <FileCode2 className="h-5 w-5" />
                             </span>
                             <div className="space-y-1">
@@ -202,16 +202,16 @@ export default async function DocsIndexPage() {
                         </div>
 
                         <div className="mt-5 grid grid-cols-2 gap-3">
-                            <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="px-1 py-1">
+                                <div className="text-[11px] font-semibold text-muted-foreground">
                                     Operations
                                 </div>
                                 <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight">
                                     {apiReference.operationCount}
                                 </div>
                             </div>
-                            <div className="rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
-                                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            <div className="px-1 py-1">
+                                <div className="text-[11px] font-semibold text-muted-foreground">
                                     Tags
                                 </div>
                                 <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight">
@@ -220,8 +220,8 @@ export default async function DocsIndexPage() {
                             </div>
                         </div>
 
-                        <div className="mt-3 rounded-2xl border border-border/50 bg-background/60 px-4 py-3">
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="mt-3 px-1 py-1">
+                            <div className="text-[11px] font-semibold text-muted-foreground">
                                 Version
                             </div>
                             <div className="mt-1 font-mono text-sm font-medium">
@@ -230,7 +230,7 @@ export default async function DocsIndexPage() {
                         </div>
 
                         <Link
-                            className="mt-5 inline-flex items-center gap-1.5 rounded-2xl bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
+                            className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/20"
                             href={"/docs/api" as Route}
                         >
                             Open API Reference
@@ -240,9 +240,9 @@ export default async function DocsIndexPage() {
                 </div>
 
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-                    <section className="overflow-hidden rounded-4xl border border-border/60 bg-card/75 p-6 shadow-xl backdrop-blur-sm">
+                    <section className="rounded-xl border border-border/80 p-6">
                         <div className="flex items-start gap-3">
-                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                 <Layers3 className="h-5 w-5" />
                             </span>
                             <div>
@@ -259,7 +259,7 @@ export default async function DocsIndexPage() {
                         <div className="mt-5 grid gap-3 sm:grid-cols-2">
                             {featuredTags.map((tag) => (
                                 <a
-                                    className="group rounded-2xl border border-border/50 bg-background/60 px-4 py-3 transition-colors hover:bg-background/90"
+                                    className="group rounded-md border border-border/50 bg-background/60 px-4 py-3 transition-colors hover:bg-background/90"
                                     href={`/docs/api#${String(getTagAnchorId(tag.name))}`}
                                     key={tag.name}
                                 >
@@ -281,9 +281,9 @@ export default async function DocsIndexPage() {
                         </div>
                     </section>
 
-                    <section className="overflow-hidden rounded-4xl border border-border/60 bg-card/75 p-6 shadow-xl backdrop-blur-sm">
+                    <section className="rounded-xl border border-border/80 p-6">
                         <div className="flex items-start gap-3">
-                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                                 <Globe2 className="h-5 w-5" />
                             </span>
                             <div>
@@ -300,12 +300,12 @@ export default async function DocsIndexPage() {
                         <div className="mt-5 space-y-3">
                             {featuredOperations.map((operation) => (
                                 <a
-                                    className="block rounded-2xl border border-border/50 bg-background/60 px-4 py-3 transition-colors hover:bg-background/90"
+                                    className="block rounded-md border border-border/50 bg-background/60 px-3 py-2.5 transition-colors hover:bg-background/90"
                                     href={`/docs/api#${String(operation.anchorId)}`}
                                     key={String(operation.anchorId)}
                                 >
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary ring-1 ring-primary/20">
+                                        <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-semibold text-primary ring-1 ring-primary/20">
                                             {operation.method}
                                         </span>
                                         <span className="font-mono text-xs text-foreground">
@@ -319,8 +319,8 @@ export default async function DocsIndexPage() {
                             ))}
                         </div>
 
-                        <div className="mt-5 rounded-2xl border border-border/50 bg-card/60 p-4">
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        <div className="mt-5">
+                            <div className="text-xs font-semibold text-muted-foreground">
                                 Servers
                             </div>
                             <div className="mt-3 space-y-3">

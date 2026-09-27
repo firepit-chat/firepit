@@ -59,7 +59,7 @@ export function DangerZone() {
 
     return (
         <div className="grid gap-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border/60 bg-background/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-md border border-border/60 bg-background/60 px-3 py-2.5">
                 <div>
                     <p className="text-sm font-medium text-foreground">
                         Deactivate account
@@ -81,7 +81,7 @@ export function DangerZone() {
                 </Button>
             </div>
 
-            <div className="space-y-4 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
+            <div className="space-y-4 rounded-md border border-destructive/40 bg-destructive/5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <p className="text-sm font-semibold text-destructive">

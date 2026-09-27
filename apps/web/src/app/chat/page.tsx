@@ -9,6 +9,7 @@ import {
     Megaphone,
     Settings,
     Shield,
+    ShieldAlert,
     BellOff,
     MoreVertical,
     Pin,
@@ -60,6 +61,7 @@ import type {
 import { ConversationList } from "./components/ConversationList";
 import { DirectMessageView } from "./components/DirectMessageView";
 import { useAuth } from "@/contexts/auth-context";
+import { useDeveloperMode } from "@/hooks/useDeveloperMode";
 import { useChannels } from "./hooks/useChannels";
 import { useCategories } from "./hooks/useCategories";
 import { useMessages } from "./hooks/useMessages";
@@ -99,15 +101,6 @@ const NewConversationDialog = dynamic(
     () =>
         import("./components/NewConversationDialog").then((mod) => ({
             default: mod.NewConversationDialog,
-        })),
-    {
-        ssr: false,
-    },
-);
-const RoleSettingsDialog = dynamic(
-    () =>
-        import("@/components/role-settings-dialog").then((mod) => ({
-            default: mod.RoleSettingsDialog,
         })),
     {
         ssr: false,
@@ -227,6 +220,7 @@ export default function ChatPage() {
     const { userData, loading: _authLoading } = useAuth();
     const userId = userData?.userId ?? null;
     const userName = userData?.name ?? null;
+    const { navigationPreferences } = useDeveloperMode(userId);
     const searchParams = useSearchParams();
     const searchParamsString = searchParams.toString();
     const router = useRouter();
@@ -249,9 +243,11 @@ export default function ChatPage() {
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [profileModalOpen, setProfileModalOpen] = useState(false);
     const [newConversationOpen, setNewConversationOpen] = useState(false);
-    const [roleSettingsOpen, setRoleSettingsOpen] = useState(false);
-    const [channelPermissionsOpen, setChannelPermissionsOpen] = useState(false);
     const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+    const [channelPermissionsOpen, setChannelPermissionsOpen] = useState(false);
+    const [nsfwAcceptedChannelIds, setNsfwAcceptedChannelIds] = useState<
+        Set<string>
+    >(new Set());
     const [discoverServersOpen, setDiscoverServersOpen] = useState(false);
     const [allowUserServers, setAllowUserServers] = useState(false);
     const [selectedProfile, setSelectedProfile] = useState<{
@@ -1643,41 +1639,56 @@ export default function ChatPage() {
         [selectedChannel, selectedConversationId],
     );
 
+    const nsfwBlocked = useMemo(() => {
+        if (!selectedChannelData?.nsfw) {
+            return false;
+        }
+        if (navigationPreferences.skipNsfwWarning) {
+            return false;
+        }
+        return !nsfwAcceptedChannelIds.has(selectedChannelData.$id);
+    }, [
+        navigationPreferences.skipNsfwWarning,
+        nsfwAcceptedChannelIds,
+        selectedChannelData,
+    ]);
+
+    function acceptNsfwChannel() {
+        if (!selectedChannel) {
+            return;
+        }
+        setNsfwAcceptedChannelIds((prev) => {
+            const next = new Set(prev);
+            next.add(selectedChannel);
+            return next;
+        });
+    }
+
     function renderServers() {
         const isOwner = selectedServerData?.ownerId === userId;
         const canOpenServerAdminPanel = isOwner || canManageServer;
 
         return (
-            <div className="space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2 px-1">
+                    <h2 className="text-xs font-semibold text-muted-foreground">
+                        Servers
+                    </h2>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground/70">
+                        {serversApi.servers.length} total
+                    </span>
+                </div>
                 <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                        <h2 className="text-sm font-semibold tracking-tight">
-                            Servers
-                        </h2>
-                        <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-                            {serversApi.servers.length} total
-                        </span>
-                    </div>
                     <div className="flex flex-wrap items-center gap-2">
                         {serversApi.selectedServer && canOpenServerAdminPanel && (
-                            <>
-                                <Button
-                                    onClick={() => setAdminPanelOpen(true)}
-                                    size="sm"
-                                    variant="ghost"
-                                    title="Admin Panel"
-                                >
-                                    <Shield className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    onClick={() => setRoleSettingsOpen(true)}
-                                    size="sm"
-                                    variant="ghost"
-                                    title="Role Settings"
-                                >
-                                    <Settings className="h-4 w-4" />
-                                </Button>
-                            </>
+                            <Button
+                                onClick={() => setAdminPanelOpen(true)}
+                                size="sm"
+                                variant="ghost"
+                                title="Server Admin Panel"
+                            >
+                                <Shield className="h-4 w-4" />
+                            </Button>
                         )}
                         {userId && (
                             <>
@@ -1700,19 +1711,19 @@ export default function ChatPage() {
                         )}
                     </div>
                 </div>
-                <ul className="space-y-2">
+                <ul className="space-y-1">
                     {serversApi.servers.map((s) => {
                         const active = s.$id === serversApi.selectedServer;
                         const memberCountLabel = formatMemberCount(s.memberCount);
                         return (
                             <li key={s.$id} className="group relative">
-                                <div className="flex items-start gap-2">
+                                <div className="flex items-center gap-1">
                                     <Button
                                         aria-pressed={active}
-                                        className={`min-w-0 flex-1 justify-start gap-3 overflow-hidden rounded-[1.25rem] border px-4 py-3 text-left shadow-sm transition-all ${
+                                        className={`min-w-0 flex-1 justify-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
                                             active
-                                                ? "border-primary/25 bg-primary/10 text-foreground shadow-primary/10"
-                                                : "border-border/60 bg-background/70 hover:border-border hover:bg-background"
+                                                ? "bg-accent text-foreground"
+                                                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                                         }`}
                                         onClick={() => {
                                             serversApi.setSelectedServer(s.$id);
@@ -1729,7 +1740,7 @@ export default function ChatPage() {
                                         />
 
                                         <span className="min-w-0 flex-1 text-left">
-                                            <span className="block truncate font-medium">
+                                            <span className="block truncate text-sm font-medium">
                                                 {s.name}
                                             </span>
                                             <span className="block text-xs text-muted-foreground">
@@ -1741,7 +1752,7 @@ export default function ChatPage() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button
-                                                className="h-9 w-9 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                                                className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                                                 size="icon"
                                                 type="button"
                                                 variant="ghost"
@@ -1774,7 +1785,7 @@ export default function ChatPage() {
                     })}
                 </ul>
                 {serversApi.cursor && (
-                    <div className="pt-2">
+                    <div className="pt-1">
                         <Button
                             disabled={serversApi.loading}
                             onClick={serversApi.loadMore}
@@ -1787,7 +1798,7 @@ export default function ChatPage() {
                     </div>
                 )}
                 {serversApi.membershipEnabled && (
-                    <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
                         <span>Your Memberships</span>
                         <span className="font-medium text-foreground">
                             {serversApi.memberships.length}
@@ -1801,7 +1812,7 @@ export default function ChatPage() {
     function renderChannels() {
         if (!serversApi.selectedServer) {
             return (
-                <p className="rounded-2xl border border-dashed border-border/60 bg-muted/30 px-4 py-3 text-center text-xs text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-center text-xs text-muted-foreground">
                     Select a server to view its channels or create a new space.
                 </p>
             );
@@ -1809,20 +1820,20 @@ export default function ChatPage() {
 
         if (channelsApi.initialLoading || categoriesApi.initialLoading) {
             return (
-                <div className="space-y-4 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
-                    <div className="space-y-2">
+                <div className="space-y-3">
+                    <div className="space-y-1">
                         <div className="h-3 w-28 animate-pulse rounded-full bg-muted" />
-                        <div className="space-y-2">
-                            <div className="h-10 animate-pulse rounded-xl bg-muted/70" />
-                            <div className="h-10 animate-pulse rounded-xl bg-muted/70" />
-                            <div className="h-10 animate-pulse rounded-xl bg-muted/70" />
+                        <div className="space-y-1">
+                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
+                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
+                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
                         </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                         <div className="h-3 w-24 animate-pulse rounded-full bg-muted" />
-                        <div className="space-y-2">
-                            <div className="h-10 animate-pulse rounded-xl bg-muted/60" />
-                            <div className="h-10 animate-pulse rounded-xl bg-muted/60" />
+                        <div className="space-y-1">
+                            <div className="h-8 animate-pulse rounded-md bg-muted/60" />
+                            <div className="h-8 animate-pulse rounded-md bg-muted/60" />
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground">
@@ -1838,7 +1849,7 @@ export default function ChatPage() {
             !channelsApi.loading
         ) {
             return (
-                <div className="space-y-2 rounded-2xl border border-dashed border-border/60 bg-muted/30 px-4 py-4 text-center">
+                <div className="space-y-1 rounded-md border border-dashed border-border/60 px-3 py-3 text-center">
                     <p className="text-sm font-medium text-foreground">
                         No channels yet
                     </p>
@@ -1854,57 +1865,54 @@ export default function ChatPage() {
             const active = channel.$id === selectedChannel;
             const unreadState = channelUnreadStateById[channel.$id];
             const isAnnouncementChannel = channel.type === "announcement";
-            const channelKindLabel = isAnnouncementChannel
-                ? "Announcement channel"
-                : "Text channel";
 
             return (
                 <li key={channel.$id} className="group relative">
-                    <div className="flex items-start gap-2">
+                    <div className="flex items-center gap-1">
                         <Button
                             aria-pressed={active}
-                            className={`min-w-0 flex-1 justify-start gap-3 rounded-[1.15rem] border px-4 py-3.5 text-left shadow-sm transition-all ${
+                            className={`min-w-0 flex-1 justify-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors ${
                                 active
-                                    ? "border-primary/25 bg-primary/10 text-foreground shadow-primary/10"
-                                    : "border-border/60 bg-background/70 hover:border-border hover:bg-background"
+                                    ? "bg-accent text-foreground"
+                                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                             }`}
                             onClick={() => selectChannel(channel)}
                             type="button"
                             variant="ghost"
                         >
-                            <span
-                                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border ${
-                                    active
-                                        ? "border-primary/20 bg-primary text-primary-foreground"
-                                        : "border-border/60 bg-muted/50 text-muted-foreground"
-                                }`}
-                            >
-                                {isAnnouncementChannel ? (
-                                    <Megaphone
-                                        aria-hidden="true"
-                                        className="size-3"
-                                    />
-                                ) : (
-                                    <Hash aria-hidden="true" className="size-3" />
-                                )}
-                            </span>
+                            {isAnnouncementChannel ? (
+                                <Megaphone
+                                    aria-hidden="true"
+                                    className="size-3.5 shrink-0"
+                                />
+                            ) : (
+                                <Hash
+                                    aria-hidden="true"
+                                    className="size-3.5 shrink-0"
+                                />
+                            )}
 
                             <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium">
+                                <span className="block truncate text-sm font-medium">
                                     {channel.name}
-                                </span>
-                                    <span className="block text-[10px] leading-none text-muted-foreground">
-                                    {channelKindLabel}
                                 </span>
                             </span>
 
-                            <span className="flex shrink-0 items-center gap-2">
+                            <span className="flex shrink-0 items-center gap-1.5">
+                                {channel.nsfw ? (
+                                    <span
+                                        className="rounded border border-destructive/40 px-1 py-0.5 text-[9px] font-semibold leading-none text-destructive"
+                                        title="18+ channel"
+                                    >
+                                        18+
+                                    </span>
+                                ) : null}
                                 {unreadState?.count ? (
                                     <span
-                                        className={`inline-flex h-5 min-w-5 items-center justify-center rounded-md border px-1.5 text-[10px] font-semibold ${
+                                        className={`inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold ${
                                             unreadState.muted
-                                                ? "border-border/60 bg-muted/40 text-muted-foreground"
-                                                : "border-primary/20 bg-primary/10 text-primary"
+                                                ? "bg-muted/60 text-muted-foreground"
+                                                : "bg-primary/10 text-primary"
                                         }`}
                                     >
                                         {unreadState.count}
@@ -1916,7 +1924,7 @@ export default function ChatPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
-                                    className="h-9 w-9 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                                    className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
                                     size="icon"
                                     type="button"
                                     variant="ghost"
@@ -1949,7 +1957,7 @@ export default function ChatPage() {
         };
 
         return (
-            <div className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <div className="space-y-3">
                 <div className="space-y-3">
                     {groupedChannels.map(({ category, channels }) => {
                         const collapsed = collapsedCategoryIds.includes(
@@ -1957,15 +1965,15 @@ export default function ChatPage() {
                         );
 
                         return (
-                            <section key={category.$id} className="space-y-2">
+                            <section key={category.$id} className="space-y-1">
                                 <button
-                                    className="flex w-full items-center justify-between rounded-xl px-2 py-1 text-left text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition hover:bg-muted/40 hover:text-foreground"
+                                    className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
                                     onClick={() =>
                                         toggleCategoryCollapse(category.$id)
                                     }
                                     type="button"
                                 >
-                                    <span className="flex items-center gap-2">
+                                    <span className="flex items-center gap-1.5">
                                         {collapsed ? (
                                             <ChevronRight className="h-3.5 w-3.5" />
                                         ) : (
@@ -1976,11 +1984,11 @@ export default function ChatPage() {
                                     <span>{channels.length}</span>
                                 </button>
                                 {!collapsed && (
-                                    <ul className="space-y-2">
+                                    <ul className="space-y-1">
                                         {channels.length > 0 ? (
                                             channels.map(renderChannelItem)
                                         ) : (
-                                            <li className="rounded-xl border border-dashed border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                                            <li className="rounded-md border border-dashed border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
                                                 No channels in this category
                                                 yet.
                                             </li>
@@ -1993,19 +2001,19 @@ export default function ChatPage() {
 
                     {(uncategorizedChannels.length > 0 ||
                         groupedChannels.length === 0) && (
-                        <section className="space-y-2">
-                            <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        <section className="space-y-1">
+                            <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-muted-foreground">
                                 <span>Uncategorized</span>
                                 <span>{uncategorizedChannels.length}</span>
                             </div>
-                            <ul className="space-y-2">
+                            <ul className="space-y-1">
                                 {uncategorizedChannels.map(renderChannelItem)}
                             </ul>
                         </section>
                     )}
                 </div>
                 {channelsApi.cursor && (
-                    <div className="pt-2">
+                    <div className="pt-1">
                         <Button
                             disabled={channelsApi.loading}
                             onClick={channelsApi.loadMore}
@@ -2022,6 +2030,29 @@ export default function ChatPage() {
     }
 
     function renderMessages() {
+        if (nsfwBlocked) {
+            return (
+                <div className="flex flex-col items-center justify-center gap-6 rounded-xl border border-destructive/30 bg-destructive/5 px-6 py-16 text-center">
+                    <ShieldAlert className="h-12 w-12 text-destructive" />
+                    <div className="space-y-2">
+                        <h3 className="text-lg font-semibold text-foreground">
+                            This channel is marked 18+
+                        </h3>
+                        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                            It may contain age-restricted or mature content. Are
+                            you sure you want to continue?
+                        </p>
+                    </div>
+                    <Button
+                        onClick={acceptNsfwChannel}
+                        type="button"
+                    >
+                        Continue
+                    </Button>
+                </div>
+            );
+        }
+
         const isAnnouncementChannel =
             selectedChannelData?.type === "announcement";
         const announcementReadOnly = isAnnouncementChannel && !canSendMessages;
@@ -2147,50 +2178,52 @@ export default function ChatPage() {
 
     return (
         <div className="mx-auto w-full max-w-376 px-4 py-6 sm:px-6 lg:px-8">
-            <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-                <aside className="space-y-6 rounded-4xl border border-border/60 bg-card/75 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
-                    <div className="rounded-3xl bg-muted/40 p-1">
+            <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+                <aside className="space-y-4 border border-border/80 p-3">
+                    <div className="rounded-lg bg-muted/50 p-0.5">
                         <div className="grid grid-cols-2 gap-1">
                             <Button
                                 aria-pressed={viewMode === "channels"}
-                                className="rounded-xl"
+                                className={
+                                    viewMode === "channels"
+                                        ? "rounded-md bg-background text-foreground shadow-xs"
+                                        : "rounded-md text-muted-foreground hover:text-foreground"
+                                }
                                 onClick={() => {
                                     setViewMode("channels");
                                     setSelectedConversationId(null);
                                 }}
                                 size="sm"
                                 type="button"
-                                variant={
-                                    viewMode === "channels"
-                                        ? "default"
-                                        : "ghost"
-                                }
+                                variant="ghost"
                             >
-                                <Hash className="mr-2 h-4 w-4" />
+                                <Hash className="mr-1.5 h-4 w-4" />
                                 Channels
                                 {unreadChannelCount > 0 ? (
-                                    <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                                    <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                                         {unreadChannelCount}
                                     </span>
                                 ) : null}
                             </Button>
                             <Button
                                 aria-pressed={viewMode === "dms"}
-                                className="rounded-xl"
+                                className={
+                                    viewMode === "dms"
+                                        ? "rounded-md bg-background text-foreground shadow-xs"
+                                        : "rounded-md text-muted-foreground hover:text-foreground"
+                                }
                                 onClick={() => {
                                     setViewMode("dms");
                                     setSelectedChannel(null);
                                 }}
                                 size="sm"
                                 type="button"
-                                variant={
-                                    viewMode === "dms" ? "default" : "ghost"
-                                }
+                                variant="ghost"
                             >
-                                <MessageSquare className="mr-2 h-4 w-4" />
+                                <MessageSquare className="mr-1.5 h-4 w-4" />
                                 DMs
                                 {unreadDirectMessageCount > 0 ? (
-                                    <span className="ml-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                                    <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                                         {unreadDirectMessageCount}
                                     </span>
                                 ) : null}
@@ -2247,7 +2280,7 @@ export default function ChatPage() {
                     )}
                 </aside>
 
-                <div className="min-w-0 space-y-4 rounded-4xl border border-border/60 bg-card/75 p-5 shadow-2xl backdrop-blur-sm sm:p-6">
+                <div className="min-w-0 space-y-4">
                     {viewMode === "dms" && selectedConversation && userId ? (
                         <DirectMessageView
                             conversation={selectedConversation}
@@ -2320,13 +2353,13 @@ export default function ChatPage() {
                             {selectedChannel ? (
                                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
                                     <div className="space-y-4">
-                                        <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
+                                        <div className="flex items-center justify-between border-b border-border/80 pb-3">
                                             <div className="flex min-w-0 items-center gap-2">
                                                 {selectedChannelData?.type ===
                                                 "announcement" ? (
-                                                    <Megaphone className="h-5 w-5 text-muted-foreground" />
+                                                    <Megaphone className="h-4 w-4 text-muted-foreground" />
                                                 ) : (
-                                                    <Hash className="h-5 w-5 text-muted-foreground" />
+                                                    <Hash className="h-4 w-4 text-muted-foreground" />
                                                 )}
                                                 <h2 className="truncate font-semibold">
                                                     {selectedChannelData?.name ||
@@ -2334,8 +2367,13 @@ export default function ChatPage() {
                                                 </h2>
                                                 {selectedChannelData?.type ===
                                                 "announcement" ? (
-                                                    <span className="rounded border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                                                    <span className="rounded border px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                                         Announcement
+                                                    </span>
+                                                ) : null}
+                                                {selectedChannelData?.nsfw ? (
+                                                    <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                                                        18+
                                                     </span>
                                                 ) : null}
                                             </div>
@@ -2365,9 +2403,9 @@ export default function ChatPage() {
                                         {renderMessages()}
                                     </div>
 
-                                    <aside className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-3">
-                                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
-                                            <div className="mb-2 flex items-center gap-2 font-medium text-sm">
+                                    <aside className="space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 text-sm font-medium">
                                                 <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                                                 Pinned Messages
                                             </div>
@@ -2399,9 +2437,9 @@ export default function ChatPage() {
                                             />
                                         </div>
 
-                                        <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
-                                            <div className="mb-2 flex items-center justify-between">
-                                                <h3 className="font-medium text-sm">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between">
+                                                <h3 className="text-sm font-medium">
                                                     Thread
                                                 </h3>
                                                 {activeThreadParent ? (
@@ -2653,15 +2691,6 @@ export default function ChatPage() {
                     />
                 </DialogContent>
             </Dialog>
-            {serversApi.selectedServer && (
-                <RoleSettingsDialog
-                    open={roleSettingsOpen}
-                    onOpenChange={setRoleSettingsOpen}
-                    serverId={serversApi.selectedServer}
-                    serverName={selectedServerData?.name || "Server"}
-                    isOwner={selectedServerData?.ownerId === userId}
-                />
-            )}
             {selectedChannel && serversApi.selectedServer && (
                 <ChannelPermissionsEditor
                     open={channelPermissionsOpen}
@@ -2673,6 +2702,10 @@ export default function ChatPage() {
                         )?.name || "Channel"
                     }
                     serverId={serversApi.selectedServer}
+                    nsfw={selectedChannelData?.nsfw}
+                    onNsfwChange={() => {
+                        void channelsApi.refresh();
+                    }}
                 />
             )}
             {serversApi.selectedServer && (

@@ -131,6 +131,8 @@ const nextConfig: NextConfig = {
         turbopackChunking: {
             generateComponentChunks: true,
         },
+        turbopackCjsTreeShaking: true,
+        turbopackSharedRuntime: true,
     },
 
     // Turbopack configuration for Next.js 15+ (successor to Webpack)

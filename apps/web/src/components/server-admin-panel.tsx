@@ -46,6 +46,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { getAuditUserLabel } from "@/components/server-admin-panel-utils";
+import { RoleList } from "@/components/role-list";
+import { RoleEditor } from "@/components/role-editor";
+import { RoleMemberList } from "@/components/role-member-list";
+import { CategorySettingsPanel } from "@/components/category-settings-panel";
 import { uploadImage } from "@/lib/appwrite-dms-client";
 import type { Server, Role } from "@/lib/types";
 import { toast } from "sonner";
@@ -168,6 +172,10 @@ export function ServerAdminPanel({
         useState(false);
     const [inviteManagerOpen, setInviteManagerOpen] = useState(false);
     const [createInviteOpen, setCreateInviteOpen] = useState(false);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [memberListOpen, setMemberListOpen] = useState(false);
+    const [managingRole, setManagingRole] = useState<Role | null>(null);
     const [settingsName, setSettingsName] = useState(serverName);
     const [settingsDescription, setSettingsDescription] = useState(
         serverDescription ?? "",
@@ -389,6 +397,66 @@ export function ServerAdminPanel({
         }
     }, [serverId]);
 
+    const handleCreateRole = () => {
+        setEditingRole(null);
+        setEditorOpen(true);
+    };
+
+    const handleEditRole = (role: Role) => {
+        setEditingRole(role);
+        setEditorOpen(true);
+    };
+
+    const handleSaveRole = async (roleData: Partial<Role>) => {
+        try {
+            const isUpdate = Boolean(roleData.$id);
+            const response = await fetch("/api/roles", {
+                method: isUpdate ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(roleData),
+            });
+
+            if (response.ok) {
+                toast.success(
+                    isUpdate
+                        ? "Role updated successfully"
+                        : "Role created successfully",
+                );
+                await loadRoles();
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || "Failed to save role");
+            }
+        } catch (error) {
+            console.error("Failed to save role:", error);
+            throw error;
+        }
+    };
+
+    const handleDeleteRole = async (roleId: string) => {
+        try {
+            const response = await fetch(`/api/roles?roleId=${roleId}`, {
+                method: "DELETE",
+            });
+
+            if (response.ok) {
+                toast.success("Role deleted successfully");
+                await loadRoles();
+            } else {
+                const error = await response.json();
+                toast.error(error.error || "Failed to delete role");
+            }
+        } catch (error) {
+            console.error("Failed to delete role:", error);
+            toast.error("Failed to delete role");
+        }
+    };
+
+    const handleManageMembers = (role: Role) => {
+        setManagingRole(role);
+        setMemberListOpen(true);
+    };
+
     const loadAuditLogs = useCallback(async () => {
         try {
             const response = await fetch(
@@ -588,8 +656,9 @@ export function ServerAdminPanel({
     };
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+        <>
+            <Dialog open={open} onOpenChange={onOpenChange}>
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Shield className="h-5 w-5 text-primary" />
@@ -609,8 +678,8 @@ export function ServerAdminPanel({
                     <TabsList
                         className={`grid w-full ${
                             canEditServerSettings
-                                ? "grid-cols-5"
-                                : "grid-cols-4"
+                                ? "grid-cols-7"
+                                : "grid-cols-6"
                         }`}
                     >
                         <TabsTrigger value="overview">
@@ -630,6 +699,16 @@ export function ServerAdminPanel({
                         <TabsTrigger value="invites">
                             <Link className="h-4 w-4 mr-2" />
                             Invites
+                        </TabsTrigger>
+                        {canEditServerSettings && (
+                            <TabsTrigger value="roles">
+                                <Shield className="h-4 w-4 mr-2" />
+                                Roles
+                            </TabsTrigger>
+                        )}
+                        <TabsTrigger value="moderation">
+                            <Shield className="h-4 w-4 mr-2" />
+                            Moderation
                         </TabsTrigger>
                         <TabsTrigger value="audit">
                             <AlertTriangle className="h-4 w-4 mr-2" />
@@ -1046,9 +1125,9 @@ export function ServerAdminPanel({
                                                 : 0;
 
                                         return (
-                                            <Card
+                                            <div
                                                 key={member.userId}
-                                                className="p-3"
+                                                className="border-t border-border/60 py-3 first:border-t-0"
                                             >
                                                 <div className="flex items-center justify-between">
                                                     <div className="flex items-center gap-3">
@@ -1174,7 +1253,7 @@ export function ServerAdminPanel({
                                                         </div>
                                                     )}
                                                 </div>
-                                            </Card>
+                                            </div>
                                         );
                                     })
                                 )}
@@ -1260,6 +1339,50 @@ export function ServerAdminPanel({
                                     </div>
                                 </div>
                             </Card>
+                        </TabsContent>
+
+                        <TabsContent value="roles" className="space-y-4 m-0">
+                            <Tabs
+                                className="min-w-0 space-y-4 overflow-x-hidden"
+                                defaultValue="roles"
+                            >
+                                <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted/50 p-0.5">
+                                    <TabsTrigger className="rounded-md" value="roles">
+                                        Roles
+                                    </TabsTrigger>
+                                    <TabsTrigger className="rounded-md" value="categories">
+                                        Categories
+                                    </TabsTrigger>
+                                </TabsList>
+                                <TabsContent
+                                    className="min-w-0 space-y-4 overflow-x-hidden"
+                                    value="roles"
+                                >
+                                    {rolesLoading ? (
+                                        <p className="py-8 text-center text-sm text-muted-foreground">
+                                            Loading roles...
+                                        </p>
+                                    ) : (
+                                        <RoleList
+                                            roles={roles}
+                                            isOwner={isOwner}
+                                            onCreateRole={handleCreateRole}
+                                            onEditRole={handleEditRole}
+                                            onDeleteRole={handleDeleteRole}
+                                            onManageMembers={handleManageMembers}
+                                        />
+                                    )}
+                                </TabsContent>
+                                <TabsContent
+                                    className="min-w-0 space-y-4 overflow-x-hidden"
+                                    value="categories"
+                                >
+                                    <CategorySettingsPanel
+                                        canManage={isOwner}
+                                        serverId={serverId}
+                                    />
+                                </TabsContent>
+                            </Tabs>
                         </TabsContent>
 
                         <TabsContent
@@ -1374,7 +1497,10 @@ export function ServerAdminPanel({
                                             getAuditTargetLabel(log);
 
                                         return (
-                                            <Card key={log.$id} className="p-3">
+                                            <div
+                                                key={log.$id}
+                                                className="border-t border-border/60 py-3 first:border-t-0"
+                                            >
                                                 <div className="flex items-start justify-between">
                                                     <div className="flex-1">
                                                         <div className="flex items-center gap-2 mb-1">
@@ -1434,7 +1560,7 @@ export function ServerAdminPanel({
                                                         ).toLocaleString()}
                                                     </span>
                                                 </div>
-                                            </Card>
+                                            </div>
                                         );
                                     })
                                 )}
@@ -1617,6 +1743,24 @@ export function ServerAdminPanel({
                     // Optionally reload invite list if manager is open
                 }}
             />
-        </Dialog>
+            </Dialog>
+
+            <RoleEditor
+                open={editorOpen}
+                onOpenChange={setEditorOpen}
+                role={editingRole}
+                serverId={serverId}
+                onSave={handleSaveRole}
+            />
+
+            {managingRole && (
+                <RoleMemberList
+                    open={memberListOpen}
+                    onOpenChange={setMemberListOpen}
+                    role={managingRole}
+                    serverId={serverId}
+                />
+            )}
+        </>
     );
 }

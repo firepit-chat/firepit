@@ -257,6 +257,17 @@ export default function AdminTabScreen() {
                                     router.push("/admin/instance-announcements" as never)
                                 }
                             />
+                            {isGlobalAdmin ? (
+                                <AdminRow
+                                    title="Signup controls"
+                                    description="Set the signup policy and approve pending accounts."
+                                    actionLabel="Open controls"
+                                    actionTone="secondary"
+                                    onAction={() =>
+                                        router.push("/admin/signup-controls" as never)
+                                    }
+                                />
+                            ) : null}
                         </ThemedView>
                     ) : null}
 
@@ -294,6 +305,17 @@ export default function AdminTabScreen() {
                                 onAction={() =>
                                     router.push(
                                         `/admin/audit-log?serverId=${serverId}` as never,
+                                    )
+                                }
+                            />
+                            <AdminRow
+                                title="Message moderation"
+                                description="Search, remove, restore, or permanently delete messages."
+                                actionLabel="Open messages"
+                                actionTone="secondary"
+                                onAction={() =>
+                                    router.push(
+                                        `/admin/message-moderation?serverId=${serverId}` as never,
                                     )
                                 }
                             />

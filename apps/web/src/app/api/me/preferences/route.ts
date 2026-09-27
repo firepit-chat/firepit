@@ -23,6 +23,7 @@ const BOOLEAN_PREFERENCE_FIELDS = [
     "showSettingsInNavigation",
     "showAddFriendInHeader",
     "telemetryEnabled",
+    "skipNsfwWarning",
 ] as const satisfies readonly (keyof NavigationPreferences)[];
 
 type PreferencesResponse = NavigationPreferences;
@@ -35,6 +36,7 @@ type ProfilePreferencesShape = {
     showSettingsInNavigation?: boolean;
     showAddFriendInHeader?: boolean;
     telemetryEnabled?: boolean;
+    skipNsfwWarning?: boolean;
     navigationItemOrder?: NavigationItemPreferenceId[] | string;
 };
 
@@ -112,6 +114,7 @@ function toPreferencesResponse(
         showSettingsInNavigation: profile.showSettingsInNavigation ?? true,
         showAddFriendInHeader: profile.showAddFriendInHeader ?? true,
         telemetryEnabled: profile.telemetryEnabled ?? true,
+        skipNsfwWarning: profile.skipNsfwWarning ?? false,
         navigationItemOrder: normalizeNavigationItemOrder(
             profile.navigationItemOrder,
         ),
@@ -231,6 +234,7 @@ export async function PATCH(request: Request) {
             showSettingsInNavigation: boolean;
             showAddFriendInHeader: boolean;
             telemetryEnabled?: boolean;
+            skipNsfwWarning?: boolean;
             navigationItemOrder?: NavigationItemPreferenceId[];
         } = {
             showDocsInNavigation: mergedPreferences.showDocsInNavigation,
@@ -245,6 +249,13 @@ export async function PATCH(request: Request) {
             profile.telemetryEnabled !== undefined
         ) {
             profileUpdate.telemetryEnabled = mergedPreferences.telemetryEnabled;
+        }
+
+        if (
+            body.skipNsfwWarning !== undefined ||
+            profile.skipNsfwWarning !== undefined
+        ) {
+            profileUpdate.skipNsfwWarning = mergedPreferences.skipNsfwWarning;
         }
 
         if (body.navigationItemOrder !== undefined) {

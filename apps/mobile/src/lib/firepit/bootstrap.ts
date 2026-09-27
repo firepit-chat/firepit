@@ -131,6 +131,12 @@ function normalizeCurrentUser(user: unknown): CurrentUser | null {
         name,
         email:
             typeof candidate.email === "string" ? candidate.email : undefined,
+        emailVerified:
+            typeof candidate.emailVerification === "boolean"
+                ? candidate.emailVerification
+                : typeof candidate.emailVerified === "boolean"
+                  ? candidate.emailVerified
+                  : undefined,
         displayName,
         userName,
         avatarUrl:

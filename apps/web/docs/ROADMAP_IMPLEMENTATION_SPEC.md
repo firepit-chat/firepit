@@ -1,10 +1,18 @@
-# Roadmap Implementation Spec
+# Roadmap Implementation Spec (Superseded)
 
-This document is the technical companion to [../ROADMAP.md](../ROADMAP.md). The roadmap answers what matters for Discord parity and product direction. This spec answers how planned parity work should be implemented, validated, and rolled out.
+> **Historical.** This document covers versions 1.6 and 1.7, both shipped. It is
+> retained as a record of how that work was implemented and rolled out.
+>
+> Current planning lives at the repo root:
+> [ROADMAP.md](../../../ROADMAP.md) for what ships when, and
+> [docs/ROADMAP_PLAN.md](../../../docs/ROADMAP_PLAN.md) for how. This file is no
+> longer maintained.
+
+This document is the technical companion to [ROADMAP.md](../../../ROADMAP.md). The roadmap answers what matters for Discord parity and product direction. This spec answers how planned parity work should be implemented, validated, and rolled out.
 
 ## How To Use This Document
 
-- Keep roadmap status and product priority in [../ROADMAP.md](../ROADMAP.md).
+- Keep roadmap status and product priority in the repo-root [ROADMAP.md](../../../ROADMAP.md).
 - Keep durable technical breakdowns for active and near-term roadmap work here.
 - When a workstream moves from investigating to planned, add or expand its implementation section in this file.
 - When a workstream ships, move durable technical facts into the relevant section docs and reduce the spec entry to rollout notes or remove it.
@@ -15,7 +23,7 @@ When implementation questions conflict across docs, use this order:
 
 1. Current product and API behavior
 2. Section docs in `docs/`
-3. [../ROADMAP.md](../ROADMAP.md)
+3. Repo-root [ROADMAP.md](../../../ROADMAP.md)
 4. This implementation spec
 
 This document should not override live behavior. It should describe intended implementation for planned work.
@@ -354,7 +362,7 @@ The roadmap keeps these visible, but this spec does not treat them as active imp
 
 ## Documentation Exit Criteria
 
-Before a planned workstream is marked live in [../ROADMAP.md](../ROADMAP.md):
+Before a planned workstream is marked live in [ROADMAP.md](../../../ROADMAP.md):
 
 - Product-facing behavior must be reflected in the relevant section docs
 - API changes must be reflected in `openapi-doc.yml` when public or first-party client visible

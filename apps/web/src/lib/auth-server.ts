@@ -83,7 +83,7 @@ function setCachedSession(key: string, data: SessionUser | null): void {
 // e.g. "Basic <creds>, Bearer <token>". A single bare value is treated
 // as a legacy raw session secret. Other schemes (Basic, Digest, ...)
 // are never mistaken for a token.
-function extractBearerToken(authHeader: string): string | undefined {
+export function extractBearerToken(authHeader: string): string | undefined {
     const values = authHeader.split(",").map((v) => v.trim());
     for (const value of values) {
         const parts = value.split(/\s+/, 2);

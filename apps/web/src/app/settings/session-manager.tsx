@@ -109,7 +109,7 @@ export function SessionManager() {
                 <ul className="grid gap-3">
                     {sessions.map((session) => (
                         <li
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/70 p-4"
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-background/60 px-3 py-2.5"
                             key={session.$id}
                         >
                             <div className="min-w-0">

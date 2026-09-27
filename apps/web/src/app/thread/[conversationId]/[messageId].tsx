@@ -240,7 +240,7 @@ export default function DmThreadPage() {
     return (
         <div className="flex h-screen flex-col bg-background">
             {/* Header */}
-            <div className="flex items-center gap-3 border-b border-border/60 bg-background/80 px-6 py-4 shadow-sm">
+            <div className="flex items-center gap-3 border-b border-border/60 px-6 py-4">
                 <Button
                     onClick={() => router.back()}
                     size="sm"

@@ -176,6 +176,7 @@ export type Channel = {
     topic?: string;
     categoryId?: string;
     position?: number;
+    nsfw?: boolean;
     $createdAt: string;
     $updatedAt?: string;
 };
@@ -469,6 +470,7 @@ export type NavigationPreferences = {
     showSettingsInNavigation: boolean;
     showAddFriendInHeader: boolean;
     telemetryEnabled: boolean;
+    skipNsfwWarning: boolean;
     navigationItemOrder: NavigationItemPreferenceId[];
 };
 

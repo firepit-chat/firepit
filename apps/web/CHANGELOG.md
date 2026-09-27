@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### ✨ Features
+
+- **NSFW channels** - Server managers can mark a channel as 18+ from the channel settings dialog. 18+ channels show a badge in the channel list and header, and require an age-confirmation step before messages load. Users can skip the warning for all channels from Settings → Interface
+- **Mobile app parity for 2.1** - The 2.1 account and moderation features are now available in the mobile app: password reset from the sign-in screen, change email, a Devices screen to review/revoke sessions, account deactivation and permanent deletion from a new Danger Zone, email-verification resend, admin signup controls (policy + approvals), and per-server message moderation (remove/restore/permanently delete). Powering these, the web server now exposes authenticated API routes for account management, sessions, signup control, and moderation
+
 ## [2.1.0] - 2026-08-29
 
 ### ✨ Features
@@ -26,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `z.compile()` to one usage of zod in codebase to improve performance
 - Updated `bun test` wiring to improve passing tests to 818 up from 717 previously. (Part of bun dep bump)
 - **Account safety polish** - Deleting your account now opens a confirmation dialog with a full consequences summary and password confirmation; a persistent warning (with one-click resend) reminds you to confirm a new email before signing out; the remember-me checkbox preference and password-reset resend (with a 30s cooldown) are new conveniences on the sign-in page
+- **Unified server admin panel** - The separate "Role Settings" dialog was folded into the server admin panel: Roles and Categories now live alongside Overview, Settings, Members, Invites, Moderation, and Audit under the single server-admin button
+- **Calmer, denser UI pass** - Cut decorative surfaces (gradient orbs, glass panels, card shadows) from the app shell, landing, login, chat workspace, settings, notifications, docs, admin, moderation, friends, onboarding, invite, and profile pages. Panels are flat bordered surfaces, server/channel/DM rows are dense list rows, the card primitive is border-only (no card-on-card nesting), the server admin panel's inner audit/member rows are flat dividers, and the header is a single compact row — tighter spacing without losing hierarchy
 
 ### 🐛 Fixes
 

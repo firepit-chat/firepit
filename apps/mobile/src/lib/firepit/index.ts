@@ -1,4 +1,5 @@
 export * from "./announcements";
+export * from "./account";
 export * from "./bootstrap";
 export * from "./http";
 export * from "./messages";

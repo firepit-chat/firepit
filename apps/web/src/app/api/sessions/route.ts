@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { Account, Client } from "node-appwrite";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
-import { invalidateSessionCacheForToken } from "@/lib/auth-server";
+import {
+    extractBearerToken,
+    invalidateSessionCacheForToken,
+} from "@/lib/auth-server";
 import { logger } from "@/lib/posthog-utils";
 
 function getSessionClient(secret: string): Account {
@@ -13,6 +16,35 @@ function getSessionClient(secret: string): Account {
         .setProject(env.project)
         .setSession(secret);
     return new Account(client);
+}
+
+/**
+ * The session secret that authenticated this request: Bearer token from the
+ * headers (mobile) or the session cookie (browser). Falls back to the cookie
+ * so cookie callers keep working unchanged.
+ */
+async function getSessionSecret(): Promise<string | null> {
+    try {
+        const headerStore = await headers();
+        const headerValue =
+            headerStore.get("x-firepit-token") ??
+            headerStore.get("Authorization") ??
+            "";
+        const token = extractBearerToken(headerValue);
+        if (token) {
+            return token;
+        }
+    } catch {
+        // No headers in this context; fall through to the cookie.
+    }
+
+    try {
+        const env = getEnvConfig();
+        const cookieStore = await cookies();
+        return cookieStore.get(`a_session_${env.project}`)?.value ?? null;
+    } catch {
+        return null;
+    }
 }
 
 function mapSession(session: {
@@ -45,14 +77,13 @@ function mapSession(session: {
 /**
  * GET /api/sessions
  *
- * Lists sessions for the currently logged-in user (from the cookie), driven
- * by the session client so a user can only ever see their own sessions.
+ * Lists sessions for the currently logged-in user (from Bearer token or
+ * session cookie), driven by the session client so a user can only ever see
+ * their own sessions.
  */
 export async function GET() {
     try {
-        const env = getEnvConfig();
-        const cookieStore = await cookies();
-        const sessionSecret = cookieStore.get(`a_session_${env.project}`)?.value;
+        const sessionSecret = await getSessionSecret();
 
         if (!sessionSecret) {
             return NextResponse.json(
@@ -88,8 +119,7 @@ export async function GET() {
 export async function DELETE(request: Request) {
     try {
         const env = getEnvConfig();
-        const cookieStore = await cookies();
-        const sessionSecret = cookieStore.get(`a_session_${env.project}`)?.value;
+        const sessionSecret = await getSessionSecret();
 
         if (!sessionSecret) {
             return NextResponse.json(
@@ -131,6 +161,7 @@ export async function DELETE(request: Request) {
         }
 
         if (clearCookie) {
+            const cookieStore = await cookies();
             cookieStore.delete(`a_session_${env.project}`);
             invalidateSessionCacheForToken(
                 env.endpoint,

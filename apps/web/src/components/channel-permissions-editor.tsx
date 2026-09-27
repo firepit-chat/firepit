@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Shield, Plus, Trash2, User as UserIcon } from "lucide-react";
+import { Shield, Plus, Trash2, User as UserIcon, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import type { Role, Permission, ChannelPermissionOverride } from "@/lib/types";
 import { getAllPermissions, getPermissionDescription } from "@/lib/permissions";
@@ -28,6 +29,8 @@ type ChannelPermissionsEditorProperties = {
 	channelId: string;
 	channelName: string;
 	serverId: string;
+	nsfw?: boolean;
+	onNsfwChange?: (nsfw: boolean) => void;
 };
 
 type OverrideType = "role" | "user";
@@ -38,6 +41,8 @@ export function ChannelPermissionsEditor({
 	channelId,
 	channelName,
 	serverId,
+	nsfw = false,
+	onNsfwChange,
 }: ChannelPermissionsEditorProperties) {
 	const [overrides, setOverrides] = useState<ChannelPermissionOverride[]>([]);
 	const [roles, setRoles] = useState<Role[]>([]);
@@ -191,6 +196,34 @@ export function ChannelPermissionsEditor({
 
 	const allPermissions = getAllPermissions();
 
+	const handleNsfwChange = async (next: boolean) => {
+		try {
+			const response = await fetch(
+				`/api/channels/${encodeURIComponent(channelId)}`,
+				{
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ nsfw: next }),
+				},
+			);
+			if (response.ok) {
+				onNsfwChange?.(next);
+				toast.success(
+					next
+						? `Channel marked as 18+`
+						: `Channel no longer marked as 18+`,
+				);
+			} else {
+				const error = await response.json();
+				toast.error(
+					error.error || "Failed to update 18+ setting",
+				);
+			}
+		} catch {
+			toast.error("Failed to update 18+ setting");
+		}
+	};
+
 	return (
 		<>
 			<Dialog open={open} onOpenChange={onOpenChange}>
@@ -206,6 +239,27 @@ export function ChannelPermissionsEditor({
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
+						<div className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+							<div className="space-y-0.5 flex-1">
+								<div className="flex items-center gap-2">
+									<ShieldAlert className="h-4 w-4 text-destructive" />
+									<Label className="text-sm font-semibold cursor-pointer">
+										18+ channel
+									</Label>
+								</div>
+								<p className="text-xs text-muted-foreground">
+									Show a confirmation banner before members
+									can view this channel&apos;s messages.
+								</p>
+							</div>
+							<Switch
+								checked={nsfw}
+								onCheckedChange={(checked) =>
+									void handleNsfwChange(checked)
+								}
+							/>
+						</div>
+
 						<div className="flex items-center justify-between">
 							<p className="text-sm text-muted-foreground">
 								{overrides.length} {overrides.length === 1 ? "override" : "overrides"}
@@ -233,8 +287,8 @@ export function ChannelPermissionsEditor({
 						) : (
 							<div className="space-y-3">
 								{overrides.map((override) => (
-									<Card key={override.$id}>
-										<CardHeader className="pb-3">
+									<div key={override.$id} className="rounded-md border border-border/60">
+										<div className="px-3 py-2.5">
 											<div className="flex items-center justify-between">
 												<div className="flex items-center gap-2">
 													{override.roleId ? (
@@ -266,8 +320,8 @@ export function ChannelPermissionsEditor({
 													<Trash2 className="h-4 w-4" />
 												</Button>
 											</div>
-										</CardHeader>
-										<CardContent className="space-y-3">
+										</div>
+										<div className="px-3 pb-3 space-y-3">
 											{override.allow.length > 0 && (
 												<div>
 													<p className="text-xs font-medium text-green-600 dark:text-green-400 mb-2">
@@ -296,8 +350,8 @@ export function ChannelPermissionsEditor({
 													</div>
 												</div>
 											)}
-										</CardContent>
-									</Card>
+										</div>
+									</div>
 								))}
 							</div>
 						)}

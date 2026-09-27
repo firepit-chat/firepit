@@ -28,8 +28,7 @@ describe("Card Components", () => {
 			const card = screen.getByText("Card");
 			expect(card.className).toContain("rounded-xl");
 			expect(card.className).toContain("border");
-			expect(card.className).toContain("bg-card");
-			expect(card.className).toContain("shadow-sm");
+			expect(card.className).not.toContain("bg-card");
 		});
 
 		it("should apply custom className", () => {

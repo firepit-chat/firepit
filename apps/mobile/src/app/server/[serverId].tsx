@@ -475,6 +475,11 @@ function ChannelCard({
                     </ThemedText>
                 </View>
                 <View style={styles.channelTypeRow}>
+                    {channel.nsfw ? (
+                        <ThemedText type="code" themeColor="destructive" style={styles.channelNsfwLabel}>
+                            18+
+                        </ThemedText>
+                    ) : null}
                     {isMuted ? (
                         <ThemedText type="code" themeColor="destructive" style={styles.channelMutedLabel}>
                             Muted
@@ -709,6 +714,10 @@ const styles = StyleSheet.create({
     channelMutedLabel: {
         fontSize: 10,
         letterSpacing: 0.5,
+    },
+    channelNsfwLabel: {
+        fontSize: 10,
+        fontWeight: "700",
     },
     muteActionButton: {
         borderRadius: 8,

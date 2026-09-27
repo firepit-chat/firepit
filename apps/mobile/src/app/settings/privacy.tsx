@@ -5,6 +5,7 @@ import {
     Pressable,
     ScrollView,
     StyleSheet,
+    Switch,
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -15,6 +16,7 @@ import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 function getInitials(name: string): string {
     if (!name) return "?";
@@ -86,6 +88,19 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
 export default function PrivacySettingsScreen() {
     const theme = useTheme();
     const { items, loading, error } = useBlockedUsers();
+    const { preferences, update } = useUserPreferences();
+    const [savingPref, setSavingPref] = useState(false);
+
+    const handleSkipNsfwToggle = async (value: boolean) => {
+        setSavingPref(true);
+        try {
+            await update({ skipNsfwWarning: value });
+        } catch {
+            // Preference update is best-effort; the banner falls back to showing.
+        } finally {
+            setSavingPref(false);
+        }
+    };
 
     return (
         <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -119,6 +134,42 @@ export default function PrivacySettingsScreen() {
                             </ThemedText>
                             <View style={styles.headerButton} />
                         </View>
+
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
+                            <View style={styles.nsfwRow}>
+                                <View style={styles.nsfwCopy}>
+                                    <ThemedText type="smallBold">
+                                        Skip 18+ channel warning
+                                    </ThemedText>
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.copy}
+                                    >
+                                        Enter 18+ channels directly without the
+                                        age-confirmation banner.
+                                    </ThemedText>
+                                </View>
+                                <Switch
+                                    value={Boolean(preferences.skipNsfwWarning)}
+                                    onValueChange={(value) =>
+                                        void handleSkipNsfwToggle(value)
+                                    }
+                                    disabled={savingPref}
+                                    trackColor={{
+                                        false: theme.border,
+                                        true: theme.primary,
+                                    }}
+                                    thumbColor={
+                                        preferences.skipNsfwWarning
+                                            ? "#FFFFFF"
+                                            : "#888888"
+                                    }
+                                />
+                            </View>
+                        </ThemedView>
 
                         <ThemedView
                             type="card"
@@ -250,4 +301,10 @@ const styles = StyleSheet.create({
         flex: 1,
         gap: 2,
     },
+    nsfwRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.three,
+    },
+    nsfwCopy: { flex: 1, gap: 2 },
 });

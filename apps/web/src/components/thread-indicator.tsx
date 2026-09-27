@@ -43,7 +43,7 @@ export function ThreadIndicator({
                 {replyCount} {replyCount === 1 ? "reply" : "replies"}
             </span>
             {hasUnread ? (
-                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
+                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
                     New
                 </span>
             ) : null}

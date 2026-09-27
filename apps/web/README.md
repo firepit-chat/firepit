@@ -95,8 +95,8 @@ See the `/docs` folder for detailed guides:
 - [Feature Flags](./docs/FEATURE_FLAGS.md) - Flag behavior and rollout notes
 - [Telemetry Providers](./docs/TELEMETRY.md) - New Relic/PostHog routing, parity, and event mapping matrix
 - [Platform Operations](./docs/PLATFORM_OPERATIONS.md) - Performance, monitoring, releases, and operations
-- [Roadmap](./ROADMAP.md) - Discord parity roadmap and product priorities
-- [Roadmap Implementation Spec](./docs/ROADMAP_IMPLEMENTATION_SPEC.md) - Technical breakdown of roadmap workstreams
+- [Roadmap](../../ROADMAP.md) - Monorepo roadmap and product priorities (repo root)
+- [Roadmap Plan](../../docs/ROADMAP_PLAN.md) - Per-release implementation plan, flags, and rollback criteria (repo root)
 - [Changelog](./CHANGELOG.md) - Version history and release notes
 
 ## 🚀 Production Deployment
@@ -147,7 +147,7 @@ Firepit still has meaningful Discord parity gaps in a few areas:
 - Bots, slash commands, and webhooks are not implemented
 - Native mobile apps are not implemented, though PWA support exists
 
-See [ROADMAP.md](./ROADMAP.md) for the complete feature roadmap.
+See the [roadmap](../../ROADMAP.md) for the complete feature roadmap.
 
 ## 🤝 Contributing
 

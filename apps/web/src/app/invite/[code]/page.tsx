@@ -27,8 +27,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
   if (!validation.valid) {
     return (
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-3xl items-center px-4 py-8 sm:px-6 lg:px-8">
-        <div className="w-full rounded-4xl border border-border/70 bg-card/85 p-8 text-center shadow-2xl backdrop-blur-sm sm:p-10">
-          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
+        <div className="w-full rounded-xl border border-border/80 bg-card p-8 text-center sm:p-10">
+          <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
             <span className="text-2xl font-semibold">!</span>
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">Invalid Invite</h1>

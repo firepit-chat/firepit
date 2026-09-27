@@ -42,6 +42,7 @@ import { TypingIndicator } from "@/components/typing-indicator";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
 import { useTypingIndicator } from "@/hooks/use-typing-indicator";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { extractAppwriteConfig } from "@/lib/firepit/bootstrap";
 import { getAvatarUrl, getMessageAvatarFileId } from "@/lib/avatars";
 import { getProfilesBatch } from "@/lib/profile-cache";
@@ -118,6 +119,16 @@ export default function ServerMessageScreen() {
   );
 
   const isAnnouncement = selectedChannel?.type === "announcement";
+  const { preferences } = useUserPreferences();
+  const [nsfwAccepted, setNsfwAccepted] = useState(false);
+  const nsfwBlocked =
+    Boolean(selectedChannel?.nsfw) &&
+    !preferences.skipNsfwWarning &&
+    !nsfwAccepted;
+
+  useEffect(() => {
+    setNsfwAccepted(false);
+  }, [normalizedChannelId]);
   const [channelPermissions, setChannelPermissions] = useState<EffectivePermissions | null>(null);
   const listRef = useRef<FlatList>(null);
   const markChannelReadRef = useRef<() => Promise<void>>(undefined);
@@ -804,6 +815,15 @@ export default function ServerMessageScreen() {
                   ANNOUNCEMENT
                 </ThemedText>
               ) : null}
+              {selectedChannel?.nsfw ? (
+                <ThemedText
+                  type="code"
+                  themeColor="destructive"
+                  style={styles.nsfwBadge}
+                >
+                  18+
+                </ThemedText>
+              ) : null}
             </View>
             {serverName ? (
               <ThemedText
@@ -832,6 +852,36 @@ export default function ServerMessageScreen() {
         {/* Messages area fills remaining space */}
         {selectedChannel ? (
           <View style={styles.messageArea}>
+            {nsfwBlocked ? (
+              <View style={styles.nsfwGate}>
+                <ThemedText type="title" style={styles.nsfwTitle}>
+                  This channel is marked 18+
+                </ThemedText>
+                <ThemedText
+                  themeColor="mutedForeground"
+                  style={styles.nsfwCopy}
+                >
+                  It may contain age-restricted or mature content. Are you
+                  sure you want to continue?
+                </ThemedText>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setNsfwAccepted(true)}
+                  style={({ pressed }) => [
+                    styles.nsfwButton,
+                    {
+                      backgroundColor: theme.primary,
+                      opacity: pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <ThemedText type="smallBold" themeColor="primaryForeground">
+                    Continue
+                  </ThemedText>
+                </Pressable>
+              </View>
+            ) : (
+              <>
             {messageLoadError ? (
               <ThemedText themeColor="destructive" style={styles.errorText}>
                 {messageLoadError}
@@ -1004,6 +1054,8 @@ export default function ServerMessageScreen() {
                 </View>
               </>
             )}
+              </>
+            )}
           </View>
         ) : (
           <View style={styles.emptyState}>
@@ -1159,6 +1211,17 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     overflow: "hidden",
   },
+  nsfwBadge: {
+    fontSize: 10,
+    letterSpacing: 1,
+    fontWeight: "700",
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.4)",
+    borderRadius: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    overflow: "hidden",
+  },
   headerRight: {
     flex: 0,
     maxWidth: 100,
@@ -1179,6 +1242,26 @@ const styles = StyleSheet.create({
   messageArea: {
     flex: 1,
     minHeight: 0,
+  },
+  nsfwGate: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.four,
+  },
+  nsfwTitle: { textAlign: "center" },
+  nsfwCopy: {
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  nsfwButton: {
+    marginTop: Spacing.two,
+    borderRadius: 999,
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
   },
   messageAreaInner: {
     flex: 1,

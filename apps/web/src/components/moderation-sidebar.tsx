@@ -71,16 +71,16 @@ export function ModerationSidebar({
     );
 
     return (
-        <aside className="h-fit rounded-3xl border border-border/60 bg-card/80 p-4 shadow-xl backdrop-blur-sm lg:sticky lg:top-8">
+        <aside className="h-fit rounded-xl border border-border/80 p-4 lg:sticky lg:top-8">
             <form className="space-y-1" method="get">
                 <label
-                    className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                    className="text-xs font-semibold text-muted-foreground"
                     htmlFor="serverId"
                 >
                     Server
                 </label>
                 <select
-                    className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     defaultValue={selectedServerId}
                     id="serverId"
                     name="serverId"
@@ -97,7 +97,7 @@ export function ModerationSidebar({
             <nav className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
                 {groupedChannels.map(({ category, channels }) => (
                     <div key={category.$id}>
-                        <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                        <p className="text-xs font-semibold text-muted-foreground">
                             {category.name}
                         </p>
                         <ul className="mt-1 space-y-0.5">

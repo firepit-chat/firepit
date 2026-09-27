@@ -60,7 +60,7 @@ export default async function AuditPage(props: {
     }));
     return (
         <main className="mx-auto w-full max-w-5xl space-y-8 px-6 py-10">
-            <section className="rounded-3xl border border-border/60 bg-card/60 p-8 shadow-xl backdrop-blur">
+            <section className="rounded-xl border border-border/80 bg-card p-8">
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-2">
                         <h1 className="text-3xl font-semibold tracking-tight">
@@ -72,8 +72,8 @@ export default async function AuditPage(props: {
                             trace ground truth fast.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-2 font-semibold uppercase tracking-wide">
+                    <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2.5 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 font-semibold">
                             <ListTree className="h-4 w-4" />
                             <span>Results capped</span>
                         </div>
@@ -85,7 +85,7 @@ export default async function AuditPage(props: {
                 </div>
             </section>
 
-            <section className="rounded-3xl border border-border/60 bg-card/70 p-6 shadow-lg">
+            <section className="rounded-xl border border-border/80 bg-card p-6">
                 <div className="flex items-center gap-2 text-sm font-semibold">
                     <Filter className="h-4 w-4" aria-hidden="true" />
                     <span>Refine results</span>
@@ -93,13 +93,13 @@ export default async function AuditPage(props: {
                 <form className="mt-4 grid gap-4 md:grid-cols-2" method="get">
                     <div className="space-y-2">
                         <label
-                            className="font-medium text-xs uppercase tracking-wide text-muted-foreground"
+                            className="font-medium text-xs text-muted-foreground"
                             htmlFor="action"
                         >
                             Action
                         </label>
                         <input
-                            className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             defaultValue={action || ""}
                             id="action"
                             name="action"
@@ -108,13 +108,13 @@ export default async function AuditPage(props: {
                     </div>
                     <div className="space-y-2">
                         <label
-                            className="font-medium text-xs uppercase tracking-wide text-muted-foreground"
+                            className="font-medium text-xs text-muted-foreground"
                             htmlFor="actorId"
                         >
                             Actor Username
                         </label>
                         <input
-                            className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             defaultValue={actorId || ""}
                             id="actorId"
                             name="actorId"
@@ -123,13 +123,13 @@ export default async function AuditPage(props: {
                     </div>
                     <div className="space-y-2">
                         <label
-                            className="font-medium text-xs uppercase tracking-wide text-muted-foreground"
+                            className="font-medium text-xs text-muted-foreground"
                             htmlFor="targetId"
                         >
                             Target ID
                         </label>
                         <input
-                            className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             defaultValue={targetId || ""}
                             id="targetId"
                             name="targetId"
@@ -138,13 +138,13 @@ export default async function AuditPage(props: {
                     </div>
                     <div className="space-y-2">
                         <label
-                            className="font-medium text-xs uppercase tracking-wide text-muted-foreground"
+                            className="font-medium text-xs text-muted-foreground"
                             htmlFor="limit"
                         >
                             Limit
                         </label>
                         <input
-                            className="w-full rounded-2xl border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             defaultValue={limit}
                             id="limit"
                             max={200}
@@ -155,13 +155,13 @@ export default async function AuditPage(props: {
                     </div>
                     <div className="md:col-span-2 flex flex-wrap gap-3">
                         <button
-                            className="rounded-2xl border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:border-foreground/40"
+                            className="rounded-lg border border-border/60 bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:border-foreground/40"
                             type="submit"
                         >
                             Apply filters
                         </button>
                         <a
-                            className="rounded-2xl border border-border/60 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+                            className="rounded-lg border border-border/60 bg-muted/50 px-4 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground"
                             href="/admin/audit"
                         >
                             Reset
@@ -172,7 +172,7 @@ export default async function AuditPage(props: {
 
             <section className="space-y-4">
                 <h2 className="text-lg font-semibold">Recent activity</h2>
-                <div className="rounded-3xl border border-border/60 bg-card/70">
+                <div className="rounded-xl border border-border/80 bg-card">
                     {items.map(
                         (a: {
                             $id: string;
@@ -192,7 +192,7 @@ export default async function AuditPage(props: {
                                     className="border-b border-border/60 px-5 py-4 text-sm last:border-b-0"
                                     key={a.$id}
                                 >
-                                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
                                         <span>
                                             {new Date(
                                                 a.$createdAt,
@@ -260,7 +260,7 @@ export default async function AuditPage(props: {
                             />
                         )}
                         <button
-                            className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-background px-5 py-2 text-sm font-medium text-foreground transition hover:border-foreground/40"
+                            className="mt-6 inline-flex items-center gap-2 rounded-lg border border-border/60 bg-background px-5 py-2 text-sm font-medium text-foreground transition hover:border-foreground/40"
                             type="submit"
                         >
                             Load next {limit}

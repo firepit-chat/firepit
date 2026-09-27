@@ -100,14 +100,14 @@ export function ChatSurfaceMessageItem({
 
     return (
         <div
-            className={`group flex min-w-0 overflow-hidden rounded-2xl border border-transparent bg-background/60 transition-colors ${
+            className={`group flex min-w-0 rounded-md transition-colors ${
                 mine
                     ? "ml-auto max-w-[85%] flex-row-reverse text-right"
                     : "mr-auto max-w-[85%]"
             } ${
                 isEditing
-                    ? "border-blue-400/50 bg-blue-50/40 dark:border-blue-500/40 dark:bg-blue-950/30"
-                    : "hover:border-border/80"
+                    ? "bg-blue-50/40 dark:bg-blue-950/30"
+                    : "hover:bg-muted/40"
             } ${compactMessages ? "gap-2 p-2" : "gap-3 p-3"}`}
             data-message-id={message.id}
             id={`message-${message.id}`}

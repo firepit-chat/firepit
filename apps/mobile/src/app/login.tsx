@@ -186,6 +186,23 @@ export default function LoginScreen() {
                                 onPress={handleSignIn}
                             />
 
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => router.push("/forgot-password" as never)}
+                                style={({ pressed }) => ({
+                                    alignSelf: "center",
+                                    paddingVertical: Spacing.half,
+                                    opacity: pressed ? 0.7 : 1,
+                                })}
+                            >
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="mutedForeground"
+                                >
+                                    Forgot password?
+                                </ThemedText>
+                            </Pressable>
+
                             <FirepitButton
                                 label="Change instance"
                                 variant="secondary"

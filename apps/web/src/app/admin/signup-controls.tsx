@@ -126,7 +126,7 @@ export function SignupControls({ userId }: SignupControlsProps) {
 
     if (loading) {
         return (
-            <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+            <section className="rounded-xl border border-border/80 bg-card p-6">
                 <div className="mb-4 flex items-center gap-3">
                     <ShieldCheck className="h-5 w-5 text-muted-foreground" />
                     <h2 className="text-lg font-semibold">Signups</h2>
@@ -139,7 +139,7 @@ export function SignupControls({ userId }: SignupControlsProps) {
     }
 
     return (
-        <section className="overflow-hidden rounded-3xl border border-border/60 bg-card/60 p-6 shadow-lg">
+        <section className="rounded-xl border border-border/80 bg-card p-6">
             <div className="mb-2 flex items-center gap-3">
                 <ShieldCheck className="h-5 w-5 text-muted-foreground" />
                 <h2 className="text-lg font-semibold">Signups</h2>
@@ -194,7 +194,7 @@ export function SignupControls({ userId }: SignupControlsProps) {
                         <ul className="grid gap-3">
                             {pending.map((signup) => (
                                 <li
-                                    className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/80 p-4"
+                                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border/60 bg-background/60 px-3 py-2.5"
                                     key={signup.userId}
                                 >
                                     <div className="min-w-0">

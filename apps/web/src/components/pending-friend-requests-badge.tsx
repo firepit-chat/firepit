@@ -12,7 +12,7 @@ export function PendingFriendRequestsBadge() {
 
     return (
         <Badge
-            className="rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide"
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium"
             variant="destructive"
         >
             {incoming.length} pending

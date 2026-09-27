@@ -94,9 +94,9 @@ export function DeveloperModeSettings() {
     }
 
     return (
-        <div className="space-y-4 rounded-2xl border border-border/60 bg-background/70 p-5">
-            <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/70 p-4">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="space-y-4">
+            <div className="flex items-start gap-3">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <PanelTop className="h-5 w-5" />
                 </span>
                 <div className="space-y-2">
@@ -124,7 +124,7 @@ export function DeveloperModeSettings() {
                     return (
                         <div
                             key={item}
-                            className="flex flex-col gap-4 rounded-2xl border border-border/60 bg-card/60 p-4 sm:flex-row sm:items-start sm:justify-between"
+                            className="flex flex-col gap-4 rounded-md border border-border/60 bg-background/60 px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between"
                         >
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -203,7 +203,7 @@ export function DeveloperModeSettings() {
                 })}
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/60 p-4">
+            <div className="rounded-md border border-border/60 bg-background/60 px-3 py-2.5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-2">
                         <Label

@@ -1009,6 +1009,7 @@ async function setupChannels() {
     await ensureStringAttribute("channels", "topic", 500, false);
     await ensureStringAttribute("channels", "categoryId", LEN_ID, false);
     await ensureIntegerAttribute("channels", "position", false, 0, 0);
+    await ensureBooleanAttribute("channels", "nsfw", false);
     // Note: Using system $createdAt attribute for ordering, no custom attribute needed
     await ensureIndex("channels", "idx_serverId", "key", ["serverId"]);
     await ensureIndex("channels", "idx_categoryId", "key", ["categoryId"]);

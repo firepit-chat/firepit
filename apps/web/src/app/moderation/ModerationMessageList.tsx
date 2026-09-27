@@ -437,7 +437,7 @@ export function ModerationMessageList({
 
                 return (
                     <div
-                        className={`rounded-lg border bg-card p-4 shadow-sm transition-all ${removed ? "border-destructive/50 bg-destructive/5" : ""}`}
+                        className={`rounded-md border border-border/60 bg-card/60 p-3.5 ${removed ? "border-destructive/50 bg-destructive/5" : ""}`}
                         key={m.$id}
                     >
                         <div className="flex items-start justify-between gap-4">
