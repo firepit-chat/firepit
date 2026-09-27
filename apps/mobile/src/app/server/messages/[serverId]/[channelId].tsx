@@ -544,7 +544,9 @@ export default function ServerMessageScreen() {
   }, [normalizedChannelId, messages]);
 
   // Keep ref fresh for scroll callback
-  markChannelReadRef.current = markChannelRead;
+  useEffect(() => {
+    markChannelReadRef.current = markChannelRead;
+  });
 
   const mappedEmojis = useMemo(
     () =>

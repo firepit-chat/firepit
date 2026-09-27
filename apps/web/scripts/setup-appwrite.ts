@@ -1339,6 +1339,74 @@ async function setupRoleAssignments() {
     ], { recreateIfMismatched: true });
 }
 
+async function setupChannelPermissionOverrides() {
+    await ensureCollection(
+        "channel_permission_overrides",
+        "Channel Permission Overrides",
+    );
+    // A row is either a role override (userId === "") or a user override
+    // (roleId === ""). Both are always written, so both are required and the
+    // absent side is the empty-string sentinel rather than a missing field.
+    await ensureStringAttribute(
+        "channel_permission_overrides",
+        "channelId",
+        LEN_ID,
+        true,
+    );
+    await ensureStringAttribute(
+        "channel_permission_overrides",
+        "roleId",
+        LEN_ID,
+        true,
+    );
+    await ensureStringAttribute(
+        "channel_permission_overrides",
+        "userId",
+        LEN_ID,
+        true,
+    );
+    await ensureStringArrayAttribute(
+        "channel_permission_overrides",
+        "allow",
+        LEN_ID,
+        true,
+    );
+    await ensureStringArrayAttribute(
+        "channel_permission_overrides",
+        "deny",
+        LEN_ID,
+        true,
+    );
+
+    await ensureIndex(
+        "channel_permission_overrides",
+        "idx_channelId",
+        "key",
+        ["channelId"],
+    );
+    await ensureIndex(
+        "channel_permission_overrides",
+        "idx_userId",
+        "key",
+        ["userId"],
+    );
+    await ensureIndex(
+        "channel_permission_overrides",
+        "idx_roleId",
+        "key",
+        ["roleId"],
+    );
+    // Unique so one channel cannot accumulate duplicate overrides for the same
+    // role or user; the API retries createDocument on 409.
+    await ensureIndex(
+        "channel_permission_overrides",
+        "idx_channelId_roleId_userId",
+        "unique",
+        ["channelId", "roleId", "userId"],
+        { recreateIfMismatched: true },
+    );
+}
+
 async function setupProfiles() {
     await ensureCollection("profiles", "Profiles");
     const fields: [string, number, boolean][] = [
@@ -2358,6 +2426,8 @@ async function run() {
     await setupRoles();
     info("[setup] Setting up role assignments...");
     await setupRoleAssignments();
+    info("[setup] Setting up channel permission overrides...");
+    await setupChannelPermissionOverrides();
     info("[setup] Setting up profiles...");
     await setupProfiles();
     info("[setup] Setting up feature flags...");

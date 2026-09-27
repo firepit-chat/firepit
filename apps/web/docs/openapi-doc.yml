@@ -49,6 +49,8 @@ tags:
       description: Invite preview, redemption, and server-scoped invite management
     - name: Moderation
       description: Moderation actions, mute state, permissions, and audit logs
+    - name: Announcements
+      description: Instance-wide announcement authoring and dispatch
     - name: Feature Flags
       description: Client-visible feature flag state
 
@@ -59,6 +61,18 @@ components:
             in: cookie
             name: a_session_*
             description: Appwrite session cookie used by authenticated first-party clients
+        bearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
+            description: >-
+                Appwrite session secret (or JWT) sent as a Bearer token in the
+                Authorization header. Mobile clients that cannot rely on cookies
+                also mirror it in the x-firepit-token header, which Appwrite
+                Cloud's edge passes through untouched when it rewrites
+                Authorization. Clients may authenticate with either this or the
+                session cookie; the server tries the header first and falls back
+                to the cookie.
 
     schemas:
         Error:
@@ -686,8 +700,28 @@ components:
                 roleId:
                     type: string
 
+        Permission:
+            type: string
+            description: A single permission that can be granted or denied.
+            enum:
+                - readMessages
+                - sendMessages
+                - manageMessages
+                - manageChannels
+                - manageRoles
+                - manageServer
+                - mentionEveryone
+                - administrator
+
         ChannelPermissionOverride:
             type: object
+            description: >-
+                A per-channel permission override. Exactly one of roleId or
+                userId is set; the other is stored as an empty string, which is
+                why both properties are always present. A row with a roleId
+                applies to every member of that role, and a row with a userId
+                applies to that user alone.
+            required: [channelId, roleId, userId, allow, deny]
             properties:
                 $id:
                     type: string
@@ -695,14 +729,20 @@ components:
                     type: string
                 roleId:
                     type: string
+                    description: Role this override applies to, or "" for a user override.
+                userId:
+                    type: string
+                    description: User this override applies to, or "" for a role override.
                 allow:
-                    type: object
-                    additionalProperties:
-                        type: boolean
+                    type: array
+                    description: Permissions granted by this override.
+                    items:
+                        $ref: "#/components/schemas/Permission"
                 deny:
-                    type: object
-                    additionalProperties:
-                        type: boolean
+                    type: array
+                    description: Permissions removed by this override. Deny wins over allow.
+                    items:
+                        $ref: "#/components/schemas/Permission"
 
         StatusDocument:
             type: object
@@ -756,6 +796,163 @@ components:
                     type: string
                     format: date-time
 
+
+        SignupPolicy:
+            type: string
+            description: Instance signup policy.
+            enum: [open, approval, disabled]
+
+        SessionInfo:
+            type: object
+            description: An active Appwrite session as shown on the devices screen.
+            required: [$id, createdAt, expiresAt, current]
+            properties:
+                $id:
+                    type: string
+                createdAt:
+                    type: string
+                expiresAt:
+                    type: string
+                current:
+                    type: boolean
+                    description: True for the session making the request.
+                os:
+                    type: [string, "null"]
+                osVersion:
+                    type: [string, "null"]
+                client:
+                    type: [string, "null"]
+                clientType:
+                    type: [string, "null"]
+                device:
+                    type: [string, "null"]
+                deviceModel:
+                    type: [string, "null"]
+
+        UserPreferences:
+            type: object
+            properties:
+                skipNsfwWarning:
+                    type: boolean
+                telemetryEnabled:
+                    type: boolean
+                navigationItemOrder:
+                    type: array
+                    items:
+                        type: string
+
+        Friendship:
+            type: object
+            description: A friendship edge between the caller and another user.
+            properties:
+                $id:
+                    type: string
+                status:
+                    type: string
+                    enum: [pending, accepted]
+                    description: pending covers both incoming and outgoing requests.
+                direction:
+                    type: string
+                    enum: [incoming, outgoing]
+                user:
+                    $ref: "#/components/schemas/UserSummary"
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+
+        BlockedUser:
+            type: object
+            properties:
+                userId:
+                    type: string
+                reason:
+                    type: [string, "null"]
+                createdAt:
+                    type: string
+                user:
+                    $ref: "#/components/schemas/UserSummary"
+
+        MessagePollOption:
+            type: object
+            properties:
+                id:
+                    type: string
+                text:
+                    type: string
+                count:
+                    type: integer
+                    description: Number of votes for this option.
+                voterIds:
+                    type: array
+                    items:
+                        type: string
+
+        MessagePoll:
+            type: object
+            description: Poll state attached to a channel message.
+            properties:
+                id:
+                    type: string
+                messageId:
+                    type: string
+                contextType:
+                    type: string
+                    enum: [channel]
+                contextId:
+                    type: string
+                question:
+                    type: string
+                options:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/MessagePollOption"
+                status:
+                    type: string
+                    enum: [open, closed]
+                createdBy:
+                    type: string
+                closedAt:
+                    type: [string, "null"]
+                closedBy:
+                    type: [string, "null"]
+
+        Announcement:
+            type: object
+            properties:
+                $id:
+                    type: string
+                title:
+                    type: string
+                body:
+                    type: string
+                status:
+                    type: string
+                    enum: [draft, scheduled, dispatching, sent, failed, archived]
+                priority:
+                    type: string
+                    enum: [normal, urgent]
+                scheduledFor:
+                    type: [string, "null"]
+                sentAt:
+                    type: [string, "null"]
+                createdBy:
+                    type: [string, "null"]
+                createdAt:
+                    type: string
+                updatedAt:
+                    type: string
+
+        AnnouncementListResponse:
+            type: object
+            required: [items, nextCursor]
+            properties:
+                items:
+                    type: array
+                    items:
+                        $ref: "#/components/schemas/Announcement"
+                nextCursor:
+                    type: [string, "null"]
 paths:
     /api/me:
         get:
@@ -763,6 +960,7 @@ paths:
             summary: Get the current authenticated user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Current user
@@ -777,6 +975,849 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Error"
 
+
+    /api/me/preferences:
+        get:
+            tags: [Users]
+            summary: Get the current user's preferences
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: User preferences
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/UserPreferences"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load preferences
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        patch:
+            tags: [Users]
+            summary: Update the current user's preferences
+            description: Only the supplied fields are changed.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                skipNsfwWarning:
+                                    type: boolean
+                                    description: Skip the 18+ channel age confirmation.
+                                telemetryEnabled:
+                                    type: boolean
+                                navigationItemOrder:
+                                    type: array
+                                    description: Explicit sidebar ordering by navigation item ID.
+                                    items:
+                                        type: string
+            responses:
+                "200":
+                    description: Updated preferences
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/UserPreferences"
+                "400":
+                    description: Invalid preferences payload
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to update preferences
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/me/dm-encryption-key:
+        get:
+            tags: [Users]
+            summary: Get the current user's DM encryption public key
+            description: >-
+                Returns the caller's published X25519 public key, used by other
+                clients to encrypt direct messages to them.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: DM encryption key
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [userId, dmEncryptionPublicKey]
+                                properties:
+                                    userId:
+                                        type: string
+                                    dmEncryptionPublicKey:
+                                        type: string
+                                        description: Base64 X25519 public key, or "" when unset.
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load DM encryption key
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        patch:
+            tags: [Users]
+            summary: Publish the current user's DM encryption public key
+            description: >-
+                Stores the caller's X25519 public key for encrypting direct
+                messages. The private key never leaves the client.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [dmEncryptionPublicKey]
+                            properties:
+                                dmEncryptionPublicKey:
+                                    type: string
+                                    description: Base64-encoded X25519 public key. Send "" to clear it.
+            responses:
+                "200":
+                    description: Key stored
+                "400":
+                    description: Missing or malformed key
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to store DM encryption key
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/account/email:
+        post:
+            tags: [Users]
+            summary: Change the account email
+            description: >-
+                Changes the signed-in user's email after verifying the current
+                password. The address returns to unverified state and the
+                user is asked to confirm it again.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, password]
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                "200":
+                    description: Email changed
+                "400":
+                    description: Invalid payload, wrong password, or email already in use
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to change email
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/account/verify-email:
+        post:
+            tags: [Users]
+            summary: Re-send the email verification link
+            description: Sends a fresh verification link using the caller's active session.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Verification email sent
+                "400":
+                    description: Verification is disabled or the account is already verified
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to send verification email
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/account/deactivate:
+        post:
+            tags: [Users]
+            summary: Deactivate the account
+            description: >-
+                Deactivates the signed-in account after verifying the current
+                password. The profile is hidden and sign-in is blocked, but the
+                data is retained. The client clears its local session on
+                success.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [password]
+                            properties:
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                "200":
+                    description: Account deactivated
+                "400":
+                    description: Wrong password or invalid payload
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to deactivate account
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/account/delete:
+        post:
+            tags: [Users]
+            summary: Permanently delete the account
+            description: >-
+                Permanently deletes the signed-in account after verifying the
+                current password. The profile is tombstoned so memberships and
+                message history keep resolving. The client clears its local
+                session on success.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [password]
+                            properties:
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                "200":
+                    description: Account deleted
+                "400":
+                    description: Wrong password or invalid payload
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to delete account
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/friends:
+        get:
+            tags: [Users]
+            summary: List friends and pending requests
+            description: Returns accepted friends plus incoming and outgoing requests.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Friend graph for the current user
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [friends, incoming, outgoing]
+                                properties:
+                                    friends:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/UserSummary"
+                                    incoming:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/UserSummary"
+                                    outgoing:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/UserSummary"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/friends/request:
+        post:
+            tags: [Users]
+            summary: Send a friend request
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [targetUserId]
+                            properties:
+                                targetUserId:
+                                    type: string
+            responses:
+                "201":
+                    description: Friend request created
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [friendship]
+                                properties:
+                                    friendship:
+                                        $ref: "#/components/schemas/Friendship"
+                "400":
+                    description: Already friends, already pending, self-request, or unknown user
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/friends/{userId}:
+        delete:
+            tags: [Users]
+            summary: Remove a friend or cancel a request
+            description: Removes an accepted friendship or cancels a pending request in either direction.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: Other user in the friendship or request.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Friendship removed
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/friends/{userId}/accept:
+        post:
+            tags: [Users]
+            summary: Accept an incoming friend request
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: User who sent the request.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Friend request accepted
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "401":
+                    description: Unauthorized or no pending request from that user
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/friends/{userId}/decline:
+        post:
+            tags: [Users]
+            summary: Decline an incoming friend request
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: User who sent the request.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Friend request declined
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "401":
+                    description: Unauthorized or no pending request from that user
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/users/blocked:
+        get:
+            tags: [Users]
+            summary: List blocked users
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Blocked users
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [items]
+                                properties:
+                                    items:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/BlockedUser"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/users/{userId}/block:
+        post:
+            tags: [Users]
+            summary: Block a user
+            description: >-
+                Blocks the user, removing any existing friendship and hiding each
+                other's presence. Idempotent.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: User to block.
+                  schema:
+                      type: string
+
+            requestBody:
+                required: false
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                reason:
+                                    type: [string, "null"]
+                                    description: Optional note stored with the block.
+            responses:
+                "201":
+                    description: User blocked
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        delete:
+            tags: [Users]
+            summary: Unblock a user
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: User to unblock.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: User unblocked
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/users/{userId}/relationship:
+        get:
+            tags: [Users]
+            summary: Get the relationship with another user
+            description: >-
+                Returns friendship state, block state, and the caller's role in
+                the shared servers in one call, so a profile view does not need
+                several round trips.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: User to inspect the relationship with.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Relationship state
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    friendship:
+                                        type: [string, "null"]
+                                        description: One of none, pending, incoming, outgoing, or accepted.
+                                    blocked:
+                                        type: boolean
+                                    blockedByThem:
+                                        type: boolean
+                                    mutualServers:
+                                        type: integer
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/profile:
+        patch:
+            tags: [Users]
+            summary: Update the current user's profile
+            description: >-
+                Updates the caller's own profile. Only supplied fields change;
+                avatar and background are managed through their own upload
+                routes.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                displayName:
+                                    type: string
+                                bio:
+                                    type: [string, "null"]
+                                pronouns:
+                                    type: [string, "null"]
+                                location:
+                                    type: [string, "null"]
+                                website:
+                                    type: [string, "null"]
+                                profileBackgroundColor:
+                                    type: [string, "null"]
+                                    description: OKLCH color for the profile background.
+                                profileBackgroundGradient:
+                                    type: [string, "null"]
+            responses:
+                "200":
+                    description: Updated profile
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/UserProfile"
+                "400":
+                    description: Invalid profile payload
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to update profile
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/profile/avatar:
+        post:
+            tags: [Users]
+            summary: Upload a profile avatar
+            description: >-
+                Uploads a PNG, JPEG, or GIF and sets it as the caller's avatar,
+                replacing any previous one.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required: [file]
+                            properties:
+                                file:
+                                    type: string
+                                    format: binary
+            responses:
+                "200":
+                    description: Avatar updated
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, fileId, avatarUrl]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    fileId:
+                                        type: string
+                                    avatarUrl:
+                                        type: string
+                "400":
+                    description: Missing or unsupported file type
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "413":
+                    description: File exceeds the size limit
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Upload failed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        delete:
+            tags: [Users]
+            summary: Remove the profile avatar
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Avatar removed
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to remove avatar
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/profile/background:
+        post:
+            tags: [Users]
+            summary: Upload a profile background image
+            description: Uploads a PNG or JPEG profile background. Rate limited.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    multipart/form-data:
+                        schema:
+                            type: object
+                            required: [file]
+                            properties:
+                                file:
+                                    type: string
+                                    format: binary
+            responses:
+                "200":
+                    description: Background updated
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [fileId, backgroundUrl]
+                                properties:
+                                    fileId:
+                                        type: string
+                                    backgroundUrl:
+                                        type: string
+                "400":
+                    description: Missing or unsupported file type
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "413":
+                    description: File exceeds the size limit
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Too many uploads. Rate limited.
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Upload failed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/version:
         get:
             tags: [Platform]
@@ -790,12 +1831,443 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/VersionInfo"
 
+
+    /api/instance:
+        get:
+            tags: [Platform]
+            summary: Get public instance metadata
+            description: >-
+                Unauthenticated instance descriptor used by the sign-in and
+                sign-up screens to learn the Appwrite project, the enabled
+                features, and the current signup policy.
+            security: []
+            responses:
+                "200":
+                    description: Instance metadata
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required:
+                                    - instanceName
+                                    - instanceUrl
+                                    - appwriteEndpoint
+                                    - appwriteProjectId
+                                    - features
+                                    - support
+                                    - meta
+                                properties:
+                                    instanceName:
+                                        type: string
+                                    instanceUrl:
+                                        type: string
+                                    appwriteEndpoint:
+                                        type: string
+                                    appwriteProjectId:
+                                        type: string
+                                    features:
+                                        type: object
+                                        properties:
+                                            emailVerification:
+                                                type: boolean
+                                            auditLogging:
+                                                type: boolean
+                                            signupPolicy:
+                                                $ref: "#/components/schemas/SignupPolicy"
+                                    support:
+                                        type: object
+                                        properties:
+                                            email:
+                                                type: [string, "null"]
+                                            url:
+                                                type: [string, "null"]
+                                    meta:
+                                        type: object
+                                        properties:
+                                            version:
+                                                type: string
+                                            buildTime:
+                                                type: [string, "null"]
+                                            environment:
+                                                type: string
+
+    /api/auth/session:
+        post:
+            tags: [Platform]
+            summary: Exchange credentials for a session secret
+            description: >-
+                Creates an Appwrite email/password session with the same code
+                path as the web sign-in form and returns the raw session
+                secret. First-party clients store it as the a_session_<project>
+                cookie or present it as a bearer token. Deliberately does not
+                use the admin Users.createSession endpoint, which returns a
+                malformed secret.
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email, password]
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+                                password:
+                                    type: string
+                                    format: password
+            responses:
+                "200":
+                    description: Session created
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, session, userId]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    session:
+                                        type: string
+                                        description: Appwrite session secret.
+                                    userId:
+                                        type: string
+                "400":
+                    description: Missing or malformed credentials
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Origin is not allowed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Too many attempts. Rate limited.
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Session creation failed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/auth/password-recovery:
+        post:
+            tags: [Platform]
+            summary: Request a password reset email
+            description: >-
+                Sends a recovery link through Appwrite Account.createRecovery.
+                The response is identical whether or not the address exists so
+                it cannot be used to enumerate accounts.
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [email]
+                            properties:
+                                email:
+                                    type: string
+                                    format: email
+            responses:
+                "200":
+                    description: Recovery email requested
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, message]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    message:
+                                        type: string
+                "400":
+                    description: Missing or malformed email
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Too many attempts. Rate limited.
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Recovery request failed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/auth/verify-email:
+        get:
+            tags: [Platform]
+            summary: Complete email verification
+            description: >-
+                Callback target for the Appwrite verification email. Verifies the
+                user with the userId and secret query parameters and then
+                redirects to the sign-in page with verified=1, or verified=0 if
+                verification failed.
+            security: []
+            parameters:
+                - name: userId
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                - name: secret
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "302":
+                    description: >-
+                        Redirect to the sign-in page with verified=1 on success
+                        or verified=0 on failure.
+                "400":
+                    description: Missing userId or secret
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+
+    /api/session:
+        get:
+            tags: [Platform]
+            summary: Mint a short-lived realtime JWT
+            description: >-
+                Exchanges the httpOnly session cookie for a short-lived JWT so
+                a client can authenticate the realtime WebSocket without ever
+                receiving the raw session secret. Cookie only; this route reads
+                a_session_<project> directly and does not accept a bearer token.
+            security:
+                - sessionCookie: []
+            responses:
+                "200":
+                    description: Realtime token issued
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, jwt, project]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    jwt:
+                                        type: string
+                                    project:
+                                        type: string
+                "401":
+                    description: No session cookie present
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to mint realtime token
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        post:
+            tags: [Platform]
+            summary: Set the session cookie from a session secret
+            description: >-
+                Web sign-in completion step. Validates an Appwrite session
+                secret, then writes it to the httpOnly a_session_<project>
+                cookie. Pass remember=false for a session-only cookie that is
+                cleared when the browser closes; the default persists for a
+                year. Restricted to allowed origins.
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [session, project]
+                            properties:
+                                session:
+                                    type: string
+                                    description: Appwrite session secret to verify and persist.
+                                project:
+                                    type: string
+                                    description: Must match the configured Appwrite project ID.
+                                remember:
+                                    type: boolean
+                                    default: true
+                                    description: >-
+                                        True (default) sets a persistent
+                                        one-year cookie. False sets a
+                                        session-only cookie.
+            responses:
+                "200":
+                    description: Session cookie set
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "400":
+                    description: Missing session or project, or project mismatch
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: The supplied session secret is not valid
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Origin is not allowed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to persist session
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/sessions:
+        get:
+            tags: [Platform]
+            summary: List the account's active sessions
+            description: >-
+                Lists every active Appwrite session for the authenticated user,
+                flagging the one making the request as current. Accepts a bearer
+                token or the session cookie.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Active sessions
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [sessions]
+                                properties:
+                                    sessions:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/SessionInfo"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to list sessions
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        delete:
+            tags: [Platform]
+            summary: Revoke one or all sessions
+            description: >-
+                Revokes a single session by id, or every other session when
+                revokeOthers is true. The caller's own session cannot be
+                revoked this way. Pass clearCookie=true to also clear the
+                browser cookie.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: sessionId
+                  in: query
+                  required: false
+                  description: Session to revoke. Omit when revoking others.
+                  schema:
+                      type: string
+                - name: revokeOthers
+                  in: query
+                  required: false
+                  description: Revoke every session except the caller's.
+                  schema:
+                      type: boolean
+                - name: clearCookie
+                  in: query
+                  required: false
+                  description: Also clear the session cookie in the response.
+                  schema:
+                      type: boolean
+            responses:
+                "200":
+                    description: Sessions revoked
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "400":
+                    description: Invalid or missing sessionId
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to revoke sessions
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/servers:
         get:
             tags: [Servers]
             summary: List servers available to the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Server list
@@ -821,6 +2293,7 @@ paths:
                 server payload; failures are represented by the non-2xx responses.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -877,6 +2350,7 @@ paths:
             summary: Join a server directly
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -907,6 +2381,7 @@ paths:
             summary: Resolve the server configured as default for new user signup
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Current signup default server (admin only). Returns minimal server metadata for admin selectors.
@@ -934,6 +2409,104 @@ paths:
                                 $ref: "#/components/schemas/Error"
 
     /api/servers/{serverId}:
+        get:
+            tags: [Servers]
+            summary: Get a single server
+            description: Returns the server record the caller is requesting, including its member count.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: path
+                  required: true
+                  description: Server to fetch.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Server record
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [server]
+                                properties:
+                                    server:
+                                        $ref: "#/components/schemas/Server"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Server not found
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load server
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        delete:
+            tags: [Servers]
+            summary: Delete or leave a server
+            x-roles:
+                - server owner deletes the server
+                - any member may leave
+            description: >-
+                Permanently deletes the server when called by its owner, and
+                otherwise removes the caller from it.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: path
+                  required: true
+                  description: Server to delete or leave.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Server deleted or left
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Server not found
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to delete server
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
         patch:
             tags: [Servers]
             summary: Update server customization and visibility settings
@@ -942,6 +2515,7 @@ paths:
                 - instance admin required when updating defaultOnSignup
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1010,6 +2584,7 @@ paths:
             summary: Get server statistics
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1030,6 +2605,7 @@ paths:
             summary: List server members
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1069,6 +2645,7 @@ paths:
             summary: Get effective permissions for the current user in a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1083,12 +2660,67 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/ServerPermissions"
 
+
+    /api/servers/{serverId}/mentionable-roles:
+        get:
+            tags: [Roles]
+            summary: List mentionable roles in a server
+            description: >-
+                Returns every role flagged as mentionable, with its member
+                count, so the mention autocomplete can offer role pings. Open to
+                all server members.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: path
+                  required: true
+                  description: Server to read roles from.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Mentionable roles
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [roles]
+                                properties:
+                                    roles:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Role"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Not a member of the server
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load mentionable roles
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/servers/{serverId}/mute:
         post:
             tags: [Moderation]
             summary: Mute the current user at the server level
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1109,6 +2741,7 @@ paths:
             summary: Execute a moderation action against a server member
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1136,12 +2769,94 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Error"
 
+
+    /api/servers/{serverId}/moderation/messages:
+        get:
+            tags: [Moderation]
+            summary: List messages for moderation
+            x-roles:
+                - global moderator or admin
+                - server owner
+                - server member with manageMessages
+            description: >-
+                Lists a server's messages for the moderation queue, with
+                optional filters for a single channel, removed messages only,
+                and a text search.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: path
+                  required: true
+                  description: Server whose messages to list.
+                  schema:
+                      type: string
+
+                - name: channelId
+                  in: query
+                  required: false
+                  description: Restrict to a single channel.
+                  schema:
+                      type: string
+                - name: onlyRemoved
+                  in: query
+                  required: false
+                  description: Return only soft-deleted messages.
+                  schema:
+                      type: boolean
+                - name: text
+                  in: query
+                  required: false
+                  description: Case-insensitive substring match on message content.
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  required: false
+                  schema:
+                      type: integer
+                - name: cursorAfter
+                  in: query
+                  required: false
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Moderation message page
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [items, nextCursor]
+                                properties:
+                                    items:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Message"
+                                    nextCursor:
+                                        type: [string, "null"]
+                "403":
+                    description: Moderation access required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to list messages
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/servers/{serverId}/audit-logs:
         get:
             tags: [Moderation]
             summary: Get audit logs for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1169,6 +2884,7 @@ paths:
             summary: Export server audit logs
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -1199,6 +2915,7 @@ paths:
             summary: List channels for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: query
@@ -1236,6 +2953,7 @@ paths:
             summary: Create a channel for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1266,6 +2984,7 @@ paths:
             summary: Update channel category assignment, order, or name
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: channelId
                   in: path
@@ -1323,6 +3042,7 @@ paths:
             summary: Delete a channel
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: channelId
                   in: path
@@ -1351,6 +3071,7 @@ paths:
             summary: List channel categories for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: query
@@ -1380,6 +3101,7 @@ paths:
             summary: Create a new channel category
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1413,6 +3135,7 @@ paths:
             summary: Rename or reorder a channel category
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1448,6 +3171,7 @@ paths:
             summary: Delete a channel category and return linked channels to uncategorized
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: categoryId
                   in: query
@@ -1475,6 +3199,7 @@ paths:
             description: Returns pinned channel messages with their existing message identifiers so clients can reopen the channel context and jump to the pinned message.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: channelId
                   in: path
@@ -1500,6 +3225,7 @@ paths:
             summary: Mute a channel for the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: channelId
                   in: path
@@ -1515,11 +3241,84 @@ paths:
                                 $ref: "#/components/schemas/Success"
 
     /api/messages:
+        get:
+            tags: [Messages]
+            summary: List messages in a channel
+            description: >-
+                Returns a page of channel messages, newest first, using an
+                opaque cursor. The caller must be able to read the channel.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: channelId
+                  in: query
+                  required: true
+                  description: Channel to read.
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  required: false
+                  description: Page size. Defaults to 50.
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                - name: cursorAfter
+                  in: query
+                  required: false
+                  description: Opaque cursor from a previous page's nextCursor.
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Message page
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [messages, nextCursor]
+                                properties:
+                                    messages:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/Message"
+                                    nextCursor:
+                                        type: [string, "null"]
+                "400":
+                    description: channelId is required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: No read access to the channel
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to list messages
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
         post:
             tags: [Messages]
             summary: Create a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1564,6 +3363,7 @@ paths:
             summary: Edit a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1591,6 +3391,7 @@ paths:
             summary: Delete a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: query
@@ -1611,6 +3412,7 @@ paths:
             summary: Add or update a reaction on a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1642,6 +3444,7 @@ paths:
             summary: Remove a reaction from a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1668,6 +3471,7 @@ paths:
             description: Returns the thread rooted at the specified channel message. Clients use the parent message identifier for consistent thread-entry and message-highlight navigation.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1691,6 +3495,7 @@ paths:
             summary: Create a thread reply for a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1727,6 +3532,7 @@ paths:
             summary: Pin a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1745,6 +3551,7 @@ paths:
             summary: Unpin a channel message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1759,12 +3566,158 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Success"
 
+
+    /api/messages/{messageId}/poll:
+        get:
+            tags: [Messages]
+            summary: Get the poll attached to a message
+            description: Returns the poll state including its options and per-option vote counts.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: messageId
+                  in: path
+                  required: true
+                  description: Message carrying the poll.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Poll state
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    poll:
+                                        $ref: "#/components/schemas/MessagePoll"
+                "500":
+                    description: Failed to fetch poll
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/messages/{messageId}/poll-votes:
+        post:
+            tags: [Messages]
+            summary: Cast or change a poll vote
+            description: >-
+                Records the caller's vote for one option, replacing any previous
+                vote they had cast on the same poll.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: messageId
+                  in: path
+                  required: true
+                  description: Message carrying the poll.
+                  schema:
+                      type: string
+
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [optionId]
+                            properties:
+                                optionId:
+                                    type: string
+            responses:
+                "200":
+                    description: Vote recorded
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    poll:
+                                        $ref: "#/components/schemas/MessagePoll"
+                "400":
+                    description: Invalid option for this poll
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Poll not found or already closed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/messages/{messageId}/poll/close:
+        post:
+            tags: [Messages]
+            summary: Close a poll
+            x-roles:
+                - poll creator
+                - server member with manageMessages
+            description: Closes an open poll so no further votes are accepted.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: messageId
+                  in: path
+                  required: true
+                  description: Message carrying the poll.
+                  schema:
+                      type: string
+
+            responses:
+                "200":
+                    description: Poll closed
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    poll:
+                                        $ref: "#/components/schemas/MessagePoll"
+                "400":
+                    description: Poll is already closed or the caller may not close it
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Poll not found
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/direct-messages:
         get:
             tags: [Direct Messages]
             summary: List conversations, fetch or create a conversation, or list direct messages
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: type
                   in: query
@@ -1797,6 +3750,7 @@ paths:
             summary: Create a direct message or conversation
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1817,6 +3771,7 @@ paths:
             summary: Edit a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -1842,6 +3797,7 @@ paths:
             summary: Delete a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: query
@@ -1862,6 +3818,7 @@ paths:
             summary: Add or update a reaction on a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1893,6 +3850,7 @@ paths:
             summary: Remove a reaction from a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1919,6 +3877,7 @@ paths:
             description: Returns the thread rooted at the specified direct message. Clients use the parent message identifier for consistent thread-entry and message-highlight navigation.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1938,6 +3897,7 @@ paths:
             summary: Create a thread reply for a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1972,6 +3932,7 @@ paths:
             summary: Pin a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -1990,6 +3951,7 @@ paths:
             summary: Unpin a direct message
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: messageId
                   in: path
@@ -2011,6 +3973,7 @@ paths:
             description: Returns pinned direct messages with the conversation context needed for consistent jump-to-message flows in DM chat.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: conversationId
                   in: path
@@ -2032,6 +3995,7 @@ paths:
             summary: Mute a conversation for the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: conversationId
                   in: path
@@ -2050,6 +4014,9 @@ paths:
         get:
             tags: [Presence]
             summary: Get status for one user or a batch query string list
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: userId
                   in: query
@@ -2072,6 +4039,9 @@ paths:
         post:
             tags: [Presence]
             summary: Create or update status
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2088,6 +4058,9 @@ paths:
         patch:
             tags: [Presence]
             summary: Partially update status
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2105,6 +4078,9 @@ paths:
         delete:
             tags: [Presence]
             summary: Remove a status record
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: userId
                   in: query
@@ -2122,6 +4098,9 @@ paths:
         post:
             tags: [Presence]
             summary: Fetch status for multiple users
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2143,12 +4122,115 @@ paths:
                                 type: object
                                 additionalProperties: true
 
+
+    /api/typing:
+        post:
+            tags: [Presence]
+            summary: Set the caller's typing state
+            description: >-
+                Upserts a typing presence record. The user is resolved from the
+                session and the presence id is derived from that session, so a
+                client can never write another user's typing state.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [channelId, typing]
+                            properties:
+                                channelId:
+                                    type: string
+                                typing:
+                                    type: boolean
+            responses:
+                "200":
+                    description: Typing state stored
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, presence]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    presence:
+                                        $ref: "#/components/schemas/StatusDocument"
+                "400":
+                    description: Invalid typing payload
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to store typing state
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        delete:
+            tags: [Presence]
+            summary: Clear the caller's typing state
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [channelId]
+                            properties:
+                                channelId:
+                                    type: string
+            responses:
+                "200":
+                    description: Typing state cleared
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "400":
+                    description: channelId is required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to clear typing state
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/upload-image:
         post:
             tags: [Uploads]
             summary: Upload an image for message use
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2213,6 +4295,7 @@ paths:
             summary: Delete an uploaded image
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: fileId
                   in: query
@@ -2262,6 +4345,7 @@ paths:
             summary: Upload a generic attachment
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2346,6 +4430,7 @@ paths:
             summary: Delete an uploaded attachment
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: fileId
                   in: query
@@ -2395,6 +4480,7 @@ paths:
             summary: List custom emojis available to the client
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Custom emoji list
@@ -2409,12 +4495,173 @@ paths:
                                             type: object
                                             additionalProperties: true
 
+
+    /api/gifs/search:
+        get:
+            tags: [Search]
+            summary: Search GIFs
+            description: >-
+                Proxies a search to the configured GIF provider (Giphy by
+                default) and normalizes the results, so the API key is never
+                exposed to clients. Requires the instance to have a GIF provider
+                configured.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: q
+                  in: query
+                  required: true
+                  description: Search terms.
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  required: false
+                  description: Results per page. Clamped to 1-30, defaults to 20.
+                  schema:
+                      type: integer
+                      minimum: 1
+                      maximum: 30
+                - name: cursor
+                  in: query
+                  required: false
+                  description: Opaque pagination cursor from a previous page.
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: GIF search results
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    items:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                id:
+                                                    type: string
+                                                url:
+                                                    type: string
+                                                previewUrl:
+                                                    type: string
+                                                width:
+                                                    type: integer
+                                                height:
+                                                    type: integer
+                                    nextCursor:
+                                        type: [string, "null"]
+                "400":
+                    description: q is required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Rate limited by the upstream provider
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "502":
+                    description: Upstream provider returned an error
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "503":
+                    description: No GIF provider configured
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "504":
+                    description: Upstream provider timed out
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/stickers:
+        get:
+            tags: [Emojis]
+            summary: List sticker packs
+            description: Returns the sticker packs configured for the instance, with their stickers.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: packId
+                  in: query
+                  required: false
+                  description: Return a single pack instead of all of them.
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Sticker packs
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [packs]
+                                properties:
+                                    packs:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                id:
+                                                    type: string
+                                                name:
+                                                    type: string
+                                                stickers:
+                                                    type: array
+                                                    items:
+                                                        type: object
+                                                        properties:
+                                                            id:
+                                                                type: string
+                                                            name:
+                                                                type: string
+                                                            url:
+                                                                type: string
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load stickers
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/upload-emoji:
         post:
             tags: [Uploads, Emojis]
             summary: Upload a custom emoji asset
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2440,6 +4687,7 @@ paths:
             summary: Delete a custom emoji asset
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: fileId
                   in: query
@@ -2481,6 +4729,7 @@ paths:
             description: Returns message matches with enough channel or conversation context for the client to deep-link into the correct chat surface and highlight the selected message.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: query
                   in: query
@@ -2506,6 +4755,7 @@ paths:
             summary: Search users for discovery or mention autocomplete
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: query
                   in: query
@@ -2531,6 +4781,7 @@ paths:
             summary: Get profile data by user identifier
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: userId
                   in: path
@@ -2551,6 +4802,7 @@ paths:
             summary: Get enriched profile data by user identifier
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: userId
                   in: path
@@ -2571,6 +4823,7 @@ paths:
             summary: Resolve multiple profiles in a single request
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2598,6 +4851,7 @@ paths:
             summary: List memberships for the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Membership list
@@ -2613,6 +4867,7 @@ paths:
             summary: Get notification settings for the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             responses:
                 "200":
                     description: Notification settings
@@ -2625,6 +4880,7 @@ paths:
             summary: Update notification settings for the current user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2639,12 +4895,102 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/NotificationSettings"
 
+
+    /api/notifications/register-token:
+        post:
+            tags: [Notifications]
+            summary: Register an Expo push token
+            description: >-
+                Stores an Expo push token for the caller. Upserts, so re-sending
+                the same token only refreshes its timestamp.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [token]
+                            properties:
+                                token:
+                                    type: string
+                                    description: Expo push token, for example ExponentPushToken[...]
+            responses:
+                "200":
+                    description: Token registered
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "400":
+                    description: Missing or malformed token
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to register push token
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/notifications/push:
+        post:
+            tags: [Notifications]
+            summary: Send a push notification to yourself
+            description: >-
+                Test helper that looks up the caller's stored Expo push tokens
+                and dispatches to them through the Expo Push SDK. Useful for
+                verifying device registration end to end.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+            responses:
+                "200":
+                    description: Push dispatched
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, sent]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    sent:
+                                        type: integer
+                                        description: Number of Expo tickets accepted.
+                                    results:
+                                        type: array
+                                        items:
+                                            type: object
+                "400":
+                    description: Invalid push payload
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to dispatch push notification
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/inbox:
         get:
             tags: [Notifications]
             summary: Get unified unread inbox items and counts
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: kind
                   in: query
@@ -2702,6 +5048,7 @@ paths:
             summary: Mark inbox items or contexts as read
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2780,6 +5127,7 @@ paths:
             summary: Get scoped unread digest payload
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: limit
                   in: query
@@ -2822,6 +5170,7 @@ paths:
             summary: Get persisted thread read state for a context
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: contextId
                   in: query
@@ -2858,6 +5207,7 @@ paths:
             summary: Persist thread read state updates for a context
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2890,6 +5240,7 @@ paths:
             summary: List roles for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: query
@@ -2913,6 +5264,7 @@ paths:
             summary: Create a role
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2931,6 +5283,7 @@ paths:
             summary: Update a role
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -2949,6 +5302,7 @@ paths:
             summary: Delete a role
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: roleId
                   in: query
@@ -2973,6 +5327,7 @@ paths:
                 object form with assignments and truncated.
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: query
@@ -3012,6 +5367,7 @@ paths:
             summary: Assign a role to a user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -3030,6 +5386,7 @@ paths:
             summary: Remove a role assignment from a user
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: userId
                   in: query
@@ -3060,6 +5417,7 @@ paths:
             summary: List channel permission overrides
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: channelId
                   in: query
@@ -3083,6 +5441,7 @@ paths:
             summary: Create a channel permission override
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -3101,6 +5460,7 @@ paths:
             summary: Update a channel permission override
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             requestBody:
                 required: true
                 content:
@@ -3119,6 +5479,7 @@ paths:
             summary: Delete a channel permission override
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: overrideId
                   in: query
@@ -3133,12 +5494,691 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/Success"
 
+
+    /api/reports:
+        post:
+            tags: [Moderation]
+            summary: Report a user
+            description: >-
+                Files a moderation report against another user. Rate limited,
+                and rejected as a conflict when the caller has already reported
+                that user for the same reason.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [targetUserId, justification]
+                            properties:
+                                targetUserId:
+                                    type: string
+                                justification:
+                                    type: string
+                                    minLength: 10
+                                    maxLength: 1000
+            responses:
+                "200":
+                    description: Report filed
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "400":
+                    description: Invalid target or justification outside the allowed length
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "409":
+                    description: You have already reported this user
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Too many reports. Rate limited.
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to file report
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/moderation/messages/{messageId}:
+        post:
+            tags: [Moderation]
+            summary: Apply a moderation action to a message
+            x-roles:
+                - global moderator or admin
+                - server owner
+                - server member with manageMessages or administrator
+            description: >-
+                Soft-deletes, restores, or permanently deletes a message. The
+                shared moderation layer enforces the permission check, applies
+                rate limiting, and writes an audit event.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: messageId
+                  in: path
+                  required: true
+                  description: Message to moderate.
+                  schema:
+                      type: string
+
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [action]
+                            properties:
+                                action:
+                                    type: string
+                                    enum: [soft-delete, restore, hard-delete]
+            responses:
+                "200":
+                    description: Moderation action applied
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "400":
+                    description: Invalid action
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Moderation permission required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Message not found
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "429":
+                    description: Too many moderation actions. Rate limited.
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to moderate message
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/admin/audit-logs:
+        get:
+            tags: [Moderation]
+            summary: List instance audit log entries
+            x-roles:
+                - global moderator or admin
+            description: >-
+                Returns audit entries across every server, with the acting user
+                and target resolved for display. Moderators and admins only.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: limit
+                  in: query
+                  required: false
+                  description: Page size.
+                  schema:
+                      type: integer
+                - name: cursor
+                  in: query
+                  required: false
+                  description: Opaque pagination cursor.
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Audit log page
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [items, nextCursor]
+                                properties:
+                                    items:
+                                        type: array
+                                        items:
+                                            $ref: "#/components/schemas/AuditLogEntry"
+                                    nextCursor:
+                                        type: [string, "null"]
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Moderator access required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load audit logs
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/admin/reports:
+        get:
+            tags: [Moderation]
+            summary: List user reports
+            x-roles:
+                - global moderator or admin
+            description: Returns filed reports with the reporter and reported user resolved.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: status
+                  in: query
+                  required: false
+                  description: Restrict to reports in this state.
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  required: false
+                  schema:
+                      type: integer
+                - name: cursor
+                  in: query
+                  required: false
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Report page
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [items, nextCursor]
+                                properties:
+                                    items:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                reportId:
+                                                    type: string
+                                                targetUserId:
+                                                    type: string
+                                                targetUsername:
+                                                    type: [string, "null"]
+                                                justification:
+                                                    type: string
+                                                status:
+                                                    type: string
+                                                createdAt:
+                                                    type: string
+                                    nextCursor:
+                                        type: [string, "null"]
+                "403":
+                    description: Moderator access required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Unknown report
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load reports
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        post:
+            tags: [Moderation]
+            summary: Resolve or dismiss a report
+            x-roles:
+                - global moderator or admin
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [reportId, action]
+                            properties:
+                                reportId:
+                                    type: string
+                                action:
+                                    type: string
+                                    enum: [resolve, dismiss]
+                                resolutionNotes:
+                                    type: [string, "null"]
+            responses:
+                "200":
+                    description: Report action applied
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "400":
+                    description: Missing reportId or invalid action
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "403":
+                    description: Moderator access required
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "404":
+                    description: Unknown report
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to update report
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/admin/signups:
+        get:
+            tags: [Platform]
+            summary: Get signup policy and pending approvals
+            x-roles:
+                - instance admin
+            description: >-
+                Returns the instance signup policy along with every account
+                waiting for admin approval. Admin only.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            responses:
+                "200":
+                    description: Signup policy and pending accounts
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [policy, pending]
+                                properties:
+                                    policy:
+                                        $ref: "#/components/schemas/SignupPolicy"
+                                    pending:
+                                        type: array
+                                        items:
+                                            type: object
+                                            properties:
+                                                userId:
+                                                    type: string
+                                                email:
+                                                    type: [string, "null"]
+                                                username:
+                                                    type: [string, "null"]
+                                                createdAt:
+                                                    type: string
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to load signup state
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        post:
+            tags: [Platform]
+            summary: Set the instance signup policy
+            x-roles:
+                - instance admin
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [policy]
+                            properties:
+                                policy:
+                                    $ref: "#/components/schemas/SignupPolicy"
+            responses:
+                "200":
+                    description: Signup policy updated
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Success"
+                "400":
+                    description: Invalid signup policy
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to update signup policy
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/admin/signups/{userId}:
+        post:
+            tags: [Platform]
+            summary: Approve or reject a pending signup
+            x-roles:
+                - instance admin
+            description: >-
+                Approves a pending signup, or rejects it, which deletes the
+                profile, its assets, and the Appwrite account.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: userId
+                  in: path
+                  required: true
+                  description: Pending account to act on.
+                  schema:
+                      type: string
+
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [action]
+                            properties:
+                                action:
+                                    type: string
+                                    enum: [approve, reject]
+            responses:
+                "200":
+                    description: Signup action applied
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success]
+                                properties:
+                                    success:
+                                        type: boolean
+                "400":
+                    description: Invalid action
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to action signup
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/announcements:
+        get:
+            tags: [Announcements]
+            summary: List instance announcements
+            description: Returns announcements visible to the caller, optionally filtered by status.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: statuses
+                  in: query
+                  required: false
+                  description: >-
+                      Comma-separated statuses to include. Unknown values are
+                      ignored. One of draft, scheduled, dispatching, sent,
+                      failed, archived.
+                  schema:
+                      type: string
+                - name: limit
+                  in: query
+                  required: false
+                  schema:
+                      type: integer
+                - name: cursorAfter
+                  in: query
+                  required: false
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Announcement page
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/AnnouncementListResponse"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to list announcements
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+        post:
+            tags: [Announcements]
+            summary: Create an instance announcement
+            x-roles:
+                - instance admin
+            description: >-
+                Creates an announcement as a draft, schedules it for a future
+                time, or sends it immediately. Pass an idempotencyKey to make
+                retries safe.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required: [title, body, mode]
+                            properties:
+                                title:
+                                    type: string
+                                    maxLength: 255
+                                body:
+                                    type: string
+                                    maxLength: 65000
+                                mode:
+                                    type: string
+                                    enum: [draft, schedule, send_now]
+                                priority:
+                                    type: string
+                                    enum: [normal, urgent]
+                                    default: normal
+                                scheduledFor:
+                                    type: string
+                                    format: date-time
+                                    description: Required when mode is schedule.
+                                status:
+                                    type: string
+                                    description: Explicit target status; normally derived from mode.
+                                trim:
+                                    type: boolean
+                                idempotencyKey:
+                                    type: [string, "null"]
+                                    description: Client-generated key that makes retries safe.
+            responses:
+                "200":
+                    description: Announcement created
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, announcement]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    announcement:
+                                        $ref: "#/components/schemas/Announcement"
+                "400":
+                    description: Invalid announcement payload
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Failed to create announcement
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+
+    /api/announcements/dispatch:
+        post:
+            tags: [Announcements]
+            summary: Dispatch due announcements
+            description: >-
+                Service-to-service endpoint invoked on a schedule. Leases due
+                scheduled announcements, fans out deliveries, and records the
+                outcome. Authenticated with a shared secret header rather than a
+                user session, so it is intentionally not part of the user-facing
+                API.
+            security: []
+            parameters:
+                - name: limit
+                  in: query
+                  required: false
+                  description: Maximum announcements to dispatch in this run.
+                  schema:
+                      type: integer
+                - name: x-announcements-dispatcher-secret
+                  in: header
+                  required: true
+                  description: Shared secret configured on the instance.
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Dispatch run completed
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [success, dispatched]
+                                properties:
+                                    success:
+                                        type: boolean
+                                    dispatched:
+                                        type: integer
+                                    announcementIds:
+                                        type: array
+                                        items:
+                                            type: string
+                "401":
+                    description: Dispatcher secret missing or incorrect
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "500":
+                    description: Dispatch run failed
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
+                "503":
+                    description: Dispatcher secret is not configured on this instance
+                    content:
+                        application/json:
+                            schema:
+                            $ref: "#/components/schemas/Error"
+
     /api/servers/{serverId}/invites:
         get:
             tags: [Invites]
             summary: List invites for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -3159,6 +6199,7 @@ paths:
             summary: Create an invite for a server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: serverId
                   in: path
@@ -3223,6 +6264,7 @@ paths:
             summary: Revoke an invite
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: code
                   in: path
@@ -3243,6 +6285,7 @@ paths:
             summary: Redeem an invite and join its server
             security:
                 - sessionCookie: []
+                - bearerAuth: []
             parameters:
                 - name: code
                   in: path
