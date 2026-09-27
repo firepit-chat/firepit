@@ -5,8 +5,6 @@ import { recordAudit } from "@/lib/appwrite-audit";
 import { getServerSession } from "@/lib/auth-server";
 import { getUserRoles } from "@/lib/appwrite-roles";
 import { logger,
-    returnUnauthorized,
-    returnForbidden,
 } from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";

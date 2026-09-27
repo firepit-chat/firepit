@@ -14,7 +14,7 @@ type AuthErrorCode = "UNAUTHORIZED" | "FORBIDDEN";
  */
 export function debugAuth(...args: unknown[]): void {
     if (process.env.FIREPIT_DEBUG_AUTH === "true") {
-        // eslint-disable-next-line no-console
+         
         console.log("[auth-debug]", ...args);
     }
 }
@@ -29,7 +29,7 @@ function maskToken(token: string): string {
 // so the origin of the header (app vs. external proxy/basic-auth) can be
 // identified from the username; both username and password are masked.
 export function describeAuthHeader(authHeader: string): string {
-    if (!authHeader) return "(missing)";
+    if (!authHeader) {return "(missing)";}
     const match = authHeader.trim().match(/^Basic\s+([A-Za-z0-9+/=]+)/i);
     if (match) {
         try {
@@ -62,7 +62,7 @@ function cacheKey(
 
 function getCachedSession(key: string): SessionUser | null | undefined {
     const entry = sessionCache.get(key);
-    if (!entry) return undefined;
+    if (!entry) {return undefined;}
     if (Date.now() - entry.ts > SESSION_CACHE_TTL_MS) {
         sessionCache.delete(key);
         return undefined;
@@ -75,7 +75,7 @@ function setCachedSession(key: string, data: SessionUser | null): void {
     // LRU-ish: cap at 500 entries
     if (sessionCache.size > 500) {
         const oldest = sessionCache.keys().next().value;
-        if (oldest) sessionCache.delete(oldest);
+        if (oldest) {sessionCache.delete(oldest);}
     }
 }
 
@@ -135,7 +135,7 @@ async function getSessionForToken(
 ): Promise<SessionUser | null> {
     const key = cacheKey(endpoint, project, token, authMode);
     const cached = getCachedSession(key);
-    if (cached !== undefined) return cached;
+    if (cached !== undefined) {return cached;}
 
     try {
         const client = new Client().setEndpoint(endpoint).setProject(project);

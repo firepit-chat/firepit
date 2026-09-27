@@ -4,8 +4,6 @@ import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import type { CustomEmoji } from "@/lib/types";
 import { logger,
-    returnUnauthorized,
-    returnForbidden,
 } from "@/lib/posthog-utils";
 
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;

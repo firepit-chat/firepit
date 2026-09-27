@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { Query } from "node-appwrite";
 import { logger,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import { getServerSession } from "@/lib/auth-server";

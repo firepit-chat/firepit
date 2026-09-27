@@ -58,7 +58,7 @@ function installIdleTeardownListeners() {
  * since the SDK doesn't expose a public reconnect method.
  */
 async function forceReconnectRealtime(): Promise<void> {
-    if (!sharedRealtime) return;
+    if (!sharedRealtime) {return;}
 
     const realtime = sharedRealtime as object;
 

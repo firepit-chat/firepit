@@ -150,8 +150,8 @@ export function clearSignupPolicyCache(): void {
  */
 export function getApprovalStatusFromPrefs(prefs: unknown): ApprovalStatus {
     const status = normalizePrefs(prefs).approvalStatus;
-    if (status === "pending") return "pending";
-    if (status === "rejected") return "rejected";
+    if (status === "pending") {return "pending";}
+    if (status === "rejected") {return "rejected";}
     return "approved";
 }
 
@@ -213,7 +213,7 @@ export async function listPendingSignups(
                 }
             }
             offset += page.users.length;
-            if (page.users.length < pageSize) break;
+            if (page.users.length < pageSize) {break;}
         }
         return pending;
     } catch (error) {

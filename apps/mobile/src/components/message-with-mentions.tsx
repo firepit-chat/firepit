@@ -227,7 +227,7 @@ export function MessageWithMentions({
   };
 
   // Split mentions and render tokens
-  const parts: Array<{ text: string; isMention?: boolean; offset: number }> = [];
+  const parts: { text: string; isMention?: boolean; offset: number }[] = [];
   const matches = parseMentions(text);
   if (matches.length === 0) {
     return (

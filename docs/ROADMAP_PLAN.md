@@ -54,6 +54,29 @@ require choices, not documentation edits. Those choices are a one-day task in
 
 ### Unblockers (do these first)
 
+**0. Hold TypeScript at 6.x.**
+
+`typescript-eslint` does not yet support TS 7.0, so a TS 7 web build made
+`bun run lint` fail before linting anything. Both apps now pin
+`typescript: ~6.0.3` and lint clean. Do not bump to 7 until
+`@typescript-eslint/parser` supports it. The 7.1 line ships the API
+typescript-eslint needs and is expected to stabilise around late October
+2026; 7.0 beta lands 2026-10-06, which is worth a look at but is not a
+bump signal. Bumping either app alone leaves the workspace resolving two
+copies of TypeScript, which is what produced the failure.
+
+Note for whoever hits this next: `bun install` does not prune replaced
+versions out of `node_modules/.bun`. After a TypeScript change, verify with
+`find . -name typescript -type l` that every link points at one version, and
+`rm -rf node_modules && bun install` if any stale peer-links remain.
+
+Both lint scripts pass `--cache`; a warm web lint runs in ~1s versus ~29s
+cold, which makes the gate cheap enough to actually run. oxlint was measured
+as a replacement and rejected: it is also sub-second, but it reported none of
+the 61 errors ESLint finds (no `curly`, no `no-floating-promises`, no
+type-aware import rules) and exits 0, so it would not gate anything.
+Revisit only as a fast pre-pass, not as the gate.
+
 **1. Provision `channel_permission_overrides`.**
 
 The collection is read at runtime in five places and created by none:

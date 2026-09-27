@@ -12,7 +12,7 @@ import {
     getPollStateForMessage,
 } from "@/lib/polls-server";
 import { getChannelAccessForUser } from "@/lib/server-channel-access";
-import { returnUnauthorized, returnForbidden } from "@/lib/posthog-utils";
+import { returnForbidden } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{

@@ -139,7 +139,7 @@ function ChatInputInner({
   const [showMediaMenu, setShowMediaMenu] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
 
-  const handlePaste = useCallback(async (error: string | null | undefined, files: Array<PastedFile>) => {
+  const handlePaste = useCallback(async (error: string | null | undefined, files: PastedFile[]) => {
     if (error || !files.length) return;
 
     const cacheDir = cacheDirectory;

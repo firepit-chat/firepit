@@ -14,7 +14,6 @@ import {
     recordEvent,
     trackApiCall,
     trackMessage,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import {
@@ -33,7 +32,7 @@ import {
     parsePollCommand,
     serializePollOptions,
 } from "@/lib/polls";
-import { getPollStateForMessage, getPollStatesForMessages } from "@/lib/polls-server";
+import { getPollStatesForMessages } from "@/lib/polls-server";
 import {
     buildAttachmentDocumentData,
     buildLegacyAttachmentDocumentData,
@@ -203,7 +202,7 @@ export async function GET(request: NextRequest) {
           const pollStates = await getPollStatesForMessages(databases, env, messageIds);
           for (const msg of messages) {
             const poll = pollStates.get(msg.$id);
-            if (poll) msg.poll = poll;
+            if (poll) {msg.poll = poll;}
           }
         } catch {
           // Poll fetch failed, continue without poll data

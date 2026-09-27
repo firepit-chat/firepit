@@ -92,13 +92,6 @@ export default function SearchScreen() {
         }
         if (result.type === "dm" && result.conversationId) {
             router.push(`/dm/${result.conversationId}` as never);
-            return;
-        }
-        if (result.type === "server" && result.serverId) {
-            router.push({
-                pathname: "/server/messages/[serverId]",
-                params: { serverId: result.serverId },
-            });
         }
     }, []);
 

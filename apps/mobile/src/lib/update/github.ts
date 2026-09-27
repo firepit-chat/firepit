@@ -43,7 +43,7 @@ export async function fetchReleases(
     );
   }
 
-  const data = (await response.json()) as Array<Record<string, unknown>>;
+  const data = (await response.json()) as Record<string, unknown>[];
   const releases: GitHubRelease[] = data.map((r) => ({
     tagName: String(r.tag_name ?? r.tagName ?? ""),
     name: String(r.name ?? ""),
@@ -53,7 +53,7 @@ export async function fetchReleases(
     draft: Boolean(r.draft),
     htmlUrl: String(r.html_url ?? ""),
     assets: Array.isArray(r.assets)
-      ? (r.assets as Array<Record<string, unknown>>).map((a) => ({
+      ? (r.assets as Record<string, unknown>[]).map((a) => ({
           name: String(a.name ?? ""),
           browserDownloadUrl: String(a.browser_download_url ?? ""),
           size: Number(a.size ?? 0),

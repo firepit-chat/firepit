@@ -56,7 +56,7 @@ function previewBody(body: string): string {
     return trimmed.length <= 220 ? trimmed : `${trimmed.slice(0, 220)}...`;
 }
 
-const FILTER_OPTIONS: Array<{ label: string; value: "all" | AnnouncementStatus }> = [
+const FILTER_OPTIONS: { label: string; value: "all" | AnnouncementStatus }[] = [
     { label: "All", value: "all" },
     { label: "Draft", value: "draft" },
     { label: "Scheduled", value: "scheduled" },
@@ -64,13 +64,13 @@ const FILTER_OPTIONS: Array<{ label: string; value: "all" | AnnouncementStatus }
     { label: "Failed", value: "failed" },
 ];
 
-const MODE_OPTIONS: Array<{ label: string; value: Mode }> = [
+const MODE_OPTIONS: { label: string; value: Mode }[] = [
     { label: "Draft", value: "draft" },
     { label: "Scheduled", value: "schedule" },
     { label: "Send now", value: "send_now" },
 ];
 
-const PRIORITY_OPTIONS: Array<{ label: string; value: Priority }> = [
+const PRIORITY_OPTIONS: { label: string; value: Priority }[] = [
     { label: "Normal", value: "normal" },
     { label: "Urgent", value: "urgent" },
 ];
@@ -80,7 +80,7 @@ function PickerRow<T extends string>({
     value,
     onChange,
 }: {
-    options: Array<{ label: string; value: T }>;
+    options: { label: string; value: T }[];
     value: T;
     onChange: (v: T) => void;
 }) {

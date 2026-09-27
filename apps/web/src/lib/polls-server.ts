@@ -118,7 +118,7 @@ export async function getPollStatesForMessages(
     messageIds: string[],
 ): Promise<Map<string, MessagePoll>> {
     const result = new Map<string, MessagePoll>();
-    if (messageIds.length === 0) return result;
+    if (messageIds.length === 0) {return result;}
 
     const polls: PollDocShape[] = [];
     for (const messageIdChunk of chunkValues(messageIds, QUERY_ARRAY_LIMIT)) {
@@ -133,11 +133,11 @@ export async function getPollStatesForMessages(
 
         for (const document of documents) {
             const poll = normalizePollDocument(document);
-            if (poll) polls.push(poll);
+            if (poll) {polls.push(poll);}
         }
     }
 
-    if (polls.length === 0) return result;
+    if (polls.length === 0) {return result;}
 
     const pollIds = polls.map((p) => p.$id);
     const votesByPollId = new Map<string, PollVoteDocShape[]>();
@@ -153,7 +153,7 @@ export async function getPollStatesForMessages(
 
         for (const rawVote of documents) {
             const vote = normalizePollVoteDocument(rawVote);
-            if (!vote) continue;
+            if (!vote) {continue;}
             const existing = votesByPollId.get(vote.pollId);
             if (existing) {
                 existing.push(vote);

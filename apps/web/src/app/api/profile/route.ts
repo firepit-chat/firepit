@@ -22,7 +22,7 @@ const MAX_TEXT_FIELD_LENGTHS: Record<
 
 function normalizeWebsiteInput(value: string | null): string | null {
     const trimmed = value?.trim() ?? "";
-    if (!trimmed) return null;
+    if (!trimmed) {return null;}
 
     const candidate = URL_SCHEME_PATTERN.test(trimmed)
         ? trimmed
@@ -30,7 +30,7 @@ function normalizeWebsiteInput(value: string | null): string | null {
 
     try {
         const parsed = new URL(candidate);
-        if (!["http:", "https:"].includes(parsed.protocol)) return null;
+        if (!["http:", "https:"].includes(parsed.protocol)) {return null;}
         return parsed.toString();
     } catch {
         return null;

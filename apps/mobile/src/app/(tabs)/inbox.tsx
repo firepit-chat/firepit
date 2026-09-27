@@ -24,8 +24,7 @@ import type {
 import { listInboxDigest, markInboxContextRead } from "@/lib/firepit/messages";
 import { captureError } from "@/lib/sentry";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
-import { Search } from "lucide-react-native";
-import { Users } from "lucide-react-native";
+import { Search , Users } from "lucide-react-native";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 type Filter = "all" | "mention" | "direct" | "server";

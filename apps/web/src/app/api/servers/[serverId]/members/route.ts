@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { logger,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import { listPages, chunkValues } from "@/lib/appwrite-pagination";

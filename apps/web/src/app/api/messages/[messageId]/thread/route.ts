@@ -10,7 +10,6 @@ import {
     logger,
     recordError,
     trackApiCall,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";

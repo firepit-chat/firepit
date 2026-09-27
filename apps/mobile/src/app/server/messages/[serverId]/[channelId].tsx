@@ -572,12 +572,12 @@ export default function ServerMessageScreen() {
           ? message.authorAvatarUrl
           : null;
       const reactions = Array.isArray(message.reactions)
-        ? (message.reactions as Array<{
+        ? (message.reactions as {
             emoji: string;
             userIds?: string[];
             count: number;
             reactedByMe?: boolean;
-          }>).map((r) => ({
+          }[]).map((r) => ({
             emoji: r.emoji,
             count: r.count ?? r.userIds?.length ?? 0,
             reactedByMe: r.userIds?.includes(currentUserId ?? "") ?? false,

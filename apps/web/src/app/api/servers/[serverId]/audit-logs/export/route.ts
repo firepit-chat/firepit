@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { logger,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import { getServerClient } from "@/lib/appwrite-server";

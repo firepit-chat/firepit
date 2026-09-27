@@ -30,7 +30,7 @@ type LoginFormProps = {
 const REMEMBER_KEY = "firepit.remember";
 
 function getRemembered(): boolean {
-    if (typeof window === "undefined") return true;
+    if (typeof window === "undefined") {return true;}
     try {
         return window.localStorage.getItem(REMEMBER_KEY) !== "false";
     } catch {
@@ -55,7 +55,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
     const notifiedVerificationStatusRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (recoveryCooldown <= 0) return;
+        if (recoveryCooldown <= 0) {return;}
         const id = setInterval(
             () => setRecoveryCooldown((seconds) => Math.max(0, seconds - 1)),
             1000,

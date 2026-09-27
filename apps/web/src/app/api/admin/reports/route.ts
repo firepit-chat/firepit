@@ -34,9 +34,9 @@ export async function GET(request: Request) {
 
         const userIds = new Set<string>();
         for (const item of items) {
-            if (item.reporterId) userIds.add(item.reporterId);
-            if (item.reportedUserId) userIds.add(item.reportedUserId);
-            if (item.resolvedBy) userIds.add(item.resolvedBy);
+            if (item.reporterId) {userIds.add(item.reporterId);}
+            if (item.reportedUserId) {userIds.add(item.reportedUserId);}
+            if (item.resolvedBy) {userIds.add(item.resolvedBy);}
         }
 
         const profiles = new Map<

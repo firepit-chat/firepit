@@ -7,11 +7,10 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";
 import { logger,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import type { DirectMessage, FileAttachment } from "@/lib/types";
-import { getAvatarUrl, getUserProfile, getUserProfilesBatch, getAvatarFrameUrlForProfile } from "@/lib/appwrite-profiles";
+import { getAvatarUrl, getUserProfilesBatch, getAvatarFrameUrlForProfile } from "@/lib/appwrite-profiles";
 import {
     MAX_MESSAGE_LENGTH,
     MESSAGE_TOO_LONG_ERROR,

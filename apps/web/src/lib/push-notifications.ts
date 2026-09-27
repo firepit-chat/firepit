@@ -87,7 +87,7 @@ export async function dispatchPushNotification(
       }
     }
 
-    if (expoPushTokens.length === 0) return;
+    if (expoPushTokens.length === 0) {return;}
 
     const messages = expoPushTokens.map((token) => ({
       to: token,

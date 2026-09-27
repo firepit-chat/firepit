@@ -75,8 +75,8 @@ export async function GET(
 
         const userIds = new Set<string>();
         for (const message of items) {
-            if (message.userId) userIds.add(message.userId);
-            if (message.removedBy) userIds.add(message.removedBy);
+            if (message.userId) {userIds.add(message.userId);}
+            if (message.removedBy) {userIds.add(message.removedBy);}
         }
 
         const profiles = new Map<

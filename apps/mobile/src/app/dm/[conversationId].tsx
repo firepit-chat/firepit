@@ -710,12 +710,12 @@ export default function DirectMessageScreen() {
           ? item.authorAvatarUrl
           : null;
       const reactions = Array.isArray(item.reactions)
-        ? (item.reactions as Array<{
+        ? (item.reactions as {
             emoji: string;
             userIds?: string[];
             count: number;
             reactedByMe?: boolean;
-          }>).map((r) => ({
+          }[]).map((r) => ({
             emoji: r.emoji,
             count: r.count ?? r.userIds?.length ?? 0,
             reactedByMe: r.userIds?.includes(currentUserId ?? "") ?? false,

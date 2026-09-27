@@ -24,7 +24,6 @@ import {
     trackApiCall,
     trackMessage,
     returnUnauthorized,
-    returnForbidden,
 } from "@/lib/posthog-utils";
 import {
     MAX_MESSAGE_LENGTH,
@@ -44,7 +43,6 @@ import { listPages } from "@/lib/appwrite-pagination";
 import { dispatchPushNotification } from "@/lib/push-notifications";
 import { parseReactions } from "@/lib/reactions-utils";
 import {
-    buildMessagePoll,
     isPollCommand,
     parsePollCommand,
     parsePollOptions,

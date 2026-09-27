@@ -140,12 +140,12 @@ export type Message = {
     text?: string;
     channelId?: string;
     serverId?: string;
-    reactions?: Array<{
+    reactions?: {
         emoji: string;
         userIds: string[];
         count: number;
         reactedByMe?: boolean;
-    }>;
+    }[];
     imageFileId?: string | null;
     imageUrl?: string | null;
     replyToId?: string | null;
@@ -182,12 +182,12 @@ export type Message = {
         id: string;
         messageId: string;
         question: string;
-        options: Array<{
+        options: {
             id: string;
             text: string;
             count: number;
             voterIds: string[];
-        }>;
+        }[];
         status: "open" | "closed";
         createdBy: string;
         closedAt?: string;
@@ -294,12 +294,12 @@ export type DirectMessage = {
     replyToId?: string | null;
     mentions?: string[];
     attachments?: MessageAttachment[];
-    reactions?: Array<{
+    reactions?: {
         emoji: string;
         userIds: string[];
         count: number;
         reactedByMe?: boolean;
-    }>;
+    }[];
     editedAt?: string;
     removedAt?: string | null;
     removedBy?: string | null;
@@ -317,12 +317,12 @@ export type DirectMessage = {
         id: string;
         messageId: string;
         question: string;
-        options: Array<{
+        options: {
             id: string;
             text: string;
             count: number;
             voterIds: string[];
-        }>;
+        }[];
         status: "open" | "closed";
         createdBy: string;
         closedAt?: string;
@@ -582,13 +582,13 @@ export type RoleAssignment = {
 
 export type RoleAssignmentListResponse = {
     assignments?: RoleAssignment[];
-    members?: Array<{
+    members?: {
         userId: string;
         displayName?: string;
         userName?: string;
         avatarUrl?: string;
         roleIds?: string[];
-    }>;
+    }[];
     total?: number;
     truncated?: boolean;
     [key: string]: unknown;

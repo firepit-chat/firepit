@@ -26,7 +26,7 @@ export function parseVersion(raw: string): ParsedVersion {
   // Prerelease suffix like "2.0.0-canary.10"
   const dashIndex = numeric.indexOf("-");
   let prerelease: string | null = null;
-  let prereleaseIdentifiers: Array<number | string> = [];
+  let prereleaseIdentifiers: (number | string)[] = [];
   if (dashIndex !== -1) {
     prerelease = numeric.slice(dashIndex + 1);
     numeric = numeric.slice(0, dashIndex);
@@ -51,8 +51,8 @@ export function parseVersion(raw: string): ParsedVersion {
 }
 
 function comparePrerelease(
-  a: Array<number | string>,
-  b: Array<number | string>,
+  a: (number | string)[],
+  b: (number | string)[],
 ): number {
   const len = Math.min(a.length, b.length);
   for (let i = 0; i < len; i++) {

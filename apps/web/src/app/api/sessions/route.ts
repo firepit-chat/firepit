@@ -138,7 +138,7 @@ export async function DELETE(request: Request) {
         if (revokeOthers) {
             const response = await account.listSessions();
             for (const session of response.sessions ?? []) {
-                if (session.current === true) continue;
+                if (session.current === true) {continue;}
                 try {
                     await account.deleteSession({ sessionId: session.$id });
                 } catch (error) {

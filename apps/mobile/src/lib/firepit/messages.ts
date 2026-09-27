@@ -130,10 +130,10 @@ export async function sendDirectMessage(
 }
 
 export type PinsResponse = {
-    items: Array<{
+    items: {
         pin: { messageId: string; pinnedBy: string; pinnedAt: string };
         message: DirectMessage;
-    }>;
+    }[];
     pins: DirectMessage[];
     total: number;
 };

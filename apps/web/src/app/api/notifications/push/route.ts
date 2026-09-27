@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
 
                     results.push({
                         status: ticket.status,
-                        token: token.slice(0, 20) + "...",
+                        token: `${token.slice(0, 20)  }...`,
                         error:
                             ticket.status === "error"
                                 ? ticket.details?.error
@@ -135,7 +135,7 @@ export async function POST(request: NextRequest) {
                 for (const tokenMessage of chunk) {
                     results.push({
                         status: "error",
-                        token: (tokenMessage as unknown as { to: string }).to.slice(0, 20) + "...",
+                        token: `${(tokenMessage as unknown as { to: string }).to.slice(0, 20)  }...`,
                         error: error instanceof Error ? error.message : String(error),
                     });
                 }

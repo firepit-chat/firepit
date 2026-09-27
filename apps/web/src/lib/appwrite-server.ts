@@ -32,7 +32,7 @@ export function getServerClient(): {
     teams: Teams;
     storage: Storage;
 } {
-    if (cachedServerClient) return cachedServerClient;
+    if (cachedServerClient) {return cachedServerClient;}
 
     const env = getEnvConfig();
     const apiKey = process.env.APPWRITE_API_KEY?.trim();

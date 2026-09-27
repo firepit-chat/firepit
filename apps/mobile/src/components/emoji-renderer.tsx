@@ -381,7 +381,7 @@ const EMOJI_TOKEN_PATTERN = /:([a-zA-Z0-9_+-]+):/g;
 
 export function EmojiRenderer({ text, customEmojis = [] }: Props) {
   const parts = useMemo(() => {
-    const result: Array<{ type: "text" | "emoji" | "custom"; content: string; offset: number; url?: string; name?: string }> = [];
+    const result: { type: "text" | "emoji" | "custom"; content: string; offset: number; url?: string; name?: string }[] = [];
     let lastIndex = 0;
 
     for (const match of text.matchAll(EMOJI_TOKEN_PATTERN)) {

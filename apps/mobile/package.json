@@ -1,7 +1,7 @@
 {
     "name": "firepit-mobile",
     "main": "./index.js",
-    "version": "2.0.3",
+    "version": "2.1.0",
     "dependencies": {
         "@babel/runtime": "^8.0.5",
         "@expo/vector-icons": "^15.1.1",
@@ -61,7 +61,7 @@
         "start": "expo start",
         "android": "expo run:android",
         "ios": "expo run:ios",
-        "lint": "expo lint",
+        "lint": "eslint --cache",
         "typecheck": "tsc --noEmit",
         "build": "bun run scripts/build.ts",
         "build:dev": "bun run scripts/build-dev.ts",

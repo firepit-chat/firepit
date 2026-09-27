@@ -7,15 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-09-27
+
 ### ✨ Features
 
 - **NSFW channels** - Server managers can mark a channel as 18+ from the channel settings dialog. 18+ channels show a badge in the channel list and header, and require an age-confirmation step before messages load. Users can skip the warning for all channels from Settings → Interface
 - **Mobile app parity for 2.1** - The 2.1 account and moderation features are now available in the mobile app: password reset from the sign-in screen, change email, a Devices screen to review/revoke sessions, account deactivation and permanent deletion from a new Danger Zone, email-verification resend, admin signup controls (policy + approvals), and per-server message moderation (remove/restore/permanently delete). Powering these, the web server now exposes authenticated API routes for account management, sessions, signup control, and moderation
-
-## [2.1.0] - 2026-08-29
-
-### ✨ Features
-
 - **Password reset** - Request a reset link from the sign-in page and set a new password from a secure email link
 - **Change email** - Update your account email from Settings (with current-password confirmation and re-verification when enabled)
 - **Session management** - View all signed-in devices in Settings and revoke any of them (or sign out everywhere except the current device)

@@ -18,7 +18,6 @@ import {
 } from "@/lib/server-metadata";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { logger,
-    returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 

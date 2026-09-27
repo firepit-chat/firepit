@@ -90,7 +90,7 @@ export type ParsedVersion = {
   patch: number;
   isSecurity: boolean;
   prerelease: string | null;
-  prereleaseIdentifiers: Array<number | string>;
+  prereleaseIdentifiers: (number | string)[];
   raw: string;
 };
 

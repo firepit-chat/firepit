@@ -13,7 +13,7 @@
         "start": "next start",
         "test": "vitest run",
         "test:coverage": "vitest run --coverage",
-        "lint": "eslint \"**/*.{ts,tsx,js,mjs,cjs}\"",
+        "lint": "eslint --cache \"**/*.{ts,tsx,js,mjs,cjs}\"",
         "lint:fix": "eslint \"**/*.{ts,tsx,js,mjs,cjs}\" --fix",
         "typecheck": "tsc --noEmit",
         "check": "bun run lint",
@@ -99,7 +99,7 @@
         "knip": "^6.38.0",
         "postcss": "^8.5.28",
         "tailwindcss": "^4.3.3",
-        "typescript": "7.0.2",
+        "typescript": "~6.0.3",
         "vitest": "^4.1.11"
     },
     "packageManager": "bun@1.4.2",

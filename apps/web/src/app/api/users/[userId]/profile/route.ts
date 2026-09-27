@@ -7,8 +7,6 @@ import {
 } from "@/lib/appwrite-profiles";
 import { getUserStatus } from "@/lib/appwrite-status";
 import { logger,
-    returnUnauthorized,
-    returnForbidden,
 } from "@/lib/posthog-utils";
 
 export async function GET(

@@ -12,7 +12,6 @@ import {
 	trackApiCall,
 	recordEvent,
     returnUnauthorized,
-    returnForbidden,
 } from "@/lib/posthog-utils";
 import { assignDefaultRoleServer } from "@/lib/default-role";
 import { invalidateChannelsUserCaches } from "@/lib/channels-route-cache";

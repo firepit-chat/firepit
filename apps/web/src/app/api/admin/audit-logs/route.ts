@@ -31,8 +31,8 @@ export async function GET(request: Request) {
         // Enrich with profile data
         const userIds = new Set<string>();
         for (const item of items) {
-            if (item.actorId) userIds.add(item.actorId);
-            if (item.targetId) userIds.add(item.targetId);
+            if (item.actorId) {userIds.add(item.actorId);}
+            if (item.targetId) {userIds.add(item.targetId);}
         }
 
         const profiles = new Map<

@@ -248,7 +248,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         logger.info("Message pinned successfully", {
             messageId,
-            channelId: channelId,
+            channelId,
             userId: user.$id,
         });
 
@@ -376,7 +376,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
         logger.info("Message unpinned successfully", {
             messageId,
-            channelId: channelId,
+            channelId,
             userId: user.$id,
         });
 

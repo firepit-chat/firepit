@@ -1,19 +1,17 @@
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider , router } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { View, useColorScheme } from "react-native";
 
 import { Colors } from "@/constants/theme";
 import { FirepitProvider } from "@/providers/firepit-provider";
-import { UpdateProvider } from "@/providers/update-provider";
+import { UpdateProvider , useUpdate } from "@/providers/update-provider";
 import { CacheSettingsProvider } from "@/providers/cache-settings-context";
 import { OrientationGate } from "@/components/orientation-gate";
 import { UpdatePromptModal } from "@/components/update/update-prompt-modal";
 import { OfflineBanner } from "@/components/offline-banner";
 import { useNetworkStatus } from "@/hooks/use-network-status";
-import { useUpdate } from "@/providers/update-provider";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { initSentry, Sentry } from "@/lib/sentry";
-import { router } from "expo-router";
 
 initSentry();
 

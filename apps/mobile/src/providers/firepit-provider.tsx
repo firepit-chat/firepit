@@ -23,7 +23,7 @@ import {
   saveNotificationPreferences,
   saveStoredAppwriteConfig,
   saveStoredInstanceUrl,
-} from "@/lib/firepit/persistence";
+ DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/firepit/persistence";
 import { FirepitHttpError } from "@/lib/firepit/http";
 import {
   clearCredentials,
@@ -48,7 +48,6 @@ import type {
   VersionInfo,
 } from "@/lib/firepit/types";
 import type { NotificationPreferences } from "@/lib/firepit/persistence";
-import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/lib/firepit/persistence";
 import type { AppwriteConfig } from "@/lib/firepit/bootstrap";
 
 import type { CustomEmoji } from "@/components/emoji-renderer";
