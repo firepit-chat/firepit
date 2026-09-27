@@ -12,23 +12,12 @@ import { logger,
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import type { Channel } from "@/lib/types";
+import { normalizeChannelType } from "@/lib/types";
 
 type ChannelDocument = Models.Document & Channel;
 
 const env = getEnvConfig();
 const databaseId = env.databaseId || "main";
-const CHANNEL_TYPES = ["text", "voice", "announcement"] as const;
-
-function normalizeChannelType(value: unknown): Channel["type"] {
-    if (
-        typeof value === "string" &&
-        CHANNEL_TYPES.includes(value as (typeof CHANNEL_TYPES)[number])
-    ) {
-        return value as Channel["type"];
-    }
-
-    return "text";
-}
 
 function normalizeChannel(doc: Record<string, unknown>): Channel {
     return {

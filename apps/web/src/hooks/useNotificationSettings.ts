@@ -49,7 +49,7 @@ export function useNotificationSettings() {
 	}, []);
 
 	useEffect(() => {
-		fetchSettings();
+		void fetchSettings();
 	}, [fetchSettings]);
 
 	const updateSettings = useCallback(async (data: Partial<NotificationSettings>): Promise<boolean> => {

@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 📚 Documentation
+
+- **The API reference now covers every public route.** All 143 operations
+  across 95 paths are documented, up from 89 operations across 54 paths. The
+  in-app API Reference page under Docs renders this spec directly, so the
+  account, session, friends, blocks, profile, admin, announcements, reports,
+  moderation, polls, typing, push notification, and GIF/sticker endpoints are
+  now visible there for the first time.
+- **Bearer-token authentication is now documented.** The spec only described
+  the session cookie, but the server has long accepted an Appwrite session
+  secret as `Authorization: Bearer <token>` (and `x-firepit-token` for Appwrite
+  Cloud) before falling back to the cookie. Authenticated operations now list
+  both schemes. The five `/api/status` operations were also missing a
+  `security` block entirely despite requiring a session.
+- New shared schemas: `SignupPolicy`, `SessionInfo`, `UserPreferences`,
+  `Friendship`, `BlockedUser`, `MessagePoll`, `MessagePollOption`,
+  `Announcement`, and `AnnouncementListResponse`.
+- Removed the stale `apps/mobile/docs/openapi-doc.yml` (v1.8.0). Its only
+  unique content — the `/api/typing` route and the `bearerAuth` scheme — is now
+  in the canonical `apps/web/docs/openapi-doc.yml`, and nothing referenced the
+  copy. `apps/web/docs/openapi-doc.yml` is the single source of truth.
+
+### 🐛 Bug Fixes
+
+- **Per-channel permission overrides now work on a fresh instance.** The
+  `channel_permission_overrides` collection was never created by the setup
+  script, so a new deployment had no table for the feature to write to. It is
+  now provisioned with its attributes, lookup indexes, and a unique
+  `(channelId, roleId, userId)` index.
+- Creating a permission override no longer races. Two concurrent requests for
+  the same channel/role/user pair could both pass the "does this already
+  exist?" check and each write a row. Existence is now enforced by the unique
+  index, and a conflict returns the same "already exists" message as before.
+- Corrected the `ChannelPermissionOverride` schema in the API reference, which
+  described `allow`/`deny` as objects of booleans rather than arrays of
+  permission names, and omitted `userId` entirely.
+
+### ⚙️ Improvements
+
+- **The OpenAPI spec can no longer drift from the code.** `bun run
+  check:openapi` walks the route handlers and fails if the spec and the
+  handlers disagree in either direction — a route that exists but is
+  undocumented, or a documented operation with no handler. It runs in CI, so
+  adding or renaming a route without updating the spec now breaks the build
+  instead of failing silently until a generated client called a route that
+  isn't there. It skips the three debug endpoints and the CORS preflight
+  `OPTIONS` handlers on the upload routes.
+- **Type checking now runs in CI.** `bun run typecheck` covers both the web and
+  mobile workspaces and fails the build on a type error in either. Previously
+  no workflow ran it, and the only implicit check was the web build — so a type
+  error in the mobile app could not fail CI.
+- Pinned TypeScript to 6.x across the workspace. A TypeScript 7 install made
+  `bun run lint` fail before linting anything, because `typescript-eslint` does
+  not support it yet. Bump when 7.1 lands.
+- Fixed a handful of lint errors that were masking real issues, including two
+  unhandled promises in the blocked-users and notification-settings hooks.
+- The permission-override collection ID is now configurable via
+  `APPWRITE_CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID` instead of being
+  hardcoded in four places, so it can be renamed without editing source.
+- **One channel-type normalizer instead of four.** Coercing a channel's type to
+  a known value was copy-pasted into four modules, one of which had drifted to a
+  different implementation, and the accepted-values array was duplicated a fourth
+  time. All 14 call sites now share a single function, so adding a channel type
+  is a one-line change instead of a scavenger hunt. The old copies cast the input
+  rather than validating it, so a malformed `type` could surface as something
+  other than `"text"`.
+
+
 ## [2.1.0] - 2026-09-27
 
 ### ✨ Features

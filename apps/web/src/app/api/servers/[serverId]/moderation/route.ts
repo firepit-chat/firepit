@@ -332,7 +332,7 @@ export async function POST(
                 break;
             }
 
-            case "unban":
+            case "unban": {
                 if (!BANNED_USERS_COLLECTION_ID) {
                     return NextResponse.json(
                         { error: "Banned users collection not configured" },
@@ -354,8 +354,9 @@ export async function POST(
                 }
                 result = { removed: removedBans };
                 break;
+            }
 
-            case "unmute":
+            case "unmute": {
                 if (!MUTED_USERS_COLLECTION_ID) {
                     return NextResponse.json(
                         { error: "Muted users collection not configured" },
@@ -377,6 +378,7 @@ export async function POST(
                 }
                 result = { removed: removedMutes };
                 break;
+            }
 
             default:
                 return NextResponse.json(

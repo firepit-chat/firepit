@@ -118,31 +118,6 @@ export default function MessageModerationScreen() {
         }
     }, [accessToken, instanceUrl, serverId, selectedChannelId, onlyRemoved, searchText, nextCursor, loadingMore]);
 
-    const handleAction = useCallback(
-        async (message: ModerationMessageEntry, action: MessageModerationAction) => {
-            if (!instanceUrl || !accessToken || !message.$id) return;
-
-            if (action === "hard-delete") {
-                Alert.alert(
-                    "Permanently delete?",
-                    "This message can never be recovered.",
-                    [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                            text: "Delete forever",
-                            style: "destructive",
-                            onPress: () => void runAction(message, action),
-                        },
-                    ],
-                );
-                return;
-            }
-
-            void runAction(message, action);
-        },
-        [accessToken, instanceUrl],
-    );
-
     const runAction = async (
         message: ModerationMessageEntry,
         action: MessageModerationAction,
@@ -178,6 +153,31 @@ export default function MessageModerationScreen() {
         }
     };
 
+    const handleAction = useCallback(
+        async (message: ModerationMessageEntry, action: MessageModerationAction) => {
+            if (!instanceUrl || !accessToken || !message.$id) return;
+
+            if (action === "hard-delete") {
+                Alert.alert(
+                    "Permanently delete?",
+                    "This message can never be recovered.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                            text: "Delete forever",
+                            style: "destructive",
+                            onPress: () => void runAction(message, action),
+                        },
+                    ],
+                );
+                return;
+            }
+
+            void runAction(message, action);
+        },
+        [accessToken, instanceUrl],
+    );
+
     const isRemoved = (message: ModerationMessageEntry) =>
         Boolean(
             message.removedAt ||
@@ -208,7 +208,7 @@ export default function MessageModerationScreen() {
                             </View>
 
                             <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Review a server's messages. Remove, restore, or permanently
+                                Review a server’s messages. Remove, restore, or permanently
                                 delete content.
                             </ThemedText>
 

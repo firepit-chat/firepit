@@ -9,6 +9,7 @@ import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { getServerSession } from "@/lib/auth-server";
 import { getEffectivePermissions } from "@/lib/permissions";
 import type { Channel, ChannelPermissionOverride, Role } from "@/lib/types";
+import { normalizeChannelType } from "@/lib/types";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { apiCache } from "@/lib/cache-utils";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
@@ -17,8 +18,6 @@ import { returnForbidden, logger } from "@/lib/posthog-utils";
 
 const ROLE_ASSIGNMENTS_COLLECTION_ID = "role_assignments";
 const ROLES_COLLECTION_ID = "roles";
-const CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID =
-    "channel_permission_overrides";
 const CHANNELS_ROUTE_CACHE_TTL_MS = 10 * 1000;
 const QUERY_ARRAY_LIMIT = 100;
 
@@ -55,18 +54,7 @@ function chunkValues<T>(values: T[], size: number): T[][] {
     return chunks;
 }
 
-const CHANNEL_TYPES = ["text", "voice", "announcement"] as const;
 
-function normalizeChannelType(value: unknown): Channel["type"] {
-    if (
-        typeof value === "string" &&
-        CHANNEL_TYPES.includes(value as (typeof CHANNEL_TYPES)[number])
-    ) {
-        return value as Channel["type"];
-    }
-
-    return "text";
-}
 
 /**
  * POST /api/channels
@@ -417,7 +405,7 @@ export async function GET(request: NextRequest) {
                             databases,
                             databaseId: env.databaseId,
                             collectionId:
-                                CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID,
+                                env.collections.channelPermissionOverrides,
                             baseQueries: [Query.equal("channelId", channelIds)],
                             pageSize: 1000,
                             warningContext: "channels-route-overrides",

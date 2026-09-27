@@ -7,7 +7,6 @@ const {
     mockGetChannelAccessForUser,
     mockGetDocument,
     mockHasAccessToCategory,
-    mockNormalizeChannelType,
     mockListDocuments,
 } = vi.hoisted(() => ({
     mockGetServerSession: vi.fn(),
@@ -15,7 +14,6 @@ const {
     mockGetChannelAccessForUser: vi.fn(),
     mockGetDocument: vi.fn(),
     mockHasAccessToCategory: vi.fn(),
-    mockNormalizeChannelType: vi.fn(),
     mockListDocuments: vi.fn(),
 }));
 
@@ -36,7 +34,6 @@ vi.mock("@/lib/server-channel-access", () => ({
     getServerPermissionsForUser: mockGetServerPermissionsForUser,
     getChannelAccessForUser: mockGetChannelAccessForUser,
     hasAccessToCategory: mockHasAccessToCategory,
-    normalizeChannelType: mockNormalizeChannelType,
 }));
 
 vi.mock("@/lib/appwrite-core", () => ({
@@ -227,7 +224,6 @@ describe("GET /api/servers/[serverId]/permissions", () => {
             type: "text",
         });
         mockHasAccessToCategory.mockResolvedValue(true);
-        mockNormalizeChannelType.mockReturnValue("text");
 
         const request = new NextRequest(
             "http://localhost:3000/api/servers/server-1/permissions?userId=user-1&channelId=channel-1",
@@ -292,7 +288,6 @@ describe("GET /api/servers/[serverId]/permissions", () => {
             type: "announcement",
         });
         mockHasAccessToCategory.mockResolvedValue(true);
-        mockNormalizeChannelType.mockReturnValue("announcement");
 
         const request = new NextRequest(
             "http://localhost:3000/api/servers/server-1/permissions?userId=user-1&channelId=channel-1",
