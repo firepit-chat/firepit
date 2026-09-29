@@ -73,6 +73,19 @@ describe("server members route", () => {
         });
     });
 
+/**
+ * Routes listDocuments by collection rather than by call order, so the test
+ * does not break when the route changes how many parallel queries it issues.
+ */
+function mockCollections(collections: Record<string, Array<Record<string, unknown>>>) {
+    mockListDocuments.mockImplementation(
+        async (_db: string, collectionId: string) => ({
+            documents: collections[collectionId] ?? [],
+        }),
+    );
+}
+
+
     it("returns 401 when unauthenticated", async () => {
         mockGetServerSession.mockResolvedValue(null);
 
@@ -103,36 +116,22 @@ describe("server members route", () => {
     });
 
     it("returns enriched members when authorized", async () => {
-        mockListDocuments
-            .mockResolvedValueOnce({
-                documents: [{ userId: "user-1" }, { userId: "user-2" }],
-            })
-            .mockResolvedValueOnce({
-                documents: [
-                    { userId: "user-1", roleIds: ["role-1"] },
-                    { userId: "user-2", roleIds: [] },
-                ],
-            })
-            .mockResolvedValueOnce({
-                documents: [{ userId: "user-1", reason: "spam" }],
-            })
-            .mockResolvedValueOnce({
-                documents: [{ userId: "user-2", reason: "too fast" }],
-            })
-            .mockResolvedValueOnce({
-                documents: [
-                    {
-                        userId: "user-1",
-                        displayName: "User One",
-                        avatarUrl: "one.png",
-                    },
-                    {
-                        userId: "user-2",
-                        displayName: "User Two",
-                        avatarUrl: "two.png",
-                    },
-                ],
-            });
+        mockCollections({
+            memberships: [{ userId: "user-1" }, { userId: "user-2" }],
+            role_assignments: [
+                { userId: "user-1", roleIds: ["role-1"] },
+                { userId: "user-2", roleIds: [] },
+            ],
+            roles: [
+                { $id: "role-1", name: "Moderator", color: "#ff0000", position: 10 },
+            ],
+            banned_users: [{ userId: "user-1", reason: "spam" }],
+            muted_users: [{ userId: "user-2", reason: "too fast" }],
+            profiles: [
+                { userId: "user-1", displayName: "User One", avatarUrl: "one.png" },
+                { userId: "user-2", displayName: "User Two", avatarUrl: "two.png" },
+            ],
+        });
 
         const response = await GET(
             new NextRequest("http://localhost/api/servers/server-1/members"),
@@ -143,18 +142,16 @@ describe("server members route", () => {
         expect(response.status).toBe(200);
         expect(Array.isArray(data.members)).toBe(true);
         expect(data.members).toHaveLength(2);
-        expect(mockListDocuments).toHaveBeenNthCalledWith(
-            3,
-            "test-db",
-            "banned_users",
-            expect.any(Array),
-        );
-        expect(mockListDocuments).toHaveBeenNthCalledWith(
-            4,
-            "test-db",
-            "muted_users",
-            expect.any(Array),
-        );
+        // Assert the moderation lookups happened and were scoped to this server,
+        // without depending on the order the parallel queries are issued in.
+        for (const collectionId of ["banned_users", "muted_users"]) {
+            const call = mockListDocuments.mock.calls.find(
+                (callArgs) => callArgs[1] === collectionId,
+            );
+            expect(call, `expected a query against ${collectionId}`).toBeDefined();
+            expect(call?.[0]).toBe("test-db");
+            expect(call?.[2]).toContain("equal(serverId,server-1)");
+        }
         expect(data.members[0].userId).toBe("user-1");
         expect(data.members[0].roleIds).toEqual(["role-1"]);
         expect(data.members[0].isBanned).toBe(true);
@@ -165,31 +162,18 @@ describe("server members route", () => {
     });
 
     it("skips orphan memberships without mutating documents", async () => {
-        mockListDocuments
-            .mockResolvedValueOnce({
-                documents: [
-                    { userId: "user-1" },
-                    { userId: "missing-user" },
-                ],
-            })
-            .mockResolvedValueOnce({
-                documents: [{ userId: "user-1", roleIds: ["role-1"] }],
-            })
-            .mockResolvedValueOnce({
-                documents: [{ userId: "user-1" }],
-            })
-            .mockResolvedValueOnce({
-                documents: [],
-            })
-            .mockResolvedValueOnce({
-                documents: [
-                    {
-                        userId: "user-1",
-                        displayName: "User One",
-                        avatarUrl: "one.png",
-                    },
-                ],
-            });
+        mockCollections({
+            memberships: [{ userId: "user-1" }, { userId: "missing-user" }],
+            role_assignments: [{ userId: "user-1", roleIds: ["role-1"] }],
+            roles: [
+                { $id: "role-1", name: "Moderator", color: "#ff0000", position: 10 },
+            ],
+            banned_users: [{ userId: "user-1" }],
+            muted_users: [],
+            profiles: [
+                { userId: "user-1", displayName: "User One", avatarUrl: "one.png" },
+            ],
+        });
 
         const response = await GET(
             new NextRequest("http://localhost/api/servers/server-1/members"),

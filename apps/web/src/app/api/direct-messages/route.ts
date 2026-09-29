@@ -15,6 +15,7 @@ import {
     getNotificationSettings,
 } from "@/lib/notification-settings";
 import { getAvatarUrl, getUserProfile, getUserProfilesBatch } from "@/lib/appwrite-profiles";
+import { readDmEncryptionEnabled } from "@/lib/dm-encryption-preference";
 import { listThreadReadsByContext } from "@/lib/thread-read-store";
 import { isThreadUnread } from "@/lib/thread-read-states";
 import {
@@ -153,33 +154,21 @@ async function getDmEncryptionStateForPair(
     dmEncryptionPeerPublicKey?: string;
     dmEncryptionSelfEnabled: boolean;
 }> {
-    const [selfSettings, peerSettings, peerProfile] = await Promise.all([
-        getNotificationSettings(userId)
-            .then((settings) => settings ?? { dmEncryptionEnabled: false })
-            .catch((error) => {
-                logger.warn("Failed to load self notification settings for DM encryption", {
-                    error: error instanceof Error ? error.message : String(error),
-                    userId,
-                    peerUserId,
-                });
-                return { dmEncryptionEnabled: false };
-            }),
-        getNotificationSettings(peerUserId)
-            .then((settings) => settings ?? { dmEncryptionEnabled: false })
-            .catch((error) => {
-                logger.warn(
-                    "Failed to load peer notification settings for DM encryption",
-                    {
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                        userId,
-                        peerUserId,
-                    },
-                );
-                return { dmEncryptionEnabled: false };
-            }),
+    // Both profiles are loaded up front and then reused for the preference
+    // read, so this is two queries where the previous shape spent three (two
+    // notification-settings reads plus one profile). The profile is the
+    // canonical home of the preference; `readDmEncryptionEnabled` only falls
+    // back to notification settings when the profile has no value, which is the
+    // pre-migration case, so migrated accounts pay no extra query at all.
+    const [selfProfile, peerProfile] = await Promise.all([
+        getUserProfile(userId).catch((error) => {
+            logger.warn("Failed to load self profile for DM encryption", {
+                error: error instanceof Error ? error.message : String(error),
+                userId,
+                peerUserId,
+            });
+            return null;
+        }),
         getUserProfile(peerUserId).catch((error) => {
             logger.warn("Failed to load peer profile for DM encryption", {
                 error: error instanceof Error ? error.message : String(error),
@@ -190,8 +179,13 @@ async function getDmEncryptionStateForPair(
         }),
     ]);
 
-    const dmEncryptionSelfEnabled = Boolean(selfSettings.dmEncryptionEnabled);
-    const dmEncryptionPeerEnabled = Boolean(peerSettings.dmEncryptionEnabled);
+    const [selfEnabled, peerEnabled] = await Promise.all([
+        readDmEncryptionEnabled(userId, selfProfile),
+        readDmEncryptionEnabled(peerUserId, peerProfile),
+    ]);
+
+    const dmEncryptionSelfEnabled = selfEnabled;
+    const dmEncryptionPeerEnabled = peerEnabled;
     const dmEncryptionPeerPublicKey =
         typeof peerProfile?.dmEncryptionPublicKey === "string"
             ? peerProfile.dmEncryptionPublicKey
@@ -1695,44 +1689,16 @@ export async function POST(request: NextRequest) {
         // Hoist shared fetches: both the plaintext-guard (hasAnyContent) and the
         // encrypted-text validation need these four values.  Run them once when
         // either path is possible.
-        let senderSettings = null;
-        let receiverSettings = null;
+        let senderEncryptionEnabled = false;
+        let receiverEncryptionEnabled = false;
         let senderProfile: Awaited<ReturnType<typeof getUserProfile>> = null;
         let receiverProfile: Awaited<ReturnType<typeof getUserProfile>> = null;
 
         if (!isGroupConversation && targetReceiverId && (hasAnyContent || hasEncryptedText)) {
-            [senderSettings, receiverSettings, senderProfile, receiverProfile] =
+            // Profiles carry the encryption preference now; the notification
+            // settings read happens only for accounts that predate the column.
+            [senderProfile, receiverProfile] =
                 await Promise.all([
-                    getNotificationSettings(senderId).catch((error) => {
-                        logger.warn(
-                            "Failed to load sender notification settings for DM encryption",
-                            {
-                                conversationId,
-                                error:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
-                                senderId,
-                                targetReceiverId,
-                            },
-                        );
-                        return null;
-                    }),
-                    getNotificationSettings(targetReceiverId).catch((error) => {
-                        logger.warn(
-                            "Failed to load receiver notification settings for DM encryption",
-                            {
-                                conversationId,
-                                error:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
-                                senderId,
-                                targetReceiverId,
-                            },
-                        );
-                        return null;
-                    }),
                     getUserProfile(senderId).catch((error) => {
                         logger.warn(
                             "Failed to load sender profile for DM encryption",
@@ -1764,6 +1730,15 @@ export async function POST(request: NextRequest) {
                         return null;
                     }),
                 ]);
+
+            [senderEncryptionEnabled, receiverEncryptionEnabled] =
+                await Promise.all([
+                    readDmEncryptionEnabled(senderId, senderProfile),
+                    readDmEncryptionEnabled(
+                        targetReceiverId,
+                        receiverProfile,
+                    ),
+                ]);
         }
 
         if (!isGroupConversation && targetReceiverId && hasAnyContent) {
@@ -1778,8 +1753,8 @@ export async function POST(request: NextRequest) {
                     : "";
 
             const requiresEncryptedText =
-                Boolean(senderSettings?.dmEncryptionEnabled) &&
-                Boolean(receiverSettings?.dmEncryptionEnabled) &&
+                senderEncryptionEnabled &&
+                receiverEncryptionEnabled &&
                 senderProfilePublicKey.length > 0 &&
                 receiverProfilePublicKey.length > 0;
 
@@ -1806,8 +1781,8 @@ export async function POST(request: NextRequest) {
             }
 
             if (
-                !senderSettings?.dmEncryptionEnabled ||
-                !receiverSettings?.dmEncryptionEnabled
+                !senderEncryptionEnabled ||
+                !receiverEncryptionEnabled
             ) {
                 return jsonResponse(
                     {

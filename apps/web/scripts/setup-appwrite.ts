@@ -1423,6 +1423,13 @@ async function setupProfiles() {
         ["profileBackgroundImageChangedAt", LEN_TS, false],
         ["avatarFramePreset", 64, false],
         ["dmEncryptionPublicKey", 256, false],
+        // Canonical home for the DM encryption preference. It used to live on
+        // notification_settings, which is the wrong layer: it is a per-user
+        // capability that sits next to the key it depends on, not a
+        // notification preference. notification_settings is still written in
+        // parallel as a fallback for accounts that predate this column; see
+        // lib/dm-encryption-preference.ts.
+        ["dmEncryptionEnabled", 16, false],
         ["deletedAt", LEN_TS, false],
         ["deletedEmail", 255, false],
     ];
@@ -1801,6 +1808,23 @@ async function setupDirectMessages() {
         LEN_ID,
         false,
     );
+    // Federation (2.6) fields. Reserved in 2.2 and left null: no behaviour
+    // ships against them yet. `sequence` is a per-conversation, per-sender-
+    // instance cursor and `sender_instance` is the sender's IIID, null for
+    // local users. Both are nullable so nothing backfills and ordering by
+    // $createdAt is unaffected.
+    await ensureIntegerAttribute("direct_messages", "sequence", false);
+    await ensureStringAttribute(
+        "direct_messages",
+        "sender_instance",
+        LEN_ID,
+        false,
+    );
+    // No (conversationId, sequence) index yet on purpose: every existing row
+    // has sequence null, so it would buy nothing while adding a setup-time
+    // failure mode. 2.6 adds it in the same change that starts writing the
+    // columns.
+
     // Note: Using system $createdAt attribute for ordering, no custom attribute needed
     await ensureIndex("direct_messages", "idx_conversation", "key", [
         "conversationId",
