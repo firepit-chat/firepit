@@ -5,6 +5,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from "react-nat
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppThemePicker } from "@/components/app-theme-picker";
 import { AuthRouteGuard } from "@/components/auth-route-guard";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
@@ -162,6 +163,7 @@ export default function AppearanceSettingsScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.shell}>
+                        <AppThemePicker />
                         <View style={styles.header}>
                             <Pressable
                                 accessibilityRole="button"

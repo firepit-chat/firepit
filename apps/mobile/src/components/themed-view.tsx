@@ -1,8 +1,8 @@
 import { View, type ViewProps } from "react-native";
 
-import { ThemeColor } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ThemeColor, isDarkPalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { useThemePreference } from "@/providers/theme-preference-context";
 
 export type ThemedViewProps = ViewProps & {
   lightColor?: string;
@@ -18,12 +18,14 @@ export function ThemedView({
   ...otherProps
 }: ThemedViewProps) {
   const theme = useTheme();
-  const scheme = useColorScheme();
+  const { palette } = useThemePreference();
 
   let backgroundColor: string;
   if (type !== undefined) {
     backgroundColor = theme[type];
-  } else if (scheme === "dark") {
+  } else if (isDarkPalette(palette)) {
+    // Keyed off the selected palette, not the OS colour scheme: three of the
+    // four palettes are dark, so a user can pick Latte on a dark-mode device.
     backgroundColor = darkColor ?? theme.background;
   } else {
     backgroundColor = lightColor ?? theme.background;

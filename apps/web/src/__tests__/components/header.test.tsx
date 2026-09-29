@@ -52,9 +52,10 @@ vi.mock("@/hooks/useDeveloperMode", () => ({
 }));
 
 // Mock theme provider
-vi.mock("next-themes", () => ({
+vi.mock("@teispace/next-themes", () => ({
     useTheme: () => ({
-        theme: "light",
+        theme: "latte",
+        resolvedTheme: "latte",
         setTheme: vi.fn(),
     }),
 }));

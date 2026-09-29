@@ -1,25 +1,29 @@
 "use client";
 
-import { useTheme } from "next-themes";
+import { useTheme } from "@teispace/next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+import { isDarkTheme } from "@/lib/themes";
 
-  return (
-    <Sonner
-      className="toaster group"
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-        } as React.CSSProperties
-      }
-      theme={theme as ToasterProps["theme"]}
-      {...props}
-    />
-  );
+const Toaster = ({ ...props }: ToasterProps) => {
+    const { resolvedTheme } = useTheme();
+
+    return (
+        <Sonner
+            className="toaster group"
+            style={
+                {
+                    "--normal-bg": "var(--popover)",
+                    "--normal-text": "var(--popover-foreground)",
+                    "--normal-border": "var(--border)",
+                } as React.CSSProperties
+            }
+            // Sonner only understands "light" and "dark", so the four palettes
+            // have to be collapsed onto that axis instead of cast through.
+            theme={isDarkTheme(resolvedTheme) ? "dark" : "light"}
+            {...props}
+        />
+    );
 };
 
 export { Toaster };

@@ -38,6 +38,8 @@ type UserProfile = {
     profileBackgroundImageChangedAt?: string;
     avatarFramePreset?: string;
     dmEncryptionPublicKey?: string;
+    /** Canonical home; see lib/dm-encryption-preference.ts. */
+    dmEncryptionEnabled?: boolean;
     deletedAt?: string;
     deletedEmail?: string;
     $createdAt: string;
@@ -64,6 +66,7 @@ const editableProfileKeys = [
     "profileBackgroundImageFileId",
     "avatarFramePreset",
     "dmEncryptionPublicKey",
+    "dmEncryptionEnabled",
 ] as const;
 
 type EditableProfileKey = (typeof editableProfileKeys)[number];
