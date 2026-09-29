@@ -115,6 +115,39 @@ export async function fetchServer(
     });
 }
 
+/** A member's highest-ranked role, as resolved by the server. */
+export type MemberPrimaryRole = {
+    id: string;
+    name: string;
+    color: string;
+    position: number;
+};
+
+export type ViewerMember = {
+    userId: string;
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+    role: MemberPrimaryRole | null;
+};
+
+export type ViewerMembersResponse = {
+    members: ViewerMember[];
+    truncated?: boolean;
+};
+
+export async function fetchViewerMembers(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
+    return firepitRequest<ViewerMembersResponse>({
+        baseUrl,
+        path: `/api/servers/${encodeURIComponent(serverId)}/viewer/members`,
+        token,
+    });
+}
+
 export async function fetchPublicServers(baseUrl: string) {
     return firepitRequest<PublicServerListResponse>({
         baseUrl,

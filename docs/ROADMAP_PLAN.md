@@ -20,31 +20,32 @@ Most of the plan is parallelizable. These dependencies are not:
 ```
 lint + typecheck gate (2.2) ──> everything below
 
-channel_permission_overrides (2.2) ──> forum (2.3) ──> voice un-hide (2.5) ──> stage (2.5)
+channel_permission_overrides (2.2, done) ──> forum (2.3) ──> voice un-hide (2.5) ──> stage (2.5)
         │
         └──> bots permissions (2.3)
 
-channel-type consolidation (2.2) ──> forum (2.3) ──> voice un-hide (2.5)
+channel-type consolidation (2.2, done) ──> forum (2.3) ──> voice un-hide (2.5)
 
 A/V canary (2.3, own lane) ──> A/V stable (2.4) ──> mobile A/V (2.5)
                                     │
                                     └──> stage channels (2.5)
 
-theme system (2.2) ──> per-server themes (2.3) ──> ScopedTheme consumer
+theme system (2.2, done) ──> per-server themes (2.3) ──> ScopedTheme consumer
 
 federation schema decisions (2.2) ──> federation v1 (2.6) ──> v2 beta (2.7) ──> stable (3.0)
 bots signing primitive (2.3) ────────^
 
-API contract enforcement (2.2) ──> UI/API separation (post-3.0)
+API contract enforcement (2.2, done) ──> client generation ──> UI/API separation
 ```
 
 **2.2 phasing.** Phase 0 (the lint and typecheck gate) gates everything else —
 it is the reason a ~30-site refactor and a 37-route spec pass are safe to land.
-After Phase 0, five tracks are independent and parallelizable: the
-`channel_permission_overrides` fix, the channel-type consolidation, themes, the
-member viewer, and OpenAPI completion (which needs Phase 0's gate and Phase 1's
-schema fix). Mobile themes is the single longest item and the most likely to
-slip.
+
+**All five 2.2 tracks have landed.** The `channel_permission_overrides` fix,
+the channel-type consolidation, the theme system, the member viewer, and OpenAPI
+completion are each shipped; see the 2.2 exit criteria for what is met and the
+two items still outstanding (generated client types, and reserving the
+federation columns). What remains for 2.2 is release mechanics, not features.
 
 **The voice chain is the long one.** Starting the canary in 2.3 means three
 releases of soak before mobile is viable, because React Native's WebRTC support
@@ -190,16 +191,56 @@ worthless without a gate that reads them. Add it in Phase 0.
 
 **3. Settle the federation schema decisions.**
 
-Four decisions, one day, no implementation. Each is a nullable column or a
-format choice that is cheap now and expensive after launch. Reserve the columns
-now; no behaviour ships with them.
+Four decisions. **All four are now settled**, and the cost turned out to be far
+lower than "four columns" — two are free.
 
-| Decision | Current state | Spec requires |
+| Decision | Resolution | Cost |
 | --- | --- | --- |
-| `username` on profiles | Does not exist; display name only | Required by `GET /api/federation/user/:id` |
-| `sequence` + `sender_instance` on DMs | Neither column exists | Per-conversation per-instance sequence for pagination and dedup |
-| Participant ID format | Bare user IDs | `IIID:uuid` for remote participants |
-| Conversation ID scheme | Appwrite `ID.unique()` | Deterministic `dm_<sha256 of sorted participants>` |
+| `username` on profiles | **The Appwrite user `$id` is the handle.** Stable, already unique, already on every account | **None** — no column |
+| `sequence` + `sender_instance` on DMs | Two nullable columns, reserved and left null | 2 nullable columns |
+| Participant ID format | `IIID:` is a **wire format, not a storage format** — prefix it in the federation adapter on read | **None** — no column |
+| Conversation ID scheme | Use the deterministic `dm_<32 hex>` as the Appwrite `documentId` directly | **1 function** — no column |
+
+**Why `username` needs no column.** The spec lists `id`, `display_name` and
+`username` as three fields and never says what `username` must look like — no
+format, no uniqueness rule, no statement about who picks it. It is Firepit's
+own protocol (there is no ActivityPub reference anywhere in the spec, so no
+inherited `preferredUsername` semantics), which means Firepit defines it.
+Defining it as the account identifier satisfies the spec literally and costs
+nothing. The decisive argument is reversibility: a real handle can be **added**
+later as an additive change, whereas backing out of a handle means collecting
+reservation, collision, rename and squatting semantics *and* solving Appwrite's
+missing sparse-unique-index problem, since two users with no handle would
+collide. The honest cost, on the record: remote users see an opaque handle rather
+than `@alice`. Revisit only if ActivityPub interoperability comes up, where
+`preferredUsername` is a genuine handle.
+
+**Why the conversation ID needs no column.** The spec federates only 1:1 DMs in
+v1.0 (cross-instance groups are deferred to v2.0), and the deterministic ID is
+`dm_<first 16 bytes of SHA-256>` — 35 characters, inside Appwrite's 36-char
+document-ID limit, using only `[a-z0-9_-]`. `appwrite-dms.ts` already passes an
+explicit `documentId` to `createDocument`, so this is a change to one function in
+the 1:1 path. There is also **nothing to migrate**: federation does not exist
+until 2.6, so no cross-instance conversation exists to re-key. Group DMs keep
+`ID.unique()` since they do not federate in v1.0.
+
+**`dmEncryptionEnabled` moved to `profiles`.** It was on `notification_settings`,
+which is the wrong layer: it is a per-user capability that is meaningless without
+`dmEncryptionPublicKey`, and the validation that gates publishing a key already
+gates turning encryption on. It now sits beside that key. Moving it is not a
+column swap — the flag is read for **both** participants on the DM send path, in
+`api/direct-messages/route.ts`, where it decides whether plaintext is rejected.
+`lib/dm-encryption-preference.ts` owns the move so no call site can disagree:
+
+- Reads prefer the profile and fall back to `notification_settings` **only** when
+  the profile has no value. That fallback is what stops accounts that enabled
+  encryption before the column existed from silently downgrading to plaintext.
+- Writes go to the profile (canonical) and still to `notification_settings`, so a
+  rollback to the previous release keeps the setting. 2.6 drops the duplicate.
+
+Incidentally this made the send path **cheaper**: the peer profile was already
+being loaded for `dmEncryptionPublicKey`, and both participants are now resolved
+from profiles — two queries where the previous shape spent three.
 
 Plus two smaller ones: `dmEncryptionEnabled` currently lives on
 `notification_settings` rather than `profiles`, and the **federation spec**
@@ -227,96 +268,132 @@ counter primitive is needed.
 2.2 ships **themes and the member viewer**. Forum channels, OAuth, and the
 voice/video canary moved to 2.3 — see "Deferred out of 2.2" below for why.
 
-**Themes.** Two independent pieces of work.
+**Themes.** Shipped. Two independent systems — web palette plus library swap,
+and a separate mobile system.
 
-*Web — the palette axis.* `index.css` has 31 OKLCH tokens in exactly two blocks,
-`:root` and `.dark`, selected by `attribute="class"`. Four Catppuccin palettes
-cannot be expressed that way: one class, one selector. Use `data-theme` for the
-palette and widen the `@custom-variant dark` at `index.css:4` to match all
-three dark variants — otherwise the 89 `dark:` utility occurrences across 22
-`.tsx` files render in light mode. Then 4 blocks × 31 tokens, 4 `THEME_ICONS`
-entries (`header.tsx:44-48`), both hardcoded theme arrays (`header.tsx:513-518`
-and `:611`), a theme row in Settings (there is none today — "Appearance" is
-profile background only), and the `ToasterProps["theme"]` cast at
-`sonner.tsx:19` which will silently mis-apply a fourth value.
+`data-theme` on `<html>` selects one of **six** palettes and `data-accent`
+re-points the accent-derived tokens across **twelve** accents. `src/lib/themes.ts`
+(web) and `src/constants/theme-palettes.ts` (mobile) own the name lists, so the
+provider, header, and settings pickers cannot drift from the CSS.
+`useTheme()` on mobile still returns the same flat 40-token shape, so none of its
+~66 call sites changed.
 
-*Web — the library swap.* `next-themes` → `@teispace/next-themes`. **Four**
-production call sites (`theme-provider.tsx`, `header.tsx`, `mode-toggle.tsx`,
-`sonner.tsx`) and 4 `vi.mock` files, plus an 11-line provider. There is no
-codemod to run.
+**Six palettes, not four.** The four Catppuccin flavours (Latte light, Frappé,
+Macchiato, Mocha) plus **Classic Light** and **Classic Dark**, which are the
+original Firepit themes preserved verbatim. Their orange primary sits in the
+default accent slot, so selecting one with no accent chosen reproduces the
+pre-Catppuccin look exactly; picking an explicit accent still overrides it, same
+as on every other palette.
 
-*Why swap at all:* `ScopedTheme` has **zero users and is not installed** — the
-original justification was wrong. The real reasons are cookie-authoritative
-storage, which removes a visible launch flash, and unblocking per-server theming
-in 2.3. The migration behaviours that actually bite are **ESM-only** (breaks
-the 4 `vi.mock` files) and **default storage becoming `hybrid`**. Two concerns
-in the original draft do not apply: no `onChange` is passed anywhere, and there
-is exactly one provider instance, so neither the signature change nor nested
-providers are reachable.
+*Web.* `index.css` had 31 OKLCH tokens in exactly two blocks, `:root` and
+`.dark`, selected by `attribute="class"`. Several palettes cannot be expressed
+that way — one class, one selector — so the axis moved to `data-theme` and
+`@custom-variant dark` was widened to match all **four** dark palettes
+(including `classicDark`). Without that, the ~90 `dark:` utilities across the app
+render in light mode inside three of them. Also done: 6 `THEME_ICONS` entries,
+both hardcoded theme arrays in `header.tsx` now read `THEME_NAMES`, the
+`ToasterProps["theme"]` cast in `sonner.tsx` is replaced by mapping the palette
+onto sonner's light/dark axis via `isDarkTheme`, a Theme section in Settings
+(there was none — "Appearance" was profile background only), and the dead
+`mode-toggle.tsx` plus its test are deleted. It imported nothing in production
+and asserted the literal strings `Light`/`Dark`/`System`.
 
-*Delete `mode-toggle.tsx` and its test.* It is dead code — nothing in production
-imports it — and it asserts the literal strings `Light`/`Dark`/`System`, so a
-fourth theme breaks it regardless.
+*Library swap.* `next-themes` → `@teispace/next-themes@3.0.2`; the old
+dependency is removed. The original justification (`ScopedTheme` is installed
+and used) was wrong — it has zero users and is not installed. The real reasons
+were cookie-authoritative storage, which removes the launch flash, and
+unblocking per-server theming in 2.3. Two predicted migration hazards did not
+bite: no `onChange` is passed anywhere, and there is exactly one provider
+instance, so neither the signature change nor nested providers were reachable.
+The one that did: the package is **ESM-only** and its entry imports
+`next/navigation` without a file extension, which the test resolver rejects.
+`vitest.config.ts` now aliases that import and inlines the package, so tests can
+exercise the real provider instead of mocking the whole library.
 
-*Mobile — a separate system, and the library does nothing here.* 40 hex tokens
-per mode (not ~45) in `apps/mobile/src/constants/theme.ts`, a 14-line
-`useColorScheme()` hook, and **no theming dependency at all** — the file's header
-comment names Nativewind, Tamagui and unistyles as the alternatives
-deliberately not taken.
+*Accent contrast.* Catppuccin Latte's accents are authored to be read as *text*
+on `base`, not as button fills. Six of the twelve fall below 3:1 against both
+`base` and `text`, so using them unmodified as `--primary` would have shipped
+unreadable primary buttons in the default light theme. Accent fills are adjusted
+in OKLCH — L only, hue preserved — until they clear 4.5:1. Only Latte moves; the
+dark palettes already clear 5.3:1 and are used as published.
 
-The design constraint that makes this cheap: **keep `useTheme()` returning the
-same flat token shape**, so all 66 call sites stay untouched. What changes is
-what is behind it. `Colors` goes from 2 modes × 40 to 4 palettes × 40 (Latte
-replaces `light`; Frappé, Macchiato and Mocha replace `dark`), and a preference
-store has to be created — none exists. Copy `providers/cache-settings-context.tsx`,
-which is already `useState` + `AsyncStorage` + `createContext`.
+*Two bugs found by building and rendering rather than by reading.* The palette
+was initially rendered server-side as `data-theme="latte"` on `<html>`, which is
+a React-owned attribute the library also writes — any re-render of the root
+layout could overwrite the user's choice. The default now lives in CSS on
+`:root` (as `:root, [data-theme="latte"]`), so the page is never unstyled and the
+choice cannot be clobbered. Separately, `ACCENT_COOKIE` was first exported from
+a `"use client"` module and imported into the server layout, which made it a
+client reference and inlined the literal `undefined` as the cookie name; it now
+lives in `lib/themes.ts`. Both were invisible to typecheck and to the test suite
+and only showed up in the built HTML.
 
-Then fix the consumers that bypass the hook: `app/_layout.tsx:39`,
-`components/app-tabs.tsx:10`, and `components/app-tabs.web.tsx:48` and `:72` all
-import `Colors` directly. `app-tabs.web.tsx:132` hardcodes
-`Colors.light.sidebarBorder` inside a `StyleSheet.create` block and cannot react
-to any theme — a live bug, not cleanup. Finally, `settings/appearance.tsx` exists
-and is 429 lines of profile background with no app-theme controls; the route and
-nav entry are already there.
+*Mobile.* A separate system, and the library does nothing here. `Colors` went
+from 2 modes × 40 tokens to **6 palettes × 40** in
+`src/constants/theme-palettes.ts`, deliberately split from `constants/theme.ts`
+so the palette data is free of any `react-native` import and can be unit tested
+with the plain Bun runner. A preference store was created
+(`providers/theme-preference-context.tsx`, copied from
+`cache-settings-context.tsx`). `useTheme()` keeps its exact signature.
 
-**Role and member viewer.** Right-rail member list sorted by role rank then
-username.
+Four consumers bypassed the hook and were fixed: `app/_layout.tsx`,
+`components/app-tabs.tsx`, and `components/app-tabs.web.tsx` (twice) all
+imported `Colors` directly. `app-tabs.web.tsx` additionally hardcoded
+`Colors.light.sidebarBorder` inside a `StyleSheet.create` block, so it could not
+react to any theme — a live bug, not cleanup. A fifth bypass was not on the list:
+`components/themed-view.tsx` branched on the **OS** colour scheme, so choosing a
+light palette on a dark-mode device applied dark-only styling on top of it. The
+now-unreferenced `use-color-scheme` hooks were deleted. `settings/appearance.tsx`
+gained an app-theme picker; its route and nav entry already existed.
 
-The permission model is already live. `roles` carries `color`, `position`,
-`memberCount`, `defaultOnJoin` and `mentionable`, all confirmed in
-`setup-appwrite.ts:1293-1315`, and `memberCount` is actively maintained by
-`api/role-assignments/route.ts:183-222`. The 8-member `Permission` union
-(`types.ts:510-518`) is unchanged by this release. This release builds the
-surface, not the model.
+**Role and member viewer.** Shipped. A Members panel at the top of the chat
+right rail, listing everyone in the server with their highest-ranked role
+colour, ordered by role rank and then by display name, with members holding no
+role sorted last.
 
-The rail **already exists** — `chat/page.tsx:2406` is a 320px `<aside>` with
-`lg:border-l` styling, currently holding Pinned Messages and Thread. No layout
-work is needed; add a third panel.
+The permission model was already live and is unchanged by this release: `roles`
+carries `color`, `position`, `memberCount`, `defaultOnJoin` and `mentionable`,
+and `memberCount` is actively maintained by `api/role-assignments`. This release
+built the surface, not the model. The rail already existed, so no layout work
+was needed.
 
-**One blocker the original plan missed:** `/api/servers/[serverId]/members`
-requires `manageRoles` (`route.ts:63-65`), so a member rail would 403 for every
-non-admin. Add a new read-only endpoint gated on `access.isMember` returning only
-viewer-relevant fields, and leave the admin endpoint's `manageRoles` gate
-intact — role-management dialogs currently read from it. Compute the highest role
-server-side so the client never needs the full role list.
+**The blocker was real.** `/api/servers/[serverId]/members` requires
+`manageRoles`, so a member rail would have 403'd for every non-admin. A new
+read-only endpoint, `GET /api/servers/[serverId]/viewer/members`, is gated on
+`access.isMember` alone and returns only what a member row renders: `userId`,
+`username`, `displayName`, `avatarUrl`, and the member's highest-ranked role. The
+admin endpoint keeps its `manageRoles` gate, because the role-management
+dialogs read full role assignments and moderation flags from it. The viewer
+endpoint never exposes role ids, ban state, or mute state, and emits explicit
+`null`s rather than omitting keys so the response shape does not vary per
+member.
 
-`getEffectivePermissions` (`permissions.ts:40-142`) resolves in this order, which
-the original summary got from the function's own incomplete docstring: `isOwner`
+Both endpoints now share `src/lib/server-members.ts`, so they cannot disagree
+about a member's roles, ban state, or ordering. Role resolution, the
+rank-then-name sort, and the "members with no role sort last" rule all live in
+that one place. The existing members test had to be rewritten because it mocked
+Appwrite *by call order* and broke as soon as the query pattern changed; it now
+mocks by collection, which is more robust and is what the failure exposed.
+
+Two bugs the new tests caught before anything shipped: "highest role" was
+picking the first entry in `roleIds` order rather than the highest `position`
+(`roleIds` order is not meaningful, `position` is), and `undefined` profile
+fields were being dropped by `JSON.stringify`, making the response shape depend
+on which optional fields happened to be set.
+
+`getEffectivePermissions` (`permissions.ts`) resolves in this order, which the
+original summary got from the function's own incomplete docstring: `isOwner`
 bypass, then any role with `administrator`, then OR-merged base roles, then
 **channel role overrides applied in `position` order**, then the channel user
 override, then default deny. The `isOwner` bypass and the position ranking of
-role overrides are both absent from the docstring and matter for how a
-rank-sorted list reads.
+role overrides are both absent from the docstring.
 
-**Mobile is net-new work.** The original plan said `server/[serverId]/roles.tsx`
-made it "rank sorting plus parity styling". That file is a 952-line role CRUD
-**editor** — mobile has no member list at all. The parity backlog already lists
-"server stats and member list views" as outstanding. Note that `/api/roles`
-already returns `Query.orderDesc("position")`, so roles arrive pre-sorted; the
-new work is the member list and its rank-then-name sort.
-
-Both `docs/mobile-web-parity-backlog.md` and the root `ROADMAP.md` were
-corrected to reflect that this is a new mobile screen.
+**Mobile was net-new work.** The original plan claimed
+`server/[serverId]/roles.tsx` made this "rank sorting plus parity styling". That
+file is a role CRUD **editor** — mobile had no member list at all. A new
+`app/server/[serverId]/members.tsx` screen was added, reachable from the server
+screen for every member, unlike the Roles entry which stays behind a
+manage-permission gate.
 
 ### Deferred out of 2.2
 
@@ -484,33 +561,56 @@ that has no existing mechanism to reuse.
 
 ### 2.2 exit criteria
 
-The gate, which gates the gate:
+Marked with the state as of this commit. Everything not marked **met** is
+outstanding.
+
+The gate, which gates the gate — **met**:
 
 - `bun run lint` and `bun run typecheck` pass in both workspaces with zero
-  errors, and `test:web.yml` fails on a type error in either one.
+  errors, and `test:web.yml` fails on a type error in either one. Lint warnings
+  remain (23 web, 48 mobile) but no longer block.
+- The full web suite passes: **2209/2209, zero failures**. Two long-standing
+  problems were fixed rather than tolerated: `chat-page.test.tsx` had been
+  failing its 9 tests because the chat page started using `useDeveloperMode`
+  (which needs a `QueryClientProvider` the test never set up) and the mock was
+  never added; and the `app-layout` search-dialog tests were timing out because
+  the dialog is a real `React.lazy` import and the assertions allowed 3s and
+  1s respectively for a module transform that can take longer under a parallel
+  run.
 
 Infrastructure:
 
-- A clean `setup-appwrite.ts` run provisions `channel_permission_overrides`,
-  and channel permission overrides demonstrably work on a fresh environment.
-- `rg '"text", "voice", "announcement"'` returns only the canonical
-  `CHANNEL_TYPE_VALUES` definition.
-- `bun run check:openapi` reports all 143 in-scope operations documented with
-  zero missing and zero phantom (done), `ChannelPermissionOverride` matches the
-  runtime (done), the `bearerAuth` path is documented alongside `sessionCookie`
-  (done), generated types exist, and CI fails when a route is added or changed
-  without a spec update (done — the gate is wired; only client generation
-  remains).
-- The four federation columns are reserved and documented, with no behaviour
-  shipped against them.
+- **met** — A clean `setup-appwrite.ts` run provisions
+  `channel_permission_overrides`, with a unique `(channelId, roleId, userId)`
+  index, and overrides work on a fresh environment.
+- **met** — `rg '"text", "voice", "announcement"'` returns only the canonical
+  `CHANNEL_TYPE_VALUES` definition. Four copies of `normalizeChannelType` and
+  three duplicate accepted-value arrays were collapsed into one function in
+  `lib/types.ts`.
+- **met** — `bun run check:openapi` reports **144/144** in-scope operations
+  documented across 96 paths, zero missing and zero phantom, and CI fails when a
+  route is added or changed without a spec update.
+- **met** — `ChannelPermissionOverride` matches the runtime, and the
+  `bearerAuth` path is documented alongside `sessionCookie`. The stale
+  `apps/mobile/docs/openapi-doc.yml` is deleted; the web copy is the single
+  source of truth.
+- **outstanding** — Generated client types do not exist yet. This is the last
+  item in the OpenAPI chain.
+- **met** — All four federation schema decisions are settled and the two columns
+  they need (`sequence`, `sender_instance` on `direct_messages`) are reserved
+  and null. The other two need no column at all. `dmEncryptionEnabled` moved to
+  `profiles`, its correct layer, with a fallback for pre-migration accounts. No
+  federation behaviour ships against any of it.
 
 User-facing:
 
-- Four Catppuccin palettes are selectable and persist across reload on both
-  platforms, with no launch flash on web.
-- A non-admin server member sees the right-rail member list sorted by rank then
-  name; a non-member gets a 403.
-- Mobile ships a member list screen. It is net-new, not a port.
+- **met** — Six palettes (four Catppuccin plus Classic Light and Classic Dark)
+  and twelve accents are selectable and persist across reload on both platforms,
+  with no launch flash on web. Accent fills clear 4.5:1 against their foreground
+  in every palette.
+- **met** — A non-admin server member sees the right-rail member list sorted by
+  rank then name; a non-member gets a 403.
+- **met** — Mobile ships a member list screen. It is net-new, not a port.
 
 Explicitly not exit criteria for 2.2: forums, OAuth, or any calling. If those
 appear, they have leaked from 2.3.
@@ -557,6 +657,47 @@ Worth stating plainly: this will not make the apps lighter. Measured against
 mobile's ~36,000 lines, a core package is under 5%, and types contribute
 nothing to a bundle. The value is that the two clients stop being able to
 silently disagree.
+
+#### The split that must happen first: wire types vs view models
+
+**17 type names are already exported from both `apps/web/src/lib/types.ts` and
+`apps/mobile/src/lib/firepit/types.ts`, and they have already diverged.**
+Measured today: mobile's `Message` has 43 fields against web's 33, and mobile's
+`Channel` has 11 against web's 7.
+
+Those differences are **not** drift to be corrected — they are the point.
+Mobile's extra fields are client-side view state:
+
+| Field | Present in | Meaning |
+| --- | --- | --- |
+| `unreadCount` | mobile only | derived per-device from thread reads |
+| `reactedByMe` | mobile only | derived from the caller's own reactions |
+| `local` | mobile only | optimistic-send marker, never on the server |
+| `lastMessageAt`, `memberCount` | mobile only | denormalized for list rendering |
+
+A "one shared type per name" extraction would merge view models into the wire
+contract and make both clients worse — it would codify the divergence instead of
+removing it. So the package has **three** tiers, not two:
+
+1. **`firepit-types` — wire types only.** Exactly what an API response
+   contains, keyed by the OpenAPI operation that produces them. This is the tier
+   that is shared, and the only one that must never carry derived state.
+2. **View models — per app, not shared.** `MessageViewModel`, `ChannelViewModel`
+   and friends extend a wire type with the app's own derived fields. Mobile
+   keeps its ten; web keeps whichever it needs. Neither is wrong.
+3. **Domain enums — shared where both already agree.** `Permission`,
+   `RelationshipStatus`, `InboxItemKind`, `PollStatus` and friends are genuinely
+   the same concept on both sides and belong in the package as-is.
+
+The practical guard, so this does not quietly regress: **a name that moves into
+`firepit-types` must mean the same shape on both sides.** If the two
+definitions disagree, that type is a view model and stays local. A short
+documented list of which tier each shared name belongs to is worth more than
+any codemod, and it is the thing to write before moving the first file.
+
+Ordering note: extract the enums first (tier 3, zero ambiguity), then wire
+types (tier 1), and leave view models alone. Doing it the other way round is how
+you end up with a package that imports React Native types into the web app.
 
 ### Flags
 

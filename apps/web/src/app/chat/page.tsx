@@ -38,6 +38,7 @@ function formatMemberCount(count: number | undefined): string {
 }
 import { ChatSurfacePanel } from "@/components/chat-surface-panel";
 import { ChatThreadContent } from "@/components/chat-thread-content";
+import { ChatMembersContent } from "@/components/chat-members-content";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -2404,6 +2405,8 @@ export default function ChatPage() {
                                     </div>
 
                                     <aside className="space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
+                                        <ChatMembersContent serverId={serversApi.selectedServer} />
+
                                         <div className="space-y-2">
                                             <div className="flex items-center gap-2 text-sm font-medium">
                                                 <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />

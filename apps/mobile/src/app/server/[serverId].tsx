@@ -256,6 +256,18 @@ export default function ServerBrowserScreen() {
                                     />
                                 </>
                             ) : null}
+                            {/* Visible to every member, unlike Roles above. */}
+                            <ActionButton
+                                label="Members"
+                                tone="ghost"
+                                onPress={() => {
+                                    if (normalizedServerId) {
+                                        router.push(
+                                            `/server/${normalizedServerId}/members` as never,
+                                        );
+                                    }
+                                }}
+                            />
                             <ActionButton
                                 label={serverMuted ? "Unmute server" : "Mute server"}
                                 tone="ghost"

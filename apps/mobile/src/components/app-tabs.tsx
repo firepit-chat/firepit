@@ -1,13 +1,11 @@
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useColorScheme } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Octicons from "@expo/vector-icons/Octicons";
 
-import { Colors } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function AppTabs() {
-    const scheme = useColorScheme();
-    const colors = Colors[scheme === "dark" ? "dark" : "light"];
+    const colors = useTheme();
 
     return (
         <NativeTabs

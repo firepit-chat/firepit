@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { AuthProvider } from "@/contexts/auth-context";
 import { ThemeProvider } from "./theme-provider";
+import { AccentProvider } from "./accent-provider";
 import { Toaster } from "./ui/sonner";
 import { initRealtimeAuth } from "@/lib/realtime-auth-init";
 
@@ -36,15 +37,17 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider
-                attribute="class"
-                defaultTheme="system"
+                attribute="data-theme"
+                defaultTheme="latte"
                 disableTransitionOnChange
-                enableSystem
+                enableSystem={false}
             >
-                <AuthProvider>
-                    {children}
-                    <Toaster richColors />
-                </AuthProvider>
+                <AccentProvider>
+                    <AuthProvider>
+                        {children}
+                        <Toaster richColors />
+                    </AuthProvider>
+                </AccentProvider>
             </ThemeProvider>
         </QueryClientProvider>
     );
