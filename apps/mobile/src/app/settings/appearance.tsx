@@ -163,7 +163,6 @@ export default function AppearanceSettingsScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.shell}>
-                        <AppThemePicker />
                         <View style={styles.header}>
                             <Pressable
                                 accessibilityRole="button"
@@ -179,6 +178,11 @@ export default function AppearanceSettingsScreen() {
                             </ThemedText>
                             <View style={styles.headerButton} />
                         </View>
+
+                        {/* App theme picker: palettes then accent. Placed after
+                            the header so the screen still introduces itself
+                            before presenting controls. */}
+                        <AppThemePicker />
 
                         {/* Current background preview */}
                         <ThemedView

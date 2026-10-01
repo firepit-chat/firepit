@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 📚 Documentation
 
+- **Updated to node-appwrite 29.** The realtime WebSocket token is now minted
+  with `users.createJWT()`, which replaces the removed `account.createJWT()`.
+  Because the new call runs with the server API key rather than the user's own
+  session, **self-hosted instances must add the user JWT scope to their API
+  key** or the realtime connection will fail to authenticate. The user id is
+  resolved by verifying the session cookie against Appwrite rather than decoding
+  it, so a tampered cookie cannot mint a token for another account.
 - **The API reference now covers every public route.** All 143 operations
   across 95 paths are documented, up from 89 operations across 54 paths. The
   in-app API Reference page under Docs renders this spec directly, so the
@@ -60,6 +67,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Fixed "Origin is not allowed" rejecting sign-in behind a reverse proxy.**
+  The CSRF origin check on `POST /api/session` (and the direct-messages and
+  upload routes) decided same-origin with `new URL(request.url).origin`. Behind a
+  proxy that forwards the public hostname but not `X-Forwarded-Proto`, that
+  evaluates to `http://yourdomain` while the browser sends
+  `Origin: https://yourdomain`, so the comparison failed and the request was
+  rejected. The check now compares the `Origin` header against every plausible
+  spelling of the request's own origin. `ALLOWED_ORIGINS` — previously
+  undocumented — is now described in `.env.local.example` and is only needed for
+  genuinely cross-origin callers, not for normal single-origin deployments.
+
+
 - **Per-channel permission overrides now work on a fresh instance.** The
   `channel_permission_overrides` collection was never created by the setup
   script, so a new deployment had no table for the feature to write to. It is
@@ -81,6 +100,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ⚙️ Improvements
 
+- **API client types are now generated from the spec.** `bun run
+  generate:api-types` produces TypeScript types directly from the documented
+  API, and CI fails if they drift from the spec. Combined with the existing
+  spec-versus-routes check, the documented API can no longer quietly disagree
+  with either the server or the clients compiling against it.
+- **Fixed client-side analytics and error reporting.** The browser PostHog SDK
+  was never initialized, so every client event — sign-in, registration,
+  onboarding, invitations, and the opt-in/opt-out toggle — was queued against an
+  SDK with no credentials and silently dropped. The same gap left the
+  client-side logger and error reporter as no-ops, since both read a
+  `window.posthog` that only exists once the SDK is initialized.
+  Anonymous visitors are captured by default, so the pre-auth funnel — landing,
+  sign-in, registration, onboarding — is recorded; those events are only
+  observable before an account exists. Consent is still enforced per account:
+  turning telemetry off in Settings opts out persistently, which also suppresses
+  anonymous capture on later visits, and an opted-out user is never identified.
+  **Server-side telemetry now honours the same preference**: API-call metrics,
+  forwarded application logs, and error reports attributed to a user are dropped
+  when that account has telemetry disabled. Telemetry with no identifiable user
+  is still sent, since there is no person whose consent applies.
+- **Dark mode is respected again on both platforms.** Choosing a palette no
+  longer overrides it: on a first visit the app follows the operating system's
+  light or dark setting, and an explicit choice is remembered from then on. This
+  had regressed when the fixed palette list replaced automatic detection, which
+  would have handed every existing dark-mode user a light app.
+- **The palette pickers show real colours.** The swatch previews in Settings
+  were rendering with no background at all, because the build produced no CSS
+  for the utility syntax they used. They now sample the actual palette.
+- **Per-channel permission overrides are resolved from a single place.** The
+  read-only member rail and the role-management screen now share one server-side
+  helper, so they cannot disagree about a member's roles, ban state, or
+  ordering.
+- **The DM encryption preference moved to where it belongs.** It now lives on the
+  profile beside the public key it depends on, rather than among notification
+  preferences. Accounts that enabled encryption before the move are unaffected:
+  reads prefer the new location and fall back to the old one, so nobody's DMs
+  silently fall back to plaintext. As a side effect the message send path is
+  slightly cheaper, since the profiles it already loaded now answer the question.
 - Theme and accent choices are stored in a cookie on the web, so the first paint
   already uses the right colours and the old light/dark launch flash is gone.
 - The member list is fetched through one shared server-side helper, so the

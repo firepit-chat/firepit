@@ -7,45 +7,8 @@ import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/posthog-utils";
+import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
-function getAllowedOrigin(request?: Request) {
-    const origin = request?.headers.get("origin");
-    if (!origin) {
-        return undefined;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? origin : undefined;
-}
-
-function isSameOrigin(request: Request, originHeader: string): boolean {
-    try {
-        return new URL(request.url).origin === originHeader;
-    } catch {
-        return false;
-    }
-}
-
-function ensureAllowedRequestOrigin(request?: Request): string | null {
-    if (!request) {
-        return null;
-    }
-
-    const origin = request.headers.get("origin");
-    if (!origin) {
-        return null;
-    }
-
-    if (isSameOrigin(request, origin)) {
-        return null;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? null : origin;
-}
 
 // Helper to create JSON responses with CORS headers
 function jsonResponse(data: unknown, init?: ResponseInit, request?: Request) {

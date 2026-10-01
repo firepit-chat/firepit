@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { AuthProvider } from "@/contexts/auth-context";
+import { PostHogProvider } from "./posthog-provider";
 import { ThemeProvider } from "./theme-provider";
 import { AccentProvider } from "./accent-provider";
 import { Toaster } from "./ui/sonner";
@@ -36,6 +37,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
     return (
         <QueryClientProvider client={queryClient}>
+            {/* Must sit above every consumer so the browser SDK is configured
+                before AuthProvider or any page captures an event. */}
+            <PostHogProvider>
             <ThemeProvider
                 attribute="data-theme"
                 defaultTheme="latte"
@@ -49,6 +53,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     </AuthProvider>
                 </AccentProvider>
             </ThemeProvider>
+            </PostHogProvider>
         </QueryClientProvider>
     );
 }

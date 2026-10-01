@@ -16,9 +16,27 @@ import {
   type ThemeAccent,
   type ThemePalette,
 } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
 
 const PALETTE_KEY = "@firepit_theme_palette";
 const ACCENT_KEY = "@firepit_theme_accent";
+
+/**
+ * Palette used before the user has chosen one.
+ *
+ * This deliberately tracks the OS light/dark setting rather than defaulting to
+ * Latte unconditionally. The previous theme system followed
+ * `useColorScheme()`, so defaulting to a fixed light palette would hand every
+ * existing dark-mode user a light app on upgrade with no indication why. Latte
+ * stands in for light and Mocha for dark — Mocha rather than the other dark
+ * flavours because it is the one people recognise.
+ *
+ * Map these to `classicLight`/`classicDark` instead if a zero-visual-change
+ * upgrade matters more than landing on Catppuccin by default.
+ */
+function paletteForColorScheme(scheme: string | null | undefined) {
+  return scheme === "dark" ? "mocha" : DEFAULT_THEME_PALETTE;
+}
 
 type ThemePreferenceContextValue = {
   palette: ThemePalette;
@@ -50,8 +68,9 @@ export function ThemePreferenceProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [palette, setPaletteState] = useState<ThemePalette>(
-    DEFAULT_THEME_PALETTE,
+  const systemScheme = useColorScheme();
+  const [palette, setPaletteState] = useState<ThemePalette>(() =>
+    paletteForColorScheme(systemScheme),
   );
   const [accent, setAccentState] = useState<ThemeAccent>(DEFAULT_THEME_ACCENT);
   const [hydrated, setHydrated] = useState(false);
