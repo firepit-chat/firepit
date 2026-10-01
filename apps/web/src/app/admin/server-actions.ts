@@ -5,7 +5,7 @@ import { ID, Query } from "node-appwrite";
 import { requireAdmin, requireAuth, requireModerator } from "@/lib/auth-server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig, perms } from "@/lib/appwrite-core";
-import { normalizeChannelType } from "@/lib/server-channel-access";
+import { normalizeChannelType } from "@/lib/types";
 import { logger } from "@/lib/posthog-utils";
 
 const env = getEnvConfig();
@@ -19,8 +19,6 @@ const MEMBERSHIPS_COLLECTION_ID = env.collections.memberships || undefined;
 type MutationResult =
     | { success: true }
     | { success: false; error: string };
-
-// Reuse shared normalizeChannelType from server-channel-access
 
 async function listDefaultSignupServers(): Promise<Array<{ $id: string }>> {
     const { databases } = getServerClient();

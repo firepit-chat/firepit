@@ -158,7 +158,7 @@ export default function DevicesScreen() {
                                 style={styles.copy}
                             >
                                 Every device signed in to your account. Revoke
-                                any you don't recognize.
+                                any you don’t recognize.
                             </ThemedText>
 
                             <ThemedView

@@ -25,10 +25,15 @@ export function useRealtimeMessages({
     onMessageEvent,
 }: UseRealtimeMessagesOptions) {
     const onEventRef = useRef(onMessageEvent);
-    onEventRef.current = onMessageEvent;
 
     const subRef = useRef<(() => void) | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Synced after commit rather than during render, so a realtime event that
+    // lands between renders still invokes the current closure.
+    useEffect(() => {
+        onEventRef.current = onMessageEvent;
+    });
 
     const doSubscribe = useCallback((): (() => void) | null => {
         if (!filterValue || !accessToken) return null;
@@ -78,7 +83,9 @@ export function useRealtimeMessages({
     }, [instance, accessToken, collectionId, filterField, filterValue]);
 
     const doSubscribeRef = useRef(doSubscribe);
-    doSubscribeRef.current = doSubscribe;
+    useEffect(() => {
+        doSubscribeRef.current = doSubscribe;
+    });
 
     // Subscribe on mount / deps change
     useEffect(() => {

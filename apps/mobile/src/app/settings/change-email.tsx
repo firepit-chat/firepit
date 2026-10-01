@@ -99,7 +99,7 @@ export default function ChangeEmailScreen() {
                                     style={styles.copy}
                                 >
                                     Enter your new email and current password.
-                                    If email verification is enabled, you'll get
+                                    If email verification is enabled, you’ll get
                                     a link to confirm the new address.
                                 </ThemedText>
 

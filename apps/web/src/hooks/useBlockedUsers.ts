@@ -56,7 +56,7 @@ export function useBlockedUsers() {
     }, []);
 
     useEffect(() => {
-        refetch();
+        void refetch();
     }, [refetch]);
 
     const unblock = useCallback(
