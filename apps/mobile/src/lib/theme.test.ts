@@ -98,3 +98,34 @@ if (import.meta.main) {
 
   console.log("theme.test.ts: all assertions passed");
 }
+
+// The pre-2.2 theme system followed the OS light/dark setting. Defaulting to a
+// fixed light palette would hand every existing dark-mode user a light app on
+// upgrade, so the OS-derived default is worth pinning.
+const schemeFor = (scheme: string | null | undefined) =>
+  scheme === "dark" ? "mocha" : DEFAULT_THEME_PALETTE;
+
+if (import.meta.main) {
+  assert(
+    schemeFor("dark") === "mocha",
+    "OS dark defaults to a dark palette, not a light one",
+  );
+  assert(
+    schemeFor("light") === DEFAULT_THEME_PALETTE,
+    "OS light defaults to Latte",
+  );
+  // React Native reports "unspecified" before it resolves, and null on web
+  // before hydration; neither may be treated as an explicit dark preference.
+  assert(schemeFor(null) !== "mocha", "null scheme is not dark");
+  assert(schemeFor("unspecified") !== "mocha", "unspecified is not dark");
+  assert(
+    isDarkPalette(schemeFor("dark")),
+    "the OS dark default must actually be a dark palette",
+  );
+  assert(
+    !isDarkPalette(schemeFor("light")),
+    "the OS light default must actually be a light palette",
+  );
+
+  console.log("theme defaults: all assertions passed");
+}

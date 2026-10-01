@@ -46,9 +46,10 @@ html[data-theme="classicDark"] {
 	color-scheme: dark;
 }
 
-
 /*
- * Palettes. Four Catppuccin flavours selected by `data-theme` on <html>.
+ * Palettes, selected by `data-theme` on <html>: the four Catppuccin flavours
+ * (Latte light, Frappe/Macchiato/Mocha dark) plus Classic Light and
+ * Classic Dark, which preserve the original Firepit themes.
  *
  * Values are standard sRGB -> OKLab conversions of the canonical Catppuccin
  * hex colours, so they round-trip exactly to the published palette.

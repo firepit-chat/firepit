@@ -49,6 +49,7 @@ import {
     parsePollOptions,
     serializePollOptions,
 } from "@/lib/polls";
+import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
 
 const env = getEnvConfig();
 const DATABASE_ID = env.databaseId;
@@ -268,46 +269,7 @@ async function createAttachments(
     return createdIds;
 }
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
 
-if (ALLOWED_ORIGINS.length === 0) {
-    logger.warn(
-        "ALLOWED_ORIGINS is empty; direct-messages route will only allow same-origin requests",
-    );
-}
-
-function getAllowedOrigin(request?: Request) {
-    const origin = request?.headers.get("origin");
-    if (!origin) {
-        return undefined;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? origin : undefined;
-}
-
-function isSameOrigin(request: Request, originHeader: string): boolean {
-    try {
-        return new URL(request.url).origin === originHeader;
-    } catch {
-        return false;
-    }
-}
-
-function ensureAllowedRequestOrigin(request: Request): string | null {
-    const origin = request.headers.get("origin");
-    if (!origin) {
-        return null;
-    }
-
-    if (isSameOrigin(request, origin)) {
-        return null;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? null : origin;
-}
 
 // Helper to create JSON responses with CORS headers
 function jsonResponse(data: unknown, init?: ResponseInit, request?: Request) {

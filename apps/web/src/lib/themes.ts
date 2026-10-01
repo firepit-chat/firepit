@@ -60,6 +60,26 @@ export const DEFAULT_ACCENT: AccentName = "blue";
  */
 export const ACCENT_COOKIE = "firepit-accent";
 
+/**
+ * Cookie holding the palette choice.
+ *
+ * `"theme"` is the library's own default `storageKey`, which the app does not
+ * override. The pre-paint script in the root layout writes this cookie from the
+ * OS preference on a first visit, because the library cannot resolve `system`
+ * onto custom palette names. Declared here so the two are not renamed apart.
+ */
+export const THEME_COOKIE = "theme";
+
+/**
+ * Palette used for a first visit when the OS reports dark mode.
+ *
+ * Mocha rather than the other dark flavours because it is the Catppuccin one
+ * people recognise. `DEFAULT_THEME` is the light counterpart. Both are used in
+ * two places that must agree: the pre-paint script in the root layout, and the
+ * provider's `defaultTheme`.
+ */
+export const DARK_DEFAULT_THEME: ThemeName = "mocha";
+
 /** Human labels for the theme picker. */
 export const THEME_LABELS: Record<ThemeName, string> = {
     latte: "Latte",

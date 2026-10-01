@@ -1,6 +1,7 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider , router } from "expo-router";
 import { useCallback, useMemo } from "react";
 import { View } from "react-native";
+import { StatusBar } from "expo-status-bar";
 
 import { isDarkPalette } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -70,6 +71,16 @@ function TabLayoutContent() {
                     <CacheSettingsProvider>
                         <UpdateProvider>
                             <View style={{ flex: 1, backgroundColor: palette.background }}>
+                                {/*
+                                 * The palette can now disagree with the OS
+                                 * light/dark setting, and app.config.ts sets
+                                 * userInterfaceStyle: "automatic", so the
+                                 * system status bar follows the OS rather than
+                                 * the palette. Left alone, picking Mocha on a
+                                 * light-mode device renders dark status-bar
+                                 * text on a dark background.
+                                 */}
+                                <StatusBar style={dark ? "light" : "dark"} />
                                 {isConnected === false && <OfflineBanner />}
                                 <Stack screenOptions={{ headerShown: false }}>
                                     <Stack.Screen name="index" />

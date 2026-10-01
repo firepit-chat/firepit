@@ -59,15 +59,40 @@ export function ThemeSettings() {
                                         : "border-border",
                                 )}
                             >
+                                {/*
+                                 * These swatches are styled inline on purpose.
+                                 * The Tailwind arbitrary-value shorthand for
+                                 * "background from a CSS variable" compiles to
+                                 * nothing in this setup, which shipped blank
+                                 * swatches, and writing that shorthand in a
+                                 * comment is itself a trap: the scanner reads
+                                 * raw text and will happily generate a rule
+                                 * from it, breaking the CSS parse at build
+                                 * time. So keep variable-driven colours inline
+                                 * and out of the source text.
+                                 *
+                                 * The palette comes from the data-theme and
+                                 * data-accent pair on this element, so the
+                                 * variables resolve per swatch.
+                                 */}
                                 <span
                                     data-theme={name}
                                     data-accent={currentAccent}
                                     aria-hidden="true"
                                     className="flex h-14 w-full overflow-hidden rounded-lg border border-border/60"
                                 >
-                                    <span className="flex-1 bg-[var(--background)]" />
-                                    <span className="flex-1 bg-[var(--primary)]" />
-                                    <span className="flex-1 bg-[var(--accent)]" />
+                                    <span
+                                        className="flex-1"
+                                        style={{ backgroundColor: "var(--background)" }}
+                                    />
+                                    <span
+                                        className="flex-1"
+                                        style={{ backgroundColor: "var(--primary)" }}
+                                    />
+                                    <span
+                                        className="flex-1"
+                                        style={{ backgroundColor: "var(--accent)" }}
+                                    />
                                 </span>
                                 <span className="flex items-center justify-between gap-2 px-0.5 text-sm">
                                     {THEME_LABELS[name]}
@@ -114,7 +139,8 @@ export function ThemeSettings() {
                                     data-theme={currentTheme}
                                     data-accent={name}
                                     aria-hidden="true"
-                                    className="h-5 w-5 shrink-0 rounded-full bg-[var(--primary)] ring-1 ring-black/10"
+                                    className="h-5 w-5 shrink-0 rounded-full ring-1 ring-black/10"
+                                    style={{ backgroundColor: "var(--primary)" }}
                                 />
                                 <span className="truncate">
                                     {ACCENT_LABELS[name]}
