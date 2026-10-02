@@ -24,10 +24,16 @@ bump `version` in `package.json` as part of the same change.
   nodes, so formatting, links and images inside a spoiler render normally.
 - **React Native `Spoiler`** with `accessibilityRole="button"` and
   `accessibilityState={{ expanded }}`, themed through a required `theme` prop.
+- **`registerSpoilerRule`** installs a `markdown-it` inline rule that runs before
+  `emphasis`, so Markdown formatting inside a spoiler is still tokenized rather
+  than swallowed as literal text. Requires `markdown-it` in the consuming app.
 - **`stripSpoilerSyntax`** for surfaces that should not show raw delimiters, such
   as search indexing, notification bodies and reply previews.
 - **Malformed input is non-destructive.** An unmatched `[spoiler]` or
   `[/spoiler]` renders literally and no authored content is dropped.
+- **Cross-platform parity tests.** The web and native adapters are asserted to
+  agree on spoiler counts for every shared input, including malformed ones and
+  delimiters inside code.
 
 ### 📚 Documentation
 

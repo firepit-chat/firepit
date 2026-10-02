@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Features
 
+- **Spoilers.** Wrap any part of a message in `[spoiler]...[/spoiler]` to hide
+  it behind a click-to-reveal control. Formatting, links and images inside a
+  spoiler still render once it is revealed, and a message can contain several.
+  Collapsed content is kept out of the page entirely rather than blurred, so
+  screen readers do not announce it and hidden links are not keyboard-reachable.
+  An unmatched `[spoiler]` renders as literal text rather than hiding the rest
+  of the message.
+
 - **Member list in the chat right rail.** A new Members panel sits above pinned
   messages, listing everyone in the server with their highest-ranked role
   colour. Members are ordered by role rank and then by name, with anyone
