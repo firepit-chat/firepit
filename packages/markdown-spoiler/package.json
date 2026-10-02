@@ -1,0 +1,61 @@
+{
+    "name": "@firepit/markdown-spoiler",
+    "version": "0.1.0",
+    "description": "Accessible, dependency-light click-to-reveal spoiler blocks for Markdown, for React and React Native.",
+    "license": "GPL-3.0-or-later",
+    "sideEffects": false,
+    "type": "module",
+    "files": [
+        "dist",
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE"
+    ],
+    "exports": {
+        ".": {
+            "types": "./dist/web/index.d.ts",
+            "default": "./dist/web/index.js"
+        },
+        "./react-native": {
+            "types": "./dist/native/index.d.ts",
+            "default": "./dist/native/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "types": "./dist/web/index.d.ts",
+    "scripts": {
+        "build": "bun run build:web && bun run build:native",
+        "build:web": "tsc -p tsconfig.build.json",
+        "build:native": "tsc -p tsconfig.build.native.json",
+        "clean": "rm -rf dist",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "peerDependencies": {
+        "react": ">=18",
+        "react-native": ">=0.73"
+    },
+    "peerDependenciesMeta": {
+        "react-native": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "@testing-library/dom": "^10.4.2",
+        "@testing-library/jest-dom": "^6.10.0",
+        "@testing-library/react": "^16.3.3",
+        "@types/mdast": "^4.0.4",
+        "@types/react": "19.2.18",
+        "happy-dom": "^20.14.5",
+        "react": "19.2.8",
+        "react-dom": "19.2.8",
+        "react-native": "0.86.3",
+        "rehype-stringify": "^10.0.1",
+        "remark-parse": "^11.0.0",
+        "remark-rehype": "^11.1.1",
+        "typescript": "~6.0.3",
+        "unified": "^11.0.5",
+        "vitest": "^4.1.11"
+    }
+}
