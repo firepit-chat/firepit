@@ -30,6 +30,7 @@ import {
 } from "./actions";
 import { AvatarUpload } from "./AvatarUpload";
 import { ProfileAppearanceSettings } from "@/components/profile-appearance-settings";
+import { ThemeSettings } from "@/components/theme-settings";
 import { BlockedUsersSettings } from "@/components/blocked-users-settings";
 import { DeveloperModeSettings } from "@/components/developer-mode-settings";
 import { FriendsSettings } from "@/components/friends-settings";
@@ -98,6 +99,11 @@ export default async function SettingsPage() {
             description: "Optional navigation, interface, and content controls.",
             href: "#interface",
             title: "Interface",
+        },
+        {
+            description: "Colour palette and accent colour.",
+            href: "#theme",
+            title: "Theme",
         },
         {
             description: "Cache and notification recovery tools.",
@@ -552,6 +558,21 @@ export default async function SettingsPage() {
                             </div>
                             <DeveloperModeSettings />
                             <NsfwContentSettings />
+                        </section>
+
+                        <section className="scroll-mt-24" id="theme">
+                            <Card className="rounded-xl border border-border/80">
+                                <CardHeader className="space-y-1">
+                                    <CardTitle>Theme</CardTitle>
+                                    <CardDescription>
+                                        Pick a colour palette and the accent used
+                                        for highlights, links, and buttons.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ThemeSettings />
+                                </CardContent>
+                            </Card>
                         </section>
 
                         <section

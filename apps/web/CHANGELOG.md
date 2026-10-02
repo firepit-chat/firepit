@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ✨ Features
+
+- **Member list in the chat right rail.** A new Members panel sits above pinned
+  messages, listing everyone in the server with their highest-ranked role
+  colour. Members are ordered by role rank and then by name, with anyone
+  holding no role at the bottom. The role is resolved on the server, so the
+  panel loads instantly and never needs the full role list.
+  - Backed by a new read-only endpoint, `GET /api/servers/{id}/viewer/members`,
+    that any member can call. The existing `/members` endpoint still requires
+    **Manage Roles**, because the role-management screens read full role
+    assignments and moderation flags from it. The viewer endpoint returns only
+    what a member row renders, and never exposes role ids, ban state, or mute
+    state.
+- **Custom themes.** Light/dark is replaced by six palettes — the four
+  Catppuccin flavours (**Latte**, **Frappé**, **Macchiato**, **Mocha**) plus the
+  **two original Firepit themes** (**Classic Light** and **Classic Dark**) — and
+  a choice of twelve accent colours used for highlights, links, buttons, and
+  charts. Pick a palette and accent from the header menu or **Settings → Theme**
+  on the web, and from **Settings → Appearance** in the mobile app. Your choice
+  is remembered and neither palette nor accent flashes on launch.
+  - The original orange themes are preserved exactly: their primary lives in the
+    default accent slot, so selecting one with no accent chosen reproduces the
+    pre-Catppuccin look. Picking an explicit accent still overrides it.
+  - Catppuccin accent colours are adjusted per palette so that text on an
+    accent-coloured button always clears WCAG AA (4.5:1). Latte's stock accents
+    cannot be used unmodified as button fills — six of the twelve fall below
+    3:1 — so they are lightened to pair with Latte's dark text. The dark
+    palettes already clear 5.3:1 and are used as published.
+
 ### 📚 Documentation
 
 - **The API reference now covers every public route.** All 143 operations
@@ -43,9 +72,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected the `ChannelPermissionOverride` schema in the API reference, which
   described `allow`/`deny` as objects of booleans rather than arrays of
   permission names, and omitted `userId` entirely.
+- The mobile tab bar no longer hardcodes the light-mode border colour, so it
+  matches the selected palette instead of staying light in every dark theme.
+- Mobile views and text no longer pick their light/dark variants from the
+  device's system appearance. Three of the four palettes are dark, so choosing
+  Latte on a dark-mode device previously applied dark-only styling on top of a
+  light palette.
 
 ### ⚙️ Improvements
 
+- Theme and accent choices are stored in a cookie on the web, so the first paint
+  already uses the right colours and the old light/dark launch flash is gone.
+- The member list is fetched through one shared server-side helper, so the
+  read-only viewer and the role-management endpoint can never disagree about a
+  member's roles, ban state, or ordering.
+- The selected palette is no longer written as a React-owned attribute on
+  `<html>`. It used to be rendered server-side as a placeholder, which the theme
+  library also writes — so any re-render of the root layout could overwrite the
+  palette you had chosen. The default palette is now defined in CSS on `:root`
+  instead, which means the page is never unstyled and the choice cannot be
+  clobbered.
+- The theme library moved from `next-themes` to `@teispace/next-themes`, which
+  supports several palettes on one page and is what per-server themes in a future
+  release will build on.
 - **The OpenAPI spec can no longer drift from the code.** `bun run
   check:openapi` walks the route handlers and fails if the spec and the
   handlers disagree in either direction — a route that exists but is

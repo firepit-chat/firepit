@@ -10,9 +10,9 @@ import { Textarea } from "../../components/ui/textarea";
 import { Toaster } from "../../components/ui/sonner";
 import { Avatar } from "../../components/ui/avatar";
 
-// Mock next-themes for Toaster tests
-vi.mock("next-themes", () => ({
-    useTheme: () => ({ theme: "light" }),
+// Mock @teispace/next-themes for Toaster tests
+vi.mock("@teispace/next-themes", () => ({
+    useTheme: () => ({ theme: "latte", resolvedTheme: "latte" }),
 }));
 
 describe("Badge Component", () => {
