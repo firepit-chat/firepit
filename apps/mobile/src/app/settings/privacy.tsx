@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -26,10 +26,17 @@ function getInitials(name: string): string {
     return parts[0].slice(0, 2).toUpperCase();
 }
 
-function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: string }; user: { userId: string; displayName?: string; avatarUrl?: string } } }) {
+function BlockedRow({
+    entry,
+    actionLoading,
+    onUnblock,
+}: {
+    entry: { block: { $id: string; blockedAt: string }; user: { userId: string; displayName?: string; avatarUrl?: string } };
+    actionLoading: string | null;
+    onUnblock: (userId: string) => Promise<boolean>;
+}) {
     const theme = useTheme();
     const initials = getInitials(entry.user.displayName ?? "Unknown");
-    const { actionLoading, unblock } = useBlockedUsers();
     const [localLoading, setLocalLoading] = useState(false);
     const isLoading = actionLoading === entry.user.userId || localLoading;
 
@@ -64,7 +71,7 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
             <Pressable
                 onPress={async () => {
                     setLocalLoading(true);
-                    await unblock(entry.user.userId);
+                    await onUnblock(entry.user.userId);
                     setLocalLoading(false);
                 }}
                 disabled={isLoading}
@@ -87,7 +94,7 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
 
 export default function PrivacySettingsScreen() {
     const theme = useTheme();
-    const { items, loading, error } = useBlockedUsers();
+    const { items, loading, error, actionLoading, unblock } = useBlockedUsers();
     const { preferences, update } = useUserPreferences();
     const [savingPref, setSavingPref] = useState(false);
 
@@ -194,7 +201,12 @@ export default function PrivacySettingsScreen() {
                             ) : (
                                 <View style={styles.blockedList}>
                                     {items.map((item) => (
-                                        <BlockedRow key={item.block.$id} entry={item} />
+                                        <BlockedRow
+                                            key={item.block.$id}
+                                            entry={item}
+                                            actionLoading={actionLoading}
+                                            onUnblock={unblock}
+                                        />
                                     ))}
                                 </View>
                             )}

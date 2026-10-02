@@ -20,7 +20,16 @@ export function useStatusSubscription(
 ) {
   const [statuses, setStatuses] = useState<Record<string, UserStatus>>({});
   const [loading, setLoading] = useState(true);
-  const cancelledRef = useRef(false);
+  /**
+   * Monotonic request counter.
+   *
+   * A ref-based "cancelled" flag is not enough here: React runs the effect
+   * cleanup and the next effect body within the same commit, so the flag is
+   * cleared again before any in-flight request settles. A superseded response
+   * would still pass the check and overwrite state with the previous ID set.
+   * Each fetch claims a sequence number and only the newest may apply.
+   */
+  const seqRef = useRef(0);
 
   // Stable JSON key — only changes when the actual ID set changes
   const idsKey = useMemo(
@@ -31,31 +40,37 @@ export function useStatusSubscription(
     [userIds],
   );
 
-  const applyStatuses = useCallback((data: { statuses?: Record<string, unknown> } | null) => {
-    if (!data?.statuses || cancelledRef.current) return;
-    const statusMap: Record<string, UserStatus> = {};
-    for (const [uid, raw] of Object.entries(data.statuses)) {
-      const s = raw as {
-        userId?: string;
-        status?: string;
-        customMessage?: string;
-        lastSeenAt?: string;
-      };
-      statusMap[uid] = {
-        userId: s.userId ?? uid,
-        status: mapStatus(s.status),
-        customMessage: s.customMessage,
-        lastSeenAt: s.lastSeenAt,
-      };
-    }
-    setStatuses(statusMap);
-  }, []);
+  const applyStatuses = useCallback(
+    (data: { statuses?: Record<string, unknown> } | null, seq: number) => {
+      if (!data?.statuses || seq !== seqRef.current) return;
+      const statusMap: Record<string, UserStatus> = {};
+      for (const [uid, raw] of Object.entries(data.statuses)) {
+        const s = raw as {
+          userId?: string;
+          status?: string;
+          customMessage?: string;
+          lastSeenAt?: string;
+        };
+        statusMap[uid] = {
+          userId: s.userId ?? uid,
+          status: mapStatus(s.status),
+          customMessage: s.customMessage,
+          lastSeenAt: s.lastSeenAt,
+        };
+      }
+      setStatuses(statusMap);
+    },
+    [],
+  );
 
   const fetchStatuses = useCallback(
     async (withLoading: boolean) => {
+      const seq = (seqRef.current += 1);
       if (!instanceUrl || !accessToken) {
-        setStatuses({});
-        if (withLoading) setLoading(false);
+        if (seq === seqRef.current) {
+          setStatuses({});
+          if (withLoading) setLoading(false);
+        }
         return;
       }
 
@@ -67,8 +82,10 @@ export function useStatusSubscription(
       }
 
       if (normalizedIds.length === 0) {
-        setStatuses({});
-        if (withLoading) setLoading(false);
+        if (seq === seqRef.current) {
+          setStatuses({});
+          if (withLoading) setLoading(false);
+        }
         return;
       }
 
@@ -84,12 +101,12 @@ export function useStatusSubscription(
         });
 
         if (response.ok) {
-          applyStatuses(await response.json());
+          applyStatuses(await response.json(), seq);
         }
       } catch {
         // ignore
       } finally {
-        if (!cancelledRef.current && withLoading) {
+        if (withLoading && seq === seqRef.current) {
           setLoading(false);
         }
       }
@@ -101,11 +118,7 @@ export function useStatusSubscription(
 
   // Fetch on mount, ids change, or auth change
   useEffect(() => {
-    cancelledRef.current = false;
     void doFetch();
-    return () => {
-      cancelledRef.current = true;
-    };
   }, [doFetch]);
 
   // Stable polling interval — keyed on auth + ids, not on doFetch
