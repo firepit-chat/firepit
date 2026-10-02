@@ -2,16 +2,22 @@
 
 import { Children, cloneElement, isValidElement } from "react";
 
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import {
+    SPOILER_TAG_NAME,
+    Spoiler,
+    remarkSpoiler,
+    containsSpoilerSyntax,
+} from "@firepit/markdown-spoiler";
 import type { MentionMatch } from "@/lib/mention-utils";
 import { parseMentions } from "@/lib/mention-utils";
 import { EmojiRenderer } from "@/components/emoji-renderer";
 import type { UserProfileData, CustomEmoji } from "@/lib/types";
 
 const MARKDOWN_PATTERN =
-    /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/m;
+    /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[spoiler\]|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/m;
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
@@ -22,9 +28,9 @@ type MentionToken = {
 };
 
 type MarkdownNode = {
-	tagName?: string;
-	value?: string;
-	children?: MarkdownNode[];
+    tagName?: string;
+    value?: string;
+    children?: MarkdownNode[];
 };
 
 interface MessageWithMentionsProps {
@@ -125,12 +131,23 @@ function renderMessageText({
         return renderDecoratedText({ text, customEmojis, mentionTokens });
     }
 
-    return (
-        <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            skipHtml
-            components={{
-                p: ({ children }) => (
+    // `Components` is keyed by intrinsic HTML tag names, so the spoiler node's
+    // custom hName has to be cast in. The cast is safe because react-markdown
+    // routes any unrecognised tag to this entry verbatim.
+    const components = {
+        [SPOILER_TAG_NAME]: ({ children }: { children?: React.ReactNode }) => (
+            <Spoiler
+                classNames={{
+                    root: "my-0.5 inline",
+                    trigger:
+                        "cursor-pointer rounded-sm border border-border/70 bg-muted/60 px-1.5 py-0.5 align-baseline text-sm font-medium text-muted-foreground hover:bg-muted",
+                    content: "ml-1 inline",
+                }}
+            >
+                {children}
+            </Spoiler>
+        ),
+        p: ({ children }) => (
                     <p className="my-1 first:mt-0 last:mb-0">
                         {renderMarkdownChildren({
                             children,
@@ -263,7 +280,19 @@ function renderMessageText({
                         [{alt || "image"}]
                     </span>
                 ),
-            }}
+    } as Components;
+
+    return (
+        <ReactMarkdown
+            remarkPlugins={
+                // Parsing Markdown is the expensive path, so only pay for the
+                // spoiler plugin when the message could actually contain one.
+                containsSpoilerSyntax(text)
+                    ? [remarkGfm, remarkSpoiler]
+                    : [remarkGfm]
+            }
+            skipHtml
+            components={components}
         >
             {text}
         </ReactMarkdown>

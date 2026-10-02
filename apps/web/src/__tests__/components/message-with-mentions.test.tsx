@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MessageWithMentions } from "@/components/message-with-mentions";
 
 describe("MessageWithMentions", () => {
@@ -338,5 +338,99 @@ describe("MessageWithMentions", () => {
 		expect(screen.getByRole("img").getAttribute("alt")).toBe(
 			":party-parrot:",
 		);
+	});
+
+	describe("spoilers", () => {
+		it("should render a collapsed reveal control for a spoiler", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="the butler [spoiler]did it[/spoiler]"
+					currentUserId="user-1"
+				/>,
+			);
+
+			const button = screen.getByRole("button");
+			expect(button.getAttribute("aria-expanded")).toBe("false");
+			expect(container.textContent).not.toContain("did it");
+		});
+
+		it("should reveal the spoiler body when activated", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="the butler [spoiler]did it[/spoiler]"
+					currentUserId="user-1"
+				/>,
+			);
+
+			fireEvent.click(screen.getByRole("button"));
+
+			expect(container.textContent).toContain("did it");
+			expect(screen.getByRole("button").getAttribute("aria-expanded")).toBe(
+				"true",
+			);
+		});
+
+		it("should keep surrounding text visible while a spoiler is collapsed", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="before [spoiler]hidden[/spoiler] after"
+					currentUserId="user-1"
+				/>,
+			);
+
+			expect(container.textContent).toContain("before");
+			expect(container.textContent).toContain("after");
+			expect(container.textContent).not.toContain("hidden");
+		});
+
+		it("should render markdown inside a spoiler once revealed", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="[spoiler]**bold**[/spoiler]"
+					currentUserId="user-1"
+				/>,
+			);
+
+			fireEvent.click(screen.getByRole("button"));
+
+			expect(container.querySelector("strong")?.textContent).toBe("bold");
+		});
+
+		it("should render an unmatched opener literally instead of dropping it", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="oops [spoiler]dangling"
+					currentUserId="user-1"
+				/>,
+			);
+
+			expect(container.textContent).toContain("[spoiler]");
+			expect(screen.queryByRole("button")).toBeNull();
+		});
+
+		it("should not treat delimiters inside inline code as a spoiler", () => {
+			const { container } = render(
+				<MessageWithMentions
+					text="`[spoiler]code[/spoiler]`"
+					currentUserId="user-1"
+				/>,
+			);
+
+			expect(container.querySelector("code")?.textContent).toBe(
+				"[spoiler]code[/spoiler]",
+			);
+			expect(screen.queryByRole("button")).toBeNull();
+		});
+
+		it("should support multiple spoilers in one message", () => {
+			render(
+				<MessageWithMentions
+					text="[spoiler]one[/spoiler] and [spoiler]two[/spoiler]"
+					currentUserId="user-1"
+				/>,
+			);
+
+			expect(screen.getAllByRole("button")).toHaveLength(2);
+		});
 	});
 });

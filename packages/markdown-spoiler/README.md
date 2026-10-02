@@ -86,15 +86,36 @@ your app already has. Pass `classNames` to hook into your own design tokens:
 
 ### React Native
 
-Use the `./react-native` entry point. It needs `react-native` installed in your app.
+Use the `./react-native` entry point. You need `react-native` and `markdown-it`
+installed in your app. `react-native-markdown-display` does not export its
+parser, so pass your own instance with the spoiler rule installed.
 
 ```tsx
-import { Pressable, Text } from "react-native";
-import { Spoiler } from "@firepit/markdown-spoiler/react-native";
+import MarkdownIt from "markdown-it";
+import Markdown from "react-native-markdown-display";
+import {
+  SPOILER_TOKEN_TYPE,
+  Spoiler,
+  registerSpoilerRule,
+} from "@firepit/markdown-spoiler/react-native";
 
-<Spoiler theme={theme} placeholder="Tap to reveal">
-    <Text>{body}</Text>
-</Spoiler>;
+// Built once and reused, so the rule is not re-registered on every render.
+const markdownit = registerSpoilerRule(new MarkdownIt({ typographer: true }));
+
+<Markdown
+  markdownit={markdownit}
+  rules={{
+    // The spoiler token's body is raw Markdown, so re-parse it to keep
+    // formatting, links and mentions working once revealed.
+    [SPOILER_TOKEN_TYPE]: (node) => (
+      <Spoiler theme={theme}>
+        <Markdown markdownit={markdownit}>{node.content}</Markdown>
+      </Spoiler>
+    ),
+  }}
+>
+  {text}
+</Markdown>;
 ```
 
 `theme` is a small structural type, so your existing theme object can be passed
