@@ -65,7 +65,7 @@
         "typecheck": "tsc --noEmit",
         "build": "bun run scripts/build.ts",
         "build:dev": "bun run scripts/build-dev.ts",
-        "test": "bun run src/lib/update/version.test.ts && bun run src/lib/theme.test.ts",
+        "test": "bun run src/lib/update/version.test.ts && bun run src/lib/theme.test.ts && bun run src/lib/mention-utils.test.ts",
         "knip": "knip"
     },
     "private": true

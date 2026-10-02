@@ -14,6 +14,12 @@ export interface EmojiMatch {
 
 const MENTION_REGEX = /(?<![\w@])@([a-zA-Z0-9_]+)/g;
 
+/** Kept in step with the server's poll parser limits. */
+const MAX_POLL_OPTIONS = 10;
+const MIN_POLL_OPTIONS = 2;
+const MAX_POLL_QUESTION_LENGTH = 300;
+const MAX_POLL_OPTION_LENGTH = 120;
+
 export function parseMentions(text: string): MentionMatch[] {
   const matches: MentionMatch[] = [];
   MENTION_REGEX.lastIndex = 0;
@@ -39,6 +45,12 @@ export function getMentionAtCursor(
   const lastAtSymbol = beforeCursor.lastIndexOf("@");
 
   if (lastAtSymbol === -1) {
+    return null;
+  }
+
+  // Match the lookbehind in MENTION_REGEX so an "@" that is part of a word
+  // (an email address, for example) never opens the autocomplete.
+  if (lastAtSymbol > 0 && /[\w@]/.test(text.at(lastAtSymbol - 1) ?? "")) {
     return null;
   }
 
@@ -140,6 +152,36 @@ export function buildPollCommand(
       command: null,
       error:
         "Poll question and options cannot contain double quotes or pipe characters.",
+    };
+  }
+  // Mirror the server's parser limits so an invalid poll is reported here
+  // rather than coming back as a rejected message after it has been sent.
+  if (!question || question.length > MAX_POLL_QUESTION_LENGTH) {
+    return {
+      ok: false,
+      command: null,
+      error: `Poll question must be between 1 and ${MAX_POLL_QUESTION_LENGTH} characters.`,
+    };
+  }
+  if (options.length < MIN_POLL_OPTIONS || options.length > MAX_POLL_OPTIONS) {
+    return {
+      ok: false,
+      command: null,
+      error: `Poll must include between ${MIN_POLL_OPTIONS} and ${MAX_POLL_OPTIONS} options.`,
+    };
+  }
+  if (new Set(options).size !== options.length) {
+    return {
+      ok: false,
+      command: null,
+      error: "Poll options must be unique.",
+    };
+  }
+  if (options.some((o) => !o || o.length > MAX_POLL_OPTION_LENGTH)) {
+    return {
+      ok: false,
+      command: null,
+      error: `Each option must be between 1 and ${MAX_POLL_OPTION_LENGTH} characters.`,
     };
   }
   const quotedOptions = options.map((o) => `"${o}"`).join(" | ");
