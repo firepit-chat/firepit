@@ -1,6 +1,12 @@
 import React, { useMemo } from "react";
 import { Linking, Text, View, type TextStyle } from "react-native";
 import Markdown from "react-native-markdown-display";
+import MarkdownIt from "markdown-it";
+import {
+  SPOILER_TOKEN_TYPE,
+  Spoiler as SpoilerBlock,
+  registerSpoilerRule,
+} from "@firepit/markdown-spoiler/react-native";
 import { parseMentions } from "@/lib/mention-utils";
 import { EmojiRenderer, type CustomEmoji } from "@/components/emoji-renderer";
 import { useTheme } from "@/hooks/use-theme";
@@ -11,7 +17,21 @@ type MessageWithMentionsProps = {
 };
 
 const MARKDOWN_PATTERN =
-  /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/;
+  /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[spoiler\]|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/;
+
+/**
+ * One shared parser instance with the spoiler inline rule installed.
+ *
+ * Built lazily so the rule is only registered when a message actually needs
+ * Markdown, and reused across renders so the parser is not rebuilt for every
+ * message that mounts.
+ */
+let markdownParser: MarkdownIt | null = null;
+
+function getMarkdownParser(): MarkdownIt {
+  markdownParser ??= registerSpoilerRule(new MarkdownIt({ typographer: true }));
+  return markdownParser;
+}
 
 const CODE_REGEX = /`([^`]+)`/g;
 const LINK_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -119,8 +139,26 @@ export function MessageWithMentions({
       <View>
         <Markdown
           style={mdStyles}
+          markdownit={getMarkdownParser()}
           rules={{
             text: (node) => renderPlainText(node.content ?? "", "md"),
+            // The spoiler token carries its body as raw Markdown, so it is
+            // re-parsed through the same renderer. That keeps formatting,
+            // links and mentions working inside a revealed spoiler.
+            [SPOILER_TOKEN_TYPE]: (node) => (
+              <SpoilerBlock theme={colors}>
+                <Markdown
+                  style={mdStyles}
+                  markdownit={getMarkdownParser()}
+                  rules={{
+                    text: (child) =>
+                      renderPlainText(child.content ?? "", "spoiler"),
+                  }}
+                >
+                  {node.content ?? ""}
+                </Markdown>
+              </SpoilerBlock>
+            ),
           }}
         >
           {text}
