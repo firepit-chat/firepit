@@ -26,11 +26,11 @@
         "mobile:lint": "cd apps/mobile && bun run lint"
     },
     "devDependencies": {
-        "turbo": "^2.11.2"
+        "turbo": "^2.11.6"
     },
     "dependencies": {
         "@babel/preset-typescript": "^7.29.7",
-        "@types/node": "^25.9.8"
+        "@types/node": "^25.9.9"
     },
     "trustedDependencies": [
         "react-native-libsodium"

@@ -50,7 +50,7 @@ void registerAndroidChannel();
  * Push notification data payload sent from the server.
  */
 export type PushNotificationData = {
-  type: "message" | "mention" | "dm";
+  type: "message" | "mention" | "dm" | "thread_reply";
   serverId?: string;
   channelId?: string;
   conversationId?: string;
@@ -63,20 +63,76 @@ export type PushNotificationData = {
  */
 export function usePushNotificationHandler() {
   const lastDataRef = useRef<PushNotificationData | null>(null);
+  // Notification ids we have already routed to. On a cold start the stored
+  // response is drained explicitly *and* the response listener can fire for the
+  // very same tap, so dedupe on the per-push identifier to avoid navigating
+  // twice (and pushing the same route onto the stack two entries deep).
+  const handledIdsRef = useRef<Set<string>>(new Set());
 
   const navigateTo = useCallback((data: PushNotificationData) => {
-    if (data.type === "dm" && data.conversationId && data.messageId) {
+    // Channel-scoped payloads cover plain messages, mentions and thread
+    // replies — they all land on the same thread route, so they share a
+    // branch. The server also omits messageId on some of these, so fall back
+    // to the channel itself rather than dropping the tap.
+    const isChannelScoped =
+      data.type === "message" ||
+      data.type === "mention" ||
+      data.type === "thread_reply";
+    if (isChannelScoped && data.serverId && data.channelId) {
       router.push(
-        `/thread/${data.conversationId}/${data.messageId}` as never,
+        (data.messageId
+          ? `/thread/${data.serverId}/${data.channelId}/${data.messageId}`
+          : `/server/messages/${data.serverId}/${data.channelId}`) as never,
       );
-    } else if (data.type === "message" && data.serverId && data.channelId && data.messageId) {
+      return;
+    }
+    if (data.type === "dm" && data.conversationId) {
       router.push(
-        `/thread/${data.serverId}/${data.channelId}/${data.messageId}` as never,
+        (data.messageId
+          ? `/thread/${data.conversationId}/${data.messageId}`
+          : `/dm/${data.conversationId}`) as never,
       );
     }
   }, []);
 
   useEffect(() => {
+    const routeResponse = (response: {
+      notification: { request: { identifier?: string; content: { data?: unknown } } };
+    }) => {
+      const data = response.notification.request.content.data as
+        | PushNotificationData
+        | undefined;
+      if (!data) return;
+
+      const id = response.notification.request.identifier;
+      if (id) {
+        if (handledIdsRef.current.has(id)) return;
+        handledIdsRef.current.add(id);
+      }
+
+      if (data.type === "message") {
+        lastDataRef.current = data;
+      }
+      navigateTo(data);
+    };
+
+    // A tap on the notification that cold-launched the app never reaches
+    // addNotificationResponseReceivedListener, so the stored response has to be
+    // drained explicitly on startup or the tap is silently swallowed.
+    //
+    // getLastNotificationResponse() is NOT self-clearing: it persists across
+    // launches, so it must be cleared once drained or every subsequent cold
+    // start would replay the same navigation.
+    try {
+      const response = Notifications.getLastNotificationResponse();
+      if (response) {
+        routeResponse(response);
+        Notifications.clearLastNotificationResponse();
+      }
+    } catch {
+      // no stored response, or the native module is unavailable
+    }
+
     // Foreground: notification received while app is open
     const notifSub = Notifications.addNotificationReceivedListener(
       (notification) => {
@@ -92,12 +148,7 @@ export function usePushNotificationHandler() {
     // Background/killed: user tapped the notification
     const responseSub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const data = response.notification.request.content.data as
-          | PushNotificationData
-          | undefined;
-        if (data) {
-          navigateTo(data);
-        }
+        routeResponse(response);
       },
     );
 
