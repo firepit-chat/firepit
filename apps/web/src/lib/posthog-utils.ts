@@ -19,6 +19,8 @@ import {
 
 import { PostHog } from "posthog-node";
 
+import { isTelemetryAllowedForUser } from "@/lib/telemetry-consent";
+
 // OTLP log pipeline to PostHog. Resolved lazily so importing this module
 // touches no env or telemetry state.
 function getPostHogLogsConfig() {
@@ -218,10 +220,33 @@ function emitPostHogLog(params: {
         return;
     }
 
-    serverLoggerInstance.emit({
-        body: params.body,
-        severityNumber: params.severityNumber,
-        attributes: normalizeLogAttributes(redactAttributes(params.attributes)),
+    // Same consent gate as the capture path: a structured log record carrying a
+    // user id is still that person's telemetry, so it must not outlive their
+    // opt-out. Records with no identifiable user are infrastructure logs and
+    // always go out.
+    const distinctId = getDistinctId(params.attributes);
+    if (distinctId === SERVER_DISTINCT_ID) {
+        serverLoggerInstance.emit({
+            body: params.body,
+            severityNumber: params.severityNumber,
+            attributes: normalizeLogAttributes(
+                redactAttributes(params.attributes),
+            ),
+        });
+        return;
+    }
+
+    void isTelemetryAllowedForUser(distinctId).then((allowed) => {
+        if (!allowed) {
+            return;
+        }
+        serverLoggerInstance.emit({
+            body: params.body,
+            severityNumber: params.severityNumber,
+            attributes: normalizeLogAttributes(
+                redactAttributes(params.attributes),
+            ),
+        });
     });
 }
 
@@ -378,17 +403,28 @@ function capturePostHogServerError(
 ) {
     const errorObject = toError(error);
 
-    try {
-        getPostHogClient().captureException(errorObject, "server", {
-            errorMessage: errorObject.message,
-            errorName: errorObject.name,
-            errorStack: errorObject.stack,
-            ...properties,
-        });
-        schedulePostHogClientFlush();
-    } catch {
-        // Telemetry forwarding should never impact request handling.
-    }
+    const distinctId = getDistinctId(properties);
+
+    void (async () => {
+        if (
+            distinctId !== SERVER_DISTINCT_ID &&
+            !(await isTelemetryAllowedForUser(distinctId))
+        ) {
+            return;
+        }
+
+        try {
+            getPostHogClient().captureException(errorObject, "server", {
+                errorMessage: errorObject.message,
+                errorName: errorObject.name,
+                errorStack: errorObject.stack,
+                ...properties,
+            });
+            schedulePostHogClientFlush();
+        } catch {
+            // Telemetry forwarding should never impact request handling.
+        }
+    })();
 }
 
 let posthogProcessHandlersRegistered = false;
@@ -482,7 +518,7 @@ function getDistinctId(attributes?: Record<string, unknown>) {
         return candidate;
     }
 
-    return "server";
+    return SERVER_DISTINCT_ID;
 }
 
 function getPersonProperties(attributes?: Record<string, unknown>) {
@@ -511,6 +547,17 @@ function getPersonProperties(attributes?: Record<string, unknown>) {
     return Object.keys(properties).length > 0 ? properties : undefined;
 }
 
+/** Sentinel distinct id for telemetry with no resolvable person. */
+const SERVER_DISTINCT_ID = "server";
+
+/**
+ * Drops telemetry attributable to a user who disabled it.
+ *
+ * The consent lookup is async and the capture path is synchronous, so the
+ * check runs inside a floating promise and the capture happens in its
+ * continuation. Events with no identifiable user keep the "server" distinct id
+ * and are always sent — there is no person whose consent could apply.
+ */
 function capturePostHogEvent(
     event: string,
     attributes?: Record<string, unknown>,
@@ -519,26 +566,37 @@ function capturePostHogEvent(
         return;
     }
 
-    try {
-        const posthog = getPostHogClient();
-        const safeAttributes = redactAttributes(attributes);
-        const personProperties = getPersonProperties(safeAttributes);
-        posthog.capture({
-            distinctId: getDistinctId(attributes),
-            event,
-            properties: personProperties
-                ? {
-                      ...safeAttributes,
-                      $set: {
-                          ...personProperties,
-                      },
-                  }
-                : safeAttributes,
-        });
-        schedulePostHogClientFlush();
-    } catch {
-        // Telemetry forwarding should never impact request handling.
-    }
+    const distinctId = getDistinctId(attributes);
+
+    void (async () => {
+        if (
+            distinctId !== SERVER_DISTINCT_ID &&
+            !(await isTelemetryAllowedForUser(distinctId))
+        ) {
+            return;
+        }
+
+        try {
+            const posthog = getPostHogClient();
+            const safeAttributes = redactAttributes(attributes);
+            const personProperties = getPersonProperties(safeAttributes);
+            posthog.capture({
+                distinctId,
+                event,
+                properties: personProperties
+                    ? {
+                          ...safeAttributes,
+                          $set: {
+                              ...personProperties,
+                          },
+                      }
+                    : safeAttributes,
+            });
+            schedulePostHogClientFlush();
+        } catch {
+            // Telemetry forwarding should never impact request handling.
+        }
+    })();
 }
 
 /**

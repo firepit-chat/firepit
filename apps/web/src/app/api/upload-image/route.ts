@@ -12,11 +12,8 @@ import {
     trackApiCall,
     recordEvent,
 } from "@/lib/posthog-utils";
+import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
 
 const APPWRITE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const ALLOWED_IMAGE_TYPES = [
@@ -27,41 +24,6 @@ const ALLOWED_IMAGE_TYPES = [
 ] as const;
 const ALLOWED_IMAGE_TYPE_SET = new Set<string>(ALLOWED_IMAGE_TYPES);
 
-if (ALLOWED_ORIGINS.length === 0) {
-    logger.warn(
-        "ALLOWED_ORIGINS is empty; upload-image route will only allow same-origin requests",
-    );
-}
-
-function getAllowedOrigin(request?: Request) {
-    const origin = request?.headers.get("origin");
-    if (!origin) {
-        return undefined;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? origin : undefined;
-}
-
-function isSameOrigin(request: Request, originHeader: string): boolean {
-    try {
-        return new URL(request.url).origin === originHeader;
-    } catch {
-        return false;
-    }
-}
-
-function ensureAllowedRequestOrigin(request: Request): string | null {
-    const origin = request.headers.get("origin");
-    if (!origin) {
-        return null;
-    }
-
-    if (isSameOrigin(request, origin)) {
-        return null;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? null : origin;
-}
 
 function canUserDeleteImage(
     permissions: unknown,

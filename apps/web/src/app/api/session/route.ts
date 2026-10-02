@@ -1,35 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { Account, Client } from "node-appwrite";
+import { Account, Client, Users } from "node-appwrite";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
+import { getServerClient } from "@/lib/appwrite-server";
 import { logger } from "@/lib/posthog-utils";
+import { ensureAllowedRequestOrigin } from "@/lib/request-origin";
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
-function isSameOrigin(request: Request, originHeader: string): boolean {
-    try {
-        return new URL(request.url).origin === originHeader;
-    } catch {
-        return false;
-    }
-}
-
-function ensureAllowedRequestOrigin(request: Request): string | null {
-    const origin = request.headers.get("origin");
-    if (!origin) {
-        return null;
-    }
-
-    if (isSameOrigin(request, origin)) {
-        return null;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? null : origin;
-}
 
 /**
  * GET /api/session
@@ -37,6 +14,13 @@ function ensureAllowedRequestOrigin(request: Request): string | null {
  * Returns a short-lived JWT minted from the httpOnly session cookie, so the
  * client can authenticate the realtime WebSocket without ever receiving the
  * raw session secret.
+ *
+ * `account.createJWT()` was removed in node-appwrite 29; the replacement lives
+ * on the server-side `users` service, which needs an API key and an explicit
+ * user id. The user id is therefore resolved by verifying the cookie session
+ * against Appwrite rather than decoded out of the cookie — reading `sub` from
+ * the unverified cookie would let a caller mint a JWT as any user, because
+ * `users.createJWT` runs with the API key and trusts the id it is given.
  */
 export async function GET() {
     try {
@@ -51,12 +35,18 @@ export async function GET() {
             );
         }
 
-        const client = new Client()
+        // Verifies the session and returns the account it belongs to.
+        const sessionClient = new Client()
             .setEndpoint(env.endpoint)
             .setProject(env.project)
             .setSession(sessionCookie.value);
 
-        const jwt = await new Account(client).createJWT();
+        const account = await new Account(sessionClient).get();
+        const userId = account.$id;
+
+        const jwt = await new Users(
+            getServerClient().client,
+        ).createJWT({ userId });
 
         return NextResponse.json({
             jwt: jwt.jwt,

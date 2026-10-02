@@ -247,10 +247,17 @@ function FriendRow({
   );
 }
 
-function BlockedRow({ entry }: { entry: BlockedUserEntry }) {
+function BlockedRow({
+  entry,
+  actionLoading,
+  onUnblock,
+}: {
+  entry: BlockedUserEntry;
+  actionLoading: string | null;
+  onUnblock: (userId: string) => Promise<boolean>;
+}) {
   const theme = useTheme();
   const initials = getInitials(entry.user.displayName ?? "Unknown");
-  const { actionLoading, unblock } = useBlockedUsers();
   const [localLoading, setLocalLoading] = useState(false);
   const isLoading = actionLoading === entry.user.userId || localLoading;
 
@@ -308,7 +315,7 @@ function BlockedRow({ entry }: { entry: BlockedUserEntry }) {
       <Pressable
         onPress={async () => {
           setLocalLoading(true);
-          await unblock(entry.user.userId);
+          await onUnblock(entry.user.userId);
           setLocalLoading(false);
         }}
         disabled={isLoading}
@@ -341,7 +348,9 @@ export default function FriendsScreen() {
   const {
     items: blocked,
     loading: blockedLoading,
+    actionLoading: blockedActionLoading,
     refetch: refetchBlocked,
+    unblock: unblockBlocked,
   } = useBlockedUsers();
   const [tab, setTab] = useState<Tab>("friends");
   const [refreshing, setRefreshing] = useState(false);
@@ -370,7 +379,13 @@ export default function FriendsScreen() {
   const renderItem = useCallback(
     ({ item }: { item: FriendshipEntry | BlockedUserEntry }) => {
       if (tab === "blocked") {
-        return <BlockedRow entry={item as BlockedUserEntry} />;
+        return (
+          <BlockedRow
+            entry={item as BlockedUserEntry}
+            actionLoading={blockedActionLoading}
+            onUnblock={unblockBlocked}
+          />
+        );
       }
       return (
         <FriendRow
@@ -380,7 +395,7 @@ export default function FriendsScreen() {
         />
       );
     },
-    [tab, refetch],
+    [tab, refetch, blockedActionLoading, unblockBlocked],
   );
 
   return (

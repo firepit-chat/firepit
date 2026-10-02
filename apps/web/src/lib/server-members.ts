@@ -5,6 +5,7 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { chunkValues, listPages } from "@/lib/appwrite-pagination";
 import { logger } from "@/lib/posthog-utils";
 import type { Role } from "@/lib/types";
+import type { MemberPrimaryRole } from "@/lib/api/typed";
 
 const env = getEnvConfig();
 const databaseId = env.databaseId || "main";
@@ -18,13 +19,11 @@ const QUERY_ARRAY_LIMIT = 100;
 const PAGE_SIZE = 100;
 const MAX_DOCS = 10_000;
 
-/** The single role shown next to a member: their highest-ranked one. */
-export type MemberPrimaryRole = {
-    id: string;
-    name: string;
-    color: string;
-    position: number;
-};
+/**
+ * The role shape comes from the generated API types, so the spec stays the one
+ * description of it. It used to be restated here and had already drifted once.
+ */
+export type { MemberPrimaryRole } from "@/lib/api/typed";
 
 export type ServerMember = {
     userId: string;
