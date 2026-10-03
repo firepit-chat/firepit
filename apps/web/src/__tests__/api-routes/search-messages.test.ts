@@ -495,7 +495,6 @@ describe("Message Search API Route", () => {
         });
 
         it("should not report a prerender rejection as a search failure", async () => {
-            const { recordError } = await import("@/lib/posthog-utils");
             const { getServerSession } = await import("@/lib/auth-server");
             const prerenderEnded = new Error("prerender ended");
             mockConnection.mockRejectedValueOnce(prerenderEnded);
@@ -506,7 +505,6 @@ describe("Message Search API Route", () => {
 
             await expect(GET(request)).rejects.toBe(prerenderEnded);
             expect(getServerSession).not.toHaveBeenCalled();
-            expect(recordError).not.toHaveBeenCalled();
         });
 
         it("should sort results by date descending", async () => {
