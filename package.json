@@ -27,7 +27,7 @@
         "mobile:lint": "cd apps/mobile && bun run lint"
     },
     "devDependencies": {
-        "turbo": "^2.11.6"
+        "turbo": "^2.11.7"
     },
     "dependencies": {
         "@babel/preset-typescript": "^7.29.7",

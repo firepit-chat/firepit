@@ -15,10 +15,11 @@
         "forceConsistentCasingInFileNames": true,
         "skipLibCheck": true,
         "declaration": true,
-        "declarationMap": true,
-        "sourceMap": true,
+        "declarationMap": false,
+        "sourceMap": false,
         "outDir": "dist",
-        "rootDir": "src"
+        "rootDir": "src",
+        "removeComments": true
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
     "exclude": ["node_modules", "dist"]

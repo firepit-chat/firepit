@@ -8,6 +8,7 @@ import {
     Trash2,
 } from "lucide-react";
 
+import { truncatePlainText } from "@firepit-chat/markdown-spoiler";
 import type { ChatSurfaceMessage } from "@/lib/chat-surface";
 import type { CustomEmoji } from "@/lib/types";
 import { FileAttachmentDisplay } from "@/components/file-attachment-display";
@@ -36,7 +37,10 @@ type ChatSurfaceMessageItemProps = {
         emoji: string,
         isAdding: boolean,
     ) => Promise<void>;
-    onVotePoll?: (message: ChatSurfaceMessage, optionId: string) => Promise<void>;
+    onVotePoll?: (
+        message: ChatSurfaceMessage,
+        optionId: string,
+    ) => Promise<void>;
     onClosePoll?: (message: ChatSurfaceMessage) => Promise<void>;
     onOpenProfileModal?: (
         userId: string,
@@ -186,9 +190,7 @@ export function ChatSurfaceMessageItem({
                                 {message.replyTo.authorLabel || "User"}
                             </span>
                             <span className="ml-1 text-muted-foreground">
-                                {message.replyTo.text.length > 50
-                                    ? `${message.replyTo.text.slice(0, 50)}...`
-                                    : message.replyTo.text}
+                                {truncatePlainText(message.replyTo.text, 50)}
                             </span>
                         </div>
                     </div>
