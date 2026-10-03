@@ -21,11 +21,7 @@ interface SettingsSectionNavProps {
     variant?: "compact" | "sidebar";
 }
 
-function getInitialActiveHref(sections: readonly SettingsSection[]) {
-    if (typeof window === "undefined") {
-        return sections[0]?.href ?? "#";
-    }
-
+function getHashActiveHref(sections: readonly SettingsSection[]) {
     const hash = window.location.hash;
     const matchingSection = sections.find((section) => section.href === hash);
     return matchingSection?.href ?? sections[0]?.href ?? "#";
@@ -50,15 +46,15 @@ export function SettingsSectionNav({
     sections,
     variant = "sidebar",
 }: SettingsSectionNavProps) {
-    const [activeHref, setActiveHref] = useState(() =>
-        getInitialActiveHref(sections),
+    const [activeHref, setActiveHref] = useState(
+        sections[0]?.href ?? "#",
     );
 
     useEffect(() => {
-        setActiveHref(getInitialActiveHref(sections));
+        setActiveHref(getHashActiveHref(sections));
 
         const handleHashChange = () => {
-            setActiveHref(getInitialActiveHref(sections));
+            setActiveHref(getHashActiveHref(sections));
         };
 
         window.addEventListener("hashchange", handleHashChange);

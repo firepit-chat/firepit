@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 🐛 Fixes
+
+- **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
+
 ## [2.1.0] - 2026-09-27
 
 ### ✨ Features
