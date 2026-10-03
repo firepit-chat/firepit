@@ -6,7 +6,9 @@
     "scripts": {
         "dev": "next dev",
         "dev:webpack": "next dev --webpack",
+        "prebuild": "bun run build:workspace-deps",
         "build": "bun run generate-version && next build",
+        "build:workspace-deps": "cd ../.. && bunx turbo run build --filter='@firepit-chat/*'",
         "build:webpack": "bun run generate-version && next build --webpack",
         "build:analyze": "ANALYZE=true next build --webpack",
         "generate-version": "bun scripts/generate-version.ts",
