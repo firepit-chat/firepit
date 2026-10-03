@@ -32,6 +32,18 @@ export type SpoilerProps = {
     readonly revealed?: boolean;
     readonly onRevealedChange?: (revealed: boolean) => void;
     readonly classNames?: SpoilerClassNames;
+    /**
+     * Render the trigger as a focusable `<span role="button">` instead of a
+     * real `<button>`.
+     *
+     * HTML forbids interactive content inside a `<button>`, so a spoiler
+     * rendered inside one — a search result row, for example — would otherwise
+     * produce invalid markup and a React hydration error. The span form keeps
+     * the same role, expanded state and keyboard handling.
+     *
+     * Prefer the default real button everywhere else.
+     */
+    readonly inlineTrigger?: boolean;
 };
 
 const DEFAULT_HIDE_LABEL = "Hide spoiler";
@@ -54,6 +66,7 @@ export function Spoiler({
     revealed,
     onRevealedChange,
     classNames,
+    inlineTrigger = false,
 }: SpoilerProps) {
     const [internalRevealed, setInternalRevealed] = useState(defaultRevealed);
     const isControlled = revealed !== undefined;
@@ -73,22 +86,79 @@ export function Spoiler({
             data-spoiler="true"
             data-revealed={isRevealed ? "true" : "false"}
         >
-            <button
-                type="button"
-                aria-expanded={isRevealed}
-                aria-controls={contentId}
+            <Trigger
+                inline={inlineTrigger}
+                expanded={isRevealed}
+                controls={contentId}
                 className={classNames?.trigger}
-                onClick={() => {
+                label={isRevealed ? hideLabel : placeholder}
+                onActivate={() => {
                     setRevealed(!isRevealed);
                 }}
-            >
-                {isRevealed ? hideLabel : placeholder}
-            </button>
+            />
             {isRevealed ? (
                 <span className={classNames?.content} id={contentId}>
                     {children}
                 </span>
             ) : null}
         </span>
+    );
+}
+
+type TriggerProps = {
+    inline: boolean;
+    expanded: boolean;
+    controls: string;
+    className?: string;
+    label: string;
+    onActivate: () => void;
+};
+
+/**
+ * The reveal control.
+ *
+ * A real `<button>` by default. The inline variant exists only because HTML
+ * forbids interactive content inside a `<button>`, so a spoiler rendered within
+ * one needs a non-button element that still exposes the same semantics.
+ */
+function Trigger({
+    inline,
+    expanded,
+    controls,
+    className,
+    label,
+    onActivate,
+}: TriggerProps) {
+    if (inline) {
+        return (
+            <span
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded}
+                aria-controls={controls}
+                className={className}
+                onClick={onActivate}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onActivate();
+                    }
+                }}
+            >
+                {label}
+            </span>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={controls}
+            className={className}
+            onClick={onActivate}
+        >
+            {label}
+        </button>
     );
 }

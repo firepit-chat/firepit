@@ -2,6 +2,7 @@
 
 import { formatDistanceToNow } from "date-fns";
 import { Hash, MessageSquare, Image as ImageIcon } from "lucide-react";
+import { truncateMarkdown } from "@firepit-chat/markdown-spoiler";
 import { MessageWithMentions } from "@/components/message-with-mentions";
 import { buildChatMessageHref } from "@/lib/message-navigation";
 import type { Message, DirectMessage, CustomEmoji } from "@/lib/types";
@@ -26,11 +27,20 @@ function formatTimestamp(timestamp: string): string {
     }
 }
 
+/**
+ * Truncate for the result preview.
+ *
+ * The preview is rendered through the full Markdown renderer, so a spoiler that
+ * survives the cut is shown as a real, revealable spoiler rather than stripped
+ * to plain text. A spoilered message therefore still reads as hidden while
+ * remaining searchable, which is the intended compromise.
+ *
+ * `truncateMarkdown` exists so that a cut landing *inside* a spoiler closes it
+ * off rather than leaving an unmatched `[spoiler]`, which every renderer treats
+ * as literal text and would therefore expose the hidden body.
+ */
 function truncateText(text: string, maxLength = 150): string {
-    if (text.length <= maxLength) {
-        return text;
-    }
-    return `${text.slice(0, maxLength)}...`;
+    return truncateMarkdown(text, maxLength);
 }
 
 function UserAvatar({
@@ -164,6 +174,7 @@ export function SearchResults({
                                     currentUserId=""
                                     customEmojis={customEmojis}
                                     renderLinks={false}
+                                    spoilerInlineTrigger
                                 />
                             </div>
 

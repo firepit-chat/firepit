@@ -5,6 +5,8 @@ export {
     splitBySpoilers,
     stripSpoilerSyntax,
     tokenizeSpoilerDelimiters,
+    truncateMarkdown,
+    truncatePlainText,
 } from "../shared/syntax.js";
 
 export type { SpoilerSegment, SpoilerToken } from "../shared/syntax.js";

@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   screen readers do not announce it and hidden links are not keyboard-reachable.
   An unmatched `[spoiler]` renders as literal text rather than hiding the rest
   of the message.
+- **Spoilers in search results.** Spoilered messages stay searchable. A result
+  renders the spoiler as a real, revealable spoiler rather than flattening it to
+  plain text, so the message still reads as hidden without giving up search.
+- **No spoiler text leaking into previews.** Notification bodies and reply
+  previews no longer risk slicing a spoiler open and showing its contents.
 
 - **Member list in the chat right rail.** A new Members panel sits above pinned
   messages, listing everyone in the server with their highest-ranked role
@@ -86,7 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   undocumented — is now described in `.env.local.example` and is only needed for
   genuinely cross-origin callers, not for normal single-origin deployments.
 
-
 - **Per-channel permission overrides now work on a fresh instance.** The
   `channel_permission_overrides` collection was never created by the setup
   script, so a new deployment had no table for the feature to write to. It is
@@ -105,7 +109,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ⚙️ Improvements
 
 - **API client types are now generated from the spec.** `bun run
-  generate:api-types` produces TypeScript types directly from the documented
+generate:api-types` produces TypeScript types directly from the documented
   API, and CI fails if they drift from the spec. Combined with the existing
   spec-versus-routes check, the documented API can no longer quietly disagree
   with either the server or the clients compiling against it.
