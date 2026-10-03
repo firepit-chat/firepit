@@ -3,7 +3,6 @@
     "version": "0.1.0",
     "description": "Accessible, dependency-light click-to-reveal spoiler blocks for Markdown, for React and React Native.",
     "license": "GPL-3.0-or-later",
-    "private": "false",
     "author": {
         "name": "Autumn Carlson"
     },
