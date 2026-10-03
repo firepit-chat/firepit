@@ -18,7 +18,8 @@
         "declarationMap": true,
         "sourceMap": true,
         "outDir": "dist",
-        "rootDir": "src"
+        "rootDir": "src",
+        "removeComments": true
     },
     "include": ["src/**/*.ts", "src/**/*.tsx"],
     "exclude": ["node_modules", "dist"]

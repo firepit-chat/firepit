@@ -193,4 +193,71 @@ describe("Spoiler (web)", () => {
             expect(container.innerHTML).not.toContain("animation");
         });
     });
+
+    describe("inlineTrigger", () => {
+        // Used where a spoiler renders inside another <button>, such as a search
+        // result row. HTML forbids nesting interactive elements, so a real
+        // button there would be invalid markup and a hydration error.
+        it("renders a span with role=button rather than a button element", () => {
+            const { container } = render(
+                <Spoiler inlineTrigger>hidden</Spoiler>,
+            );
+
+            expect(container.querySelector("button")).toBeNull();
+            expect(container.querySelector('[role="button"]')).not.toBeNull();
+        });
+
+        it("keeps the same accessible semantics as the default trigger", () => {
+            render(<Spoiler inlineTrigger>hidden</Spoiler>);
+
+            const node = trigger();
+            expect(node.tagName).toBe("SPAN");
+            expect(node.getAttribute("aria-expanded")).toBe("false");
+            expect(node.getAttribute("aria-controls")).toBeTruthy();
+        });
+
+        it("is keyboard reachable", () => {
+            render(<Spoiler inlineTrigger>hidden</Spoiler>);
+
+            expect(trigger().getAttribute("tabindex")).toBe("0");
+        });
+
+        it("reveals on click", () => {
+            render(<Spoiler inlineTrigger>hidden</Spoiler>);
+
+            fireEvent.click(trigger());
+
+            expect(screen.getByText("hidden")).toBeTruthy();
+        });
+
+        it("reveals on Enter and Space", () => {
+            render(<Spoiler inlineTrigger>hidden</Spoiler>);
+
+            fireEvent.keyDown(trigger(), { key: "Enter" });
+
+            expect(screen.getByText("hidden")).toBeTruthy();
+        });
+
+        it("keeps the body out of the DOM while collapsed, as usual", () => {
+            const { container } = render(
+                <Spoiler inlineTrigger>
+                    <a href="https://example.com">secret link</a>
+                </Spoiler>,
+            );
+
+            expect(container.textContent).not.toContain("secret link");
+            expect(screen.queryByRole("link")).toBeNull();
+        });
+
+        it("does not produce a nested button inside a button", () => {
+            // The exact situation this option exists for.
+            const { container } = render(
+                <button type="button">
+                    <Spoiler inlineTrigger>hidden</Spoiler>
+                </button>,
+            );
+
+            expect(container.querySelector("button button")).toBeNull();
+        });
+    });
 });

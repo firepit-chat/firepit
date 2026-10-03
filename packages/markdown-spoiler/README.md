@@ -1,4 +1,4 @@
-# @firepit/markdown-spoiler
+# @firepit-chat/markdown-spoiler
 
 Accessible, dependency-light click-to-reveal spoiler blocks for Markdown, for
 React and React Native.
@@ -50,7 +50,7 @@ import {
     Spoiler,
     containsSpoilerSyntax,
     remarkSpoiler,
-} from "@firepit/markdown-spoiler";
+} from "@firepit-chat/markdown-spoiler";
 
 const components = {
     [SPOILER_TAG_NAME]: ({ children }) => <Spoiler>{children}</Spoiler>,
@@ -94,27 +94,27 @@ parser, so pass your own instance with the spoiler rule installed.
 import MarkdownIt from "markdown-it";
 import Markdown from "react-native-markdown-display";
 import {
-  SPOILER_TOKEN_TYPE,
-  Spoiler,
-  registerSpoilerRule,
-} from "@firepit/markdown-spoiler/react-native";
+    SPOILER_TOKEN_TYPE,
+    Spoiler,
+    registerSpoilerRule,
+} from "@firepit-chat/markdown-spoiler/react-native";
 
 // Built once and reused, so the rule is not re-registered on every render.
 const markdownit = registerSpoilerRule(new MarkdownIt({ typographer: true }));
 
 <Markdown
-  markdownit={markdownit}
-  rules={{
-    // The spoiler token's body is raw Markdown, so re-parse it to keep
-    // formatting, links and mentions working once revealed.
-    [SPOILER_TOKEN_TYPE]: (node) => (
-      <Spoiler theme={theme}>
-        <Markdown markdownit={markdownit}>{node.content}</Markdown>
-      </Spoiler>
-    ),
-  }}
+    markdownit={markdownit}
+    rules={{
+        // The spoiler token's body is raw Markdown, so re-parse it to keep
+        // formatting, links and mentions working once revealed.
+        [SPOILER_TOKEN_TYPE]: (node) => (
+            <Spoiler theme={theme}>
+                <Markdown markdownit={markdownit}>{node.content}</Markdown>
+            </Spoiler>
+        ),
+    }}
 >
-  {text}
+    {text}
 </Markdown>;
 ```
 
@@ -153,14 +153,34 @@ user sees the syntax they typed.
 
 ## Other exports
 
+- `truncateMarkdown(text, maxLength)` — truncate for a surface that renders
+  Markdown, such as a search result. A spoiler that survives the cut keeps both
+  delimiters, so it still renders as a real, revealable spoiler; one that the cut
+  lands inside is closed off rather than left unclosed, which would otherwise
+  expose its hidden body as literal text.
+- `truncatePlainText(text, maxLength)` — truncate for a surface that renders
+  plain text, such as a notification body or a reply-preview snippet. Delimiters
+  are dropped, and a spoiler the cut lands inside is dropped entirely.
 - `stripSpoilerSyntax(text)` — removes the delimiters but keeps the revealed
-  body. Intended for surfaces that should not show raw syntax, such as search
-  indexing, notification bodies and reply previews. Note this does not redact
-  the body; a spoiler guards against glance-reading, not against someone who
-  deliberately searches for the text.
+  body.
 - `hasSpoilerSyntax(text)`, `splitBySpoilers(text)`,
   `tokenizeSpoilerDelimiters(text)` — the shared grammar, exported so a consumer
   implementing a renderer for a third Markdown stack does not re-implement it.
+
+### Spoilers and search
+
+A spoiler does not stop a message being searchable. The body is indexed as
+written, and a search result renders the spoiler as a real spoiler, so a
+spoilered message stays hidden from a glance but not from someone who is
+deliberately looking for it.
+
+### Rendering inside a button
+
+`Spoiler` renders a real `<button>` by default. HTML forbids interactive
+content inside a `<button>`, so a spoiler rendered inside one — a search result
+row, for example — needs `inlineTrigger`, which renders a focusable
+`<span role="button">` with the same role, expanded state and keyboard
+handling.
 
 ## License
 
