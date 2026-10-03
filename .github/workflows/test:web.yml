@@ -22,6 +22,13 @@ jobs:
             - name: Install dependencies
               run: bun install
 
+            - name: Build workspace packages
+              # `next build`, the typechecker and the test suites all resolve
+              # workspace packages through their `exports`, which point at
+              # `dist/`. That output is gitignored, so it has to exist first —
+              # otherwise the app tests fail to resolve their imports.
+              run: bunx turbo run build --filter='./packages/*'
+
             - name: Validate environment
               working-directory: apps/web
               run: bun run validate-env:ci
@@ -68,12 +75,6 @@ jobs:
             # break passes every step above and only fails on deploy. This also
             # catches anything that only typechecks locally because a cached
             # .next is masking it.
-            - name: Build workspace packages
-              # `next build` resolves workspace packages through their `exports`,
-              # which point at `dist/`. That output is gitignored, so it has to
-              # exist before the app is built.
-              run: bunx turbo run build --filter='./packages/*'
-
             - name: Build
               working-directory: apps/web
               run: bun run build
