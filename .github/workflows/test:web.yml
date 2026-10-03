@@ -68,6 +68,12 @@ jobs:
             # break passes every step above and only fails on deploy. This also
             # catches anything that only typechecks locally because a cached
             # .next is masking it.
+            - name: Build workspace packages
+              # `next build` resolves workspace packages through their `exports`,
+              # which point at `dist/`. That output is gitignored, so it has to
+              # exist before the app is built.
+              run: bunx turbo run build --filter='./packages/*'
+
             - name: Build
               working-directory: apps/web
               run: bun run build

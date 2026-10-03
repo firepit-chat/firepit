@@ -33,6 +33,13 @@ jobs:
                   NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
                   APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
 
+            - name: Build workspace packages
+              # `next build` resolves workspace packages through their `exports`,
+              # which point at `dist/`. That output is gitignored, so it has to
+              # exist before the app is built. Turbo builds every workspace
+              # package and caches the result.
+              run: bunx turbo run build --filter='./packages/*'
+
             - name: Build project
               working-directory: apps/web
               run: bun run build
