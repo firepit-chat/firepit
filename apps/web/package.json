@@ -31,6 +31,8 @@
         "update:check": "bun outdated next appwrite node-appwrite"
     },
     "dependencies": {
+        "@emotion/react": "^11.14.0",
+        "@firepit-chat/markdown-spoiler": "workspace:*",
         "@opentelemetry/api-logs": "^0.221.0",
         "@opentelemetry/exporter-logs-otlp-http": "^0.221.0",
         "@opentelemetry/resources": "^2.11.0",

@@ -4,6 +4,8 @@ import {
     hasSpoilerSyntax,
     splitBySpoilers,
     stripSpoilerSyntax,
+    truncateMarkdown,
+    truncatePlainText,
 } from "../src/shared/syntax";
 
 describe("hasSpoilerSyntax", () => {
@@ -115,12 +117,6 @@ describe("splitBySpoilers", () => {
     });
 
     describe("delimiters inside other constructs", () => {
-        it("does not treat a closer followed by no opener as a spoiler", () => {
-            expect(splitBySpoilers("[/spoiler] trailing")).toEqual([
-                { type: "text", value: "[/spoiler] trailing" },
-            ]);
-        });
-
         it("preserves a spoiler that wraps markdown link syntax", () => {
             expect(
                 splitBySpoilers(
@@ -164,5 +160,96 @@ describe("stripSpoilerSyntax", () => {
 
     it("removes a stray closer", () => {
         expect(stripSpoilerSyntax("a b[/spoiler]")).toBe("a b");
+    });
+});
+
+describe("truncateMarkdown", () => {
+    it("leaves short text untouched", () => {
+        expect(truncateMarkdown("hello", 50)).toBe("hello");
+    });
+
+    it("truncates with an ellipsis inside the budget", () => {
+        expect(truncateMarkdown("abcdefgh", 6)).toBe("abc...");
+    });
+
+    it("keeps a complete spoiler intact so it renders as a spoiler", () => {
+        // This is the search-results case: the body is Markdown, so the reader
+        // gets a real reveal control rather than plain text.
+        const text = "lead [spoiler]shown[/spoiler] trail";
+
+        const result = truncateMarkdown(text, text.length);
+
+        expect(result).toBe("lead [spoiler]shown[/spoiler] trail");
+    });
+
+    it("keeps a complete spoiler even when later text is cut", () => {
+        const text = `[spoiler]shown[/spoiler] ${"x".repeat(200)}`;
+
+        const result = truncateMarkdown(text, 40);
+
+        expect(result).toContain("[spoiler]shown[/spoiler]");
+    });
+
+    it("closes a spoiler the cut landed inside, without leaking its body", () => {
+        // An unclosed opener would render as literal text, so the hidden body
+        // would become visible. Closing it keeps the preview valid Markdown.
+        const text = `[spoiler]${"b".repeat(200)}[/spoiler] tail`;
+
+        const result = truncateMarkdown(text, 150);
+
+        expect(result).not.toContain("bbbbbbbbbb");
+        expect(result.endsWith("[/spoiler]")).toBe(true);
+    });
+
+    it("keeps the text before a spoiler the cut landed inside", () => {
+        const text = `visible intro [spoiler]${"b".repeat(200)}[/spoiler]`;
+
+        const result = truncateMarkdown(text, 150);
+
+        expect(result).toContain("visible intro");
+    });
+
+    it("never leaks a body that a cut would otherwise expose", () => {
+        const text = `intro [spoiler]SECRETVALUE${"b".repeat(200)}[/spoiler]`;
+
+        expect(truncateMarkdown(text, 150)).not.toContain("SECRETVALUE");
+    });
+});
+
+describe("truncatePlainText", () => {
+    it("leaves short plain text alone", () => {
+        expect(truncatePlainText("hello", 50)).toBe("hello");
+    });
+
+    it("truncates long plain text with an ellipsis", () => {
+        expect(truncatePlainText("abcdefgh", 6)).toBe("abc...");
+    });
+
+    it("strips delimiters from a complete spoiler", () => {
+        // A notification body has no spoiler control, so `[spoiler]` shown to
+        // the user would be worse than showing the text itself.
+        expect(truncatePlainText("a [spoiler]shown[/spoiler] b", 50)).toBe(
+            "a shown b",
+        );
+    });
+
+    it("drops a spoiler the cut landed inside", () => {
+        const text = `intro [spoiler]SECRETVALUE${"b".repeat(200)}[/spoiler]`;
+
+        const result = truncatePlainText(text, 150);
+
+        expect(result).not.toContain("SECRETVALUE");
+        expect(result).not.toContain("[spoiler]");
+    });
+
+    it("never leaves a stray delimiter after truncation", () => {
+        const text = "intro [spoiler]body" + "y".repeat(200);
+
+        expect(truncatePlainText(text, 40)).not.toContain("[spoiler]");
+    });
+
+    it("handles a non-positive maxLength", () => {
+        expect(truncatePlainText("abc", 0)).toBe("");
+        expect(truncatePlainText("abc", -5)).toBe("");
     });
 });

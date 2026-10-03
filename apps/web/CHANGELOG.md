@@ -9,17 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Features
 
+- **Spoilers.** Wrap any part of a message in `[spoiler]...[/spoiler]` to hide
+  it behind a click-to-reveal control. Formatting, links and images inside a
+  spoiler still render once it is revealed, and a message can contain several.
+  Collapsed content is kept out of the page entirely rather than blurred, so
+  screen readers do not announce it and hidden links are not keyboard-reachable.
+  An unmatched `[spoiler]` renders as literal text rather than hiding the rest
+  of the message.
+- **Spoilers in search results.** Spoilered messages stay searchable. A result
+  renders the spoiler as a real, revealable spoiler rather than flattening it to
+  plain text, so the message still reads as hidden without giving up search.
+- **No spoiler text leaking into previews.** Notification bodies and reply
+  previews no longer risk slicing a spoiler open and showing its contents.
+
 - **Member list in the chat right rail.** A new Members panel sits above pinned
   messages, listing everyone in the server with their highest-ranked role
   colour. Members are ordered by role rank and then by name, with anyone
   holding no role at the bottom. The role is resolved on the server, so the
   panel loads instantly and never needs the full role list.
-  - Backed by a new read-only endpoint, `GET /api/servers/{id}/viewer/members`,
-    that any member can call. The existing `/members` endpoint still requires
-    **Manage Roles**, because the role-management screens read full role
-    assignments and moderation flags from it. The viewer endpoint returns only
-    what a member row renders, and never exposes role ids, ban state, or mute
-    state.
+    - Backed by a new read-only endpoint, `GET /api/servers/{id}/viewer/members`,
+      that any member can call. The existing `/members` endpoint still requires
+      **Manage Roles**, because the role-management screens read full role
+      assignments and moderation flags from it. The viewer endpoint returns only
+      what a member row renders, and never exposes role ids, ban state, or mute
+      state.
 - **Custom themes.** Light/dark is replaced by six palettes — the four
   Catppuccin flavours (**Latte**, **Frappé**, **Macchiato**, **Mocha**) plus the
   **two original Firepit themes** (**Classic Light** and **Classic Dark**) — and
@@ -27,14 +40,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   charts. Pick a palette and accent from the header menu or **Settings → Theme**
   on the web, and from **Settings → Appearance** in the mobile app. Your choice
   is remembered and neither palette nor accent flashes on launch.
-  - The original orange themes are preserved exactly: their primary lives in the
-    default accent slot, so selecting one with no accent chosen reproduces the
-    pre-Catppuccin look. Picking an explicit accent still overrides it.
-  - Catppuccin accent colours are adjusted per palette so that text on an
-    accent-coloured button always clears WCAG AA (4.5:1). Latte's stock accents
-    cannot be used unmodified as button fills — six of the twelve fall below
-    3:1 — so they are lightened to pair with Latte's dark text. The dark
-    palettes already clear 5.3:1 and are used as published.
+    - The original orange themes are preserved exactly: their primary lives in the
+      default accent slot, so selecting one with no accent chosen reproduces the
+      pre-Catppuccin look. Picking an explicit accent still overrides it.
+    - Catppuccin accent colours are adjusted per palette so that text on an
+      accent-coloured button always clears WCAG AA (4.5:1). Latte's stock accents
+      cannot be used unmodified as button fills — six of the twelve fall below
+      3:1 — so they are lightened to pair with Latte's dark text. The dark
+      palettes already clear 5.3:1 and are used as published.
 
 ### 📚 Documentation
 
@@ -78,7 +91,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   undocumented — is now described in `.env.local.example` and is only needed for
   genuinely cross-origin callers, not for normal single-origin deployments.
 
-
 - **Per-channel permission overrides now work on a fresh instance.** The
   `channel_permission_overrides` collection was never created by the setup
   script, so a new deployment had no table for the feature to write to. It is
@@ -101,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### ⚙️ Improvements
 
 - **API client types are now generated from the spec.** `bun run
-  generate:api-types` produces TypeScript types directly from the documented
+generate:api-types` produces TypeScript types directly from the documented
   API, and CI fails if they drift from the spec. Combined with the existing
   spec-versus-routes check, the documented API can no longer quietly disagree
   with either the server or the clients compiling against it.
@@ -153,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   supports several palettes on one page and is what per-server themes in a future
   release will build on.
 - **The OpenAPI spec can no longer drift from the code.** `bun run
-  check:openapi` walks the route handlers and fails if the spec and the
+check:openapi` walks the route handlers and fails if the spec and the
   handlers disagree in either direction — a route that exists but is
   undocumented, or a documented operation with no handler. It runs in CI, so
   adding or renaming a route without updating the spec now breaks the build
@@ -179,7 +191,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is a one-line change instead of a scavenger hunt. The old copies cast the input
   rather than validating it, so a malformed `type` could surface as something
   other than `"text"`.
-
 
 ## [2.1.0] - 2026-09-27
 
