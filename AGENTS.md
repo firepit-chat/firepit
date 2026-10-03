@@ -46,6 +46,16 @@ tracked from the monorepo but consumed by external projects, so:
 - **A package is not an app.** Do not add `validate-env`, OpenAPI or Appwrite
   steps to a package workflow, and do not expect `apps/*` CI to cover
   `packages/*` automatically — the test workflow has a separate step for it.
+- **Apps must build their package dependencies first.** A package's `exports`
+  point at `dist/`, which is gitignored, so an app build fails with
+  `Module not found` on a fresh checkout unless the package has been built.
+  Both apps handle this with a `prebuild` that runs
+  `turbo run build --filter='@firepit-chat/*'`, and the web workflows have an
+  explicit "Build workspace packages" step. `turbo test` and `turbo typecheck`
+  do this implicitly via `dependsOn: ["^build"]` — which is why this class of
+  break passes locally and only shows up in CI.
+- **When you add a workspace package,** add it to that `prebuild` filter and to
+  the "Build workspace packages" steps, or the app builds will break on CI.
 
 <!-- BEGIN:turborepo-agent-rules -->
 
