@@ -47,6 +47,11 @@ jobs:
             - name: Run typecheck
               run: bun run typecheck
 
+            - name: Run workspace package tests
+              # Not covered by the repo-wide turbo scripts: each app runs its own
+              # suite, so workspace packages under packages/ are tested here.
+              run: bunx turbo run test --filter='./packages/*'
+
             - name: Check OpenAPI spec matches route handlers
               working-directory: apps/web
               run: bun run check:openapi

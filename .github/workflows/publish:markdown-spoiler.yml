@@ -1,0 +1,82 @@
+name: Publish markdown-spoiler
+
+# Publishing is deliberately never automatic. A release runs when either:
+#   - `main` receives a commit whose message contains `[release]`, or
+#   - this workflow is dispatched manually with a `dry_run` input.
+#
+# Both paths are manual decisions by a maintainer.
+
+on:
+    push:
+        branches: [main]
+        paths:
+            - "packages/markdown-spoiler/**"
+        messages:
+            - "[release]"
+    workflow_dispatch:
+        inputs:
+            dry_run:
+                description: "Run every step but `npm publish`"
+                type: boolean
+                default: true
+
+permissions:
+    contents: read
+    id-token: write # required for npm provenance
+
+jobs:
+    publish:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+              with:
+                  # Provenance attests to the source commit, so tags must be fetched.
+                  fetch-depth: 0
+
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version: "1.3.0"
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+                  registry-url: https://registry.npmjs.org
+
+            - name: Install dependencies
+              run: bun install
+
+            - name: Build package
+              working-directory: packages/markdown-spoiler
+              run: bun run build
+
+            - name: Run tests
+              working-directory: packages/markdown-spoiler
+              run: bun run test
+
+            - name: Verify the version is not already published
+              working-directory: packages/markdown-spoiler
+              run: |
+                  VERSION=$(bun --print "require('./package.json').version")
+                  if npm view "@firepit/markdown-spoiler@${VERSION}" version >/dev/null 2>&1; then
+                    echo "::error::@firepit/markdown-spoiler@${VERSION} is already on the registry."
+                    echo "Bump the version in packages/markdown-spoiler/package.json before releasing."
+                    exit 1
+                  fi
+                  echo "Version ${VERSION} is available."
+
+            - name: Publish
+              if: ${{ github.event_name == 'push' || inputs.dry_run != true }}
+              working-directory: packages/markdown-spoiler
+              run: npm publish --provenance --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Report dry run
+              if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+              run: |
+                  echo "Dry run complete. Nothing was published."
+                  echo "Re-run this workflow with dry_run=false to publish for real."
