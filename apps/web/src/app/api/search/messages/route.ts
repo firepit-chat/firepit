@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Query } from "node-appwrite";
 import type { Databases } from "node-appwrite";
@@ -201,6 +201,10 @@ function parseFilters(query: string) {
  * Search messages across channels and DMs with filters
  */
 export async function GET(request: NextRequest) {
+    // Opt out of build-time prerendering before any try/catch. Otherwise the
+    // private-cache session lookup rejects when the prerender ends, and the
+    // catch below reports that rejection as a search failure.
+    await connection();
     const startTime = Date.now();
 
     try {
