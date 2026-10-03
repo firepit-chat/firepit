@@ -31,10 +31,21 @@ jobs:
                   java-version: "17"
 
             - name: Setup Android SDK
-              uses: android-actions/setup-android@v3
+              # v3 defaulted to installing the `tools` package, which Google
+              # removed from the SDK repository, so sdkmanager exited 1 and
+              # every run failed at this step. v4.0.2 fixed it upstream and
+              # v4.0.4 is current. Unrelated to any application code.
+              uses: android-actions/setup-android@v4.0.4
 
             - name: Install dependencies
               run: bun install
+
+            - name: Build workspace packages
+              # Metro resolves workspace packages through their `exports`,
+              # which point at the gitignored `dist/`. The mobile build runs
+              # `scripts/build.ts` directly rather than through the `build`
+              # script, so the app's prebuild hook does not fire here.
+              run: bunx turbo run build --filter='./packages/*'
 
             - name: Init EAS
               working-directory: apps/mobile
