@@ -256,4 +256,77 @@ describe("SearchResults", () => {
         expect(screen.getByText("First message")).toBeInTheDocument();
         expect(screen.getByText("Second message")).toBeInTheDocument();
     });
+
+    describe("spoilers", () => {
+        function renderResult(text: string) {
+            const results = [
+                {
+                    type: "channel" as const,
+                    message: {
+                        $id: "msg-1",
+                        userId: "user-1",
+                        userName: "testuser",
+                        displayName: "Test User",
+                        text,
+                        $createdAt: new Date().toISOString(),
+                        channelId: "channel-1",
+                    } as Message,
+                },
+            ];
+
+            const { container } = render(
+                <SearchResults results={results} onClose={vi.fn()} />,
+            );
+
+            return container;
+        }
+
+        it("renders a spoiler in a result as a real collapsed spoiler", () => {
+            // Spoilers stay searchable, and a spoilered message still reads as
+            // hidden in the result rather than being flattened to plain text.
+            const container = renderResult(
+                "the butler [spoiler]did it[/spoiler]",
+            );
+
+            const button = container.querySelector(
+                "[data-spoiler] [role=button]",
+            );
+            expect(button).not.toBeNull();
+            expect(button?.getAttribute("aria-expanded")).toBe("false");
+            expect(container.textContent).not.toContain("did it");
+        });
+
+        it("reveals the spoiler body when the result's control is used", async () => {
+            const container = renderResult(
+                "the butler [spoiler]did it[/spoiler]",
+            );
+
+            await userEvent.click(
+                container.querySelector(
+                    "[data-spoiler] [role=button]",
+                ) as Element,
+            );
+
+            expect(container.textContent).toContain("did it");
+        });
+
+        it("does not leak a spoiler body that preview truncation cut into", () => {
+            // A raw slice would leave an unmatched `[spoiler]`, which renders as
+            // literal text and would expose the hidden body in the result list.
+            const container = renderResult(
+                `intro [spoiler]${"SECRET".repeat(40)}[/spoiler]`,
+            );
+
+            expect(container.textContent).not.toContain("SECRETSECRET");
+            expect(container.textContent).not.toContain("[spoiler]");
+        });
+
+        it("keeps a short spoiler intact rather than truncating it away", () => {
+            const container = renderResult("a [spoiler]b[/spoiler]");
+
+            expect(
+                container.querySelector("[data-spoiler] [role=button]"),
+            ).not.toBeNull();
+        });
+    });
 });
