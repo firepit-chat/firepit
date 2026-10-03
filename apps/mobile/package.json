@@ -5,7 +5,7 @@
     "dependencies": {
         "@babel/runtime": "^8.0.5",
         "@expo/vector-icons": "^15.1.1",
-        "@firepit/markdown-spoiler": "workspace:*",
+        "@firepit-chat/markdown-spoiler": "workspace:*",
         "@hiraku-ai/react-native-emoji-picker": "^1.2.4",
         "@mattermost/react-native-paste-input": "^2.0.1",
         "@react-native-async-storage/async-storage": "^3.1.1",

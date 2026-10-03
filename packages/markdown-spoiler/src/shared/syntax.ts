@@ -10,6 +10,9 @@ export const SPOILER_OPEN = "[spoiler]";
 /** Closing delimiter. */
 export const SPOILER_CLOSE = "[/spoiler]";
 
+/** Appended to truncated text to show that content was cut. */
+const ELLIPSIS = "...";
+
 /**
  * Matches a spoiler region. Group 1 is the body.
  *
@@ -169,4 +172,81 @@ export function stripSpoilerSyntax(text: string): string {
     // stray `[spoiler]` leaking into a notification body or a reply preview is
     // exactly the kind of raw syntax this function exists to prevent.
     return text.split(SPOILER_OPEN).join("").split(SPOILER_CLOSE).join("");
+}
+
+/**
+ * Truncate `text` for a surface that renders **Markdown**, keeping spoilers
+ * intact so the reader gets a real, revealable spoiler control.
+ *
+ * Slicing the raw string is unsafe here. A cut that lands inside a spoiler
+ * leaves an unclosed `[spoiler]`, which every renderer treats as literal text —
+ * so a 150-character preview would render the first 150 characters of a hidden
+ * spoiler in plain sight, exactly what a spoiler exists to prevent.
+ *
+ * So a spoiler the cut lands inside is dropped, while every complete spoiler
+ * before it is preserved with both delimiters intact. This is the right helper
+ * for search results, where the message body is Markdown and a spoiler should
+ * read as a spoiler.
+ */
+export function truncateMarkdown(text: string, maxLength: number): string {
+    const budget = Math.max(maxLength - ELLIPSIS.length, 0);
+    const window = text.slice(0, budget);
+    const opens = countOccurrences(window, SPOILER_OPEN);
+    const closes = countOccurrences(window, SPOILER_CLOSE);
+
+    if (opens > closes) {
+        // The cut landed inside a spoiler. Keep the text before its opener and
+        // close the spoiler off, so what remains is still valid Markdown that a
+        // renderer can show with an intact spoiler in it.
+        return `${window.slice(0, window.lastIndexOf(SPOILER_OPEN))}${SPOILER_CLOSE}`;
+    }
+
+    return text.length <= maxLength ? text : `${window}${ELLIPSIS}`;
+}
+
+/**
+ * Truncate `text` for a surface that renders **plain text**, such as a
+ * notification body or a reply-preview snippet.
+ *
+ * There is no spoiler control on those surfaces, so delimiters are removed with
+ * {@link stripSpoilerSyntax} and any spoiler the cut lands inside is dropped
+ * rather than leaked.
+ *
+ * Note this keeps the revealed body of a *complete* spoiler. That is
+ * intentional: these are context snippets, and the alternative — showing
+ * `[spoiler]` to a user who cannot act on it — is worse than showing the text.
+ */
+export function truncatePlainText(text: string, maxLength: number): string {
+    if (maxLength <= 0) {
+        return "";
+    }
+
+    if (text.length <= maxLength) {
+        return stripSpoilerSyntax(text);
+    }
+
+    const window = text.slice(0, Math.max(maxLength - ELLIPSIS.length, 0));
+
+    if (
+        countOccurrences(window, SPOILER_OPEN) >
+        countOccurrences(window, SPOILER_CLOSE)
+    ) {
+        return stripSpoilerSyntax(
+            window.slice(0, window.lastIndexOf(SPOILER_OPEN)),
+        );
+    }
+
+    return `${stripSpoilerSyntax(window)}${ELLIPSIS}`;
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+    let count = 0;
+    let index = haystack.indexOf(needle);
+
+    while (index !== -1) {
+        count += 1;
+        index = haystack.indexOf(needle, index + needle.length);
+    }
+
+    return count;
 }
