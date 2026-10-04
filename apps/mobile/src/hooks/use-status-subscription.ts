@@ -58,7 +58,27 @@ export function useStatusSubscription(
           lastSeenAt: s.lastSeenAt,
         };
       }
-      setStatuses(statusMap);
+      // The poll runs every 30s. Setting a fresh object each time re-rendered
+      // the whole DM screen even when nobody's status had changed.
+      setStatuses((prev) => {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(statusMap);
+        if (prevKeys.length === nextKeys.length) {
+          const unchanged = nextKeys.every((k) => {
+            const a = prev[k];
+            const b = statusMap[k];
+            return (
+              a !== undefined &&
+              b !== undefined &&
+              a.status === b.status &&
+              a.customMessage === b.customMessage &&
+              a.lastSeenAt === b.lastSeenAt
+            );
+          });
+          if (unchanged) return prev;
+        }
+        return statusMap;
+      });
     },
     [],
   );

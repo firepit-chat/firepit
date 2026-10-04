@@ -5,7 +5,6 @@ import {
   TextInput,
   NativeSyntheticEvent,
   TextInputSelectionChangeEventData,
-  Keyboard,
   Pressable,
   Alert,
 } from "react-native";
@@ -126,7 +125,6 @@ function ChatInputInner({
     start: value.length,
     end: value.length,
   });
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [selectedEmojiIndex, setSelectedEmojiIndex] = useState(0);
 
@@ -137,7 +135,6 @@ function ChatInputInner({
   );
   const mentionQueryRequestRef = useRef<AbortController | null>(null);
   const [showMediaMenu, setShowMediaMenu] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
 
   const handlePaste = useCallback(async (error: string | null | undefined, files: PastedFile[]) => {
     if (error || !files.length) return;
@@ -300,21 +297,6 @@ function ChatInputInner({
   useEffect(() => {
     setSelectedEmojiIndex(0);
   }, [emojiQuery]);
-
-  useEffect(() => {
-    const onShow = (e: any) => {
-      setKeyboardHeight(e.endCoordinates?.height || 0);
-    };
-    const onHide = () => setKeyboardHeight(0);
-
-    const showSub = Keyboard.addListener("keyboardDidShow", onShow);
-    const hideSub = Keyboard.addListener("keyboardDidHide", onHide);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
 
   const handleChangeText = useCallback(
     (newValue: string) => {
@@ -602,10 +584,20 @@ function ChatInputInner({
     const clipboardImage = await Clipboard.getImageAsync({ format: "png" });
     if (!clipboardImage) return;
 
+    // getImageAsync hands back a bare base64 string with no data: URI, but the
+    // upload path puts this straight into FormData's `uri`, which React Native
+    // requires to be a file:// path. Write it into the cache first, the same
+    // way handlePaste does, so the upload can actually resolve it.
+    const name = `pasted-image-${Date.now()}.png`;
+    const dest = `${cacheDirectory}${name}`;
+    await writeAsStringAsync(dest, clipboardImage.data, {
+      encoding: "base64",
+    });
+
     onAttachmentsChange({
       image: {
-        uri: clipboardImage.data,
-        name: "pasted-image.png",
+        uri: dest,
+        name,
         mimeType: "image/png",
         size: null,
       },
@@ -698,8 +690,6 @@ function ChatInputInner({
             placeholderTextColor={theme.textSecondary}
             onSelectionChange={handleSelectionChange}
             onKeyPress={handleKeyPress}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
             onPaste={handlePaste}
             multiline
             style={{
