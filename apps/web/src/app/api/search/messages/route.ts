@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Query } from "node-appwrite";
 import type { Databases } from "node-appwrite";
@@ -201,6 +201,8 @@ function parseFilters(query: string) {
  * Search messages across channels and DMs with filters
  */
 export async function GET(request: NextRequest) {
+    // Before try/catch so a prerender-abort rejection isn't reported as a search failure.
+    await connection();
     const startTime = Date.now();
 
     try {

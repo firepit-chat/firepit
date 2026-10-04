@@ -2,8 +2,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "../../app/api/search/messages/route";
 
-const { mockGetRelationshipMap } = vi.hoisted(() => ({
+const { mockConnection, mockGetRelationshipMap } = vi.hoisted(() => ({
+    mockConnection: vi.fn(),
     mockGetRelationshipMap: vi.fn(),
+}));
+
+vi.mock("next/server", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("next/server")>()),
+    connection: mockConnection,
 }));
 
 // Mock node-appwrite
@@ -486,6 +492,19 @@ describe("Message Search API Route", () => {
 
             expect(response.status).toBe(401);
             expect(data.error).toBe("Authentication required");
+        });
+
+        it("should not report a prerender rejection as a search failure", async () => {
+            const { getServerSession } = await import("@/lib/auth-server");
+            const prerenderEnded = new Error("prerender ended");
+            mockConnection.mockRejectedValueOnce(prerenderEnded);
+
+            const request = new NextRequest(
+                "http://localhost/api/search/messages?q=test",
+            );
+
+            await expect(GET(request)).rejects.toBe(prerenderEnded);
+            expect(getServerSession).not.toHaveBeenCalled();
         });
 
         it("should sort results by date descending", async () => {
