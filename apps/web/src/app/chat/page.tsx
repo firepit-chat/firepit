@@ -413,20 +413,25 @@ export default function ChatPage() {
         notificationSettingsApi.settings,
     ]);
 
-    const openProfileModal = (
-        profileUserId: string,
-        profileUserName?: string,
-        profileDisplayName?: string,
-        profileAvatarUrl?: string,
-    ) => {
-        setSelectedProfile({
-            userId: profileUserId,
-            userName: profileUserName,
-            displayName: profileDisplayName,
-            avatarUrl: profileAvatarUrl,
-        });
-        setProfileModalOpen(true);
-    };
+    // Stable identity: this is threaded down to every memoized message item, so a
+    // fresh function each render re-rendered all of them on every keystroke.
+    const openProfileModal = useCallback(
+        (
+            profileUserId: string,
+            profileUserName?: string,
+            profileDisplayName?: string,
+            profileAvatarUrl?: string,
+        ) => {
+            setSelectedProfile({
+                userId: profileUserId,
+                userName: profileUserName,
+                displayName: profileDisplayName,
+                avatarUrl: profileAvatarUrl,
+            });
+            setProfileModalOpen(true);
+        },
+        [],
+    );
     // Auto-join server via invite code from query param
     useEffect(() => {
         const inviteCode = searchParams.get("invite");
@@ -545,12 +550,16 @@ export default function ChatPage() {
     }, [userId]);
 
     const serversApi = useServers({ userId, membershipEnabled });
+    // Destructured so the route-sync effect depends on the two values it reads
+    // rather than on the whole api object.
+    const { setSelectedServer } = serversApi;
+    const selectedServerId = serversApi.selectedServer;
     const channelsApi = useChannels({
-        selectedServer: serversApi.selectedServer,
+        selectedServer: selectedServerId,
         userId,
         servers: serversApi.servers,
     });
-    const categoriesApi = useCategories(serversApi.selectedServer);
+    const categoriesApi = useCategories(selectedServerId);
     const currentContextKey = selectedChannel
         ? `channel:${selectedChannel}`
         : selectedConversationId
@@ -672,19 +681,13 @@ export default function ChatPage() {
 
         setViewMode("channels");
         setSelectedConversationId(null);
-        if (routeServerId && serversApi.selectedServer !== routeServerId) {
-            serversApi.setSelectedServer(routeServerId);
+        if (routeServerId && selectedServerId !== routeServerId) {
+            setSelectedServer(routeServerId);
         }
         setSelectedChannel((currentValue) =>
             currentValue === routeChannelId ? currentValue : routeChannelId,
         );
-    }, [
-        routeChannelId,
-        routeConversationId,
-        routeServerId,
-        serversApi.selectedServer,
-        serversApi.setSelectedServer,
-    ]);
+    }, [routeChannelId, routeConversationId, routeServerId, selectedServerId, setSelectedServer]);
 
     const messagesApi = useMessages({
         channelId: viewMode === "channels" ? selectedChannel : null,
@@ -720,13 +723,7 @@ export default function ChatPage() {
         } finally {
             loadingOlderUnreadRef.current = false;
         }
-    }, [
-        dmApi.loadOlder,
-        dmApi.shouldShowLoadOlder,
-        messagesApi,
-        selectedChannel,
-        selectedConversationId,
-    ]);
+    }, [dmApi, messagesApi, selectedChannel, selectedConversationId]);
 
     const jumpToUnreadEntry = useCallback(
         (messageId: string) => {
@@ -1335,7 +1332,7 @@ export default function ChatPage() {
             await removeMessage(messageId);
             setDeleteConfirmId(null);
         },
-        [deleteConfirmId, removeMessage],
+        [removeMessage],
     );
 
     const handleImageSelect = useCallback(
@@ -1610,28 +1607,50 @@ export default function ChatPage() {
         }
     }, []);
 
-    const surfaceController = useChatSurfaceController({
-        rawMessages: messages,
-        onOpenThreadRaw: openThread,
-        onRemove: (messageId) => {
+    const handleRemoveMessage = useCallback(
+        (messageId: string) => {
             void handleDelete(messageId);
         },
-        onStartEditRaw: startEdit,
-        onStartReplyRaw: startReply,
-        onTogglePinRaw: togglePin,
-        onToggleReaction: async (messageId, emoji, isAdding) => {
+        [handleDelete],
+    );
+
+    const handleToggleReaction = useCallback(
+        async (messageId: string, emoji: string, isAdding: boolean) => {
             try {
                 await messagesApi.toggleReaction(messageId, emoji, isAdding);
             } catch {
                 // Error already logged by reaction handler.
             }
         },
-        onVotePoll: async (messageId, optionId) => {
+        [messagesApi],
+    );
+
+    const handleVotePoll = useCallback(
+        async (messageId: string, optionId: string) => {
             await votePoll(messageId, optionId);
         },
-        onClosePoll: async (messageId) => {
+        [votePoll],
+    );
+
+    const handleClosePoll = useCallback(
+        async (messageId: string) => {
             await closePoll(messageId);
         },
+        [closePoll],
+    );
+
+    // Each handler is a useCallback: these surface as props on every memoized
+    // message item, so inline arrows re-rendered all of them each render.
+    const surfaceController = useChatSurfaceController({
+        rawMessages: messages,
+        onOpenThreadRaw: openThread,
+        onRemove: handleRemoveMessage,
+        onStartEditRaw: startEdit,
+        onStartReplyRaw: startReply,
+        onTogglePinRaw: togglePin,
+        onToggleReaction: handleToggleReaction,
+        onVotePoll: handleVotePoll,
+        onClosePoll: handleClosePoll,
     });
 
     // Derived helpers
@@ -1665,370 +1684,398 @@ export default function ChatPage() {
         });
     }
 
-    function renderServers() {
-        const isOwner = selectedServerData?.ownerId === userId;
-        const canOpenServerAdminPanel = isOwner || canManageServer;
+    // Built once per change instead of on every render: this rebuilt the
+    // JSX for every server row (Button + Avatar + three Radix dropdowns)
+    // on every keystroke in the composer.
+    const serversSidebar = useMemo(() => {
+        function renderServers() {
+            const isOwner = selectedServerData?.ownerId === userId;
+            const canOpenServerAdminPanel = isOwner || canManageServer;
 
-        return (
-            <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2 px-1">
-                    <h2 className="text-xs font-semibold text-muted-foreground">
-                        Servers
-                    </h2>
-                    <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground/70">
-                        {serversApi.servers.length} total
-                    </span>
-                </div>
-                <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                        {serversApi.selectedServer && canOpenServerAdminPanel && (
+            return (
+                <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2 px-1">
+                        <h2 className="text-xs font-semibold text-muted-foreground">
+                            Servers
+                        </h2>
+                        <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground/70">
+                            {serversApi.servers.length} total
+                        </span>
+                    </div>
+                    <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                            {serversApi.selectedServer && canOpenServerAdminPanel && (
+                                <Button
+                                    onClick={() => setAdminPanelOpen(true)}
+                                    size="sm"
+                                    variant="ghost"
+                                    title="Server Admin Panel"
+                                >
+                                    <Shield className="h-4 w-4" />
+                                </Button>
+                            )}
+                            {userId && (
+                                <>
+                                    {allowUserServers ? (
+                                        <CreateServerDialog
+                                            onServerCreated={() => {
+                                                // Reload servers after creation
+                                                void serversApi.refresh();
+                                            }}
+                                        />
+                                    ) : (
+                                        <span
+                                            className="text-xs text-muted-foreground"
+                                            title="Server creation is disabled"
+                                        >
+                                            {/* Feature disabled */}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                    <ul className="space-y-1">
+                        {serversApi.servers.map((s) => {
+                            const active = s.$id === serversApi.selectedServer;
+                            const memberCountLabel = formatMemberCount(s.memberCount);
+                            return (
+                                <li key={s.$id} className="group relative">
+                                    <div className="flex items-center gap-1">
+                                        <Button
+                                            aria-pressed={active}
+                                            className={`min-w-0 flex-1 justify-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
+                                                active
+                                                    ? "bg-accent text-foreground"
+                                                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                                            }`}
+                                            onClick={() => {
+                                                serversApi.setSelectedServer(s.$id);
+                                                setSelectedChannel(null);
+                                            }}
+                                            type="button"
+                                            variant="ghost"
+                                        >
+                                            <Avatar
+                                                alt={s.name}
+                                                fallback={s.name}
+                                                size="md"
+                                                src={s.iconUrl ?? null}
+                                            />
+
+                                            <span className="min-w-0 flex-1 text-left">
+                                                <span className="block truncate text-sm font-medium">
+                                                    {s.name}
+                                                </span>
+                                                <span className="block text-xs text-muted-foreground">
+                                                    {memberCountLabel}
+                                                </span>
+                                            </span>
+
+                                        </Button>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                                                    size="icon"
+                                                    type="button"
+                                                    variant="ghost"
+                                                >
+                                                    <MoreVertical className="h-4 w-4" />
+                                                    <span className="sr-only">
+                                                        Server options
+                                                    </span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DropdownMenuItem
+                                                    onClick={() =>
+                                                        setMuteDialogState({
+                                                            open: true,
+                                                            type: "server",
+                                                            id: s.$id,
+                                                            name: s.name,
+                                                        })
+                                                    }
+                                                >
+                                                    <BellOff className="mr-2 h-4 w-4" />
+                                                    Mute Server
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    {serversApi.cursor && (
+                        <div className="pt-1">
                             <Button
-                                onClick={() => setAdminPanelOpen(true)}
+                                disabled={serversApi.loading}
+                                onClick={serversApi.loadMore}
                                 size="sm"
-                                variant="ghost"
-                                title="Server Admin Panel"
+                                type="button"
+                                variant="outline"
                             >
-                                <Shield className="h-4 w-4" />
+                                {serversApi.loading ? "Loading..." : "Load more"}
                             </Button>
-                        )}
-                        {userId && (
-                            <>
-                                {allowUserServers ? (
-                                    <CreateServerDialog
-                                        onServerCreated={() => {
-                                            // Reload servers after creation
-                                            void serversApi.refresh();
-                                        }}
+                        </div>
+                    )}
+                    {serversApi.membershipEnabled && (
+                        <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                            <span>Your Memberships</span>
+                            <span className="font-medium text-foreground">
+                                {serversApi.memberships.length}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        return renderServers();
+    }, [
+        allowUserServers,
+        canManageServer,
+        selectedServerData,
+        serversApi,
+        userId,
+    ]);
+
+    const channelsSidebar = useMemo(() => {
+        function renderChannels() {
+            if (!serversApi.selectedServer) {
+                return (
+                    <p className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-center text-xs text-muted-foreground">
+                        Select a server to view its channels or create a new space.
+                    </p>
+                );
+            }
+
+            if (channelsApi.initialLoading || categoriesApi.initialLoading) {
+                return (
+                    <div className="space-y-3">
+                        <div className="space-y-1">
+                            <div className="h-3 w-28 animate-pulse rounded-full bg-muted" />
+                            <div className="space-y-1">
+                                <div className="h-8 animate-pulse rounded-md bg-muted/70" />
+                                <div className="h-8 animate-pulse rounded-md bg-muted/70" />
+                                <div className="h-8 animate-pulse rounded-md bg-muted/70" />
+                            </div>
+                        </div>
+                        <div className="space-y-1">
+                            <div className="h-3 w-24 animate-pulse rounded-full bg-muted" />
+                            <div className="space-y-1">
+                                <div className="h-8 animate-pulse rounded-md bg-muted/60" />
+                                <div className="h-8 animate-pulse rounded-md bg-muted/60" />
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                            Loading channels and categories...
+                        </p>
+                    </div>
+                );
+            }
+
+            if (
+                groupedChannels.length === 0 &&
+                uncategorizedChannels.length === 0 &&
+                !channelsApi.loading
+            ) {
+                return (
+                    <div className="space-y-1 rounded-md border border-dashed border-border/60 px-3 py-3 text-center">
+                        <p className="text-sm font-medium text-foreground">
+                            No channels yet
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            This server does not have any visible channels right
+                            now.
+                        </p>
+                    </div>
+                );
+            }
+
+            const renderChannelItem = (channel: Channel) => {
+                const active = channel.$id === selectedChannel;
+                const unreadState = channelUnreadStateById[channel.$id];
+                const isAnnouncementChannel = channel.type === "announcement";
+
+                return (
+                    <li key={channel.$id} className="group relative">
+                        <div className="flex items-center gap-1">
+                            <Button
+                                aria-pressed={active}
+                                className={`min-w-0 flex-1 justify-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors ${
+                                    active
+                                        ? "bg-accent text-foreground"
+                                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                                }`}
+                                onClick={() => selectChannel(channel)}
+                                type="button"
+                                variant="ghost"
+                            >
+                                {isAnnouncementChannel ? (
+                                    <Megaphone
+                                        aria-hidden="true"
+                                        className="size-3.5 shrink-0"
                                     />
                                 ) : (
-                                    <span
-                                        className="text-xs text-muted-foreground"
-                                        title="Server creation is disabled"
-                                    >
-                                        {/* Feature disabled */}
-                                    </span>
+                                    <Hash
+                                        aria-hidden="true"
+                                        className="size-3.5 shrink-0"
+                                    />
                                 )}
-                            </>
-                        )}
-                    </div>
-                </div>
-                <ul className="space-y-1">
-                    {serversApi.servers.map((s) => {
-                        const active = s.$id === serversApi.selectedServer;
-                        const memberCountLabel = formatMemberCount(s.memberCount);
-                        return (
-                            <li key={s.$id} className="group relative">
-                                <div className="flex items-center gap-1">
+
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-sm font-medium">
+                                        {channel.name}
+                                    </span>
+                                </span>
+
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                    {channel.nsfw ? (
+                                        <span
+                                            className="rounded border border-destructive/40 px-1 py-0.5 text-[9px] font-semibold leading-none text-destructive"
+                                            title="18+ channel"
+                                        >
+                                            18+
+                                        </span>
+                                    ) : null}
+                                    {unreadState?.count ? (
+                                        <span
+                                            className={`inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold ${
+                                                unreadState.muted
+                                                    ? "bg-muted/60 text-muted-foreground"
+                                                    : "bg-primary/10 text-primary"
+                                            }`}
+                                        >
+                                            {unreadState.count}
+                                        </span>
+                                    ) : null}
+
+                                </span>
+                            </Button>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
                                     <Button
-                                        aria-pressed={active}
-                                        className={`min-w-0 flex-1 justify-start gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
-                                            active
-                                                ? "bg-accent text-foreground"
-                                                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                                        }`}
-                                        onClick={() => {
-                                            serversApi.setSelectedServer(s.$id);
-                                            setSelectedChannel(null);
-                                        }}
+                                        className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+                                        size="icon"
                                         type="button"
                                         variant="ghost"
                                     >
-                                        <Avatar
-                                            alt={s.name}
-                                            fallback={s.name}
-                                            size="md"
-                                            src={s.iconUrl ?? null}
-                                        />
-
-                                        <span className="min-w-0 flex-1 text-left">
-                                            <span className="block truncate text-sm font-medium">
-                                                {s.name}
-                                            </span>
-                                            <span className="block text-xs text-muted-foreground">
-                                                {memberCountLabel}
-                                            </span>
+                                        <MoreVertical className="h-4 w-4" />
+                                        <span className="sr-only">
+                                            Channel options
                                         </span>
-
                                     </Button>
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                                                size="icon"
-                                                type="button"
-                                                variant="ghost"
-                                            >
-                                                <MoreVertical className="h-4 w-4" />
-                                                <span className="sr-only">
-                                                    Server options
-                                                </span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuItem
-                                                onClick={() =>
-                                                    setMuteDialogState({
-                                                        open: true,
-                                                        type: "server",
-                                                        id: s.$id,
-                                                        name: s.name,
-                                                    })
-                                                }
-                                            >
-                                                <BellOff className="mr-2 h-4 w-4" />
-                                                Mute Server
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem
+                                        onClick={() =>
+                                            setMuteDialogState({
+                                                open: true,
+                                                type: "channel",
+                                                id: channel.$id,
+                                                name: channel.name,
+                                            })
+                                        }
+                                    >
+                                        <BellOff className="mr-2 h-4 w-4" />
+                                        Mute Channel
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    </li>
+                );
+            };
+
+            return (
+                <div className="space-y-3">
+                    <div className="space-y-3">
+                        {groupedChannels.map(({ category, channels }) => {
+                            const collapsed = collapsedCategoryIds.includes(
+                                category.$id,
+                            );
+
+                            return (
+                                <section key={category.$id} className="space-y-1">
+                                    <button
+                                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
+                                        onClick={() =>
+                                            toggleCategoryCollapse(category.$id)
+                                        }
+                                        type="button"
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            {collapsed ? (
+                                                <ChevronRight className="h-3.5 w-3.5" />
+                                            ) : (
+                                                <ChevronDown className="h-3.5 w-3.5" />
+                                            )}
+                                            {category.name}
+                                        </span>
+                                        <span>{channels.length}</span>
+                                    </button>
+                                    {!collapsed && (
+                                        <ul className="space-y-1">
+                                            {channels.length > 0 ? (
+                                                channels.map(renderChannelItem)
+                                            ) : (
+                                                <li className="rounded-md border border-dashed border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                                    No channels in this category
+                                                    yet.
+                                                </li>
+                                            )}
+                                        </ul>
+                                    )}
+                                </section>
+                            );
+                        })}
+
+                        {(uncategorizedChannels.length > 0 ||
+                            groupedChannels.length === 0) && (
+                            <section className="space-y-1">
+                                <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-muted-foreground">
+                                    <span>Uncategorized</span>
+                                    <span>{uncategorizedChannels.length}</span>
                                 </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-                {serversApi.cursor && (
-                    <div className="pt-1">
-                        <Button
-                            disabled={serversApi.loading}
-                            onClick={serversApi.loadMore}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                        >
-                            {serversApi.loading ? "Loading..." : "Load more"}
-                        </Button>
-                    </div>
-                )}
-                {serversApi.membershipEnabled && (
-                    <div className="flex items-center justify-between rounded-md bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
-                        <span>Your Memberships</span>
-                        <span className="font-medium text-foreground">
-                            {serversApi.memberships.length}
-                        </span>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    function renderChannels() {
-        if (!serversApi.selectedServer) {
-            return (
-                <p className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-center text-xs text-muted-foreground">
-                    Select a server to view its channels or create a new space.
-                </p>
-            );
-        }
-
-        if (channelsApi.initialLoading || categoriesApi.initialLoading) {
-            return (
-                <div className="space-y-3">
-                    <div className="space-y-1">
-                        <div className="h-3 w-28 animate-pulse rounded-full bg-muted" />
-                        <div className="space-y-1">
-                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
-                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
-                            <div className="h-8 animate-pulse rounded-md bg-muted/70" />
-                        </div>
-                    </div>
-                    <div className="space-y-1">
-                        <div className="h-3 w-24 animate-pulse rounded-full bg-muted" />
-                        <div className="space-y-1">
-                            <div className="h-8 animate-pulse rounded-md bg-muted/60" />
-                            <div className="h-8 animate-pulse rounded-md bg-muted/60" />
-                        </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                        Loading channels and categories...
-                    </p>
-                </div>
-            );
-        }
-
-        if (
-            groupedChannels.length === 0 &&
-            uncategorizedChannels.length === 0 &&
-            !channelsApi.loading
-        ) {
-            return (
-                <div className="space-y-1 rounded-md border border-dashed border-border/60 px-3 py-3 text-center">
-                    <p className="text-sm font-medium text-foreground">
-                        No channels yet
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        This server does not have any visible channels right
-                        now.
-                    </p>
-                </div>
-            );
-        }
-
-        const renderChannelItem = (channel: Channel) => {
-            const active = channel.$id === selectedChannel;
-            const unreadState = channelUnreadStateById[channel.$id];
-            const isAnnouncementChannel = channel.type === "announcement";
-
-            return (
-                <li key={channel.$id} className="group relative">
-                    <div className="flex items-center gap-1">
-                        <Button
-                            aria-pressed={active}
-                            className={`min-w-0 flex-1 justify-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors ${
-                                active
-                                    ? "bg-accent text-foreground"
-                                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-                            }`}
-                            onClick={() => selectChannel(channel)}
-                            type="button"
-                            variant="ghost"
-                        >
-                            {isAnnouncementChannel ? (
-                                <Megaphone
-                                    aria-hidden="true"
-                                    className="size-3.5 shrink-0"
-                                />
-                            ) : (
-                                <Hash
-                                    aria-hidden="true"
-                                    className="size-3.5 shrink-0"
-                                />
-                            )}
-
-                            <span className="min-w-0 flex-1">
-                                <span className="block truncate text-sm font-medium">
-                                    {channel.name}
-                                </span>
-                            </span>
-
-                            <span className="flex shrink-0 items-center gap-1.5">
-                                {channel.nsfw ? (
-                                    <span
-                                        className="rounded border border-destructive/40 px-1 py-0.5 text-[9px] font-semibold leading-none text-destructive"
-                                        title="18+ channel"
-                                    >
-                                        18+
-                                    </span>
-                                ) : null}
-                                {unreadState?.count ? (
-                                    <span
-                                        className={`inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[10px] font-semibold ${
-                                            unreadState.muted
-                                                ? "bg-muted/60 text-muted-foreground"
-                                                : "bg-primary/10 text-primary"
-                                        }`}
-                                    >
-                                        {unreadState.count}
-                                    </span>
-                                ) : null}
-
-                            </span>
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-                                    size="icon"
-                                    type="button"
-                                    variant="ghost"
-                                >
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">
-                                        Channel options
-                                    </span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                    onClick={() =>
-                                        setMuteDialogState({
-                                            open: true,
-                                            type: "channel",
-                                            id: channel.$id,
-                                            name: channel.name,
-                                        })
-                                    }
-                                >
-                                    <BellOff className="mr-2 h-4 w-4" />
-                                    Mute Channel
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </li>
-            );
-        };
-
-        return (
-            <div className="space-y-3">
-                <div className="space-y-3">
-                    {groupedChannels.map(({ category, channels }) => {
-                        const collapsed = collapsedCategoryIds.includes(
-                            category.$id,
-                        );
-
-                        return (
-                            <section key={category.$id} className="space-y-1">
-                                <button
-                                    className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
-                                    onClick={() =>
-                                        toggleCategoryCollapse(category.$id)
-                                    }
-                                    type="button"
-                                >
-                                    <span className="flex items-center gap-1.5">
-                                        {collapsed ? (
-                                            <ChevronRight className="h-3.5 w-3.5" />
-                                        ) : (
-                                            <ChevronDown className="h-3.5 w-3.5" />
-                                        )}
-                                        {category.name}
-                                    </span>
-                                    <span>{channels.length}</span>
-                                </button>
-                                {!collapsed && (
-                                    <ul className="space-y-1">
-                                        {channels.length > 0 ? (
-                                            channels.map(renderChannelItem)
-                                        ) : (
-                                            <li className="rounded-md border border-dashed border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
-                                                No channels in this category
-                                                yet.
-                                            </li>
-                                        )}
-                                    </ul>
-                                )}
+                                <ul className="space-y-1">
+                                    {uncategorizedChannels.map(renderChannelItem)}
+                                </ul>
                             </section>
-                        );
-                    })}
-
-                    {(uncategorizedChannels.length > 0 ||
-                        groupedChannels.length === 0) && (
-                        <section className="space-y-1">
-                            <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-muted-foreground">
-                                <span>Uncategorized</span>
-                                <span>{uncategorizedChannels.length}</span>
-                            </div>
-                            <ul className="space-y-1">
-                                {uncategorizedChannels.map(renderChannelItem)}
-                            </ul>
-                        </section>
+                        )}
+                    </div>
+                    {channelsApi.cursor && (
+                        <div className="pt-1">
+                            <Button
+                                disabled={channelsApi.loading}
+                                onClick={channelsApi.loadMore}
+                                size="sm"
+                                type="button"
+                                variant="outline"
+                            >
+                                {channelsApi.loading ? "Loading..." : "Load more"}
+                            </Button>
+                        </div>
                     )}
                 </div>
-                {channelsApi.cursor && (
-                    <div className="pt-1">
-                        <Button
-                            disabled={channelsApi.loading}
-                            onClick={channelsApi.loadMore}
-                            size="sm"
-                            type="button"
-                            variant="outline"
-                        >
-                            {channelsApi.loading ? "Loading..." : "Load more"}
-                        </Button>
-                    </div>
-                )}
-            </div>
-        );
-    }
+            );
+        }
+
+        return renderChannels();
+    }, [
+        categoriesApi,
+        channelUnreadStateById,
+        channelsApi,
+        collapsedCategoryIds,
+        groupedChannels,
+        selectChannel,
+        selectedChannel,
+        serversApi,
+        toggleCategoryCollapse,
+        uncategorizedChannels,
+    ]);
 
     function renderMessages() {
         if (nsfwBlocked) {
@@ -2233,8 +2280,8 @@ export default function ChatPage() {
                     </div>
                     {viewMode === "channels" ? (
                         <div className="space-y-4">
-                            {renderServers()}
-                            {renderChannels()}
+                            {serversSidebar}
+                            {channelsSidebar}
                             {userId && (
                                 <Button
                                     className="w-full"

@@ -11,7 +11,7 @@ import {
     useState,
     type ReactNode,
 } from "react";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { logger } from "@/lib/client-logger";
 import type { UserStatus } from "@/lib/types";

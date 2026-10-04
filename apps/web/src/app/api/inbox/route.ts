@@ -429,9 +429,15 @@ export async function GET(request: NextRequest) {
         ? [contextKind]
         : scopeToContextKinds(scope);
 
-    const inboxListLimit = isContextScoped ? Number.POSITIVE_INFINITY : limit;
+    // A context-scoped request used to load the user's ENTIRE unread inbox
+    // (limit: Infinity) and then throw away everything but the one context, so
+    // every channel switch cost a full inbox computation — including the
+    // per-thread unread count queries. Scope the query instead and keep the
+    // limit bounded.
+    const inboxListLimit = limit;
     const loadInbox = () =>
         listInboxItems({
+            contextId: isContextScoped ? contextId : undefined,
             contextKinds,
             kinds,
             limit: inboxListLimit,
@@ -524,7 +530,11 @@ export async function PATCH(request: NextRequest) {
         }
 
         const readAt = new Date().toISOString();
+        // Scope the query by context rather than loading every unread item and
+        // discarding all but the requested one. `limit` stays Infinity here
+        // because mark-all-read must reach every item in scope.
         const inbox = await listInboxItems({
+            contextId: contextKind && contextId ? contextId : undefined,
             contextKinds: contextKind ? [contextKind] : undefined,
             kinds: VALID_KINDS,
             limit: Number.POSITIVE_INFINITY,

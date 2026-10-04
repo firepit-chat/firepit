@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 // Use API endpoints from the client to avoid bundling server-side code
@@ -127,124 +127,139 @@ export function useChannels({
         };
     }, [refresh]);
 
-    async function loadMore() {
-        if (!selectedServer) {
-            return;
-        }
-        if (!cursor || loading) {
-            return;
-        }
-        setLoading(true);
-        try {
-            const response = await fetch(
-                `/api/channels?serverId=${selectedServer}&limit=50&cursor=${cursor}`,
-            );
-            const data = (await response.json()) as {
-                channels: Channel[];
-                nextCursor: string | null;
-            };
-            setCursor(data.nextCursor);
-            setChannels((prev) => [...prev, ...data.channels]);
-        } catch (err) {
-            toast.error(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to load more channels",
-            );
-        } finally {
-            setLoading(false);
-        }
-    }
+    const loadMore = useCallback(
+      async () => {
 
-    async function create(
+            if (!selectedServer) {
+                return;
+            }
+            if (!cursor || loading) {
+                return;
+            }
+            setLoading(true);
+            try {
+                const response = await fetch(
+                    `/api/channels?serverId=${selectedServer}&limit=50&cursor=${cursor}`,
+                );
+                const data = (await response.json()) as {
+                    channels: Channel[];
+                    nextCursor: string | null;
+                };
+                setCursor(data.nextCursor);
+                setChannels((prev) => [...prev, ...data.channels]);
+            } catch (err) {
+                toast.error(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to load more channels",
+                );
+            } finally {
+                setLoading(false);
+            }
+    
+      },
+      [cursor, loading, selectedServer],
+  );
+
+    const create = useCallback(
+      async (
         name: string,
         type: "text" | "voice" | "announcement" = "text",
-    ) {
-        if (!userId) {
-            return null;
-        }
-        if (!selectedServer) {
-            return null;
-        }
-        try {
-            let channel: Channel;
-            if (process.env.NODE_ENV === "test") {
-                const { createChannel } = await import("@/lib/appwrite-servers");
-                channel = await createChannel(selectedServer, name, userId, type);
-            } else {
-                const res = await fetch("/api/channels", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ serverId: selectedServer, name, type }),
-                });
-                const text = await res.text().catch(() => "");
-                let payload: unknown = null;
-                let fallbackText = "";
-                if (text) {
-                    try {
-                        payload = JSON.parse(text);
-                    } catch {
-                        fallbackText = text;
+    ) => {
+
+            if (!userId) {
+                return null;
+            }
+            if (!selectedServer) {
+                return null;
+            }
+            try {
+                let channel: Channel;
+                if (process.env.NODE_ENV === "test") {
+                    const { createChannel } = await import("@/lib/appwrite-servers");
+                    channel = await createChannel(selectedServer, name, userId, type);
+                } else {
+                    const res = await fetch("/api/channels", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ serverId: selectedServer, name, type }),
+                    });
+                    const text = await res.text().catch(() => "");
+                    let payload: unknown = null;
+                    let fallbackText = "";
+                    if (text) {
+                        try {
+                            payload = JSON.parse(text);
+                        } catch {
+                            fallbackText = text;
+                        }
+                    }
+
+                    const body = payload as { channel?: unknown; error?: string } | null;
+                    const errMsg = body?.error || fallbackText || "Failed to create channel";
+
+                    if (!res.ok) {
+                        throw new Error(errMsg);
+                    }
+
+                    const channelRecord = body?.channel;
+                    if (!isValidChannelResponse(channelRecord)) {
+                        throw new Error(errMsg);
+                    }
+                    channel = channelRecord;
+                }
+                setChannels((prev) => [...prev, channel]);
+                apiCache.clear(`channels:${selectedServer}:initial`);
+                window.dispatchEvent(new Event("firepit:channels-changed"));
+                return channel;
+            } catch (err) {
+                const error =
+                    err instanceof Error
+                        ? err
+                        : new Error("Failed to create channel", { cause: err });
+                toast.error(error.message);
+                throw error;
+            }
+    
+      },
+      [selectedServer, userId],
+  );
+
+    const remove = useCallback(
+      async (channel: Channel) => {
+
+            try {
+                if (process.env.NODE_ENV === "test") {
+                    const { deleteChannel } = await import("@/lib/appwrite-servers");
+                    await deleteChannel(channel.$id);
+                } else {
+                    const res = await fetch(`/api/channels/${encodeURIComponent(channel.$id)}`, {
+                        method: "DELETE",
+                    });
+                    if (!res.ok) {
+                        const parsed: unknown = await res.json().catch(() => null);
+                        let errorMessage: string | undefined;
+                        if (parsed && typeof parsed === "object" && "error" in parsed) {
+                            errorMessage = (parsed as { error?: string }).error;
+                        }
+                        throw new Error(errorMessage || "Failed to delete channel");
                     }
                 }
-
-                const body = payload as { channel?: unknown; error?: string } | null;
-                const errMsg = body?.error || fallbackText || "Failed to create channel";
-
-                if (!res.ok) {
-                    throw new Error(errMsg);
-                }
-
-                const channelRecord = body?.channel;
-                if (!isValidChannelResponse(channelRecord)) {
-                    throw new Error(errMsg);
-                }
-                channel = channelRecord;
+                setChannels((prev) => prev.filter((c) => c.$id !== channel.$id));
+                if (selectedServer) {apiCache.clear(`channels:${selectedServer}:initial`);}
+                window.dispatchEvent(new Event("firepit:channels-changed"));
+            } catch (err) {
+                const error =
+                    err instanceof Error
+                        ? err
+                        : new Error("Failed to delete channel", { cause: err });
+                toast.error(error.message);
+                throw error;
             }
-            setChannels((prev) => [...prev, channel]);
-            apiCache.clear(`channels:${selectedServer}:initial`);
-            window.dispatchEvent(new Event("firepit:channels-changed"));
-            return channel;
-        } catch (err) {
-            const error =
-                err instanceof Error
-                    ? err
-                    : new Error("Failed to create channel", { cause: err });
-            toast.error(error.message);
-            throw error;
-        }
-    }
-
-    async function remove(channel: Channel) {
-        try {
-            if (process.env.NODE_ENV === "test") {
-                const { deleteChannel } = await import("@/lib/appwrite-servers");
-                await deleteChannel(channel.$id);
-            } else {
-                const res = await fetch(`/api/channels/${encodeURIComponent(channel.$id)}`, {
-                    method: "DELETE",
-                });
-                if (!res.ok) {
-                    const parsed: unknown = await res.json().catch(() => null);
-                    let errorMessage: string | undefined;
-                    if (parsed && typeof parsed === "object" && "error" in parsed) {
-                        errorMessage = (parsed as { error?: string }).error;
-                    }
-                    throw new Error(errorMessage || "Failed to delete channel");
-                }
-            }
-            setChannels((prev) => prev.filter((c) => c.$id !== channel.$id));
-            if (selectedServer) {apiCache.clear(`channels:${selectedServer}:initial`);}
-            window.dispatchEvent(new Event("firepit:channels-changed"));
-        } catch (err) {
-            const error =
-                err instanceof Error
-                    ? err
-                    : new Error("Failed to delete channel", { cause: err });
-            toast.error(error.message);
-            throw error;
-        }
-    }
+    
+      },
+      [selectedServer],
+  );
 
     const isOwner = useCallback(
         (serverId: string) => {
@@ -254,15 +269,30 @@ export function useChannels({
         [servers, userId],
     );
 
-    return {
-        channels,
-        cursor,
-        initialLoading,
-        loading,
-        loadMore,
-        create,
-        remove,
-        isOwner,
-        refresh,
-    };
+    // Stable identity: consumers put this object in dependency arrays, and a fresh
+    // object literal per render re-ran those effects on every render.
+    return useMemo(
+        () => ({
+            channels,
+            cursor,
+            initialLoading,
+            loading,
+            loadMore,
+            create,
+            remove,
+            isOwner,
+            refresh,
+        }),
+        [
+            channels,
+            create,
+            cursor,
+            initialLoading,
+            isOwner,
+            loadMore,
+            loading,
+            refresh,
+            remove,
+        ],
+    );
 }

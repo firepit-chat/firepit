@@ -105,8 +105,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   permission names, and omitted `userId` entirely.
 - **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
 
-### ⚙️ Improvements
+- **The inbox now clears when you read it.** Marking a channel or conversation
+  as read was scheduled behind an 800 ms debounce whose timer was being reset on
+  every single re-render of the chat page — and the page re-renders on every
+  keystroke. Renders arrived faster than the debounce, so the timer never fired
+  and the inbox stayed unread until you navigated away and back. The hooks now
+  return a stable object, so the effect re-runs when the data changes rather than
+  on every frame.
+- **Messages no longer update while you are away.** Cached inbox and
+  conversation data older than five minutes was never refetched when you
+  navigated back to the chat, so you could be reading a several-minute-old view
+  with no indication anything was stale. Stale queries now revalidate on mount;
+  the per-query freshness windows still keep repeat visits free.
+- **Direct messages no longer open a second, redundant presence
+  subscription.** The channel message hook subscribed to the project's presence
+  events even in DM view, where its typing indicator cannot be used, doubling
+  the presence traffic for no benefit.
+- **Realtime message filtering after an account switch.** The channel
+  subscription read the viewer's id from a stale closure, so a message arriving
+  after switching accounts could be filtered against the previous user's id.
+- **The background DM poll no longer runs on hidden tabs.** A backgrounded DM
+  tab re-queried the message list and a profile batch every 15 seconds
+  indefinitely, for a tab nobody was looking at.
+- **Revoked sessions now take effect promptly.** `getServerSession` was wrapped
+  in a framework cache keyed on nothing (it takes no arguments and reads the
+  session from headers), which could keep a session alive well past the
+  30-second window the function already implements deliberately. That wrapper is
+  gone; the intended cache remains.
+- **The analytics configuration is no longer silently discarded.** Both
+  `instrumentation-client.ts` and a React provider were initialising PostHog
+  with different settings, and the second call quietly overwrote the first,
+  discarding cookieless mode, exception capture, and the pinned config snapshot.
+  There is now a single initializer.
 
+### ⚙️ Improvements
+- **Faster chat, and about 25% less JavaScript on every page.** A performance
+  pass across the web app:
+    - The chat page no longer rebuilds the server and channel sidebars, or every
+      visible message row, on every keystroke. Message handlers, the profile
+      modal opener, and the sidebar subtrees are now stable, so typing only
+      re-renders what actually changed.
+    - Timestamps build their date and time formatters once instead of
+      constructing two per message per render.
+    - Switching channels no longer scans your entire unread inbox and discards
+      all but the one channel you asked for.
+    - The server resolves per-server and per-role lookups concurrently on the
+      moderation page and in message search instead of one round trip at a time.
+    - The first realtime message from someone you have already loaded no longer
+      triggers a redundant profile request.
+    - The in-memory server cache is now size-capped, so a long-running instance
+      cannot grow without bound as you visit more channels and conversations.
+  The analytics SDK and the emoji shortcode table are no longer part of the
+  initial page load — both now load on demand, and events captured before the
+  analytics SDK arrives are replayed rather than dropped. Emoji, the image
+  viewer, the GIF/sticker picker, and the notification settings panel are split
+  out of their initial bundles. As a result the shared JavaScript baseline drops
+  from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+- **`react-hooks` lint rules are enabled.** The plugin was registered but every
+  rule was off, which is how effects with incomplete dependency arrays shipped.
+  `rules-of-hooks` is now an error and `exhaustive-deps` a warning, with the
+  existing violations fixed. A `use`-prefixed server helper that was not a hook
+  was renamed accordingly.
 - **API client types are now generated from the spec.** `bun run
 generate:api-types` produces TypeScript types directly from the documented
   API, and CI fails if they drift from the spec. Combined with the existing

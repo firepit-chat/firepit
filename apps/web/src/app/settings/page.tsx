@@ -34,7 +34,7 @@ import { ThemeSettings } from "@/components/theme-settings";
 import { BlockedUsersSettings } from "@/components/blocked-users-settings";
 import { DeveloperModeSettings } from "@/components/developer-mode-settings";
 import { FriendsSettings } from "@/components/friends-settings";
-import { NotificationSettings } from "@/components/notification-settings";
+import { NotificationSettingsLazy } from "./notification-settings-lazy";
 import { NsfwContentSettings } from "@/components/nsfw-content-settings";
 import { PendingFriendRequestsBadge } from "@/components/pending-friend-requests-badge";
 import { SettingsSectionNav } from "@/components/settings-section-nav";
@@ -500,7 +500,7 @@ export default async function SettingsPage() {
                                     notifications from firepit.
                                 </p>
                             </div>
-                            <NotificationSettings />
+                            <NotificationSettingsLazy />
                         </section>
 
                         <section
