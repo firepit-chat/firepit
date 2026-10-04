@@ -230,17 +230,30 @@ export function useTypingIndicator(
 
                         const needsEnrich = !eventUserName && !isDelete;
                         setTypingUsers((prev) => {
-                            const next = { ...prev };
+                            const existing = prev[eventUserId];
+                            // Every presence event in the channel lands here, and
+                            // a new object re-renders the whole screen. Return
+                            // `prev` when nothing actually changed.
                             if (isDelete) {
+                                if (!existing) return prev;
+                                const next = { ...prev };
                                 delete next[eventUserId];
-                            } else {
-                                next[eventUserId] = {
-                                    userId: eventUserId,
-                                    userName: eventUserName || undefined,
-                                    updatedAt: eventUpdatedAt,
-                                };
+                                return next;
                             }
-                            return next;
+                            const incoming = {
+                                userId: eventUserId,
+                                userName: eventUserName || undefined,
+                                updatedAt: eventUpdatedAt,
+                            };
+                            if (
+                                existing &&
+                                existing.userId === incoming.userId &&
+                                existing.userName === incoming.userName &&
+                                existing.updatedAt === incoming.updatedAt
+                            ) {
+                                return prev;
+                            }
+                            return { ...prev, [eventUserId]: incoming };
                         });
                         if (needsEnrich) {
                             void enrichProfiles([eventUserId]);

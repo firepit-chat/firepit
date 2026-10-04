@@ -53,6 +53,12 @@ function formatTimestamp(timestamp?: string) {
     return date.toLocaleString();
 }
 
+// Hoisted: an inline renderItem lands in the list cell's props and defeats
+// its PureComponent, re-rendering every visible row on any parent render.
+const renderAuditEntry = ({ item }: { item: ServerAuditLogEntry }) => (
+    <AuditEntryCard entry={item} />
+);
+
 export default function AuditLogScreen() {
     const theme = useTheme();
     const { serverId } = useLocalSearchParams<{ serverId?: string }>();
@@ -231,7 +237,7 @@ export default function AuditLogScreen() {
                                 </ThemedView>
                             ) : null
                         }
-                        renderItem={({ item }) => <AuditEntryCard entry={item} />}
+                        renderItem={renderAuditEntry}
                     />
                 </SafeAreaView>
             </View>

@@ -135,6 +135,19 @@ export default function InstanceReportsScreen() {
 
     useRetryOnReconnect(loadState === "error", loadReports);
 
+    // Hoisted: an inline renderItem lands in the list cell's props and defeats
+    // its PureComponent, re-rendering every visible row on any parent render.
+    const renderReport = useCallback(
+        ({ item }: { item: AdminReportEntry }) => (
+            <ReportCard
+                entry={item}
+                savingId={savingId}
+                onResolve={handleResolve}
+            />
+        ),
+        [handleResolve, savingId],
+    );
+
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -251,13 +264,7 @@ export default function InstanceReportsScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <ReportCard
-                                entry={item}
-                                savingId={savingId}
-                                onResolve={handleResolve}
-                            />
-                        )}
+                        renderItem={renderReport}
                     />
                 </SafeAreaView>
             </View>

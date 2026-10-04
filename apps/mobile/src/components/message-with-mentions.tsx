@@ -8,12 +8,16 @@ import {
     registerSpoilerRule,
 } from "@firepit-chat/markdown-spoiler/react-native";
 import { parseMentions } from "@/lib/mention-utils";
-import { EmojiRenderer, type CustomEmoji } from "@/components/emoji-renderer";
+import {
+  EmojiRenderer,
+  NO_CUSTOM_EMOJIS,
+  type CustomEmoji,
+} from "@/components/emoji-renderer";
 import { useTheme } from "@/hooks/use-theme";
 
 type MessageWithMentionsProps = {
     text: string;
-    customEmojis?: CustomEmoji[];
+    customEmojis?: readonly CustomEmoji[];
 };
 
 const MARKDOWN_PATTERN =
@@ -48,7 +52,7 @@ type InlineRule = {
 
 export function MessageWithMentions({
     text,
-    customEmojis = [],
+    customEmojis = NO_CUSTOM_EMOJIS,
 }: MessageWithMentionsProps) {
     const colors = useTheme();
 

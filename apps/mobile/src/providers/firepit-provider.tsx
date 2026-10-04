@@ -167,6 +167,49 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
     appwriteConfigRef.current = appwriteConfig;
   }, [appwriteConfig]);
 
+  // `version`, `instance`, `featureFlags` and `compatibility` are replaced with
+  // fresh objects on every refresh() (including the 50-minute token tick).
+  // Reading them through refs keeps the callbacks below — and therefore the
+  // context value — stable, instead of re-rendering all 45 consumer files on
+  // every tick. Mirrors the instanceUrlRef/appwriteConfigRef pattern above.
+  const versionRef = useRef(version);
+  const instanceRef = useRef(instance);
+  const featureFlagsRef = useRef(featureFlags);
+  const compatibilityRef = useRef(compatibility);
+  useEffect(() => {
+    versionRef.current = version;
+    instanceRef.current = instance;
+    featureFlagsRef.current = featureFlags;
+    compatibilityRef.current = compatibility;
+  }, [version, instance, featureFlags, compatibility]);
+
+  const readSnapshot = useCallback(
+    (url: string, currentUser: CurrentUser | null): BootstrapSnapshot | null => {
+      const currentVersion = versionRef.current;
+      const currentInstance = instanceRef.current;
+      const currentFlags = featureFlagsRef.current;
+      const currentCompatibility = compatibilityRef.current;
+      return currentVersion &&
+        currentInstance &&
+        currentFlags &&
+        currentCompatibility
+        ? snapshotFromState(
+            url,
+            currentVersion,
+            currentInstance,
+            currentFlags,
+            currentCompatibility,
+            currentUser,
+          )
+        : null;
+    },
+    [],
+  );
+
+  // Push registration is a one-shot per signed-in session, not per auth-state
+  // transition. Cleared on sign-out.
+  const pushRegisteredRef = useRef(false);
+
   // Guard against setState after unmount (e.g. timer fires during navigation)
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -221,9 +264,9 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
     if (appwriteConfigRef.current) return appwriteConfigRef.current;
     const url = instanceUrlRef.current;
     if (!url) throw new Error("Set an instance URL first.");
-    const sourceInstance = instance ?? (await fetchInstance(url));
+    const sourceInstance = instanceRef.current ?? (await fetchInstance(url));
     return persistAppwriteConfig(sourceInstance);
-  }, [instance, persistAppwriteConfig]);
+  }, [persistAppwriteConfig]);
 
   // Silent re-auth: reads instanceUrl from ref, calls setSessionToken
   const authenticateWithStoredCredentials = useCallback(async (): Promise<boolean> => {
@@ -247,10 +290,9 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         const nextUser = await resolveCurrentUser(url, token, config);
         setCurrentUser(nextUser);
         setState("ready");
-        if (version && instance && featureFlags && compatibility) {
-          await saveBootstrapSnapshot(
-            snapshotFromState(url, version, instance, featureFlags, compatibility, nextUser),
-          );
+        const snapshot = readSnapshot(url, nextUser);
+        if (snapshot) {
+          await saveBootstrapSnapshot(snapshot);
         }
       } catch (authError) {
         await clearBearerToken();
@@ -267,7 +309,7 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
       console.error("[provider] Silent re-authentication failed:", err);
       return false;
     }
-  }, [resolveAppwriteConfig, version, instance, featureFlags, compatibility]);
+  }, [resolveAppwriteConfig, readSnapshot]);
 
   // refresh: reads instanceUrl from ref, no state deps -> stable identity
   const refresh = useCallback(
@@ -608,7 +650,12 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
 
     const timer = setTimeout(async () => {
       let pushGranted = false;
-      if (state === "ready" && accessToken && instanceUrl && !cancelled) {
+      // Registering means a permission prompt, an Expo push-token fetch and a
+      // POST. Keyed on having a token rather than on `state`, which flips to
+      // "loading" and back on every refresh — that re-ran the whole sequence
+      // every 50 minutes. Reset on sign-out so a new account registers again.
+      if (accessToken && instanceUrl && !cancelled && !pushRegisteredRef.current) {
+        pushRegisteredRef.current = true;
         const token = await registerPushToken(instanceUrl, accessToken);
         pushGranted = token !== null;
       }
@@ -629,7 +676,7 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [state, accessToken, instanceUrl]);
+  }, [accessToken, instanceUrl]);
 
   const bootstrapInstance = useCallback(
     async (nextInstanceUrl: string) => {
@@ -657,10 +704,9 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(nextUser);
         setState("ready");
 
-        if (version && instance && featureFlags && compatibility) {
-          await saveBootstrapSnapshot(
-            snapshotFromState(url, version, instance, featureFlags, compatibility, nextUser),
-          );
+        const snapshot = readSnapshot(url, nextUser);
+        if (snapshot) {
+          await saveBootstrapSnapshot(snapshot);
         }
       } catch (authError) {
         await clearBearerToken();
@@ -677,7 +723,7 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         throw authError;
       }
     },
-    [resolveAppwriteConfig, version, instance, featureFlags, compatibility],
+    [readSnapshot, resolveAppwriteConfig],
   );
 
   const authenticate = useCallback(
@@ -698,6 +744,7 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    pushRegisteredRef.current = false;
     await clearBearerToken();
     await clearCredentials();
     clearProfileCache();
@@ -710,12 +757,13 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
     setState(instanceUrlRef.current ? "needs-auth" : "needs-instance");
 
     const url = instanceUrlRef.current;
-    if (url && version && instance && featureFlags && compatibility) {
-      await saveBootstrapSnapshot(
-        snapshotFromState(url, version, instance, featureFlags, compatibility, null),
-      );
+    if (url) {
+      const snapshot = readSnapshot(url, null);
+      if (snapshot) {
+        await saveBootstrapSnapshot(snapshot);
+      }
     }
-  }, [version, instance, featureFlags, compatibility]);
+  }, [readSnapshot]);
 
   const saveNotifPrefs = useCallback(
     async (prefs: NotificationPreferences) => {

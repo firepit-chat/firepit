@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useTheme } from "@/hooks/use-theme";
+
+const keyExtractor = (it: MentionableItem) =>
+  it.type === "role"
+    ? `role-${it.id}`
+    : it.type === "all"
+      ? "all"
+      : `user-${it.userId}`;
 
 type MentionableRole = {
   readonly type: "role";
@@ -53,6 +60,44 @@ export function MentionAutocomplete({
     ...users,
   ];
 
+  // Hoisted: an inline renderItem lands in the list cell's props and defeats
+  // its PureComponent, and this list re-renders on every keystroke in the
+  // composer.
+  const renderItem = useCallback(
+    ({ item, index }: { item: MentionableItem; index: number }) => {
+      const isSelected = index === selectedIndex;
+      const rowStyle = {
+        padding: 12,
+        backgroundColor: isSelected ? colors.muted : "transparent",
+      };
+
+      if (item.type === "all") {
+        return (
+          <Pressable onPress={() => onSelect(null)} style={rowStyle}>
+            <Text style={{ color: colors.text }}>@all</Text>
+          </Pressable>
+        );
+      }
+
+      if (item.type === "role") {
+        return (
+          <Pressable onPress={() => onSelect(item)} style={rowStyle}>
+            <Text style={{ color: colors.text }}>@{item.name}</Text>
+          </Pressable>
+        );
+      }
+
+      return (
+        <Pressable onPress={() => onSelect(item)} style={rowStyle}>
+          <Text style={{ color: colors.text }}>
+            {item.displayName || item.userId}
+          </Text>
+        </Pressable>
+      );
+    },
+    [colors.muted, colors.text, onSelect, selectedIndex],
+  );
+
   return (
     <View
       style={{
@@ -72,58 +117,8 @@ export function MentionAutocomplete({
       ) : (
         <FlatList
           data={items}
-          keyExtractor={(it) =>
-            it.type === "role"
-              ? `role-${it.id}`
-              : it.type === "all"
-                ? "all"
-                : `user-${it.userId}`
-          }
-          renderItem={({ item, index }) => {
-            const isSelected = index === selectedIndex;
-
-            if (item.type === "all") {
-              return (
-                <Pressable
-                  onPress={() => onSelect(null)}
-                  style={{
-                    padding: 12,
-                    backgroundColor: isSelected ? colors.muted : "transparent",
-                  }}
-                >
-                  <Text style={{ color: colors.text }}>@all</Text>
-                </Pressable>
-              );
-            }
-
-            if (item.type === "role") {
-              return (
-                <Pressable
-                  onPress={() => onSelect(item)}
-                  style={{
-                    padding: 12,
-                    backgroundColor: isSelected ? colors.muted : "transparent",
-                  }}
-                >
-                  <Text style={{ color: colors.text }}>@{item.name}</Text>
-                </Pressable>
-              );
-            }
-
-            return (
-              <Pressable
-                onPress={() => onSelect(item)}
-                style={{
-                  padding: 12,
-                  backgroundColor: isSelected ? colors.muted : "transparent",
-                }}
-              >
-                <Text style={{ color: colors.text }}>
-                  {item.displayName || item.userId}
-                </Text>
-              </Pressable>
-            );
-          }}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
         />
       )}
     </View>

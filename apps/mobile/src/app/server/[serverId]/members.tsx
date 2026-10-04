@@ -41,6 +41,52 @@ function displayLabelFor(member: ViewerMember): string {
  * The server returns members ordered by role rank and then by name, so this
  * renders the list as given rather than re-sorting it.
  */
+const keyExtractor = (member: ViewerMember) => member.userId;
+
+// Hoisted so the list's cells are not re-rendered whenever the parent is. Only
+// module-level helpers are referenced, so this needs no dependencies.
+const renderMember = ({ item }: { item: ViewerMember }) => (
+                        <ThemedView
+                            type="card"
+                            style={styles.row}
+                        >
+                            <ThemedView
+                                type="muted"
+                                style={styles.avatar}
+                            >
+                                <ThemedText type="small" themeColor="foreground">
+                                    {initialsFor(item)}
+                                </ThemedText>
+                            </ThemedView>
+                            <ThemedText
+                                type="small"
+                                themeColor="foreground"
+                                numberOfLines={1}
+                                style={styles.name}
+                            >
+                                {displayLabelFor(item)}
+                            </ThemedText>
+                            {item.role ? (
+                                <ThemedView
+                                    style={[
+                                        styles.roleChip,
+                                        {
+                                            backgroundColor: `${item.role.color}1f`,
+                                        },
+                                    ]}
+                                >
+                                    <ThemedText
+                                        type="small"
+                                        numberOfLines={1}
+                                        style={{ color: item.role.color }}
+                                    >
+                                        {item.role.name}
+                                    </ThemedText>
+                                </ThemedView>
+                            ) : null}
+                        </ThemedView>
+);
+
 export default function ServerMembersScreen() {
     const theme = useTheme();
     const { serverId } = useLocalSearchParams<{ serverId?: string }>();
@@ -133,8 +179,14 @@ export default function ServerMembersScreen() {
             {members.length > 0 ? (
                 <FlatList
                     data={members}
-                    keyExtractor={(member) => member.userId}
+                    keyExtractor={keyExtractor}
                     contentContainerStyle={styles.list}
+                    // Same tuning as the other lists in the app. Without this the
+                    // FlatList default windowSize of 21 keeps ~21 screens of
+                    // rows mounted, and the member list has no hard cap.
+                    windowSize={5}
+                    maxToRenderPerBatch={10}
+                    initialNumToRender={10}
                     ListFooterComponent={
                         truncated ? (
                             <ThemedText
@@ -146,47 +198,7 @@ export default function ServerMembersScreen() {
                             </ThemedText>
                         ) : null
                     }
-                    renderItem={({ item }) => (
-                        <ThemedView
-                            type="card"
-                            style={styles.row}
-                        >
-                            <ThemedView
-                                type="muted"
-                                style={styles.avatar}
-                            >
-                                <ThemedText type="small" themeColor="foreground">
-                                    {initialsFor(item)}
-                                </ThemedText>
-                            </ThemedView>
-                            <ThemedText
-                                type="small"
-                                themeColor="foreground"
-                                numberOfLines={1}
-                                style={styles.name}
-                            >
-                                {displayLabelFor(item)}
-                            </ThemedText>
-                            {item.role ? (
-                                <ThemedView
-                                    style={[
-                                        styles.roleChip,
-                                        {
-                                            backgroundColor: `${item.role.color}1f`,
-                                        },
-                                    ]}
-                                >
-                                    <ThemedText
-                                        type="small"
-                                        numberOfLines={1}
-                                        style={{ color: item.role.color }}
-                                    >
-                                        {item.role.name}
-                                    </ThemedText>
-                                </ThemedView>
-                            ) : null}
-                        </ThemedView>
-                    )}
+                    renderItem={renderMember}
                 />
             ) : null}
         </SafeAreaView>
