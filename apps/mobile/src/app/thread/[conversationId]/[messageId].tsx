@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
     ActivityIndicator,
@@ -172,13 +172,21 @@ export default function DMThreadScreen() {
 
     const allMessages = parentMessage ? [parentMessage, ...replies] : replies;
 
+    // Hoisted out of renderItem: building it per cell meant a fresh array for
+    // every visible reply on every render, which defeated ChatBubbleMessage's
+    // memo and forced a full markdown re-parse of each one.
+    const mappedEmojis = useMemo(
+        () =>
+            customEmojis?.map((ce) => ({
+                ...ce,
+                url: ce.url.startsWith("http") ? ce.url : `${instanceUrl}${ce.url}`,
+            })) ?? [],
+        [customEmojis, instanceUrl],
+    );
+
     const renderItem = useCallback(
         ({ item, index }: { item: TimelineMessage; index: number }) => {
             const isParent = index === 0 && item.$id === parentMessage?.$id;
-            const mappedEmojis = customEmojis?.map((ce) => ({
-                ...ce,
-                url: ce.url.startsWith("http") ? ce.url : `${instanceUrl}${ce.url}`,
-            })) ?? [];
             return (
                 <View style={[
                     isParent ? styles.parentMessage : undefined,
@@ -218,7 +226,7 @@ export default function DMThreadScreen() {
                 </View>
             );
         },
-        [parentMessage, customEmojis, instanceUrl, currentUserId],
+        [parentMessage, mappedEmojis, currentUserId],
     );
 
     return (
