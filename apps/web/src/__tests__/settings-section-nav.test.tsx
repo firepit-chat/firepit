@@ -2,6 +2,7 @@
  * @vitest-environment happy-dom
  */
 import { render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsSectionNav } from "@/components/settings-section-nav";
@@ -53,5 +54,17 @@ describe("SettingsSectionNav", () => {
             }),
         ).toBeTruthy();
         expect(screen.getAllByText("Interface").length).toBeGreaterThan(0);
+    });
+
+    it("renders the first section on the first render so it matches the server HTML", () => {
+        const html = renderToString(<SettingsSectionNav sections={sections} />);
+        const container = document.createElement("div");
+        container.innerHTML = html;
+
+        expect(
+            container.querySelector('[aria-current="location"]')?.getAttribute(
+                "href",
+            ),
+        ).toBe("#profile");
     });
 });
