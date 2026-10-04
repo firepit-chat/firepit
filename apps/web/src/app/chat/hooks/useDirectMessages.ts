@@ -746,6 +746,17 @@ export function useDirectMessages({
                 return;
             }
 
+            // Don't poll a hidden tab. Realtime is a push channel, so a tab the
+            // user cannot see gains nothing from the poll, and a backgrounded DM
+            // tab otherwise re-queries the message list plus a profiles batch
+            // every 15s indefinitely.
+            if (
+                typeof document !== "undefined" &&
+                document.visibilityState === "hidden"
+            ) {
+                return;
+            }
+
             const realtimeAgeMs =
                 Date.now() - lastMessageRealtimeEventAtRef.current;
             if (realtimeAgeMs < backgroundMessageSyncGraceMs) {
@@ -1517,7 +1528,8 @@ export function useDirectMessages({
     userIdRef.current = userId;
     conversationIdRef.current = conversationId;
 
-    async function updateTypingPresence(state: boolean) {
+    const updateTypingPresence = useCallback(
+        async (state: boolean) => {
         if (!userIdRef.current || !conversationIdRef.current) {
             return;
         }
@@ -1570,7 +1582,9 @@ export function useDirectMessages({
         } catch {
             // ignore
         }
-    }
+        },
+        [userName],
+    );
 
     const scheduleTypingStart = useCallback(() => {
         if (typingDebounceRef.current) {
@@ -1579,7 +1593,7 @@ export function useDirectMessages({
         typingDebounceRef.current = setTimeout(() => {
             void updateTypingPresence(true);
         }, typingStartDebounceMs);
-    }, [typingStartDebounceMs]);
+    }, [typingStartDebounceMs, updateTypingPresence]);
 
     const scheduleTypingStop = useCallback(() => {
         if (typingTimeoutRef.current) {
@@ -1588,7 +1602,7 @@ export function useDirectMessages({
         typingTimeoutRef.current = setTimeout(() => {
             void updateTypingPresence(false);
         }, typingIdleMs);
-    }, [typingIdleMs]);
+    }, [typingIdleMs, updateTypingPresence]);
 
     const handleTypingChange = useCallback(
         (text: string) => {
@@ -1613,10 +1627,12 @@ export function useDirectMessages({
             }
         },
         [
-            userId,
             conversationId,
+            readOnly,
             scheduleTypingStart,
             scheduleTypingStop,
+            updateTypingPresence,
+            userId,
         ],
     );
 
@@ -1725,7 +1741,7 @@ export function useDirectMessages({
                 void updateTypingPresence(false);
             }
         };
-    }, [conversationId, userId]);
+    }, [conversationId, updateTypingPresence, userId]);
 
     // Cleanup stale typing indicators (safety net for missed delete events)
     useEffect(() => {
@@ -1763,6 +1779,10 @@ export function useDirectMessages({
             }
             void updateTypingPresence(false);
         };
+        // Unmount-only on purpose: this exists to retract the presence row when
+        // the view goes away. Re-running it because `userName` changed would
+        // post a spurious typing=false mid-conversation.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const surfaceMessages = useMemo(() => {
@@ -1800,41 +1820,84 @@ export function useDirectMessages({
         threadReadByMessageId,
     ]);
 
-    return {
-        hasMore,
-        messages,
-        oldestCursor,
-        surfaceMessages,
-        loading,
-        error,
-        sending,
-        send,
-        edit,
-        deleteMsg,
-        toggleReaction,
-        loadOlder,
-        refresh: loadMessages,
-        shouldShowLoadOlder: Boolean(
-            hasMore && oldestCursor && messages.length,
-        ),
-        typingUsers,
-        handleTypingChange,
-        conversationPins,
-        refreshPins,
-        togglePin,
-        readOnly,
-        readOnlyReason,
-        relationship,
-        dmEncryptionSelfEnabled,
-        dmEncryptionPeerEnabled,
-        dmEncryptionMutualEnabled,
-        dmEncryptionPeerPublicKey,
-        activeThreadParent,
-        threadMessages,
-        threadLoading,
-        threadReplySending,
-        openThread,
-        closeThread,
-        sendThreadReply,
-    };
+    const shouldShowLoadOlder = Boolean(
+        hasMore && oldestCursor && messages.length,
+    );
+
+    // Stable identity: `page.tsx` puts `dmApi` in dependency arrays, and a fresh
+    // object literal per render re-ran those effects on every render.
+    return useMemo(
+        () => ({
+            hasMore,
+            messages,
+            oldestCursor,
+            surfaceMessages,
+            loading,
+            error,
+            sending,
+            send,
+            edit,
+            deleteMsg,
+            toggleReaction,
+            loadOlder,
+            refresh: loadMessages,
+            shouldShowLoadOlder,
+            typingUsers,
+            handleTypingChange,
+            conversationPins,
+            refreshPins,
+            togglePin,
+            readOnly,
+            readOnlyReason,
+            relationship,
+            dmEncryptionSelfEnabled,
+            dmEncryptionPeerEnabled,
+            dmEncryptionMutualEnabled,
+            dmEncryptionPeerPublicKey,
+            activeThreadParent,
+            threadMessages,
+            threadLoading,
+            threadReplySending,
+            openThread,
+            closeThread,
+            sendThreadReply,
+        }),
+        // Every member is either primitive state or a useCallback. `exhaustive-deps`
+        // keeps this list honest.
+        [
+            activeThreadParent,
+            closeThread,
+            conversationPins,
+            deleteMsg,
+            dmEncryptionMutualEnabled,
+            dmEncryptionPeerEnabled,
+            dmEncryptionPeerPublicKey,
+            dmEncryptionSelfEnabled,
+            edit,
+            error,
+            handleTypingChange,
+            hasMore,
+            loadMessages,
+            loadOlder,
+            loading,
+            messages,
+            oldestCursor,
+            openThread,
+            readOnly,
+            readOnlyReason,
+            refreshPins,
+            relationship,
+            send,
+            sending,
+            sendThreadReply,
+            shouldShowLoadOlder,
+            surfaceMessages,
+            threadLoading,
+            threadMessages,
+            threadReplySending,
+            togglePin,
+            toggleReaction,
+            typingUsers,
+        ],
+    );
 }

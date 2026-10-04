@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
     ClipboardEvent,
     FormEvent,
@@ -10,13 +10,26 @@ import type {
 
 import { Image as ImageIcon, Loader2, MessageSquare, X } from "lucide-react";
 
+// Stable no-op fallbacks. `prop || (() => {})` allocated a new function on every
+// render, which defeated the memo on every message item below.
+const noop = () => undefined;
+
 import type { ChatSurfaceMessage } from "@/lib/chat-surface";
 import type { CustomEmoji, FileAttachment } from "@/lib/types";
 import { ChatInput } from "@/components/chat-input";
 import { ChatSurfaceMessageItem } from "@/components/chat-surface-message-item";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { FileUploadButton, FilePreview } from "@/components/file-upload-button";
-import { GifStickerPicker } from "@/components/gif-sticker-picker";
+import dynamic from "next/dynamic";
+
+// Opens only when the user reaches for it, so keep it out of the initial bundle.
+const GifStickerPicker = dynamic(
+    () =>
+        import("@/components/gif-sticker-picker").then((mod) => ({
+            default: mod.GifStickerPicker,
+        })),
+    { ssr: false },
+);
 import { VirtualizedMessageList } from "@/components/virtualized-message-list";
 import {
     MESSAGE_LIST_VIEWPORT_HEIGHT,
@@ -185,70 +198,73 @@ export function ChatSurfacePanel({
     const useVirtualScrolling =
         showSurface && surfaceMessages.length >= virtualizationThreshold;
 
-    function requestMessageListBottomScroll(
-        behavior: VirtualizedScrollBehavior = "smooth",
-    ) {
-        mediaSettlingDeadlineRef.current = Date.now() + 4_000;
+    const requestMessageListBottomScroll = useCallback(
+        (behavior: VirtualizedScrollBehavior = "smooth") => {
+            mediaSettlingDeadlineRef.current = Date.now() + 4_000;
 
-        if (useVirtualScrolling) {
-            setVirtualScrollRequest((current) => ({
+            if (useVirtualScrolling) {
+                setVirtualScrollRequest((current) => ({
+                    behavior,
+                    id: (current?.id ?? 0) + 1,
+                }));
+                return;
+            }
+
+            if (messageContainerRef?.current) {
+                messageContainerRef.current.scrollTop =
+                    messageContainerRef.current.scrollHeight;
+            }
+        },
+        [messageContainerRef, useVirtualScrolling],
+    );
+
+    const handleMessageMediaLoad = useCallback(
+        (message: ChatSurfaceMessage) => {
+            if (Date.now() > mediaSettlingDeadlineRef.current) {
+                return;
+            }
+
+            const trailingMessages = surfaceMessages.slice(-3);
+            const isTrailingMessage = trailingMessages.some(
+                (surfaceMessage) => surfaceMessage.id === message.id,
+            );
+
+            if (!isTrailingMessage) {
+                return;
+            }
+
+            requestAnimationFrame(() => {
+                requestMessageListBottomScroll("auto");
+            });
+        },
+        [requestMessageListBottomScroll, surfaceMessages],
+    );
+
+    const scrollComposerIntoView = useCallback(
+        (behavior: ScrollBehavior = "smooth") => {
+            composerContainerRef.current?.scrollIntoView({
                 behavior,
-                id: (current?.id ?? 0) + 1,
-            }));
-            return;
-        }
+                block: "nearest",
+                inline: "nearest",
+            });
+        },
+        [],
+    );
 
-        if (messageContainerRef?.current) {
-            messageContainerRef.current.scrollTop =
-                messageContainerRef.current.scrollHeight;
-        }
-    }
-
-    function handleMessageMediaLoad(message: ChatSurfaceMessage) {
-        if (Date.now() > mediaSettlingDeadlineRef.current) {
-            return;
-        }
-
-        const trailingMessages = surfaceMessages.slice(-3);
-        const isTrailingMessage = trailingMessages.some(
-            (surfaceMessage) => surfaceMessage.id === message.id,
-        );
-
-        if (!isTrailingMessage) {
-            return;
-        }
-
-        requestAnimationFrame(() => {
-            requestMessageListBottomScroll("auto");
-        });
-    }
-
-    function scrollComposerIntoView(behavior: ScrollBehavior = "smooth") {
-        composerContainerRef.current?.scrollIntoView({
-            behavior,
-            block: "nearest",
-            inline: "nearest",
-        });
-    }
+    // Extracted so the effect depends on the two attachment fields rather than
+    // on the whole `composer` object, which is a fresh literal each render and
+    // re-armed this smooth-scroll on every keystroke while an attachment was
+    // pending.
+    const composerPreview = composer?.selectedImagePreview;
+    const composerAttachmentCount = composer?.fileAttachments.length;
 
     useEffect(() => {
-        if (!composer) {
-            return;
-        }
-
-        if (
-            composer.selectedImagePreview ||
-            composer.fileAttachments.length > 0
-        ) {
+        if (composerPreview || composerAttachmentCount) {
             requestAnimationFrame(() => {
                 scrollComposerIntoView();
             });
         }
-    }, [
-        composer,
-        composer?.fileAttachments.length,
-        composer?.selectedImagePreview,
-    ]);
+    }, [composerAttachmentCount, composerPreview, scrollComposerIntoView]);
 
     useEffect(() => {
         if (!shouldScrollAfterSubmitRef.current) {
@@ -260,7 +276,7 @@ export function ChatSurfacePanel({
             requestMessageListBottomScroll();
             scrollComposerIntoView();
         });
-    }, [surfaceMessages.length]);
+    }, [requestMessageListBottomScroll, scrollComposerIntoView, surfaceMessages.length]);
 
     useEffect(() => {
         const wasLoading = previousLoadingRef.current;
@@ -280,7 +296,13 @@ export function ChatSurfacePanel({
         requestAnimationFrame(() => {
             requestMessageListBottomScroll("auto");
         });
-    }, [loading, showSurface, surfaceMessages.length, useVirtualScrolling]);
+    }, [
+        loading,
+        requestMessageListBottomScroll,
+        showSurface,
+        surfaceMessages.length,
+        useVirtualScrolling,
+    ]);
 
     useEffect(() => {
         const isSending = Boolean(
@@ -298,7 +320,12 @@ export function ChatSurfacePanel({
             requestMessageListBottomScroll();
             scrollComposerIntoView();
         });
-    }, [composer?.sending, composer?.uploadingImage]);
+    }, [
+        composer?.sending,
+        composer?.uploadingImage,
+        requestMessageListBottomScroll,
+        scrollComposerIntoView,
+    ]);
 
     async function handleSubmit(event?: FormEvent | KeyboardEvent) {
         event?.preventDefault?.();
@@ -414,11 +441,9 @@ export function ChatSurfacePanel({
                         editingMessageId={editingMessageId}
                         messageDensity={messageDensity}
                         messages={surfaceMessages}
-                        onLoadOlder={onLoadOlder || (() => {})}
+                        onLoadOlder={onLoadOlder || noop}
                         onOpenImageViewer={onOpenImageViewer}
-                        onOpenProfileModal={
-                            onOpenProfileModal || (() => undefined)
-                        }
+                        onOpenProfileModal={onOpenProfileModal || noop}
                         onOpenThread={onOpenThread}
                         onMediaLoad={handleMessageMediaLoad}
                         onRemove={onRemove}

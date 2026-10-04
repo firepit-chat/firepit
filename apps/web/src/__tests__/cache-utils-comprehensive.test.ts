@@ -210,6 +210,32 @@ describe("apiCache", () => {
 		});
 	});
 
+	describe("size cap", () => {
+		it("should evict the oldest entries once over the cap", () => {
+			// Callers key this cache with unbounded-cardinality strings (one entry
+			// per distinct id-set for /api/profiles/batch, one per context for
+			// /api/inbox), so an entry that is never read back would otherwise
+			// live forever.
+			for (let i = 0; i < 2600; i++) {
+				apiCache.set(`key${i}`, i, 60_000);
+			}
+
+			// Most recent writes survive.
+			expect(apiCache.get("key2599")).toBe(2599);
+			// The oldest were evicted rather than the cache growing unbounded.
+			expect(apiCache.get("key0")).toBeNull();
+		});
+
+		it("should not evict entries that are still live", () => {
+			for (let i = 0; i < 2100; i++) {
+				apiCache.set(`live${i}`, i, 60_000);
+			}
+
+			expect(apiCache.get("live2099")).toBe(2099);
+			expect(apiCache.get("live1500")).toBe(1500);
+		});
+	});
+
 	describe("Edge Cases", () => {
 		it("should handle zero TTL", () => {
 			apiCache.set("key1", "value1", 0);

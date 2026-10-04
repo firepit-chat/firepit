@@ -28,6 +28,7 @@ import type {
 } from "@/lib/types";
 
 type InboxFilters = {
+    contextId?: string | undefined;
     contextKinds?: InboxContextKind[];
     kinds: InboxItemKind[];
     limit: number;
@@ -1343,6 +1344,7 @@ async function listPersistedMentionItems(
     userId: string,
     options?: {
         cache?: InboxRequestCaches;
+        contextId?: string | undefined;
     },
 ): Promise<{ degraded: boolean; items: InboxItem[] }> {
     try {
@@ -1353,6 +1355,11 @@ async function listPersistedMentionItems(
                 Query.equal("userId", userId),
                 Query.equal("kind", "mention"),
                 Query.isNull("readAt"),
+                // Scoped inbox requests ask for a single context; filtering in
+                // the query avoids scanning every unread item the user has.
+                ...(options?.contextId
+                    ? [Query.equal("contextId", options.contextId)]
+                    : []),
                 Query.orderDesc("latestActivityAt"),
             ],
             selectFields: INBOX_PERSISTED_MENTION_SELECT_FIELDS,
@@ -1432,6 +1439,7 @@ async function listPersistedMessageItems(
     userId: string,
     options?: {
         cache?: InboxRequestCaches;
+        contextId?: string | undefined;
     },
 ): Promise<{ degraded: boolean; items: InboxItem[] }> {
     try {
@@ -1442,6 +1450,11 @@ async function listPersistedMessageItems(
                 Query.equal("userId", userId),
                 Query.equal("kind", "message"),
                 Query.isNull("readAt"),
+                // Scoped inbox requests ask for a single context; filtering in
+                // the query avoids scanning every unread item the user has.
+                ...(options?.contextId
+                    ? [Query.equal("contextId", options.contextId)]
+                    : []),
                 Query.orderDesc("latestActivityAt"),
             ],
             selectFields: INBOX_PERSISTED_MENTION_SELECT_FIELDS,
@@ -1524,6 +1537,7 @@ async function listPersistedMessageItems(
  * @returns {Promise<{ contractVersion: InboxDigestResponse; counts: Record<InboxItemKind, number>; items: InboxItem[]; unreadCount: number; }>} The return value.
  */
 export async function listInboxItems({
+    contextId,
     contextKinds,
     kinds,
     limit,
@@ -1559,6 +1573,7 @@ export async function listInboxItems({
             requestedKinds.has("mention")
                 ? listPersistedMentionItems(userId, {
                       cache: caches,
+                      contextId,
                   })
                 : Promise.resolve({ degraded: false, items: [] }),
             requestedKinds.has("message")

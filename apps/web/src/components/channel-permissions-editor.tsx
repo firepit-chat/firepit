@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Shield, Plus, Trash2, User as UserIcon, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,14 +53,7 @@ export function ChannelPermissionsEditor({
 	const [allowPermissions, setAllowPermissions] = useState<Set<Permission>>(new Set());
 	const [denyPermissions, setDenyPermissions] = useState<Set<Permission>>(new Set());
 
-	useEffect(() => {
-		if (open) {
-			void loadOverrides();
-			void loadRoles();
-		}
-	}, [open, channelId]);
-
-	const loadOverrides = async () => {
+	const loadOverrides = useCallback(async () => {
 		setLoading(true);
 		try {
 			const response = await fetch(`/api/channel-permissions?channelId=${channelId}`);
@@ -77,9 +70,9 @@ export function ChannelPermissionsEditor({
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [channelId]);
 
-	const loadRoles = async () => {
+	const loadRoles = useCallback(async () => {
 		try {
 			const response = await fetch(`/api/roles?serverId=${serverId}`);
 			if (response.ok) {
@@ -89,7 +82,14 @@ export function ChannelPermissionsEditor({
 		} catch (error) {
 			console.error("Failed to load roles:", error);
 		}
-	};
+	}, [serverId]);
+
+	useEffect(() => {
+		if (open) {
+			void loadOverrides();
+			void loadRoles();
+		}
+	}, [open, loadOverrides, loadRoles]);
 
 	const handleCreateOverride = async () => {
 		try {

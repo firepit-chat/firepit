@@ -423,7 +423,7 @@ export async function validateInvite(code: string): Promise<ValidationResult> {
  * @param {string} userId - The user id value.
  * @returns {Promise<{ success: boolean; error?: string | undefined; serverId?: string | undefined; }>} The return value.
  */
-export async function useInvite(
+export async function redeemInvite(
     code: string,
     userId: string,
 ): Promise<{ success: boolean; error?: string; serverId?: string }> {

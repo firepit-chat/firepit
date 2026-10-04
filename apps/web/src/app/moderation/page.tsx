@@ -17,7 +17,7 @@ import {
     getChannelAccessForUser,
     getServerPermissionsForUser,
 } from "@/lib/server-channel-access";
-import { chunkValues } from "@/lib/appwrite-pagination";
+import { chunkValues, mapWithConcurrency } from "@/lib/appwrite-pagination";
 import { ModerationSidebar } from "@/components/moderation-sidebar";
 import { ModerationMessageList } from "./ModerationMessageList";
 
@@ -115,23 +115,35 @@ async function listModeratableServers(
     const env = getEnvConfig();
     const { databases } = getServerClient();
     const moderated: Server[] = [];
+    // Independent per-server lookups: fan them out instead of paying one
+    // sequential round trip per server on a server component's critical path.
+    const accessByServerId = new Map(
+        await mapWithConcurrency({
+            items: servers.filter((server) => server.ownerId !== userId),
+            concurrency: 8,
+            mapper: async (server) => {
+                try {
+                    const access = await getServerPermissionsForUser(
+                        databases,
+                        env,
+                        server.$id,
+                        userId,
+                    );
+                    return [server.$id, access.permissions.manageMessages] as const;
+                } catch {
+                    // Skip servers the user can no longer access (e.g. deleted)
+                    return [server.$id, false] as const;
+                }
+            },
+        }),
+    );
     for (const server of servers) {
         if (server.ownerId === userId) {
             moderated.push(server);
             continue;
         }
-        try {
-            const access = await getServerPermissionsForUser(
-                databases,
-                env,
-                server.$id,
-                userId,
-            );
-            if (access.permissions.manageMessages) {
-                moderated.push(server);
-            }
-        } catch {
-            // Skip servers the user can no longer access (e.g. deleted)
+        if (accessByServerId.get(server.$id)) {
+            moderated.push(server);
         }
     }
     return moderated;
@@ -188,10 +200,14 @@ async function buildBadgeMapSimple(
             ids.add(d.removedBy);
         }
     }
-    for (const id of ids) {
-        const info = await getUserRoleTags(id);
-        map[id] = info.tags.map((t) => t.label);
-    }
+    await mapWithConcurrency({
+        items: [...ids],
+        concurrency: 8,
+        mapper: async (id) => {
+            const info = await getUserRoleTags(id);
+            map[id] = info.tags.map((t) => t.label);
+        },
+    });
     return map;
 }
 

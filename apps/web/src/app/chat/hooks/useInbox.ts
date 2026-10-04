@@ -160,8 +160,6 @@ export function useInbox(userId: string | null) {
         let cleanupFn: (() => void) | undefined;
         let cancelled = false;
 
-        const subscriptionRef: { current?: { close: () => Promise<void> } } = {};
-
         const subscriptionTask = (async () => {
             if (cancelled) {
                 return;
@@ -172,33 +170,6 @@ export function useInbox(userId: string | null) {
 
             try {
                 const realtime = getSharedRealtime();
-
-                // Attempt to update an existing subscription when possible
-                if (subscriptionRef.current) {
-                    const existing = subscriptionRef.current as { update?: (args: { queries: ReturnType<typeof Query.equal>[] }) => Promise<void> };
-                    if (typeof existing.update === "function") {
-                        try {
-                            await existing.update({
-                                queries: [Query.equal("userId", userId)],
-                            });
-                            // ensure it's tracked and assign cleanup so we don't leak
-                            untrack = trackSubscription(inboxChannelKey);
-                            cleanupFn = () => {
-                                untrack?.();
-                                closeSubscriptionSafely(subscriptionRef.current).catch((error) => {
-                                    logger.warn(
-                                        "Failed to close inbox realtime subscription",
-                                        { error: error instanceof Error ? error.message : String(error) },
-                                    );
-                                });
-                                subscriptionRef.current = undefined;
-                            };
-                            return;
-                        } catch {
-                            // fallthrough to recreate subscription
-                        }
-                    }
-                }
 
                 subscription = await realtime.subscribe(
                     inboxChannel,
@@ -238,18 +209,16 @@ export function useInbox(userId: string | null) {
                     return;
                 }
 
-                subscriptionRef.current = subscription;
                 untrack = trackSubscription(inboxChannelKey);
 
                 cleanupFn = () => {
                     untrack?.();
-                    closeSubscriptionSafely(subscriptionRef.current).catch((error) => {
+                    closeSubscriptionSafely(subscription).catch((error) => {
                         logger.warn(
                             "Failed to close inbox realtime subscription",
                             { error: error instanceof Error ? error.message : String(error) },
                         );
                     });
-                    subscriptionRef.current = undefined;
                 };
             } catch (error) {
                 if (subscription) {
@@ -463,19 +432,39 @@ export function useInbox(userId: string | null) {
         [contextSummaryByKey],
     );
 
-    return {
-        bulkLoading,
-        contractVersion: data.contractVersion,
-        counts: data.counts,
-        error: formatInboxError(error),
-        getContextSummary,
-        items: data.items,
-        loading: isEnabled ? isLoading : false,
-        markContextRead,
-        markItemRead,
-        markScopeRead,
-        refresh: refetch,
-        summaries: contextSummaries,
-        unreadCount: data.unreadCount,
-    };
+    // Stable identity: consumers put this object in dependency arrays, and a
+    // fresh literal per render made every such effect re-run on every render.
+    return useMemo(
+        () => ({
+            bulkLoading,
+            contractVersion: data.contractVersion,
+            counts: data.counts,
+            error: formatInboxError(error),
+            getContextSummary,
+            items: data.items,
+            loading: isEnabled ? isLoading : false,
+            markContextRead,
+            markItemRead,
+            markScopeRead,
+            refresh: refetch,
+            summaries: contextSummaries,
+            unreadCount: data.unreadCount,
+        }),
+        [
+            bulkLoading,
+            contextSummaries,
+            data.contractVersion,
+            data.counts,
+            data.items,
+            data.unreadCount,
+            error,
+            getContextSummary,
+            isEnabled,
+            isLoading,
+            markContextRead,
+            markItemRead,
+            markScopeRead,
+            refetch,
+        ],
+    );
 }

@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { useEffect, useState, type FormEvent } from "react";
 import {
     Check,

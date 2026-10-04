@@ -125,6 +125,12 @@ export default [
             "react/prop-types": "off",
             "react/jsx-boolean-value": ["error", "never"],
             "react/jsx-key": "error",
+            // The plugin was registered but every rule stayed off, which is how
+            // the chat page shipped effects that re-armed their own debounce
+            // timers on every render. Both rules are cheap here and catch that
+            // class of bug at authoring time.
+            "react-hooks/rules-of-hooks": "error",
+            "react-hooks/exhaustive-deps": "warn",
         },
     }, // Ignore generated Next.js route types file triple-slash references (root after monorepo collapse)
     {

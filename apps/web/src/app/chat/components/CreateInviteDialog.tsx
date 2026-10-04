@@ -1,6 +1,6 @@
 "use client";
 
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { useState } from "react";
 import { Copy, Loader2 } from "lucide-react";
 import {

@@ -3,7 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { ArrowRight, Flame, Shield } from "lucide-react";
 import { toast } from "sonner";

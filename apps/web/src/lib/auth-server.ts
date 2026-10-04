@@ -1,5 +1,4 @@
 import { Account, Client } from "node-appwrite";
-import { cacheLife } from "next/cache";
 import { cookies, headers } from "next/headers";
 import { createHash } from "crypto";
 
@@ -339,8 +338,12 @@ async function getSessionFromCookie(
  * @returns {Promise<SessionUser | null>} The return value.
  */
 export async function getServerSession(): Promise<SessionUser | null> {
-    "use cache: private";
-    cacheLife("minutes");
+    // No `"use cache"` here on purpose. This function takes no arguments and
+    // reads the session from headers/cookies, so the framework cannot derive a
+    // per-session cache key from it, and a work-unit cache would widen the
+    // window in which a revoked session still resolves. The token-keyed LRU
+    // below (`SESSION_CACHE_TTL_MS`) is the intended cache and is deliberately
+    // tighter.
     const env = getEnvConfig();
     const endpoint = env.endpoint;
     const project = env.project;

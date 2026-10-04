@@ -118,6 +118,9 @@ export function ServerBrowser({
 	const joinedServerIdsKey = joinedServerIds.join(",");
 	const joinedServerIdSet = useMemo(
 		() => new Set(joinedServerIds),
+		// Keyed on the joined string, not the array identity: callers rebuild this
+		// array every render, and depending on it would rebuild the Set with it.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[joinedServerIdsKey],
 	);
 	const canLoadServers = Boolean(userId);

@@ -1,7 +1,17 @@
 /// <reference lib="dom" />
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+
+// `EmojiRenderer` code-splits its `:shortcode:` path behind `next/dynamic` so
+// `node-emoji`'s emojilib dataset stays out of the initial bundle. Make the
+// boundary transparent here: these tests are about mention and emoji markup,
+// not the split.
+vi.mock("next/dynamic", async () => {
+    const { EmojiShortcodes } = await import("@/components/emoji-shortcodes");
+    return { default: () => EmojiShortcodes };
+});
+
 import { MessageWithMentions } from "@/components/message-with-mentions";
 
 describe("MessageWithMentions", () => {

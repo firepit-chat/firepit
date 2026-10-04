@@ -108,6 +108,7 @@ async function fetchProfilesBatch(
  */
 export async function enrichMessagesWithProfiles(
     messages: Message[],
+    viewerId?: string | null,
 ): Promise<Message[]> {
     if (messages.length === 0) {
         return messages;
@@ -127,6 +128,24 @@ export async function enrichMessagesWithProfiles(
                 : messages.filter((message) =>
                       visibleUserIds.has(message.userId),
                   );
+
+        // Prime the profile cache from the batch response. Without this, the
+        // first realtime message from any sender is a guaranteed cache miss in
+        // `enrichMessageWithProfile` and fires a single-id
+        // POST /api/profiles/batch — even though we just fetched that exact
+        // profile as part of this batch.
+        for (const [userId, profile] of profileMap) {
+            apiCache.set(`profile:${userId}`, { profile }, CACHE_TTL.PROFILES);
+            // Visibility is only cached when a viewer is known, matching
+            // `enrichMessageWithProfile` — without one it must never be reused.
+            if (visibleUserIds && viewerId) {
+                apiCache.set(
+                    `profile-visibility:${viewerId}:${userId}`,
+                    visibleUserIds.has(userId),
+                    PROFILE_VISIBILITY_CACHE_TTL_MS,
+                );
+            }
+        }
 
         // Build a map of messages by ID for quick lookup of parent messages
         const messagesById = new Map(visibleMessages.map((m) => [m.$id, m]));

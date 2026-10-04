@@ -31,7 +31,7 @@ describe("POST /api/invites/[code]/join", () => {
 		};
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockResolvedValue(mockResult as never);
+		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
 
 		const request = new Request("http://localhost/api/invites/TEST123/join", {
 			method: "POST",
@@ -44,7 +44,7 @@ describe("POST /api/invites/[code]/join", () => {
 		expect(response.status).toBe(200);
 		expect(data.success).toBe(true);
 		expect(data.serverId).toBe("server-1");
-		expect(appwriteInvites.useInvite).toHaveBeenCalledWith("TEST123", "user-1");
+		expect(appwriteInvites.redeemInvite).toHaveBeenCalledWith("TEST123", "user-1");
 	});
 
 	it("should return 401 if not authenticated", async () => {
@@ -70,7 +70,7 @@ describe("POST /api/invites/[code]/join", () => {
 		};
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockResolvedValue(mockResult as never);
+		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
 
 		const request = new Request("http://localhost/api/invites/INVALID/join", {
 			method: "POST",
@@ -92,7 +92,7 @@ describe("POST /api/invites/[code]/join", () => {
 		};
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockResolvedValue(mockResult as never);
+		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
 
 		const request = new Request("http://localhost/api/invites/EXPIRED/join", {
 			method: "POST",
@@ -114,7 +114,7 @@ describe("POST /api/invites/[code]/join", () => {
 		};
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockResolvedValue(mockResult as never);
+		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
 
 		const request = new Request("http://localhost/api/invites/MAXED/join", {
 			method: "POST",
@@ -136,7 +136,7 @@ describe("POST /api/invites/[code]/join", () => {
 		};
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockResolvedValue(mockResult as never);
+		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
 
 		const request = new Request("http://localhost/api/invites/TEST123/join", {
 			method: "POST",
@@ -154,7 +154,7 @@ describe("POST /api/invites/[code]/join", () => {
 		const mockUser = { $id: "user-1" };
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockRejectedValue(new Error("Database connection lost"));
+		vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue(new Error("Database connection lost"));
 
 		const request = new Request("http://localhost/api/invites/TEST123/join", {
 			method: "POST",
@@ -172,7 +172,7 @@ describe("POST /api/invites/[code]/join", () => {
 		const mockUser = { $id: "user-1" };
 
 		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.useInvite).mockRejectedValue("Unknown error");
+		vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue("Unknown error");
 
 		const request = new Request("http://localhost/api/invites/TEST123/join", {
 			method: "POST",

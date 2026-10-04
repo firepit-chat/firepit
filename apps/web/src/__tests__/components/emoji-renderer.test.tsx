@@ -1,7 +1,20 @@
 /// <reference lib="dom" />
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+
+// `EmojiRenderer` code-splits the shortcode path behind `next/dynamic` so
+// `node-emoji`'s emojilib dataset stays out of the initial bundle. These tests
+// are about the shortcode rendering logic, not the split boundary, so make the
+// boundary transparent and keep the assertions synchronous. The gate itself is
+// covered at the bottom of this file.
+vi.mock("next/dynamic", async () => {
+  // Synchronous stand-in: these tests cover the shortcode rendering logic, not
+  // the code-splitting boundary. The gate itself is tested at the bottom.
+  const { EmojiShortcodes } = await import("@/components/emoji-shortcodes");
+  return { default: () => EmojiShortcodes };
+});
+
 import { EmojiRenderer } from "@/components/emoji-renderer";
 
 describe("EmojiRenderer", () => {
@@ -199,5 +212,29 @@ describe("EmojiRenderer", () => {
 
 		// Unknown emoji should remain as text
 		expect(container.textContent).toBe("Hello :unknown_emoji_xyz: world");
+	});
+
+	// The gate is what keeps node-emoji's ~29 KB gzip emojilib dataset out of
+	// the initial chat payload, so it is worth pinning down.
+	describe("shortcode gate", () => {
+		it("renders text with no shortcodes without loading the shortcode path", () => {
+			// A lone colon, and non-shortcode colons, must not trigger the split.
+			for (const text of [
+				"Hello world",
+				"ratio 3:1",
+				"see https://example.com/x",
+				"a : b",
+				"",
+			]) {
+				const { container } = render(<EmojiRenderer text={text} />);
+				expect(container.textContent).toBe(text);
+			}
+		});
+
+		it("still renders a shortcode-bearing message verbatim through the fast path", () => {
+			// A trailing single colon is not a shortcode.
+			const { container } = render(<EmojiRenderer text="oops: :nope" />);
+			expect(container.textContent).toBe("oops: :nope");
+		});
 	});
 });

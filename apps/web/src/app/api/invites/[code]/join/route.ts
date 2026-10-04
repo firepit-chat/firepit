@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
-import { useInvite } from "@/lib/appwrite-invites";
+import { redeemInvite } from "@/lib/appwrite-invites";
 import { logger, recordError,
     returnUnauthorized,
     getPostHogClient,
@@ -27,7 +27,7 @@ export async function POST(
     const userId = user.$id;
 
     // Use the invite (validates, creates membership, tracks usage)
-    const result = await useInvite(code, userId);
+    const result = await redeemInvite(code, userId);
 
     if (!result.success) {
       logger.warn("Failed to use invite", {
