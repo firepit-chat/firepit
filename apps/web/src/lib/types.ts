@@ -186,6 +186,11 @@ export type Channel = {
     categoryId?: string;
     position?: number;
     nsfw?: boolean;
+    /**
+     * Newest message time, used to decide whether the viewer has unread
+     * messages. Absent for a channel with no recent messages.
+     */
+    lastMessageAt?: string;
     $createdAt: string;
     $updatedAt?: string;
 };
@@ -332,6 +337,9 @@ export type Conversation = {
         avatarFramePreset?: string;
         avatarFrameUrl?: string;
         status?: PresenceStatus;
+        /** Custom status text, when the user set one. Preferred over the raw
+         * status word when rendering a row's secondary line. */
+        statusMessage?: string;
     };
     lastMessage?: {
         text: string;

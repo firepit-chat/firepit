@@ -42,6 +42,8 @@ export type CurrentUser = {
     profileBackgroundUrl?: string;
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
     email?: string;
     emailVerified?: boolean;
     roles?: Record<string, unknown>;
@@ -165,6 +167,8 @@ export type Message = {
     avatarUrl?: string;
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
     pronouns?: string;
     // Reply context (enriched from parent message)
     replyTo?: {
@@ -248,6 +252,8 @@ export type DirectMessageParticipant = {
     avatarUrl?: string;
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
     pronouns?: string;
     [key: string]: unknown;
 };
@@ -308,6 +314,8 @@ export type DirectMessage = {
     // Enriched profile fields
     pronouns?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
     // Threading
     threadMessageCount?: number | null;
     // Pinning
@@ -375,6 +383,8 @@ export type UserProfile = {
     dmEncryptionPublicKey?: string;
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
     status?: {
         status?: string;
         customMessage?: string;
@@ -403,6 +413,8 @@ export type FriendshipEntryUser = {
     avatarUrl?: string;
     avatarFramePreset?: string;
     avatarFrameUrl?: string;
+    /** 0 signals an overlay frame (art crosses the centre). */
+    avatarFrameInsetPercent?: number;
 };
 
 export type FriendshipRecord = {

@@ -75,6 +75,7 @@ export type EnvConfig = {
         notificationSettings: string;
         inboxItems: string;
         threadReads: string;
+        channelReads: string;
         reports: string;
         roles: string;
         polls: string;
@@ -148,6 +149,7 @@ const COLLECTION_DEFS: Array<{
     { key: "notificationSettings", envSuffix: "NOTIFICATION_SETTINGS", defaultName: "notification_settings" },
     { key: "inboxItems", envSuffix: "INBOX_ITEMS", defaultName: "inbox_items" },
     { key: "threadReads", envSuffix: "THREAD_READS", defaultName: "thread_reads" },
+    { key: "channelReads", envSuffix: "CHANNEL_READS", defaultName: "channel_reads" },
     { key: "reports", envSuffix: "REPORTS", defaultName: "reports" },
     { key: "roles", envSuffix: "ROLES", defaultName: "roles" },
     { key: "polls", envSuffix: "POLLS", defaultName: "polls" },

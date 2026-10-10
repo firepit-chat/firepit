@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Features
 
+- **Friends carry the same details as your DMs.** A friend in the friends
+  section now shows when you last spoke, how many unread messages you have with
+  them, a presence dot, and the same options menu as a direct message — so you
+  can mute or reach someone without starting a conversation first. Removing a
+  friend moved into that menu, which also lines the friend timestamps up with the
+  DM timestamps below them.
+- **Every direct message shows a presence dot.** The dot previously appeared only
+  once a status had loaded, so people who were online on an automatic status —
+  or whose status had not arrived yet — looked identical to people who were
+  offline. A dot now always shows, defaulting to offline until presence loads.
+- **Direct messages and friends now show a readable status.** Rows used to print
+  the raw stored value, so an automatic status read as lowercase `offline` rather
+  than a label, and a status you had set yourself was never shown at all. Both
+  lists now show `Online`, `Away`, `Busy` or `Offline`, followed by your custom
+  message when you have one — friends included, which previously showed pronouns
+  instead.
+- **Channel unreads in the header bell.** The notification popup now lists the
+  channels you have not caught up on, so you can see and jump to them without
+  leaving the page you are on. It checks when you open the popup rather than on
+  every page load, and mentions, DMs and thread activity are unchanged below it.
+- **A dot beside channels you have not read.** The sidebar now marks each
+  channel with new messages, so a category counter no longer tells you *that*
+  something is unread without telling you *which*. It uses the same rule as the
+  counter, so the two always agree, and the channel you have open is not marked.
+- **The notifications page lists channels with unread messages.** The page
+  previously showed nothing for an ordinary unread channel message, because it
+  only reads the inbox — which holds mentions, thread replies and DMs. It now
+  lists the channels you have not caught up on, with when the activity was, and
+  clicking one opens it. Mentions, threads and DMs are unchanged and still
+  filterable below.
+
+- **Member lists now show who is around.** The member panel gains profile
+  pictures, a presence dot beside each name (green online, yellow away, red
+  busy, grey offline), and anyone's custom status indented under their name.
+  Members are grouped the way Discord does it: **Online** first, then
+  **Offline**, each with a count in the heading and each still ordered by role
+  rank. Busy and Away count as online — only Offline does not, so someone who
+  has gone quiet does not look absent while they are clearly at their desk.
+  Clicking a member opens their profile.
+- **Avatar frames in the member list.** Members who have chosen an avatar frame
+  now wear it in the member list on both web and mobile, not just on their
+  profile. The member endpoint returns the frame alongside the picture, along
+  with how far to inset the portrait so each frame sits correctly.
 - **Spoilers.** Wrap any part of a message in `[spoiler]...[/spoiler]` to hide
   it behind a click-to-reveal control. Formatting, links and images inside a
   spoiler still render once it is revealed, and a message can contain several.
@@ -79,6 +122,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy. `apps/web/docs/openapi-doc.yml` is the single source of truth.
 
 ### 🐛 Bug Fixes
+
+- **Long names pushed the date and options menu out of the DM list.** A user
+  with a long name, or a long system-announcement line in amber, widened the
+  whole row so the timestamp was cut off and the mute/options menu could not be
+  reached at all. Rows now stay within the panel, the name truncates, and both
+  the date and the menu remain visible. The channel sidebar had the same latent
+  problem and is fixed with it.
+- **The sidebar snapped you back after opening a channel from a link.** Opening
+  a channel from a notification left `server` and `channel` in the address bar.
+  Selecting a different channel or server was then undone a moment later, so
+  navigating away from a linked channel was impossible without visiting another
+  page first. The link is now cleared once it has been opened, and a reload
+  starts you on the default view rather than replaying the link.
+- **The member list briefly said "No members" on every load.** The panel treated
+  "we have not worked out which server yet" as "this server has no members", so
+  it flashed an empty state before the real list arrived — most visibly when
+  arriving from another page. It now shows as loading until the members for the
+  current server are actually in hand, and a server that genuinely has no
+  members still settles to empty.
+- **Opening a notification link opened the server but not the channel.** A link
+  into a channel in a different server set the channel at the same moment it
+  switched servers. The sidebar had not loaded that server's channels yet, so
+  the channel looked deleted and the app discarded the choice — leaving you on
+  the right server with no channel selected. The app now waits for the channel
+  list it asked for before deciding a channel is gone.
+- **Unread state was rejected by the API with a 400.** Marking a channel or a
+  thread read sent the message's timestamp, and Appwrite writes those with a
+  `+00:00` offset while writing `$updatedAt` with a `Z`. The read endpoints only
+  accepted the `Z` form, so every attempt to mark something read failed and
+  unread badges never cleared on web or mobile. Both endpoints now accept the
+  formats Appwrite actually sends. Thread replies were hitting the same wall and
+  are fixed with it.
+- **Member lists had never shown a profile picture.** The `profiles` collection
+  stores `avatarFileId`; there is no `avatarUrl` attribute on it at all. The
+  member endpoint was reading `avatarUrl` straight off the document, so it was
+  always undefined and every member fell back to their initials. The URL is now
+  derived from the file id, as the profile endpoints already did. The same
+  mistake in the audit log is fixed too.
+- **Avatar frames were mis-padded, most visibly the star.** The per-frame inset
+  had been guessed rather than measured, so the portrait did not line up with
+  the frame's opening — the star wanted 38% padding and was being given 20%,
+  which pushed the portrait well past the frame's inner edge. Every frame's
+  inset is now measured from the artwork. The spring frames are drawn with a
+  solid centre disc instead of an empty opening, so the portrait covers the disc
+  and hides the petals inside it. Two frames whose art crosses the centre (a
+  wreath and a snowflake) have no opening to sit in and are now drawn as an
+  overlay, full-bleed with the artwork on top.
+- **Threads and pinned messages moved out of the sidebar.** A thread now opens in
+  the message column with a `#channel > Thread` header and a back button, so a
+  long thread scrolls normally instead of running forever down a 320px panel.
+  Pinned messages became a button in the channel header that opens a popup list,
+  like the profile popup, instead of permanently occupying sidebar space. Both
+  work in channels and direct messages.
+- **Message lists are grouped by day.** A divider marks the first message of each
+  day — "Today", "Yesterday", or the date.
+- **Direct message timestamps show a date when the time stops being useful.** The
+  clock time for today, "Yesterday" for the day before, and a date like 2/4/26 for
+  anything older.
+- **Category counters now count unread channels instead of all channels.** The
+  number beside a category is the number of channels in it you have unread
+  messages in, and it disappears when there are none. This needed real read
+  tracking first: the app had no notion of which channels you had read, so
+  opening a channel now records where you got to, on the server, and it follows
+  you between devices.
+- **Direct message timestamps stop moving around.** The time is now pinned to a
+  fixed, never-shrinking column, so every row lines up at the same spot and the
+  time can no longer be squeezed or clipped by a long name. Long names, previews
+  and unread badges now ellipsise instead.
+- **Presence now decays the way you would expect.** A status you picked by hand
+  (busy, away, offline) sticks until you change it. "Online" is treated as the
+  default rather than a choice, so it decays like an automatic one: idle after
+  five minutes without activity, offline after fifteen, and back to online on its
+  own the moment you start using the app again. This works on mobile too, which
+  previously never reported activity and so always read as offline.
+- **Frames no longer change the size of the row they sit in.** An avatar's
+  footprint is now exactly the size you ask for whichever frame is worn, so a
+  list of people lines up instead of mixing 31px and 53px elements. Inside that
+  fixed box the portrait fills the frame's opening where the opening is large
+  enough, and is floored at half the box where it is not — so a frame with a
+  small opening (the star) reads as a portrait with the frame's points showing
+  around it, rather than either a mismatched hole or an oversized frame.
+  Previously the box grew to as much as four times the portrait to seat it, which
+  is what made the layout look uneven.
+- **Custom emoji now update live.** The browser was warning that
+  `NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID` was unset and realtime emoji updates
+  were disabled. Only the server-side `APPWRITE_EMOJIS_BUCKET_ID` is documented
+  and normally set, and the browser cannot see it — so the feature had been off.
+  The value is bridged to the client the same way the endpoint and project are.
 
 - **Fixed "Origin is not allowed" rejecting sign-in behind a reverse proxy.**
   The CSRF origin check on `POST /api/session` (and the direct-messages and
@@ -161,6 +292,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   viewer, the GIF/sticker picker, and the notification settings panel are split
   out of their initial bundles. As a result the shared JavaScript baseline drops
   from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+- **Avatar frame insets are measured, not guessed.** A script renders the
+  committed frame artwork and reports the inset each one needs, and a test holds
+  the shipped values to it — so a redrawn or added frame cannot drift out of
+  sync silently.
 - **`react-hooks` lint rules are enabled.** The plugin was registered but every
   rule was off, which is how effects with incomplete dependency arrays shipped.
   `rules-of-hooks` is now an error and `exhaustive-deps` a warning, with the

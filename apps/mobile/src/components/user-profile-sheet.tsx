@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { statusColor } from "@/components/status-indicator";
 import {
     ActivityIndicator,
     Linking,
@@ -82,15 +83,6 @@ function parseGradient(value: string): { colors: string[]; start: { x: number; y
         start: { x: 0.5 - Math.cos(rad) / 2, y: 0.5 + Math.sin(rad) / 2 },
         end: { x: 0.5 + Math.cos(rad) / 2, y: 0.5 - Math.sin(rad) / 2 },
     };
-}
-
-function statusColor(status?: string): { color: string; label: string } | null {
-    if (!status) return null;
-    const s = status.toLowerCase().replace(/[\s_-]/g, "");
-    if (s === "online") return { color: "#22c55e", label: "Online" };
-    if (s === "away" || s === "idle") return { color: "#f59e0b", label: "Away" };
-    if (s === "dnd" || s === "donotdisturb") return { color: "#ef4444", label: "Do Not Disturb" };
-    return { color: "#6b7280", label: "Offline" };
 }
 
 function getSafeUrl(url?: string | null): string | null {
@@ -217,7 +209,7 @@ export function UserProfileSheet({
                                         ) : null}
                                         {sc ? (
                                             <View style={styles.statusRow}>
-                                                <View style={[styles.statusDot, { backgroundColor: sc.color }]} />
+                                                <View style={[styles.statusDot, { backgroundColor: sc.dot }]} />
                                                 <ThemedText themeColor="mutedForeground" style={{ fontSize: 12 }}>
                                                     {sc.label}{customMessage ? ` — ${customMessage}` : ""}
                                                 </ThemedText>

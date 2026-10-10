@@ -184,31 +184,36 @@ describe("Avatar Component", () => {
         expect(image.tagName).toBe("IMG");
     });
 
-    it("should apply small size classes", () => {
-        render(<Avatar alt="Test" size="sm" />);
-        const avatar = screen.getByText("T");
-        expect(avatar.parentElement?.className).toContain("h-6");
-        expect(avatar.parentElement?.className).toContain("w-6");
-    });
+    // The box is what the caller asked for; the portrait inside it is what
+    // varies. Both come from inline styles now that the size is geometry.
+    const avatarGeometry = (initials: string) => {
+        const portrait = screen.getByText(initials).parentElement;
+        const box = portrait?.parentElement;
+        return {
+            boxPx: Number.parseFloat(box?.style.width ?? "0"),
+            portraitPx: Number.parseFloat(portrait?.style.width ?? "0"),
+        };
+    };
 
-    it("should apply medium size classes", () => {
-        render(<Avatar alt="Test" size="md" />);
-        const avatar = screen.getByText("T");
-        expect(avatar.parentElement?.className).toContain("h-8");
-        expect(avatar.parentElement?.className).toContain("w-8");
-    });
-
-    it("should apply large size classes", () => {
-        render(<Avatar alt="Test" size="lg" />);
-        const avatar = screen.getByText("T");
-        expect(avatar.parentElement?.className).toContain("h-12");
-        expect(avatar.parentElement?.className).toContain("w-12");
+    it.each([
+        ["sm", 24],
+        ["md", 32],
+        ["lg", 48],
+    ] as const)("reserves a %s box", (size, expectedPx) => {
+        render(<Avatar alt="Test" size={size} />);
+        expect(avatarGeometry("T").boxPx).toBe(expectedPx);
     });
 
     it("should default to medium size when size not specified", () => {
         render(<Avatar alt="Test" />);
-        const avatar = screen.getByText("T");
-        expect(avatar.parentElement?.className).toContain("h-8");
+        expect(avatarGeometry("T").boxPx).toBe(32);
+    });
+
+    it("draws an unframed portrait smaller than its box", () => {
+        render(<Avatar alt="Test" />);
+        const { boxPx, portraitPx } = avatarGeometry("T");
+        expect(portraitPx).toBeLessThan(boxPx);
+        expect(portraitPx / boxPx).toBeCloseTo(0.66, 2);
     });
 
     it("should handle empty string src as fallback", () => {
@@ -259,11 +264,12 @@ describe("Avatar Component", () => {
         expect(avatar.parentElement?.className).toContain("bg-muted");
     });
 
-    it("should set image dimensions based on size", () => {
+    it("should set image dimensions to the portrait, not the box", () => {
         render(<Avatar src="/test.jpg" alt="Test" size="lg" />);
         const image = screen.getByAltText("Test");
-        expect(image.getAttribute("width")).toBe("48");
-        expect(image.getAttribute("height")).toBe("48");
+        // lg box is 48px and an unframed portrait is 66% of it.
+        expect(image.getAttribute("width")).toBe("32");
+        expect(image.getAttribute("height")).toBe("32");
     });
 
     it("should set loading=lazy for images", () => {

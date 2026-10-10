@@ -131,4 +131,33 @@ describe("thread reads route", () => {
             "message-2": "2026-03-10T14:00:00Z",
         });
     });
+
+    // Thread replies mark themselves read with the reply's `$createdAt`, which
+    // Appwrite serializes with a `+00:00` offset. The Z-only validator rejected
+    // those, so opening or replying in a thread 400'd and never persisted.
+    it("accepts a $createdAt in Appwrite's offset form", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockUpsertThreadReads.mockResolvedValue({
+            $id: "settings-1",
+            reads: { "message-2": "2025-10-16T13:32:34.133Z" },
+        });
+
+        const response = await PATCH(
+            new NextRequest("http://localhost/api/thread-reads", {
+                body: JSON.stringify({
+                    contextId: "conv-1",
+                    contextKind: "conversation",
+                    reads: { "message-2": "2025-10-16T13:32:34.133+00:00" },
+                }),
+                method: "PATCH",
+            }),
+        );
+
+        expect(response.status).toBe(200);
+        expect(mockUpsertThreadReads).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reads: { "message-2": "2025-10-16T13:32:34.133Z" },
+            }),
+        );
+    });
 });

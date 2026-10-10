@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +9,8 @@ vi.mock("next/dynamic", () => ({
 }));
 
 vi.mock("@tanstack/react-query", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+    const actual =
+        await importOriginal<typeof import("@tanstack/react-query")>();
     const queryClient = new actual.QueryClient();
 
     return {
@@ -28,12 +29,16 @@ const {
     mockInboxRefresh,
     mockUseInbox,
     mockUseInboxDigest,
+    mockMarkChannelRead,
     mockJumpToMessage,
     mockJumpToMessageWhenReady,
     mockReplace,
     mockSearchParams,
     mockServers,
     mockSetSelectedServer,
+    mockChannelsLoadedFor,
+    mockSelectedServer,
+    mockServersRefresh,
 } = vi.hoisted(() => ({
     mockChannels: [] as Array<{
         $createdAt: string;
@@ -63,6 +68,7 @@ const {
     mockInboxRefresh: vi.fn(),
     mockUseInbox: vi.fn(),
     mockUseInboxDigest: vi.fn(),
+    mockMarkChannelRead: vi.fn(),
     mockJumpToMessage: vi.fn(),
     mockJumpToMessageWhenReady: vi.fn(() => vi.fn()),
     mockReplace: vi.fn(),
@@ -74,6 +80,9 @@ const {
         ownerId: string;
     }>,
     mockSetSelectedServer: vi.fn(),
+    mockChannelsLoadedFor: vi.fn(() => "server-1" as string | null),
+    mockServersRefresh: vi.fn(),
+    mockSelectedServer: vi.fn(() => "server-1" as string | null),
 }));
 
 const mockPush = vi.fn();
@@ -136,6 +145,12 @@ vi.mock("@/hooks/useDeveloperMode", () => ({
         },
         updateNavigationPreferences: vi.fn(),
     }),
+}));
+
+vi.mock("@/components/channel-permissions-editor", () => ({
+    ChannelPermissionsEditor: () => (
+        <div data-testid="channel-permissions-editor" />
+    ),
 }));
 
 vi.mock("@/components/chat-surface-panel", () => ({
@@ -209,10 +224,12 @@ vi.mock("../app/chat/components/DirectMessageView", () => ({
 }));
 
 vi.mock("../app/chat/hooks/useServers", () => ({
+    // `refresh` is hoisted: a fresh vi.fn() per render would change the hook's
+    // identity and re-trigger effects that depend on it.
     useServers: () => ({
         initialLoading: false,
-        refresh: vi.fn(),
-        selectedServer: "server-1",
+        refresh: mockServersRefresh,
+        selectedServer: mockSelectedServer(),
         setSelectedServer: mockSetSelectedServer,
         servers: mockServers,
     }),
@@ -220,8 +237,16 @@ vi.mock("../app/chat/hooks/useServers", () => ({
 
 vi.mock("../app/chat/hooks/useChannels", () => ({
     useChannels: () => ({
-        channels: mockChannels,
+        // A fresh array each call, so `useMemo([channels])` recomputes when the
+        // test changes the list. Returning the mutable array directly would keep
+        // one identity and silently freeze every memo that depends on it.
+        channels: [...mockChannels],
         cursor: null,
+        initialLoading: false,
+        // Which server the list belongs to. `null` models the window while a
+        // server switch is still loading, where an empty list is not evidence
+        // that a channel was deleted.
+        loadedServerId: mockChannelsLoadedFor(),
         loadMore: vi.fn(),
         loading: false,
     }),
@@ -331,6 +356,15 @@ vi.mock("../app/chat/hooks/useInboxDigest", () => ({
     useInboxDigest: (...args: unknown[]) => mockUseInboxDigest(...args),
 }));
 
+// The real hook needs a QueryClientProvider and hits the network; the unread
+// rules it feeds are covered directly in channel-unread.test.ts.
+vi.mock("../app/chat/hooks/useChannelReads", () => ({
+    useChannelReads: () => ({
+        markChannelRead: mockMarkChannelRead,
+        reads: {} as Record<string, string>,
+    }),
+}));
+
 vi.mock("sonner", () => ({
     toast: {
         error: vi.fn(),
@@ -377,6 +411,7 @@ describe("ChatPage", () => {
             name: "Firepit HQ",
             ownerId: "user-1",
         });
+        mockChannelsLoadedFor.mockReturnValue("server-1");
         mockSetSelectedServer.mockReset();
         mockUseInbox.mockReturnValue({
             contractVersion: "thread_v1",
@@ -468,10 +503,12 @@ describe("ChatPage", () => {
         expect(
             screen.getByRole("heading", { name: "general" }),
         ).toBeInTheDocument();
-        expect(screen.getByText("Pinned Messages")).toBeInTheDocument();
+        // Pinned messages moved behind a header button, and threads render in the
+        // message column rather than in a sidebar panel.
         expect(
-            screen.getByRole("heading", { name: "Thread" }),
+            screen.getByRole("button", { name: /pinned messages/i }),
         ).toBeInTheDocument();
+        expect(screen.queryByText("Pinned Messages")).not.toBeInTheDocument();
         expect(screen.getByTestId("chat-surface-panel")).toHaveAttribute(
             "data-show-surface",
             "true",
@@ -540,7 +577,9 @@ describe("ChatPage", () => {
         render(<ChatPage />);
 
         await user.click(screen.getByRole("button", { name: /general/i }));
-        await user.click(screen.getByRole("button", { name: "submit-channel" }));
+        await user.click(
+            screen.getByRole("button", { name: "submit-channel" }),
+        );
 
         expect(
             await screen.findByRole("heading", { name: "Create Poll" }),
@@ -564,6 +603,77 @@ describe("ChatPage", () => {
                 retryAttempts: 12,
                 retryDelayMs: 200,
             }),
+        );
+    });
+
+    // A deep link that switches servers selects the channel from the URL in the
+    // same tick as the server. The channel list for the new server has not
+    // arrived yet, so the list is empty and the channel looks like it was
+    // deleted. The page used to clear the selection on that false signal, which
+    // left the server open and the channel closed — the reported bug. It must
+    // instead wait until the list belongs to the selected server.
+    it("does not clear a deep-linked channel while the list is still stale", async () => {
+        mockSearchParams.set("channel", "channel-1");
+        mockSearchParams.set("server", "server-1");
+
+        // Model the real transition: the server has switched, so the list is
+        // empty and does not yet belong to the selected server. `loadedFor` is
+        // then advanced to the linked server to replay the list arriving.
+        mockChannels.splice(0, mockChannels.length);
+        mockChannelsLoadedFor.mockReturnValue(null);
+
+        const { rerender } = render(<ChatPage />);
+
+        // The list for the linked server now arrives, so it is authoritative.
+        mockChannels.push({
+            $createdAt: "2026-03-10T12:00:00.000Z",
+            $id: "channel-1",
+            name: "general",
+            serverId: "server-1",
+            type: "text",
+        });
+        mockChannelsLoadedFor.mockReturnValue("server-1");
+        act(() => {
+            rerender(<ChatPage />);
+        });
+
+        // The deep-linked channel opens. With the old guard the stale, empty list
+        // was read as a deletion and the selection was cleared during the first
+        // render, so the server opened with no channel and stayed that way.
+        expect(
+            await screen.findByRole("heading", { name: "general" }),
+        ).toBeInTheDocument();
+    });
+
+    // The counterpart: once the list for the selected server has loaded, a
+    // channel genuinely absent from it has been deleted and must be cleared.
+    // The routing params used to stay in the URL, and the route effect re-runs
+    // whenever they change, so a stale ?server=&channel= kept re-selecting the
+    // linked channel after the user navigated elsewhere — every click on another
+    // channel or server snapped back, making the sidebar unusable until a page
+    // change cleared the query.
+    it("strips the routing params once a deep link has been applied", async () => {
+        mockSearchParams.set("channel", "channel-1");
+        mockSearchParams.set("server", "server-1");
+
+        render(<ChatPage />);
+
+        await waitFor(() =>
+            expect(mockReplace).toHaveBeenCalledWith("/chat"),
+        );
+    });
+
+    it("clears a deep-linked channel that the loaded list does not contain", async () => {
+        mockSearchParams.set("channel", "channel-missing");
+        mockSearchParams.set("server", "server-1");
+        mockChannels.splice(0, mockChannels.length);
+
+        render(<ChatPage />);
+
+        await waitFor(() =>
+            expect(
+                screen.queryByRole("heading", { name: "general" }),
+            ).not.toBeInTheDocument(),
         );
     });
 
@@ -693,6 +803,9 @@ describe("ChatPage", () => {
 
         render(<ChatPage />);
         await user.click(screen.getByRole("button", { name: /general/i }));
+        await user.click(
+            screen.getByRole("button", { name: /pinned messages/i }),
+        );
         await user.click(
             await screen.findByRole("button", { name: "Jump to message" }),
         );

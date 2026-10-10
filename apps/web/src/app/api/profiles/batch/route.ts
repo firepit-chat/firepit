@@ -9,6 +9,7 @@ import {
     getExistingPredefinedAvatarFrameIds,
     getPredefinedAvatarFrameUrlByPresetId,
 } from "@/lib/appwrite-profiles";
+import { getPresetFrameById, presetFrameStyle } from "@/lib/preset-frames";
 import {
     logger,
     recordError,
@@ -255,6 +256,15 @@ export async function POST(request: NextRequest) {
                 avatarFramePreset,
                 avatarFrameUrl: hasPredefinedFrame
                     ? getPredefinedAvatarFrameUrlByPresetId(avatarFramePreset)
+                    : undefined,
+                // 0 signals an overlay frame: the art crosses the centre, so a
+                // client with no preset catalogue still draws the portrait
+                // full-bleed with the artwork on top.
+                avatarFrameInsetPercent: hasPredefinedFrame
+                    ? presetFrameStyle(avatarFramePreset) === "overlay"
+                        ? 0
+                        : (getPresetFrameById(avatarFramePreset)
+                              ?.avatarInsetPercent ?? 12)
                     : undefined,
                 status: status
                     ? {

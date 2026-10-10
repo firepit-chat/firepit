@@ -40,6 +40,20 @@ vi.mock("@teispace/next-themes", () => ({
     }),
 }));
 
+// The search dialog is loaded through `React.lazy`, so these tests exercise a
+// real dynamic import and are inherently timing-sensitive — that is the known
+// source of the intermittent failures in the full parallel suite. Stubbing the
+// emoji hook drops a second dynamic import (the realtime pool) and the emoji
+// fetch from that chain. Measured duration was unchanged, so this is isolation
+// rather than a demonstrated fix; the flake is not reproduced locally.
+vi.mock("@/hooks/useCustomEmojis", () => ({
+    useCustomEmojis: () => ({
+        customEmojis: [],
+        isLoading: false,
+        uploadEmoji: vi.fn().mockResolvedValue(undefined),
+    }),
+}));
+
 // Mock fetch for custom emojis
 global.fetch = vi.fn((url: string | URL) => {
     if (typeof url === "string" && url.includes("/api/custom-emojis")) {
