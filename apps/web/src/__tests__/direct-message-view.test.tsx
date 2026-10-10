@@ -153,8 +153,13 @@ describe("DirectMessageView", () => {
             />,
         );
 
+        // Pinned messages live behind a header button rather than a permanent
+        // sidebar panel.
         await user.click(
-            screen.getByRole("button", { name: "Jump to message" }),
+            screen.getByRole("button", { name: "Pinned messages" }),
+        );
+        await user.click(
+            await screen.findByRole("button", { name: "Jump to message" }),
         );
 
         expect(mockJumpToMessage).toHaveBeenCalledWith("dm-1");

@@ -17,6 +17,8 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIndicator } from "@/components/status-indicator";
+import { useStatusSubscription } from "@/app/chat/hooks/useStatusSubscription";
+import { presenceText } from "@/app/chat/components/presence-label";
 import { useFriends } from "@/hooks/useFriends";
 import { getOrCreateConversation } from "@/lib/appwrite-dms-client";
 import {
@@ -25,7 +27,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Conversation, InboxListResponse } from "@/lib/types";
+import { formatListTimestamp } from "@/lib/chat-dates";
+import type {
+    Conversation,
+    InboxListResponse,
+    PresenceStatus,
+} from "@/lib/types";
 import { toast } from "sonner";
 
 type ConversationUnreadState = {
@@ -113,6 +120,28 @@ export function ConversationList({
         [conversations, favoriteFriendIds],
     );
     const incomingRequests = useMemo(() => incoming.slice(0, 3), [incoming]);
+
+    // Friends rows are rendered from the friendship list, which carries no
+    // activity or presence. Both already exist on the loaded conversations, so
+    // index them by the other user and reuse that rather than a second fetch.
+    const conversationByUserId = useMemo(() => {
+        const byUserId = new Map<string, Conversation>();
+        for (const conversation of conversations) {
+            const otherUserId = conversation.otherUser?.userId;
+            if (otherUserId) {
+                byUserId.set(otherUserId, conversation);
+            }
+        }
+        return byUserId;
+    }, [conversations]);
+
+    // Friends are excluded from the rows below, so they need their own presence
+    // subscription to show a status dot.
+    const friendUserIds = useMemo(
+        () => favoriteFriends.map((entry) => entry.user.userId),
+        [favoriteFriends],
+    );
+    const { statuses: friendStatuses } = useStatusSubscription(friendUserIds);
     const unreadConversations = useMemo(
         () =>
             filteredConversations.filter(
@@ -132,7 +161,7 @@ export function ConversationList({
 
         return (
             <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                     muted
                         ? "bg-muted text-muted-foreground"
                         : "bg-primary text-primary-foreground"
@@ -156,7 +185,7 @@ export function ConversationList({
             : otherUser?.displayName || otherUser?.userId || "Unknown User";
         const subtitle = isGroup
             ? `${participantCount} participants`
-            : (otherUser?.status ?? undefined);
+            : presenceText(otherUser?.status, otherUser?.statusMessage);
         const secondaryLine = conversation.readOnly
             ? conversation.readOnlyReason || "Read only"
             : conversation.lastMessage?.text || subtitle;
@@ -169,11 +198,11 @@ export function ConversationList({
 
         return (
             <div
-                className="group relative flex items-center gap-1"
+                className="group relative flex min-w-0 items-center gap-1"
                 key={conversation.$id}
             >
                 <button
-                    className={`flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
+                    className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors ${
                         isSelected ? "bg-accent" : "hover:bg-accent/50"
                     }`}
                     onClick={() => onSelectConversation(conversation)}
@@ -192,23 +221,23 @@ export function ConversationList({
                                     : otherUser?.avatarUrl
                             }
                         />
-                        {!isGroup && otherUser?.status && (
+                        {!isGroup && (
                             <div className="absolute -bottom-0.5 -right-0.5">
                                 <StatusIndicator
                                     size="sm"
-                                    status={
-                                        otherUser.status as
-                                            | "online"
-                                            | "away"
-                                            | "busy"
-                                            | "offline"
-                                    }
+                                    // Falls back to offline so a 1:1 always shows
+                                    // a dot. It used to render only when a status
+                                    // was present, which hid it entirely for
+                                    // auto-set and not-yet-loaded statuses —
+                                    // exactly the people you most want to spot.
+                                    status={(otherUser?.status ??
+                                        "offline") as PresenceStatus}
                                 />
                             </div>
                         )}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
+                        <div className="flex min-w-0 items-center justify-between gap-2">
                             <div className="flex min-w-0 items-center gap-2">
                                 <p className="truncate font-medium text-sm">
                                     {displayName}
@@ -219,13 +248,10 @@ export function ConversationList({
                                 )}
                             </div>
                             {conversation.lastMessageAt && (
-                                <span className="text-muted-foreground text-xs">
-                                    {new Date(
+                                <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-foreground text-xs">
+                                    {formatListTimestamp(
                                         conversation.lastMessageAt,
-                                    ).toLocaleTimeString([], {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                    })}
+                                    )}
                                 </span>
                             )}
                         </div>
@@ -354,7 +380,7 @@ export function ConversationList({
                 </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
+            <div className="min-w-0 flex-1 overflow-y-auto">
                 {currentUserId &&
                 (friendsLoading ||
                     incomingRequests.length > 0 ||
@@ -492,14 +518,59 @@ export function ConversationList({
                                         const isOpening =
                                             openingConversationUserId ===
                                             entry.user.userId;
+                                        const friendConversation =
+                                            conversationByUserId.get(
+                                                entry.user.userId,
+                                            );
+                                        const lastMessageAt =
+                                            friendConversation?.lastMessageAt;
+                                        // Falls back to offline so a friend always
+                                        // shows a dot, matching the DM rows.
+                                        const friendStatus = (
+                                            friendStatuses.get(
+                                                entry.user.userId,
+                                            )?.status ??
+                                            friendConversation?.otherUser
+                                                ?.status ??
+                                            "offline"
+                                        ) as PresenceStatus;
+                                        const friendUnreadState =
+                                            friendConversation
+                                                ? conversationUnreadStateById[
+                                                      friendConversation.$id
+                                                  ]
+                                                : undefined;
+                                        const friendUnreadCount =
+                                            friendUnreadState?.count ??
+                                            (friendConversation
+                                                ? getConversationUnreadCount(
+                                                      friendConversation,
+                                                  )
+                                                : 0);
+                                        const friendMuted =
+                                            friendUnreadState?.muted ?? false;
+                                        // Custom status text when set, otherwise
+                                        // the plain presence word, matching a DM row.
+                                        const friendPresenceText = presenceText(
+                                            friendStatuses.get(
+                                                entry.user.userId,
+                                            )?.status ??
+                                                friendConversation?.otherUser
+                                                    ?.status,
+                                            friendStatuses.get(
+                                                entry.user.userId,
+                                            )?.customMessage ??
+                                                friendConversation?.otherUser
+                                                    ?.statusMessage,
+                                        );
 
                                         return (
                                             <div
-                                                className="group flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-accent/50"
+                                                className="group relative flex min-w-0 items-center gap-1"
                                                 key={entry.friendship.$id}
                                             >
                                                 <button
-                                                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                                                    className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-1.5 text-left hover:bg-accent/50"
                                                     onClick={() =>
                                                         void handleOpenFriendConversation(
                                                             entry.user.userId,
@@ -507,65 +578,128 @@ export function ConversationList({
                                                     }
                                                     type="button"
                                                 >
-                                                    <Avatar
-                                                        alt={displayName}
-                                                        fallback={displayName}
-                                                        framePreset={
-                                                            entry.user
-                                                                .avatarFramePreset
-                                                        }
-                                                        frameUrl={
-                                                            entry.user
-                                                                .avatarFrameUrl
-                                                        }
-                                                        size="sm"
-                                                        src={
-                                                            entry.user.avatarUrl
-                                                        }
-                                                    />
+                                                    <div className="relative">
+                                                        <Avatar
+                                                            alt={displayName}
+                                                            fallback={
+                                                                displayName
+                                                            }
+                                                            framePreset={
+                                                                entry.user
+                                                                    .avatarFramePreset
+                                                            }
+                                                            frameUrl={
+                                                                entry.user
+                                                                    .avatarFrameUrl
+                                                            }
+                                                            size="sm"
+                                                            src={
+                                                                entry.user
+                                                                    .avatarUrl
+                                                            }
+                                                        />
+                                                            <div className="absolute -bottom-0.5 -right-0.5">
+                                                                <StatusIndicator
+                                                                    size="sm"
+                                                                    status={
+                                                                        friendStatus
+                                                                    }
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="truncate text-sm font-medium">
-                                                            {displayName}
+                                                        <div className="flex min-w-0 items-center justify-between gap-2">
+                                                            <div className="flex min-w-0 items-center gap-2">
+                                                                <p className="truncate text-sm font-medium">
+                                                                    {displayName}
+                                                                </p>
+                                                                {renderUnreadBadge(
+                                                                    friendUnreadCount,
+                                                                    friendMuted,
+                                                                )}
+                                                            </div>
+                                                            {lastMessageAt ? (
+                                                                <span className="shrink-0 whitespace-nowrap tabular-nums text-muted-foreground text-xs">
+                                                                    {formatListTimestamp(
+                                                                        lastMessageAt,
+                                                                    )}
+                                                                </span>
+                                                            ) : null}
+                                                        </div>
+                                                        {/* Status rather than pronouns, so a friend row and a DM row carry the same
+                                                            information. */}
+                                                        <p className="truncate text-xs text-muted-foreground">
+                                                            {friendPresenceText}
                                                         </p>
-                                                        {entry.user.pronouns ? (
-                                                            <p className="truncate text-xs text-muted-foreground">
-                                                                {
-                                                                    entry.user
-                                                                        .pronouns
-                                                                }
-                                                            </p>
-                                                        ) : null}
                                                     </div>
                                                     {isOpening ? (
                                                         <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
                                                     ) : null}
                                                 </button>
-                                                <Button
-                                                    className="opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 focus-visible:opacity-100"
-                                                    disabled={
-                                                        actionLoading ===
-                                                        `remove:${entry.user.userId}`
-                                                    }
-                                                    onClick={() =>
-                                                        void handleAction(
-                                                            () =>
-                                                                removeFriendship(
-                                                                    entry.user
-                                                                        .userId,
-                                                                ),
-                                                            `Removed ${displayName} from friends`,
-                                                        )
-                                                    }
-                                                    size="icon"
-                                                    type="button"
-                                                    variant="ghost"
-                                                >
-                                                    <UserMinus className="size-4" />
-                                                    <span className="sr-only">
-                                                        Remove {displayName}{" "}
-                                                        from friends
-                                                    </span>
-                                                </Button>
+                                                {/* One menu per row, as on the DM
+                                                    rows below, so the timestamp
+                                                    column lines up. Remove used to
+                                                    be a second button here, which
+                                                    held a permanent 32px slot even
+                                                    while invisible and pushed every
+                                                    friend date left of the DM
+                                                    dates. */}
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            aria-label={`Options for ${displayName}`}
+                                                            className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                                                            size="icon"
+                                                            type="button"
+                                                            variant="ghost"
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                            <span className="sr-only">
+                                                                Options for{" "}
+                                                                {displayName}
+                                                            </span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        {friendConversation &&
+                                                        onMuteConversation ? (
+                                                            <DropdownMenuItem
+                                                                onClick={() =>
+                                                                    onMuteConversation(
+                                                                        friendConversation.$id,
+                                                                        displayName,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <BellOff className="mr-2 h-4 w-4" />
+                                                                Mute
+                                                                Conversation
+                                                            </DropdownMenuItem>
+                                                        ) : null}
+                                                        <DropdownMenuItem
+                                                            disabled={
+                                                                actionLoading ===
+                                                                `remove:${entry.user.userId}`
+                                                            }
+                                                            onClick={() =>
+                                                                void handleAction(
+                                                                    () =>
+                                                                        removeFriendship(
+                                                                            entry
+                                                                                .user
+                                                                                .userId,
+                                                                        ),
+                                                                    `Removed ${displayName} from friends`,
+                                                                )
+                                                            }
+                                                        >
+                                                            <UserMinus className="mr-2 h-4 w-4" />
+                                                            Remove{" "}
+                                                            {displayName}{" "}
+                                                            from friends
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
                                             </div>
                                         );
                                     })}

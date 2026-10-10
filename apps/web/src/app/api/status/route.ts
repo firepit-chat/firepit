@@ -144,14 +144,21 @@ export async function POST(request: Request) {
             const doc = existing.documents[0];
             const docExpiresAt = doc.expiresAt as string | undefined;
             const docIsManuallySet = doc.isManuallySet as boolean | undefined;
+            const docStatus = doc.status as string | undefined;
 
-            // If there's an active manually-set status that hasn't expired, don't overwrite with auto-status
+            // An active manually-set status outlives an automatic write, so the
+            // user keeps whatever they chose. "online" is exempt: it is the
+            // default rather than a choice, so it has to decay with inactivity
+            // like an automatic one or it would pin the user online forever.
             if (docIsManuallySet && !isManuallySet) {
                 const expirationDate = docExpiresAt
                     ? new Date(docExpiresAt)
                     : null;
 
-                if (!expirationDate || expirationDate > nowDate) {
+                if (
+                    docStatus !== "online" &&
+                    (!expirationDate || expirationDate > nowDate)
+                ) {
                     // Don't overwrite - manually set status is still active
                     shouldUpdate = false;
                 }

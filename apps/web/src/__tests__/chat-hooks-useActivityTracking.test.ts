@@ -3,7 +3,7 @@
  */
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
-import { useActivityTracking } from "@/app/chat/hooks/useActivityTracking";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 import * as appwriteStatus from "@/lib/appwrite-status";
 
 // Mock the status functions

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import {
     MessageSquare,
+    ArrowLeft,
     Hash,
     Megaphone,
     Settings,
@@ -31,11 +32,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ChatPinnedMessagesContent } from "@/components/chat-pinned-messages-content";
 
 function formatMemberCount(count: number | undefined): string {
-	if (count === undefined) {
-		return "Server";
-	}
-	return `${count} ${count === 1 ? "member" : "members"}`;
+    if (count === undefined) {
+        return "Server";
+    }
+    return `${count} ${count === 1 ? "member" : "members"}`;
 }
+import { MESSAGE_LIST_VIEWPORT_HEIGHT } from "@/components/virtualized-message-list";
 import { ChatSurfacePanel } from "@/components/chat-surface-panel";
 import { ChatThreadContent } from "@/components/chat-thread-content";
 import { ChatMembersContent } from "@/components/chat-members-content";
@@ -66,6 +68,7 @@ import { useDeveloperMode } from "@/hooks/useDeveloperMode";
 import { useChannels } from "./hooks/useChannels";
 import { useCategories } from "./hooks/useCategories";
 import { useMessages } from "./hooks/useMessages";
+import { useChannelReads } from "./hooks/useChannelReads";
 import { useServers } from "./hooks/useServers";
 import { useConversations } from "./hooks/useConversations";
 import { useDirectMessages } from "./hooks/useDirectMessages";
@@ -75,6 +78,7 @@ import { uploadImage } from "@/lib/appwrite-dms-client";
 import { useCustomEmojis } from "@/hooks/useCustomEmojis";
 import { useNotifications } from "@/hooks/useNotifications";
 import { apiCache, CACHE_TTL } from "@/lib/cache-utils";
+import { countUnreadChannels, isChannelUnread } from "@/lib/channel-unread";
 import { listInboxWithFilters } from "@/lib/inbox-client";
 import { useChatSurfaceController } from "./hooks/useChatSurfaceController";
 import { toast } from "sonner";
@@ -231,8 +235,6 @@ export default function ChatPage() {
     const routeHighlightMessageId = searchParams.get("highlight");
     const routeUnreadMessageId = searchParams.get("unread");
 
-    // Automatic status tracking removed to preserve manual status settings
-    // Users can manually set their status via the profile/settings UI
     const membershipEnabled = Boolean(
         process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID,
     );
@@ -243,6 +245,7 @@ export default function ChatPage() {
     >(null);
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
     const [profileModalOpen, setProfileModalOpen] = useState(false);
+    const [pinnedOpen, setPinnedOpen] = useState(false);
     const [newConversationOpen, setNewConversationOpen] = useState(false);
     const [adminPanelOpen, setAdminPanelOpen] = useState(false);
     const [channelPermissionsOpen, setChannelPermissionsOpen] = useState(false);
@@ -663,7 +666,22 @@ export default function ChatPage() {
     const currentContextKind =
         activeContext?.contextKind ?? currentContextSummary?.contextKind;
 
+    // Applies a deep link once, then strips the routing params from the URL.
+//
+// They used to be left in place, and because this effect re-runs whenever they
+// change, a stale `?server=&channel=` kept re-selecting the channel the user
+// had navigated away from — so clicking another channel or server snapped back.
+const consumedRouteRef = useRef<string | null>(null);
+
     useEffect(() => {
+        const routeKey = searchParamsString;
+        if (!routeConversationId && !routeChannelId) {
+            return;
+        }
+        if (consumedRouteRef.current === routeKey) {
+            return;
+        }
+
         if (routeConversationId) {
             setViewMode("dms");
             setSelectedConversationId((currentValue) =>
@@ -672,22 +690,37 @@ export default function ChatPage() {
                     : routeConversationId,
             );
             setSelectedChannel(null);
-            return;
+        } else {
+            setViewMode("channels");
+            setSelectedConversationId(null);
+            if (routeServerId && selectedServerId !== routeServerId) {
+                setSelectedServer(routeServerId);
+            }
+            setSelectedChannel((currentValue) =>
+                currentValue === routeChannelId ? currentValue : routeChannelId,
+            );
         }
 
-        if (!routeChannelId) {
-            return;
-        }
+        consumedRouteRef.current = routeKey;
 
-        setViewMode("channels");
-        setSelectedConversationId(null);
-        if (routeServerId && selectedServerId !== routeServerId) {
-            setSelectedServer(routeServerId);
+        // Drop the routing params now that they are applied. Kept out of the URL
+        // so later navigation is not dragged back to this destination, and so a
+        // reload lands on the default view rather than replaying the link.
+        const cleaned = new URLSearchParams(searchParamsString);
+        for (const key of ["server", "channel", "conversation"]) {
+            cleaned.delete(key);
         }
-        setSelectedChannel((currentValue) =>
-            currentValue === routeChannelId ? currentValue : routeChannelId,
-        );
-    }, [routeChannelId, routeConversationId, routeServerId, selectedServerId, setSelectedServer]);
+        const cleanedQuery = cleaned.toString();
+        router.replace(cleanedQuery ? `/chat?${cleanedQuery}` : "/chat");
+    }, [
+        routeChannelId,
+        routeConversationId,
+        routeServerId,
+        router,
+        searchParamsString,
+        selectedServerId,
+        setSelectedServer,
+    ]);
 
     const messagesApi = useMessages({
         channelId: viewMode === "channels" ? selectedChannel : null,
@@ -702,6 +735,46 @@ export default function ChatPage() {
         userId,
         userName,
     });
+
+    const { markChannelRead, reads: channelReads } = useChannelReads(
+        serversApi.selectedServer,
+    );
+
+    // Opening a channel marks it read up to its newest message, and anything
+    // that arrives while it stays open counts as read too.
+    //
+    // `channelReads[channel]` alone is NOT a sufficient guard: it only updates
+    // after the server confirms, so while the request is pending — or if it
+    // fails and never updates — every re-render fired another PUT. That produced
+    // a request storm against a misconfigured collection. The ref below records
+    // what was attempted, so a burst of renders and messages costs one request.
+    const attemptedChannelReadRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (viewMode !== "channels" || !selectedChannel) {
+            return;
+        }
+        const newest = messagesApi.messages.at(-1);
+        const lastReadAt = newest?.$createdAt;
+        if (!lastReadAt) {
+            return;
+        }
+        const alreadyRead = channelReads[selectedChannel];
+        if (alreadyRead && alreadyRead >= lastReadAt) {
+            return;
+        }
+        const attemptKey = `${selectedChannel}:${lastReadAt}`;
+        if (attemptedChannelReadRef.current === attemptKey) {
+            return;
+        }
+        attemptedChannelReadRef.current = attemptKey;
+        markChannelRead(selectedChannel, lastReadAt);
+    }, [
+        channelReads,
+        markChannelRead,
+        messagesApi.messages,
+        selectedChannel,
+        viewMode,
+    ]);
 
     const loadOlderAroundUnread = useCallback(async () => {
         if (loadingOlderUnreadRef.current) {
@@ -908,15 +981,19 @@ export default function ChatPage() {
             return left.name.localeCompare(right.name);
         });
 
-        return categories.map((category) => ({
-            category,
-            channels: sortSidebarChannels(
+        return categories.map((category) => {
+            const channels = sortSidebarChannels(
                 channelsApi.channels.filter(
                     (channel) => channel.categoryId === category.$id,
                 ),
-            ),
-        }));
-    }, [categoriesApi.categories, channelsApi.channels]);
+            );
+            return {
+                category,
+                channels,
+                unreadCount: countUnreadChannels(channels, channelReads),
+            };
+        });
+    }, [categoriesApi.categories, channelsApi.channels, channelReads]);
 
     const uncategorizedChannels = useMemo(
         () =>
@@ -924,6 +1001,11 @@ export default function ChatPage() {
                 channelsApi.channels.filter((channel) => !channel.categoryId),
             ),
         [channelsApi.channels],
+    );
+
+    const uncategorizedUnreadCount = useMemo(
+        () => countUnreadChannels(uncategorizedChannels, channelReads),
+        [uncategorizedChannels, channelReads],
     );
 
     const resolvedChannelId = useMemo(
@@ -950,17 +1032,27 @@ export default function ChatPage() {
         [serversApi.selectedServer, serversApi.servers],
     );
 
+    // A channel missing from the loaded list has usually been deleted, so the
+    // selection is dropped. Switching servers clears that list before the next
+    // one arrives though, and a deep link sets the channel from the URL in the
+    // same tick as the server — clearing there destroyed the selection, so the
+    // server opened and the channel never did. Wait until the list belongs to
+    // the selected server before treating it as authoritative.
+    const channelsLoadedForSelectedServer =
+        channelsApi.loadedServerId !== null &&
+        channelsApi.loadedServerId === serversApi.selectedServer;
+
     useEffect(() => {
         if (
             selectedChannel &&
             !resolvedChannelId &&
             serversApi.selectedServer &&
-            !channelsApi.initialLoading
+            channelsLoadedForSelectedServer
         ) {
             setSelectedChannel(null);
         }
     }, [
-        channelsApi.initialLoading,
+        channelsLoadedForSelectedServer,
         resolvedChannelId,
         selectedChannel,
         serversApi.selectedServer,
@@ -1407,9 +1499,7 @@ export default function ChatPage() {
                 return currentValue;
             }
 
-            return currentValue.filter(
-                (option) => option.id !== optionId,
-            );
+            return currentValue.filter((option) => option.id !== optionId);
         });
     }, []);
 
@@ -1497,7 +1587,9 @@ export default function ChatPage() {
                 text.trim().toLowerCase() === "/poll"
             ) {
                 if (selectedImage || fileAttachments.length > 0) {
-                    toast.error("Polls cannot include image or file attachments.");
+                    toast.error(
+                        "Polls cannot include image or file attachments.",
+                    );
                     return;
                 }
 
@@ -1704,16 +1796,17 @@ export default function ChatPage() {
                     </div>
                     <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
-                            {serversApi.selectedServer && canOpenServerAdminPanel && (
-                                <Button
-                                    onClick={() => setAdminPanelOpen(true)}
-                                    size="sm"
-                                    variant="ghost"
-                                    title="Server Admin Panel"
-                                >
-                                    <Shield className="h-4 w-4" />
-                                </Button>
-                            )}
+                            {serversApi.selectedServer &&
+                                canOpenServerAdminPanel && (
+                                    <Button
+                                        onClick={() => setAdminPanelOpen(true)}
+                                        size="sm"
+                                        variant="ghost"
+                                        title="Server Admin Panel"
+                                    >
+                                        <Shield className="h-4 w-4" />
+                                    </Button>
+                                )}
                             {userId && (
                                 <>
                                     {allowUserServers ? (
@@ -1738,7 +1831,9 @@ export default function ChatPage() {
                     <ul className="space-y-1">
                         {serversApi.servers.map((s) => {
                             const active = s.$id === serversApi.selectedServer;
-                            const memberCountLabel = formatMemberCount(s.memberCount);
+                            const memberCountLabel = formatMemberCount(
+                                s.memberCount,
+                            );
                             return (
                                 <li key={s.$id} className="group relative">
                                     <div className="flex items-center gap-1">
@@ -1750,7 +1845,9 @@ export default function ChatPage() {
                                                     : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                                             }`}
                                             onClick={() => {
-                                                serversApi.setSelectedServer(s.$id);
+                                                serversApi.setSelectedServer(
+                                                    s.$id,
+                                                );
                                                 setSelectedChannel(null);
                                             }}
                                             type="button"
@@ -1771,7 +1868,6 @@ export default function ChatPage() {
                                                     {memberCountLabel}
                                                 </span>
                                             </span>
-
                                         </Button>
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -1817,7 +1913,9 @@ export default function ChatPage() {
                                 type="button"
                                 variant="outline"
                             >
-                                {serversApi.loading ? "Loading..." : "Load more"}
+                                {serversApi.loading
+                                    ? "Loading..."
+                                    : "Load more"}
                             </Button>
                         </div>
                     )}
@@ -1847,7 +1945,8 @@ export default function ChatPage() {
             if (!serversApi.selectedServer) {
                 return (
                     <p className="rounded-md border border-dashed border-border/60 px-2.5 py-2 text-center text-xs text-muted-foreground">
-                        Select a server to view its channels or create a new space.
+                        Select a server to view its channels or create a new
+                        space.
                     </p>
                 );
             }
@@ -1899,10 +1998,18 @@ export default function ChatPage() {
                 const active = channel.$id === selectedChannel;
                 const unreadState = channelUnreadStateById[channel.$id];
                 const isAnnouncementChannel = channel.type === "announcement";
+                // Same predicate as the category counter, so a dot beside a
+                // channel always explains that category's number. An open
+                // channel is not unread however old its last message is.
+                const hasUnread = !active && isChannelUnread({
+                    channelCreatedAt: channel.$createdAt,
+                    lastMessageAt: channel.lastMessageAt,
+                    lastReadAt: channelReads[channel.$id],
+                });
 
                 return (
-                    <li key={channel.$id} className="group relative">
-                        <div className="flex items-center gap-1">
+                    <li key={channel.$id} className="group relative min-w-0">
+                        <div className="flex min-w-0 items-center gap-1">
                             <Button
                                 aria-pressed={active}
                                 className={`min-w-0 flex-1 justify-start gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors ${
@@ -1925,6 +2032,15 @@ export default function ChatPage() {
                                         className="size-3.5 shrink-0"
                                     />
                                 )}
+
+                                {hasUnread ? (
+                                    <span
+                                        aria-label="Unread messages"
+                                        className="size-2 shrink-0 rounded-full bg-primary"
+                                        role="img"
+                                        title="Unread messages"
+                                    />
+                                ) : null}
 
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-medium">
@@ -1952,7 +2068,6 @@ export default function ChatPage() {
                                             {unreadState.count}
                                         </span>
                                     ) : null}
-
                                 </span>
                             </Button>
                             <DropdownMenu>
@@ -1993,55 +2108,74 @@ export default function ChatPage() {
             return (
                 <div className="space-y-3">
                     <div className="space-y-3">
-                        {groupedChannels.map(({ category, channels }) => {
-                            const collapsed = collapsedCategoryIds.includes(
-                                category.$id,
-                            );
+                        {groupedChannels.map(
+                            ({ category, channels, unreadCount }) => {
+                                const collapsed = collapsedCategoryIds.includes(
+                                    category.$id,
+                                );
 
-                            return (
-                                <section key={category.$id} className="space-y-1">
-                                    <button
-                                        className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
-                                        onClick={() =>
-                                            toggleCategoryCollapse(category.$id)
-                                        }
-                                        type="button"
+                                return (
+                                    <section
+                                        key={category.$id}
+                                        className="space-y-1"
                                     >
-                                        <span className="flex items-center gap-1.5">
-                                            {collapsed ? (
-                                                <ChevronRight className="h-3.5 w-3.5" />
-                                            ) : (
-                                                <ChevronDown className="h-3.5 w-3.5" />
-                                            )}
-                                            {category.name}
-                                        </span>
-                                        <span>{channels.length}</span>
-                                    </button>
-                                    {!collapsed && (
-                                        <ul className="space-y-1">
-                                            {channels.length > 0 ? (
-                                                channels.map(renderChannelItem)
-                                            ) : (
-                                                <li className="rounded-md border border-dashed border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
-                                                    No channels in this category
-                                                    yet.
-                                                </li>
-                                            )}
-                                        </ul>
-                                    )}
-                                </section>
-                            );
-                        })}
+                                        <button
+                                            className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs font-semibold text-muted-foreground transition hover:bg-accent/60 hover:text-foreground"
+                                            onClick={() =>
+                                                toggleCategoryCollapse(
+                                                    category.$id,
+                                                )
+                                            }
+                                            type="button"
+                                        >
+                                            <span className="flex items-center gap-1.5">
+                                                {collapsed ? (
+                                                    <ChevronRight className="h-3.5 w-3.5" />
+                                                ) : (
+                                                    <ChevronDown className="h-3.5 w-3.5" />
+                                                )}
+                                                {category.name}
+                                            </span>
+                                            {unreadCount > 0 ? (
+                                                <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
+                                                    {unreadCount}
+                                                </span>
+                                            ) : null}
+                                        </button>
+                                        {!collapsed && (
+                                            <ul className="space-y-1">
+                                                {channels.length > 0 ? (
+                                                    channels.map(
+                                                        renderChannelItem,
+                                                    )
+                                                ) : (
+                                                    <li className="rounded-md border border-dashed border-border/60 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
+                                                        No channels in this
+                                                        category yet.
+                                                    </li>
+                                                )}
+                                            </ul>
+                                        )}
+                                    </section>
+                                );
+                            },
+                        )}
 
                         {(uncategorizedChannels.length > 0 ||
                             groupedChannels.length === 0) && (
                             <section className="space-y-1">
                                 <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-muted-foreground">
                                     <span>Uncategorized</span>
-                                    <span>{uncategorizedChannels.length}</span>
+                                    {uncategorizedUnreadCount > 0 ? (
+                                        <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
+                                            {uncategorizedUnreadCount}
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <ul className="space-y-1">
-                                    {uncategorizedChannels.map(renderChannelItem)}
+                                    {uncategorizedChannels.map(
+                                        renderChannelItem,
+                                    )}
                                 </ul>
                             </section>
                         )}
@@ -2055,7 +2189,9 @@ export default function ChatPage() {
                                 type="button"
                                 variant="outline"
                             >
-                                {channelsApi.loading ? "Loading..." : "Load more"}
+                                {channelsApi.loading
+                                    ? "Loading..."
+                                    : "Load more"}
                             </Button>
                         </div>
                     )}
@@ -2066,6 +2202,7 @@ export default function ChatPage() {
         return renderChannels();
     }, [
         categoriesApi,
+        channelReads,
         channelUnreadStateById,
         channelsApi,
         collapsedCategoryIds,
@@ -2075,6 +2212,7 @@ export default function ChatPage() {
         serversApi,
         toggleCategoryCollapse,
         uncategorizedChannels,
+        uncategorizedUnreadCount,
     ]);
 
     function renderMessages() {
@@ -2091,10 +2229,7 @@ export default function ChatPage() {
                             you sure you want to continue?
                         </p>
                     </div>
-                    <Button
-                        onClick={acceptNsfwChannel}
-                        type="button"
-                    >
+                    <Button onClick={acceptNsfwChannel} type="button">
                         Continue
                     </Button>
                 </div>
@@ -2212,6 +2347,64 @@ export default function ChatPage() {
                 serverId={selectedChannelData?.serverId}
                 canMentionEveryone={canMentionEveryone}
             />
+        );
+    }
+
+    /**
+     * Threads render in the message column rather than beside it. Docking them
+     * in the 320px sidebar meant a long thread scrolled the sidebar forever, and
+     * the reply list's `flex-1 overflow-y-auto` had no bounded height to fill.
+     */
+    function renderThreadView() {
+        return (
+            <div className="flex flex-col">
+                <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                    <Button
+                        onClick={closeThread}
+                        size="sm"
+                        title="Back to channel"
+                        type="button"
+                        variant="ghost"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex min-w-0 items-center gap-1.5 text-sm">
+                        <Hash className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-semibold">
+                            {selectedChannelData?.name || "Channel"}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            &gt;
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            Thread
+                        </span>
+                    </div>
+                </div>
+                <div
+                    className="flex min-w-0 flex-col pt-3"
+                    style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
+                >
+                    <ChatThreadContent
+                        currentUserId={userId}
+                        customEmojis={customEmojis}
+                        loading={_threadLoading}
+                        onReplyTextChange={setThreadReplyText}
+                        onSendReply={async () => {
+                            const value = threadReplyText;
+                            setThreadReplyText("");
+                            await _sendThreadReply(value);
+                        }}
+                        onToggleReaction={surfaceController.onToggleReaction}
+                        onVotePoll={surfaceController.onVotePoll}
+                        onClosePoll={surfaceController.onClosePoll}
+                        parentMessage={threadParentSurfaceMessage}
+                        replies={threadSurfaceMessages}
+                        sendingReply={_threadReplySending}
+                        replyText={threadReplyText}
+                    />
+                </div>
+            </div>
         );
     }
 
@@ -2446,106 +2639,86 @@ export default function ChatPage() {
                                                             <Settings className="h-4 w-4" />
                                                         </Button>
                                                     )}
+                                                <Button
+                                                    aria-label="Pinned messages"
+                                                    onClick={() =>
+                                                        setPinnedOpen(true)
+                                                    }
+                                                    size="sm"
+                                                    title="Pinned messages"
+                                                    type="button"
+                                                    variant="ghost"
+                                                >
+                                                    <Pin className="h-4 w-4" />
+                                                    {pinnedChannelSurfaceMessages.length >
+                                                    0 ? (
+                                                        <span className="text-[10px] font-semibold">
+                                                            {
+                                                                pinnedChannelSurfaceMessages.length
+                                                            }
+                                                        </span>
+                                                    ) : null}
+                                                </Button>
                                             </div>
                                         </div>
-                                        {renderMessages()}
+                                        {activeThreadParent
+                                            ? renderThreadView()
+                                            : renderMessages()}
                                     </div>
 
                                     <aside className="space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
-                                        <ChatMembersContent serverId={serversApi.selectedServer} />
+                                        <ChatMembersContent
+                                            serverId={serversApi.selectedServer}
+                                            onOpenProfile={openProfileModal}
+                                        />
 
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-2 text-sm font-medium">
-                                                <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                                                Pinned Messages
-                                            </div>
-                                            <ChatPinnedMessagesContent
-                                                canManageMessages={
-                                                    canManageMessages
-                                                }
-                                                messages={
-                                                    pinnedChannelSurfaceMessages
-                                                }
-                                                onJumpToMessage={
-                                                    jumpToPinnedMessage
-                                                }
-                                                onUnpin={async (
-                                                    surfaceMessage,
-                                                ) => {
-                                                    const rawMessage =
-                                                        pinnedChannelMessages.find(
-                                                            (message) =>
-                                                                message.$id ===
-                                                                surfaceMessage.sourceMessageId,
-                                                        );
-                                                    if (rawMessage) {
-                                                        await togglePin(
-                                                            rawMessage,
-                                                        );
+                                        <Dialog
+                                            onOpenChange={setPinnedOpen}
+                                            open={pinnedOpen}
+                                        >
+                                            <DialogContent className="max-w-xl">
+                                                <DialogHeader>
+                                                    <DialogTitle>
+                                                        Pinned Messages
+                                                    </DialogTitle>
+                                                </DialogHeader>
+                                                <ChatPinnedMessagesContent
+                                                    canManageMessages={
+                                                        canManageMessages
                                                     }
-                                                }}
-                                            />
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <h3 className="text-sm font-medium">
-                                                    Thread
-                                                </h3>
-                                                {activeThreadParent ? (
-                                                    <Button
-                                                        onClick={closeThread}
-                                                        size="sm"
-                                                        type="button"
-                                                        variant="ghost"
-                                                    >
-                                                        Close
-                                                    </Button>
-                                                ) : null}
-                                            </div>
-                                            {!activeThreadParent ? (
-                                                <p className="text-xs text-muted-foreground">
-                                                    Open a message thread to
-                                                    view replies here.
-                                                </p>
-                                            ) : (
-                                                <ChatThreadContent
-                                                    currentUserId={userId}
-                                                    customEmojis={customEmojis}
-                                                    loading={_threadLoading}
-                                                    onReplyTextChange={
-                                                        setThreadReplyText
+                                                    channelName={
+                                                        selectedChannelData?.name ||
+                                                        undefined
                                                     }
-                                                    onSendReply={async () => {
-                                                        const value =
-                                                            threadReplyText;
-                                                        setThreadReplyText("");
-                                                        await _sendThreadReply(
-                                                            value,
+                                                    messages={
+                                                        pinnedChannelSurfaceMessages
+                                                    }
+                                                    onJumpToMessage={async (
+                                                        messageId,
+                                                    ) => {
+                                                        setPinnedOpen(false);
+                                                        jumpToPinnedMessage(
+                                                            messageId,
                                                         );
                                                     }}
-                                                    onToggleReaction={
-                                                        surfaceController.onToggleReaction
-                                                    }
-                                                    onVotePoll={
-                                                        surfaceController.onVotePoll
-                                                    }
-                                                    onClosePoll={
-                                                        surfaceController.onClosePoll
-                                                    }
-                                                    parentMessage={
-                                                        threadParentSurfaceMessage
-                                                    }
-                                                    replies={
-                                                        threadSurfaceMessages
-                                                    }
-                                                    sendingReply={
-                                                        _threadReplySending
-                                                    }
-                                                    replyText={threadReplyText}
+                                                    onUnpin={async (
+                                                        surfaceMessage,
+                                                    ) => {
+                                                        const rawMessage =
+                                                            pinnedChannelMessages.find(
+                                                                (message) =>
+                                                                    message.$id ===
+                                                                    surfaceMessage.sourceMessageId,
+                                                            );
+                                                        if (rawMessage) {
+                                                            await togglePin(
+                                                                rawMessage,
+                                                            );
+                                                        }
+                                                    }}
                                                 />
-                                            )}
-                                        </div>
+                                            </DialogContent>
+                                        </Dialog>
                                     </aside>
                                 </div>
                             ) : (
@@ -2647,7 +2820,9 @@ export default function ChatPage() {
                             <div className="flex items-center justify-between">
                                 <h3 className="text-sm font-medium">Options</h3>
                                 <Button
-                                    disabled={creatingPoll || pollOptions.length >= 10}
+                                    disabled={
+                                        creatingPoll || pollOptions.length >= 10
+                                    }
                                     onClick={addPollOption}
                                     size="sm"
                                     type="button"
@@ -2659,7 +2834,10 @@ export default function ChatPage() {
 
                             <div className="space-y-2">
                                 {pollOptions.map((option, index) => (
-                                    <div className="flex items-center gap-2" key={option.id}>
+                                    <div
+                                        className="flex items-center gap-2"
+                                        key={option.id}
+                                    >
                                         <Label
                                             className="sr-only"
                                             htmlFor={`poll-option-${option.id}`}
@@ -2728,12 +2906,15 @@ export default function ChatPage() {
                     <DialogHeader>
                         <DialogTitle>Discover Public Servers</DialogTitle>
                         <DialogDescription>
-                            Browse public servers and join any server you are not already a member of.
+                            Browse public servers and join any server you are
+                            not already a member of.
                         </DialogDescription>
                     </DialogHeader>
                     <ServerBrowser
                         userId={userId}
-                        joinedServerIds={serversApi.servers.map((server) => server.$id)}
+                        joinedServerIds={serversApi.servers.map(
+                            (server) => server.$id,
+                        )}
                         onServerJoined={() => {
                             void serversApi.refresh();
                             setDiscoverServersOpen(false);

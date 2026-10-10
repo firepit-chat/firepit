@@ -175,6 +175,16 @@ async function fetchEmojisFromServer(): Promise<CustomEmoji[]> {
 /**
  * Hook for managing custom emojis with localStorage caching
  */
+let warnedMissingEmojiBucket = false;
+
+function warnMissingEmojiBucket(): void {
+    if (warnedMissingEmojiBucket) {return;}
+    warnedMissingEmojiBucket = true;
+    logger.warn(
+        "NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID is not set; custom emoji realtime updates are disabled",
+    );
+}
+
 export function useCustomEmojis() {
     const [uploading, setUploading] = useState(false);
     const queryClient = useQueryClient();
@@ -207,9 +217,9 @@ export function useCustomEmojis() {
                 const bucketId =
                     process.env.NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID;
                 if (!bucketId) {
-                    logger.warn(
-                        "NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID is not set; custom emoji realtime updates are disabled",
-                    );
+                    // Warn at most once: this hook is mounted more than once,
+                    // and the warning also reports an analytics event.
+                    warnMissingEmojiBucket();
                     return;
                 }
 

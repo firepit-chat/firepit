@@ -57,6 +57,13 @@ export async function GET(_request: Request, context: RouteContext) {
                 username: member.userName ?? null,
                 displayName: member.displayName ?? null,
                 avatarUrl: member.avatarUrl ?? null,
+                // Both, matching the profile endpoints: the preset id lets the
+                // web client look up the frame's inset, the resolved URL lets
+                // clients without that registry render the frame anyway.
+                avatarFramePreset: member.avatarFramePreset ?? null,
+                avatarFrameUrl: member.avatarFrameUrl ?? null,
+                avatarFrameInsetPercent:
+                    member.avatarFrameInsetPercent ?? null,
                 role: member.primaryRole,
             })),
             truncated,

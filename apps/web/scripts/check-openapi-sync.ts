@@ -9,6 +9,7 @@
  *   - missing  a handler exists but the spec does not document it
  *   - phantom  the spec documents a path/method that has no handler
  *   - excluded paths on the allowlist (debug/test helpers)
+ *   - enum     a spec enum that mirrors a runtime set has drifted from it
  *
  * OPTIONS is deliberately ignored: the only OPTIONS handlers are CORS
  * origin-guard preflights on the upload routes, which browsers negotiate
@@ -25,6 +26,14 @@ const WEB_ROOT = join(import.meta.dir, "..");
 const API_DIR = join(WEB_ROOT, "src", "app", "api");
 const SPEC_PATH = join(WEB_ROOT, "docs", "openapi-doc.yml");
 
+/** Runtime module holding the status values the API actually accepts. */
+const RUNTIME_STATUS_PATH = join(
+    WEB_ROOT,
+    "src",
+    "lib",
+    "status-normalization.ts",
+);
+
 /** Internal helpers that are deliberately not part of the public API. */
 const EXCLUDED = new Set(["/api/debug-cookies", "/api/debug/auth", "/api/test-env"]);
 
@@ -36,7 +45,7 @@ const HTTP_METHOD_RE =
 
 /** `[channelId]` -> `{channelId}`, `[...slug]` -> `{slug}`, drop `(group)`. */
 function toSpecPath(routeDir: string): string {
-    let p = "/" + relative(join(WEB_ROOT, "src", "app"), routeDir).split(/[\\/]/).join("/");
+    let p = `/${  relative(join(WEB_ROOT, "src", "app"), routeDir).split(/[\\/]/).join("/")}`;
     p = p.replace(/\/\([^)]*\)/g, "");
     p = p.replace(/\/{2,}/g, "/").replace(/\/+$/, "");
     p = p.replace(/\[(\.\.\.)?([^\]]+)\]/g, "{$2}");
@@ -47,8 +56,8 @@ function findRouteFiles(dir: string): string[] {
     const out: string[] = [];
     for (const entry of readdirSync(dir)) {
         const full = join(dir, entry);
-        if (statSync(full).isDirectory()) out.push(...findRouteFiles(full));
-        else if (/^route\.tsx?$/.test(entry)) out.push(full);
+        if (statSync(full).isDirectory()) {out.push(...findRouteFiles(full));}
+        else if (/^route\.tsx?$/.test(entry)) {out.push(full);}
     }
     return out;
 }
@@ -67,24 +76,60 @@ for (const file of findRouteFiles(API_DIR)) {
 // The spec is imported rather than hand-parsed so this stays dependency-free.
 const spec = (await import(SPEC_PATH)) as {
     paths?: Record<string, Record<string, unknown>>;
+    components?: {
+        schemas?: Record<
+            string,
+            { properties?: Record<string, { enum?: string[] }> }
+        >;
+    };
 };
 const specPaths = spec.paths ?? {};
 
 const missing: string[] = [];
 for (const [path, methods] of handlers) {
-    if (EXCLUDED.has(path)) continue;
+    if (EXCLUDED.has(path)) {continue;}
     for (const method of methods) {
-        if (!specPaths[path]?.[method]) missing.push(`${method.toUpperCase()} ${path}`);
+        if (!specPaths[path]?.[method]) {missing.push(`${method.toUpperCase()} ${path}`);}
     }
 }
 
 const phantom: string[] = [];
 for (const [path, operations] of Object.entries(specPaths)) {
     for (const method of Object.keys(operations)) {
-        if (!METHODS.includes(method as Method)) continue;
+        if (!METHODS.includes(method as Method)) {continue;}
         if (!handlers.get(path)?.has(method as Method)) {
             phantom.push(`${method.toUpperCase()} ${path}`);
         }
+    }
+}
+
+/**
+ * Spec enums that mirror a runtime set. Path coverage structurally cannot catch
+ * this class of drift: a route can be documented perfectly and still advertise a
+ * value the code rejects, and `check-api-types-fresh` only proves the generated
+ * types match the spec, not that the spec matches the code. That is exactly how
+ * the spec came to document a `dnd` status the API has always rejected.
+ */
+const enumDrift: string[] = [];
+{
+    const { ALLOWED_STATUSES } = (await import(RUNTIME_STATUS_PATH)) as {
+        ALLOWED_STATUSES: Set<string>;
+    };
+    const specEnum =
+        spec.components?.schemas?.StatusDocument?.properties?.status?.enum;
+    const runtime = [...ALLOWED_STATUSES].sort();
+    if (!specEnum) {
+        enumDrift.push(
+            `StatusDocument.status has no enum in the spec (runtime accepts: ${ 
+                runtime.join(", ") 
+                })`,
+        );
+    } else if (
+        [...specEnum].sort().join(",") !== runtime.join(",")
+    ) {
+        enumDrift.push(
+            `StatusDocument.status spec [${specEnum.join(", ")}] != runtime [${runtime.join(", ")}]`,
+        );
     }
 }
 
@@ -97,17 +142,19 @@ const documented = totalOps - missing.length;
 const summary = `${documented}/${totalOps} operations documented across ${inScope.length} paths`;
 
 if (process.argv.includes("--list")) {
-    for (const m of missing) console.log(`missing  ${m}`);
-    for (const p of phantom) console.log(`phantom  ${p}`);
+    for (const m of missing) {console.log(`missing  ${m}`);}
+    for (const p of phantom) {console.log(`phantom  ${p}`);}
+    for (const e of enumDrift) {console.log(`enum     ${e}`);}
     console.log(`\n${summary}`);
 } else {
-    for (const m of missing) console.error(`missing  ${m}`);
-    for (const p of phantom) console.error(`phantom  ${p}`);
+    for (const m of missing) {console.error(`missing  ${m}`);}
+    for (const p of phantom) {console.error(`phantom  ${p}`);}
+    for (const e of enumDrift) {console.error(`enum     ${e}`);}
     if (excludedPresent.length) {
         console.error(`note: allowlisted debug/test paths skipped: ${excludedPresent.join(", ")}`);
     }
     console.error(`\n${summary}`);
-    if (missing.length || phantom.length) {
+    if (missing.length || phantom.length || enumDrift.length) {
         console.error(`\nSpec is out of sync with the handlers.`);
         process.exit(1);
     }

@@ -67,7 +67,7 @@ describe("Chat Hooks - Module Structure", () => {
 	});
 
 	it("should export useActivityTracking hook", async () => {
-		const mod = await import("../app/chat/hooks/useActivityTracking");
+		const mod = await import("../hooks/useActivityTracking");
 		expect(typeof mod.useActivityTracking).toBe("function");
 	});
 });

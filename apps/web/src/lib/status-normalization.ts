@@ -7,6 +7,10 @@ export const ALLOWED_STATUSES = new Set<UserStatus["status"]>([
     "offline",
 ]);
 
+/** No activity for this long reads as idle (away) rather than offline. */
+export const STATUS_IDLE_THRESHOLD_MS = 5 * 60 * 1000;
+
+/** No activity for this long reads as offline. */
 export const STATUS_STALE_THRESHOLD_MS = 15 * 60 * 1000;
 
 export function statusBatchCacheKey(userIds: string[]): string {
@@ -49,7 +53,7 @@ function coerceTimestamp(value: unknown): string | undefined {
  *
  * @param {StatusLike} input - Raw status document to normalize.
  * @param {number} now - Epoch milliseconds used for deterministic expiration checks.
- * @returns {{ normalized: UserStatus; isExpired: boolean; isStale: boolean; shouldAutoOffline: boolean; }} Normalized status payload and computed lifecycle flags.
+ * @returns {{ normalized: UserStatus; isExpired: boolean; isStale: boolean; isIdle: boolean; shouldAutoOffline: boolean; }} Normalized status payload and computed lifecycle flags.
  */
 export function normalizeStatus(input: StatusLike, now = Date.now()) {
     const lastSeenCandidate =
@@ -77,11 +81,25 @@ export function normalizeStatus(input: StatusLike, now = Date.now()) {
             ? Boolean(input.isManuallySet)
             : undefined;
 
-    const manualActive =
-        Boolean(isManuallySet) && (!hasExpiresAt || expiresTime > now);
+    const isIdle = now - lastSeenTime > STATUS_IDLE_THRESHOLD_MS;
 
-    const normalizedStatus: UserStatus["status"] =
-        manualActive || (!isExpired && !isStale) ? rawStatus : "offline";
+    // A manual status is a deliberate choice and outlives inactivity, so
+    // busy/away/offline stick indefinitely. "online" is the one exception: it is
+    // what a user gets for free when they never picked anything, so honouring
+    // it manually would pin them online forever and they would never decay.
+    const manualSticky =
+        Boolean(isManuallySet) && rawStatus !== "online" && !isExpired;
+
+    let normalizedStatus: UserStatus["status"];
+    if (isExpired || isStale) {
+        normalizedStatus = manualSticky ? rawStatus : "offline";
+    } else if (!manualSticky && isIdle && rawStatus === "online") {
+        // Decay to idle first rather than straight to offline, so someone who
+        // stepped away reads as idle instead of already gone.
+        normalizedStatus = "away";
+    } else {
+        normalizedStatus = rawStatus;
+    }
 
     const normalized: UserStatus = {
         $id: String(input.$id ?? ""),
@@ -100,7 +118,10 @@ export function normalizeStatus(input: StatusLike, now = Date.now()) {
         normalized,
         isExpired,
         isStale,
+        isIdle,
+        // The stored status disagrees with what we report: either the document
+        // should be rewritten, or the UI is showing a stale read.
         shouldAutoOffline:
-            !manualActive && (isExpired || isStale) && rawStatus !== "offline",
+            normalizedStatus === "offline" && rawStatus !== "offline",
     };
 }

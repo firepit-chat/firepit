@@ -3,6 +3,12 @@ import { Query } from "node-appwrite";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { chunkValues, listPages } from "@/lib/appwrite-pagination";
+import {
+    getAvatarUrlFromProfile,
+    getExistingPredefinedAvatarFrameIds,
+    getPredefinedAvatarFrameUrlByPresetId,
+} from "@/lib/appwrite-profiles";
+import { getPresetFrameById } from "@/lib/preset-frames";
 import { logger } from "@/lib/posthog-utils";
 import type { Role } from "@/lib/types";
 import type { MemberPrimaryRole } from "@/lib/api/typed";
@@ -19,6 +25,9 @@ const QUERY_ARRAY_LIMIT = 100;
 const PAGE_SIZE = 100;
 const MAX_DOCS = 10_000;
 
+// Matches the web Avatar's fallback when a frame declares no inset.
+const DEFAULT_FRAME_INSET_PERCENT = 12;
+
 /**
  * The role shape comes from the generated API types, so the spec stays the one
  * description of it. It used to be restated here and had already drifted once.
@@ -30,6 +39,17 @@ export type ServerMember = {
     userName?: string;
     displayName?: string;
     avatarUrl?: string;
+    /** Preset id as stored on the profile. Web resolves the frame inset from
+     * it via its local preset registry. */
+    avatarFramePreset?: string;
+    /** Resolved frame URL, so clients without that registry (mobile) can
+     * still render the frame. Matches what the profile endpoints project. */
+    avatarFrameUrl?: string;
+    /** How far to inset the avatar inside the frame, as a percentage. Each
+     * frame is drawn for its own inset (11-26% across the catalogue), so a
+     * client without the registry needs this to avoid the avatar overlapping
+     * the frame art. */
+    avatarFrameInsetPercent?: number;
     roleIds: string[];
     isBanned: boolean;
     isMuted: boolean;
@@ -164,6 +184,52 @@ export async function listServerMembers(
         ).map((profile) => [String(profile.userId), profile]),
     );
 
+    // Frames are stored as a preset id. Resolve which ids actually have a
+    // backing file in one batched call — a large server has thousands of
+    // members, so this must not be a per-member lookup.
+    const presetIdByUserId = new Map<string, string | undefined>();
+    for (const [userId, profile] of profilesByUserId) {
+        const preset = profile.avatarFramePreset;
+        presetIdByUserId.set(
+            userId,
+            typeof preset === "string" && preset.length > 0 ? preset : undefined,
+        );
+    }
+    const requestedFramePresetIds = [
+        ...new Set(
+            [...presetIdByUserId.values()].filter(
+                (id): id is string => typeof id === "string",
+            ),
+        ),
+    ];
+    const existingFramePresetIds = await getExistingPredefinedAvatarFrameIds(
+        requestedFramePresetIds,
+    );
+
+    // Resolved per distinct preset rather than per member: a large server has
+    // thousands of members but only a handful of distinct frames.
+    // `insetPercent: 0` is the wire signal for an overlay frame: the art
+    // crosses the centre, so a client with no preset catalogue still renders
+    // the portrait full-bleed with the artwork on top.
+    const frameByPresetId = new Map<
+        string,
+        { url?: string; insetPercent: number }
+    >();
+    for (const presetId of requestedFramePresetIds) {
+        if (!existingFramePresetIds.has(presetId)) {
+            continue;
+        }
+        const preset = getPresetFrameById(presetId);
+        frameByPresetId.set(presetId, {
+            url: getPredefinedAvatarFrameUrlByPresetId(presetId),
+            insetPercent:
+                preset?.frameStyle === "overlay"
+                    ? 0
+                    : (preset?.avatarInsetPercent ??
+                      DEFAULT_FRAME_INSET_PERCENT),
+        });
+    }
+
     const members: ServerMember[] = [];
     const orphanUserIds: string[] = [];
 
@@ -176,6 +242,9 @@ export async function listServerMembers(
             continue;
         }
 
+        const frame = frameByPresetId.get(
+            presetIdByUserId.get(userId) ?? "",
+        );
         const roleIds = roleMap.get(userId) ?? [];
         // Pick the member's highest-ranked role, not the first one listed in
         // their assignment: roleIds order is not meaningful, `position` is.
@@ -201,7 +270,10 @@ export async function listServerMembers(
             // additive change if one is ever wanted.
             userName: userId,
             displayName: profile.displayName as string | undefined,
-            avatarUrl: profile.avatarUrl as string | undefined,
+            avatarUrl: getAvatarUrlFromProfile(profile),
+            avatarFramePreset: presetIdByUserId.get(userId),
+            avatarFrameUrl: frame?.url,
+            avatarFrameInsetPercent: frame?.insetPercent,
             roleIds,
             isBanned: bannedUserIds.has(userId),
             isMuted: mutedUserIds.has(userId),

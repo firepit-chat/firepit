@@ -72,7 +72,7 @@ async function getMessageCounts(
     // Query in batches of 100 to avoid Appwrite query limits
     for (let i = 0; i < conversationIds.length; i += 100) {
         const batch = conversationIds.slice(i, i + 100);
-        if (batch.length === 0) continue;
+        if (batch.length === 0) {continue;}
 
         try {
             const response = await databases.listDocuments(
@@ -108,7 +108,7 @@ async function getMessageCounts(
                     ],
                 );
                 count += response.documents.length;
-                if (response.documents.length < 100) break;
+                if (response.documents.length < 100) {break;}
                 offset += 100;
             }
             counts.set(convId, count);
@@ -143,7 +143,7 @@ async function deleteConversationAndMessages(
             ],
         );
 
-        if (messages.documents.length === 0) break;
+        if (messages.documents.length === 0) {break;}
 
         await Promise.all(
             messages.documents.map((msg) =>
@@ -221,7 +221,7 @@ async function main() {
             [Query.limit(100), Query.offset(offset)],
         );
 
-        if (response.documents.length === 0) break;
+        if (response.documents.length === 0) {break;}
 
         for (const doc of response.documents) {
             const conv = doc as unknown as ConversationDoc;
@@ -239,8 +239,8 @@ async function main() {
 
     // Step 2: Filter to one-on-one conversations only (skip groups)
     const oneToOne = allConversations.filter((conv) => {
-        if (conv.isGroup) return false;
-        if (!Array.isArray(conv.participants)) return false;
+        if (conv.isGroup) {return false;}
+        if (!Array.isArray(conv.participants)) {return false;}
         return conv.participants.length === 2;
     });
 
@@ -252,8 +252,12 @@ async function main() {
 
     for (const conv of oneToOne) {
         const key = pairKey(conv.participants);
-        if (!byPair.has(key)) byPair.set(key, []);
-        byPair.get(key)!.push(conv);
+        const existing = byPair.get(key);
+        if (existing) {
+            existing.push(conv);
+        } else {
+            byPair.set(key, [conv]);
+        }
     }
 
     // Step 4: Find duplicates (pairs with more than 1 conversation)
@@ -312,7 +316,7 @@ async function main() {
         const sorted = [...conversations].sort((a, b) => {
             const countA = messageCounts.get(a.$id) ?? 0;
             const countB = messageCounts.get(b.$id) ?? 0;
-            if (countB !== countA) return countB - countA; // most messages first
+            if (countB !== countA) {return countB - countA;} // most messages first
             return a.$createdAt.localeCompare(b.$createdAt); // oldest first
         });
 

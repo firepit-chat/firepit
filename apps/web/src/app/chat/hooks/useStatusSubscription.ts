@@ -17,6 +17,9 @@ import {
 const env = getEnvConfig();
 const STATUSES_COLLECTION = env.collections.statuses;
 
+// Must stay <= the endpoint's own cap, or the request 400s.
+const STATUS_BATCH_CHUNK_SIZE = 1000;
+
 const toError = (value: unknown): Error =>
     value instanceof Error ? value : new Error(String(value));
 
@@ -78,17 +81,29 @@ export function useStatusSubscription(userIds: string[], enabled = true) {
 
         try {
             setLoading(true);
-            const response = await fetch("/api/status/batch", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ userIds: normalizedUserIds }),
-            });
+            // The endpoint rejects more than 1000 ids, and a server can hold
+            // thousands of members, so ask in chunks and merge. Sequential
+            // rather than parallel: a member list is normally well under the
+            // cap, and this keeps the common case to a single request.
+            const statusMap = new Map<string, UserStatus>();
+            for (let offset = 0; offset < normalizedUserIds.length; offset += STATUS_BATCH_CHUNK_SIZE) {
+                const chunk = normalizedUserIds.slice(
+                    offset,
+                    offset + STATUS_BATCH_CHUNK_SIZE,
+                );
+                const response = await fetch("/api/status/batch", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userIds: chunk }),
+                });
 
-            if (response.ok) {
+                if (!response.ok) {
+                    continue;
+                }
+
                 const data = await response.json();
-                const statusMap = new Map<string, UserStatus>();
 
                 // data.statuses is a Record<userId, UserStatus>
                 if (data.statuses) {
@@ -106,14 +121,14 @@ export function useStatusSubscription(userIds: string[], enabled = true) {
                         statusMap.set(userId, normalized);
                     }
                 }
-
-                if (!enabledRef.current) {
-                    return;
-                }
-
-                previousUserIdsRef.current = normalizedUserIds;
-                setStatuses(statusMap);
             }
+
+            if (!enabledRef.current) {
+                return;
+            }
+
+            previousUserIdsRef.current = normalizedUserIds;
+            setStatuses(statusMap);
         } catch (error) {
             logger.error("Failed to fetch statuses", toError(error));
         } finally {

@@ -29,6 +29,10 @@ import { GifStickerPicker } from "@/components/gif-sticker-picker";
 import { ThreadPanel } from "@/components/thread-panel";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import {
+    statusColor,
+    isOnlineStatus,
+} from "@/components/status-indicator";
 import { BottomTabInset, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useStatusSubscription } from "@/hooks/use-status-subscription";
@@ -106,19 +110,15 @@ type DmUserStatus = { status: string };
 
 function getStatusLabel(statuses: Record<string, DmUserStatus>, userId: string | null): string {
   if (!userId) return "";
-  const s = statuses[userId];
-  if (!s) return "";
-  if (s.status === "offline") return "Offline";
-  if (s.status === "online") return "Online";
-  if (s.status === "away") return "Away";
-  if (s.status === "busy") return "Do not disturb";
-  return "";
+  // Single source of truth for status wording, shared with the profile screen
+  // and the member list.
+  return statusColor(statuses[userId]?.status)?.label ?? "";
 }
 
 function getStatusColor(statuses: Record<string, DmUserStatus>, userId: string | null): "mutedForeground" | "success" {
   if (!userId) return "mutedForeground";
   const s = statuses[userId];
-  if (!s || s.status === "offline") return "mutedForeground";
+  if (!s || !isOnlineStatus(s.status)) return "mutedForeground";
   if (s.status === "online") return "success";
   return "mutedForeground";
 }

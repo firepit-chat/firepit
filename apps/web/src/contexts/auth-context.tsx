@@ -26,6 +26,7 @@ import {
     resetSharedClient,
     trackSubscription,
 } from "@/lib/realtime-pool";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 import {
     closeSubscriptionSafely,
     type RealtimeSubscription,
@@ -70,6 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const realtimeUserIdRef = useRef<string | null>(null);
     const realtimeResetPromiseRef = useRef<Promise<void> | null>(null);
     const subscriptionRef = useRef<RealtimeSubscription | null>(null);
+
+    // Presence heartbeat. Lives here rather than on a page so it survives
+    // navigation and only unmounts when the session ends.
+    useActivityTracking({ userId: userData?.userId ?? null });
 
     const queueRealtimeReset = useCallback(() => {
         const previousReset =
@@ -322,15 +327,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         (response) => {
                             try {
                                 const payload = response.payload as
-                                    | Record<string, unknown>
-                                    | null
-                                    | undefined;
+                                    Record<string, unknown> | null | undefined;
                                 if (!payload) {
                                     return;
                                 }
                                 const statusUserId = payload.userId as
-                                    | string
-                                    | undefined;
+                                    string | undefined;
 
                                 // Only update if this is our user's status
                                 if (

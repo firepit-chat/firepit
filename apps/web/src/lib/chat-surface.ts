@@ -1,3 +1,4 @@
+import { localDayKey } from "@/lib/chat-dates";
 import type { DirectMessage, Message } from "@/lib/types";
 import { resolveMessageImageUrl } from "@/lib/message-image-url";
 
@@ -326,4 +327,24 @@ export function adaptDirectMessages(
             fromDirectMessage(message, context ?? createDmContext(message)),
         ),
     );
+}
+
+/**
+ * True when the message at `index` is the first of its calendar day, which is
+ * where a date divider goes. The list is sorted oldest-first, so only the
+ * previous message needs comparing. Index 0 always starts a day.
+ */
+export function startsNewDay(
+    messages: readonly { createdAt: string }[],
+    index: number,
+): boolean {
+    if (index <= 0) {
+        return index === 0;
+    }
+    const current = messages[index];
+    const previous = messages[index - 1];
+    if (!current) {
+        return false;
+    }
+    return localDayKey(current.createdAt) !== localDayKey(previous.createdAt);
 }

@@ -1,5 +1,6 @@
 import { Query } from "node-appwrite";
 import { chunkValues } from "@/lib/appwrite-pagination";
+import { getAvatarUrlFromProfile } from "@/lib/appwrite-profiles";
 
 type DatabasesLike = {
     listDocuments(
@@ -170,7 +171,7 @@ export async function fetchAuditLogs(params: {
                 profiles.set(getString(profile.userId) || "", {
                     displayName: getString(profile.displayName),
                     userName: getString(profile.userName),
-                    avatarUrl: getString(profile.avatarUrl),
+                    avatarUrl: getAvatarUrlFromProfile(profile),
                 });
             }
         }

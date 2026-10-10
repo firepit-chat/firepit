@@ -35,6 +35,10 @@ export function useChannels({
     const [cursor, setCursor] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(false);
+    // Which server `channels` actually belongs to. Switching servers clears the
+    // list before the next one arrives, so consumers can tell "not loaded yet"
+    // from "loaded, and this channel is not in it".
+    const [loadedServerId, setLoadedServerId] = useState<string | null>(null);
 
     // Note: `isValidChannelResponse` moved to module scope to avoid recreation per render.
 
@@ -42,6 +46,7 @@ export function useChannels({
         if (!selectedServer) {
             setChannels([]);
             setCursor(null);
+            setLoadedServerId(null);
             return;
         }
 
@@ -56,6 +61,7 @@ export function useChannels({
             };
             setChannels(data.channels);
             setCursor(data.nextCursor);
+            setLoadedServerId(selectedServer);
         } catch (err) {
             toast.error(
                 err instanceof Error ? err.message : "Failed to load channels",
@@ -68,6 +74,7 @@ export function useChannels({
             setChannels([]);
             setCursor(null);
             setInitialLoading(false);
+            setLoadedServerId(null);
             return;
         }
         (async () => {
@@ -95,10 +102,12 @@ export function useChannels({
                     (freshData) => {
                         setChannels(freshData.channels);
                         setCursor(freshData.nextCursor);
+                        setLoadedServerId(selectedServer);
                     },
                 );
                 setChannels(data.channels);
                 setCursor(data.nextCursor);
+                setLoadedServerId(selectedServer);
             } catch (err) {
                 toast.error(
                     err instanceof Error
@@ -276,6 +285,7 @@ export function useChannels({
             channels,
             cursor,
             initialLoading,
+            loadedServerId,
             loading,
             loadMore,
             create,
@@ -289,6 +299,7 @@ export function useChannels({
             cursor,
             initialLoading,
             isOwner,
+            loadedServerId,
             loadMore,
             loading,
             refresh,

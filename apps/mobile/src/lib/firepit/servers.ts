@@ -128,6 +128,13 @@ export type ViewerMember = {
     username: string | null;
     displayName: string | null;
     avatarUrl: string | null;
+    /** The server sends both the preset id and the resolved URL. Mobile has no
+     * preset registry, so it renders from `avatarFrameUrl`. */
+    avatarFramePreset: string | null;
+    avatarFrameUrl: string | null;
+    /** Each frame is drawn for its own inset, and mobile has no preset
+     * registry, so the server sends it. */
+    avatarFrameInsetPercent: number | null;
     role: MemberPrimaryRole | null;
 };
 

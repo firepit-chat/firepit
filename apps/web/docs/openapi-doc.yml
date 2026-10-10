@@ -203,6 +203,17 @@ components:
                     type: string
                     format: uri
                     description: Resource URI for the resolved avatar frame image asset.
+                avatarFrameInsetPercent:
+                    type: number
+                    description: >-
+                        How far to inset the portrait inside the frame, as a
+                        percentage of the frame box, measured from the frame's
+                        artwork. 0 means the frame has no opening (its art
+                        crosses the centre) and is drawn as an overlay: the
+                        portrait is full-bleed with the artwork on top. Clients
+                        that do not have the preset catalogue need this to draw
+                        the frame correctly.
+                    example: 11
 
         CurrentUser:
             allOf:
@@ -533,6 +544,34 @@ components:
                 totalUnreadCount:
                     type: integer
 
+        ChannelReadsResponse:
+            type: object
+            properties:
+                serverId:
+                    type: string
+                reads:
+                    type: object
+                    description: >-
+                        channelId to the ISO timestamp of the newest message the
+                        caller has read. A channel with no entry has never been
+                        opened and counts as unread back to its creation.
+                    additionalProperties:
+                        type: string
+                        format: date-time
+
+        ChannelReadsUpdateRequest:
+            type: object
+            required: [channelId, serverId, lastReadAt]
+            properties:
+                channelId:
+                    type: string
+                serverId:
+                    type: string
+                lastReadAt:
+                    type: string
+                    format: date-time
+                    description: Clamped to now if the client clock runs ahead.
+
         ThreadReadsResponse:
             type: object
             properties:
@@ -769,7 +808,7 @@ components:
                     type: string
                 status:
                     type: string
-                    enum: [online, offline, away, dnd]
+                    enum: [online, offline, away, busy]
                 customMessage:
                     type: string
                 expiresAt:
@@ -2664,6 +2703,31 @@ paths:
                                                     type: [string, "null"]
                                                 avatarUrl:
                                                     type: [string, "null"]
+                                                avatarFramePreset:
+                                                    description: >-
+                                                        The avatar frame preset the
+                                                        member has chosen, as stored
+                                                        on their profile. Lets a client
+                                                        with the preset catalogue
+                                                        resolve the frame's own inset.
+                                                    type: [string, "null"]
+                                                avatarFrameUrl:
+                                                    description: >-
+                                                        Resolved avatar frame image.
+                                                        Null when the member has no
+                                                        frame or the preset no longer
+                                                        has a backing file.
+                                                    type: [string, "null"]
+                                                avatarFrameInsetPercent:
+                                                    description: >-
+                                                        How far to inset the avatar
+                                                        inside the frame, as a
+                                                        percentage. Each frame is drawn
+                                                        for its own inset, so a client
+                                                        without the catalogue needs
+                                                        this to avoid the avatar
+                                                        overlapping the frame art.
+                                                    type: [number, "null"]
                                                 role:
                                                     description: >-
                                                         The member's highest-ranked
@@ -5316,6 +5380,70 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/ThreadReadsResponse"
+                "400":
+                    description: Invalid request body
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+
+    /api/channel-reads:
+        get:
+            tags: [Notifications]
+            summary: Get the caller's channel read state for a server
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Channel read state
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ChannelReadsResponse"
+                "400":
+                    description: Invalid query parameters
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+        put:
+            tags: [Notifications]
+            summary: Mark a channel as read up to a message timestamp
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            $ref: "#/components/schemas/ChannelReadsUpdateRequest"
+            responses:
+                "200":
+                    description: Channel read state updated
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ChannelReadsResponse"
                 "400":
                     description: Invalid request body
                     content:
