@@ -2341,6 +2341,12 @@ export interface paths {
                                 username?: string | null;
                                 displayName?: string | null;
                                 avatarUrl?: string | null;
+                                /** @description The avatar frame preset the member has chosen, as stored on their profile. Lets a client with the preset catalogue resolve the frame's own inset. */
+                                avatarFramePreset?: string | null;
+                                /** @description Resolved avatar frame image. Null when the member has no frame or the preset no longer has a backing file. */
+                                avatarFrameUrl?: string | null;
+                                /** @description How far to inset the avatar inside the frame, as a percentage. Each frame is drawn for its own inset, so a client without the catalogue needs this to avoid the avatar overlapping the frame art. */
+                                avatarFrameInsetPercent?: number | null;
                                 /** @description The member's highest-ranked role, or null when they hold no roles. */
                                 role: null | components["schemas"]["MemberPrimaryRole"];
                             }[];
@@ -5842,6 +5848,104 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/channel-reads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the caller's channel read state for a server */
+        get: {
+            parameters: {
+                query: {
+                    serverId: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Channel read state */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ChannelReadsResponse"];
+                    };
+                };
+                /** @description Invalid query parameters */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Mark a channel as read up to a message timestamp */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChannelReadsUpdateRequest"];
+                };
+            };
+            responses: {
+                /** @description Channel read state updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ChannelReadsResponse"];
+                    };
+                };
+                /** @description Invalid request body */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/roles": {
         parameters: {
             query?: never;
@@ -7238,6 +7342,11 @@ export interface components {
              * @description Resource URI for the resolved avatar frame image asset.
              */
             avatarFrameUrl?: string;
+            /**
+             * @description How far to inset the portrait inside the frame, as a percentage of the frame box, measured from the frame's artwork. 0 means the frame has no opening (its art crosses the centre) and is drawn as an overlay: the portrait is full-bleed with the artwork on top. Clients that do not have the preset catalogue need this to draw the frame correctly.
+             * @example 11
+             */
+            avatarFrameInsetPercent?: number;
         };
         CurrentUser: components["schemas"]["UserSummary"] & {
             /** Format: email */
@@ -7409,6 +7518,22 @@ export interface components {
             items?: components["schemas"]["InboxDigestItem"][];
             totalUnreadCount?: number;
         };
+        ChannelReadsResponse: {
+            serverId?: string;
+            /** @description channelId to the ISO timestamp of the newest message the caller has read. A channel with no entry has never been opened and counts as unread back to its creation. */
+            reads?: {
+                [key: string]: string;
+            };
+        };
+        ChannelReadsUpdateRequest: {
+            channelId: string;
+            serverId: string;
+            /**
+             * Format: date-time
+             * @description Clamped to now if the client clock runs ahead.
+             */
+            lastReadAt: string;
+        };
         ThreadReadsResponse: {
             contextId?: string;
             /** @enum {string} */
@@ -7525,7 +7650,7 @@ export interface components {
         StatusDocument: {
             userId?: string;
             /** @enum {string} */
-            status?: "online" | "offline" | "away" | "dnd";
+            status?: "online" | "offline" | "away" | "busy";
             customMessage?: string;
             /** Format: date-time */
             expiresAt?: string;

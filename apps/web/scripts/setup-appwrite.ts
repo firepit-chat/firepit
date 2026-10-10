@@ -311,6 +311,29 @@ async function ensureCollection(id: string, name: string) {
             `[setup] created collection '${id}' with document-level security enabled`,
         );
     }
+
+    // Appwrite builds a new collection asynchronously: createCollection returns
+    // before it is queryable, and an attribute create issued in that window is
+    // rejected. Callers immediately add attributes, so wait it out. This is what
+    // left brand-new collections with no attributes at all.
+    for (let attempt = 0; attempt < 15; attempt++) {
+        try {
+            await tryVariants([
+                () => dbAny.getCollection(DB_ID, id),
+                () =>
+                    dbAny.getCollection?.({
+                        databaseId: DB_ID,
+                        collectionId: id,
+                    }),
+            ]);
+            return;
+        } catch {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+    warn(
+        `[setup] collection '${id}' not queryable yet after 15s; attribute creation may need a re-run`,
+    );
 }
 
 async function ensureStringAttribute(
@@ -951,7 +974,7 @@ async function ensureNoDuplicateIdempotencyKeys(): Promise<void> {
     const keyCounts = new Map<string, string[]>();
     for (const doc of duplicateGroups) {
         const key = JSON.stringify([doc.createdBy, doc.idempotencyKey]);
-        if (!key) continue;
+        if (!key) {continue;}
         const existing = keyCounts.get(key) ?? [];
         existing.push(String(doc.$id));
         keyCounts.set(key, existing);
@@ -2106,22 +2129,23 @@ async function setupPushTokens() {
     ]);
 }
 
-async function setupThreadReads() {
-    await ensureCollection("thread_reads", "Thread Reads");
-    await ensureStringAttribute("thread_reads", "userId", LEN_ID, true);
-    await ensureStringAttribute("thread_reads", "contextType", 32, true);
-    await ensureStringAttribute("thread_reads", "contextId", LEN_ID, true);
-    // setupThreadReads: `thread_reads.reads` stores a JSON map and is capped at ~65KB;
-    // at typical ISO timestamp payload sizes this supports roughly ~1000 thread ids per context.
-    await ensureStringAttribute("thread_reads", "reads", LEN_TEXT_LARGE, true);
-    await waitForAttribute("thread_reads", "reads");
+/**
+ * Both read-state collections store a JSON map of ids to timestamps in a single
+ * `reads` string attribute. Appwrite caps string attributes, and growing one is
+ * a schema migration rather than something ensureStringAttribute will do, so the
+ * size is checked explicitly. At typical ISO timestamp payload sizes
+ * LEN_TEXT_LARGE holds roughly ~1000 entries per document.
+ */
+async function ensureJsonMapAttribute(collection: string) {
+    await ensureStringAttribute(collection, "reads", LEN_TEXT_LARGE, true);
+    await waitForAttribute(collection, "reads");
 
     const readsAttribute = (await tryVariants([
-        () => dbAny.getAttribute(DB_ID, "thread_reads", "reads"),
+        () => dbAny.getAttribute(DB_ID, collection, "reads"),
         () =>
             dbAny.getAttribute?.({
                 databaseId: DB_ID,
-                collectionId: "thread_reads",
+                collectionId: collection,
                 key: "reads",
             }),
     ])) as {
@@ -2137,16 +2161,16 @@ async function setupThreadReads() {
     ) {
         try {
             await updateStringAttributeSize(
-                "thread_reads",
+                collection,
                 "reads",
                 LEN_TEXT_LARGE,
                 true,
             );
-            await waitForAttribute("thread_reads", "reads");
-            info("[setup] migrated thread_reads.reads to large text size");
+            await waitForAttribute(collection, "reads");
+            info(`[setup] migrated ${collection}.reads to large text size`);
         } catch (migrationError) {
             throw new Error(
-                `thread_reads.reads schema mismatch (size=${configuredSize}, required=${readsRequired}). Expected size=${LEN_TEXT_LARGE} and required=true. Run a manual schema migration before setup can continue. ${
+                `${collection}.reads schema mismatch (size=${configuredSize}, required=${readsRequired}). Expected size=${LEN_TEXT_LARGE} and required=true. Run a manual schema migration before setup can continue. ${
                     migrationError instanceof Error
                         ? migrationError.message
                         : String(migrationError)
@@ -2154,11 +2178,40 @@ async function setupThreadReads() {
             );
         }
     }
+}
+
+async function setupThreadReads() {
+    await ensureCollection("thread_reads", "Thread Reads");
+    await ensureStringAttribute("thread_reads", "userId", LEN_ID, true);
+    await ensureStringAttribute("thread_reads", "contextType", 32, true);
+    await ensureStringAttribute("thread_reads", "contextId", LEN_ID, true);
+    await ensureJsonMapAttribute("thread_reads");
 
     await ensureIndex("thread_reads", "idx_user_context", "unique", [
         "userId",
         "contextType",
         "contextId",
+    ]);
+}
+
+/**
+ * Per-channel read state, one document per user per server holding a
+ * channelId -> lastReadAt map. Read state lives here rather than on the channel
+ * because channels are shared by every member while "read" is per person.
+ *
+ * A user who has never opened a channel has no entry, and the caller falls back
+ * to the channel's creation time, so everything since the channel existed counts
+ * as unread.
+ */
+async function setupChannelReads() {
+    await ensureCollection("channel_reads", "Channel Reads");
+    await ensureStringAttribute("channel_reads", "userId", LEN_ID, true);
+    await ensureStringAttribute("channel_reads", "serverId", LEN_ID, true);
+    await ensureJsonMapAttribute("channel_reads");
+
+    await ensureIndex("channel_reads", "idx_user_server", "unique", [
+        "userId",
+        "serverId",
     ]);
 }
 
@@ -2484,6 +2537,7 @@ async function run() {
     await setupInboxItems();
     info("[setup] Setting up thread reads...");
     await setupThreadReads();
+    await setupChannelReads();
     info("[setup] Setting up teams...");
     await ensureTeams();
     writeStdout();

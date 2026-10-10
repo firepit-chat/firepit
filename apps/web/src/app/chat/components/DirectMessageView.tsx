@@ -49,6 +49,12 @@ import { MessageWithMentions } from "@/components/message-with-mentions";
 import { FileUploadButton, FilePreview } from "@/components/file-upload-button";
 import { FileAttachmentDisplay } from "@/components/file-attachment-display";
 import { VirtualizedDMList } from "@/components/virtualized-dm-list";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { ChatPinnedMessagesContent } from "@/components/chat-pinned-messages-content";
 import { ChatThreadContent } from "@/components/chat-thread-content";
 import { MentionHelpTooltip } from "@/components/mention-help-tooltip";
@@ -252,6 +258,7 @@ export function DirectMessageView({
         [],
     );
     const [threadReplyText, setThreadReplyText] = useState("");
+    const [pinnedOpen, setPinnedOpen] = useState(false);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isGroup =
@@ -561,6 +568,82 @@ export function DirectMessageView({
         setFileAttachments((prev) => prev.filter((_, i) => i !== index));
     }, []);
 
+    /**
+     * Threads render in the message column rather than beside it: docked in the
+     * 320px sidebar a long thread scrolled that column forever, and the reply
+     * list's `flex-1 overflow-y-auto` had no bounded height to fill.
+     */
+    function renderThreadView() {
+        return (
+            <div className="min-w-0 space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                    <Button
+                        onClick={onCloseThread}
+                        size="sm"
+                        title="Back to conversation"
+                        type="button"
+                        variant="ghost"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex min-w-0 items-center gap-1.5 text-sm">
+                        <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-semibold">
+                            {displayName}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            &gt;
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            Thread
+                        </span>
+                    </div>
+                </div>
+                <div
+                    className="flex min-w-0 flex-col"
+                    style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
+                >
+                    <ChatThreadContent
+                        currentUserId={currentUserId}
+                        customEmojis={customEmojis}
+                        loading={threadLoading}
+                        onReplyTextChange={
+                            onSendThreadReply ? setThreadReplyText : undefined
+                        }
+                        onSendReply={
+                            onSendThreadReply
+                                ? async () => {
+                                      const value = threadReplyText;
+                                      setThreadReplyText("");
+                                      await onSendThreadReply(value);
+                                  }
+                                : undefined
+                        }
+                        onToggleReaction={async (
+                            messageId,
+                            emoji,
+                            isAdding,
+                        ) => {
+                            await handleToggleReaction(
+                                messageId,
+                                emoji,
+                                isAdding,
+                            );
+                        }}
+                        parentMessage={threadParentSurfaceMessage}
+                        replies={threadSurfaceMessages}
+                        replyDisabled={readOnly}
+                        replyPlaceholder={
+                            readOnly ? readOnlyMessage : "Reply in thread"
+                        }
+                        sendingReply={threadReplySending}
+                        replyText={threadReplyText}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-w-0 space-y-4">
             {/* Header */}
@@ -589,10 +672,7 @@ export function DirectMessageView({
                                 size="sm"
                                 status={
                                     otherUser.status as
-                                        | "online"
-                                        | "away"
-                                        | "busy"
-                                        | "offline"
+                                        "online" | "away" | "busy" | "offline"
                                 }
                             />
                         </div>
@@ -621,6 +701,16 @@ export function DirectMessageView({
                         </p>
                     ) : null}
                 </div>
+                <Button
+                    aria-label="Pinned messages"
+                    onClick={() => setPinnedOpen(true)}
+                    size="icon"
+                    title="Pinned messages"
+                    type="button"
+                    variant="ghost"
+                >
+                    <Pin className="h-4 w-4" />
+                </Button>
             </div>
 
             {readOnly ? (
@@ -636,7 +726,16 @@ export function DirectMessageView({
             ) : null}
 
             <div className="grid gap-4">
-                <div className="min-w-0 space-y-4">
+                {activeThreadParent && onCloseThread
+                    ? renderThreadView()
+                    : null}
+                <div
+                    className={
+                        activeThreadParent && onCloseThread
+                            ? "hidden"
+                            : "min-w-0 space-y-4"
+                    }
+                >
                     <MentionHelpTooltip />
                     {unreadAnchorMessageId &&
                     (onJumpToUnread || onCatchUpUnread) ? (
@@ -713,11 +812,11 @@ export function DirectMessageView({
                                 messages={messages}
                                 onLoadOlder={onLoadOlder || noop}
                                 onOpenImageViewer={handleOpenImageViewer}
-                                onOpenProfileModal={
-                                    onOpenProfileModal || noop
-                                }
+                                onOpenProfileModal={onOpenProfileModal || noop}
                                 onOpenThread={
-                                    onOpenThread ? handleOpenThreadRow : undefined
+                                    onOpenThread
+                                        ? handleOpenThreadRow
+                                        : undefined
                                 }
                                 onRemove={handleRemoveRow}
                                 onStartEdit={handleStartEditRow}
@@ -1356,16 +1455,18 @@ export function DirectMessageView({
                     </>
                 </div>
 
-                <aside className="min-w-0 space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                            Pinned Messages
-                        </div>
+                <Dialog onOpenChange={setPinnedOpen} open={pinnedOpen}>
+                    <DialogContent className="max-w-xl">
+                        <DialogHeader>
+                            <DialogTitle>Pinned Messages</DialogTitle>
+                        </DialogHeader>
                         <ChatPinnedMessagesContent
                             canManageMessages={Boolean(onTogglePinMessage)}
                             messages={pinnedSurfaceMessages}
-                            onJumpToMessage={jumpToMessage}
+                            onJumpToMessage={(messageId) => {
+                                setPinnedOpen(false);
+                                jumpToMessage(messageId);
+                            }}
                             onUnpin={
                                 onTogglePinMessage
                                     ? async (surfaceMessage) => {
@@ -1384,70 +1485,8 @@ export function DirectMessageView({
                                     : undefined
                             }
                         />
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-medium">Thread</h3>
-                            {activeThreadParent && onCloseThread && (
-                                <Button
-                                    onClick={onCloseThread}
-                                    size="sm"
-                                    type="button"
-                                    variant="ghost"
-                                >
-                                    Close
-                                </Button>
-                            )}
-                        </div>
-                        {!activeThreadParent ? (
-                            <p className="text-xs text-muted-foreground">
-                                Open a message thread to view replies here.
-                            </p>
-                        ) : (
-                            <ChatThreadContent
-                                currentUserId={currentUserId}
-                                customEmojis={customEmojis}
-                                loading={threadLoading}
-                                onReplyTextChange={
-                                    onSendThreadReply
-                                        ? setThreadReplyText
-                                        : undefined
-                                }
-                                onSendReply={
-                                    onSendThreadReply
-                                        ? async () => {
-                                              const value = threadReplyText;
-                                              setThreadReplyText("");
-                                              await onSendThreadReply(value);
-                                          }
-                                        : undefined
-                                }
-                                onToggleReaction={async (
-                                    messageId,
-                                    emoji,
-                                    isAdding,
-                                ) => {
-                                    await handleToggleReaction(
-                                        messageId,
-                                        emoji,
-                                        isAdding,
-                                    );
-                                }}
-                                parentMessage={threadParentSurfaceMessage}
-                                replies={threadSurfaceMessages}
-                                replyDisabled={readOnly}
-                                replyPlaceholder={
-                                    readOnly
-                                        ? readOnlyMessage
-                                        : "Reply in thread"
-                                }
-                                sendingReply={threadReplySending}
-                                replyText={threadReplyText}
-                            />
-                        )}
-                    </div>
-                </aside>
+                    </DialogContent>
+                </Dialog>
             </div>
             {viewingImage && (
                 <ImageViewer

@@ -11,7 +11,18 @@ export type PresetFrame = {
     description?: string;
     imageUrl?: string;
     storageFileId?: string;
+    /**
+     * How far to inset the portrait, as a percentage of the frame box, so the
+     * portrait sits inside the frame's opening. Measured from the artwork by
+     * `scripts/measure-avatar-frames.ts` — do not guess these.
+     *
+     * `0` means the frame has no opening for a portrait (its art crosses the
+     * centre, like a snowflake or a wreath). Those render as an overlay: the
+     * portrait is full-bleed and the artwork is drawn on top of it.
+     */
     avatarInsetPercent?: number;
+    /** `ring` (default) leaves an opening for the portrait; `overlay` has none. */
+    frameStyle?: "ring" | "overlay";
     type: "default" | "seasonal";
     season?: string;
     emoji?: string;
@@ -49,7 +60,7 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Star",
         description: "Star-shaped decorative frame",
         storageFileId: "default-star",
-        avatarInsetPercent: 20,
+        avatarInsetPercent: 38,
         type: "default",
         emoji: "⭐",
         color: "#f59e0b",
@@ -60,7 +71,7 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Diamond",
         description: "Diamond-shaped decorative frame",
         storageFileId: "default-diamond",
-        avatarInsetPercent: 16,
+        avatarInsetPercent: 26,
         type: "default",
         emoji: "💎",
         color: "#06b6d4",
@@ -71,7 +82,9 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Spring 2025",
         description: "Celebrate the arrival of spring",
         storageFileId: "seasonal-spring-2025",
-        avatarInsetPercent: 24,
+        avatarInsetPercent: 24, // covers the 135px centre disc on the 512px
+        // canvas; the largest empty circle is smaller because of the faint
+        // decoration inside the disc, which the portrait should hide
         type: "seasonal",
         season: "spring",
         emoji: "🌸",
@@ -85,7 +98,7 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Summer 2025",
         description: "Enjoy the summer vibes",
         storageFileId: "seasonal-summer-2025",
-        avatarInsetPercent: 22,
+        avatarInsetPercent: 23,
         type: "seasonal",
         season: "summer",
         emoji: "☀️",
@@ -99,7 +112,8 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Fall 2025",
         description: "Cozy autumn vibes",
         storageFileId: "seasonal-fall-2025",
-        avatarInsetPercent: 21,
+        avatarInsetPercent: 0,
+        frameStyle: "overlay",
         type: "seasonal",
         season: "fall",
         emoji: "🍂",
@@ -113,7 +127,8 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Winter 2025",
         description: "Winter wonderland",
         storageFileId: "seasonal-winter-2025",
-        avatarInsetPercent: 16,
+        avatarInsetPercent: 0,
+        frameStyle: "overlay",
         type: "seasonal",
         season: "winter",
         emoji: "❄️",
@@ -127,7 +142,9 @@ const PRESET_FRAMES: PresetFrame[] = [
         name: "Spring 2026",
         description: "Celebrate the arrival of spring",
         storageFileId: "seasonal-spring-2026",
-        avatarInsetPercent: 26,
+        avatarInsetPercent: 25, // covers the 126px centre disc on the 512px
+        // canvas; the largest empty circle is smaller because of the faint
+        // decoration inside the disc, which the portrait should hide
         type: "seasonal",
         season: "spring",
         emoji: "🌸",
@@ -254,6 +271,13 @@ export function getPresetFrameById(id: string): PresetFrame | undefined {
     }
 
     return hydrateFrameWithImageUrl(frame);
+}
+
+/** `ring` (default) or `overlay`, for callers without the whole catalogue. */
+export function presetFrameStyle(id: string): "ring" | "overlay" {
+    return getPresetFrameById(id)?.frameStyle === "overlay"
+        ? "overlay"
+        : "ring";
 }
 
 export function isValidPresetFrameId(id: string): boolean {
