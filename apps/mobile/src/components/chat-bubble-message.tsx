@@ -100,14 +100,6 @@ function formatTs(createdAt?: string) {
     return `${time} ${DATE_FORMAT.format(d)}`;
 }
 
-function getInitials(name: string): string {
-    if (!name) return "?";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2)
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return parts[0].slice(0, 2).toUpperCase();
-}
-
 function ChatBubbleMessageInner({
     messageId,
     authorName,
@@ -221,7 +213,7 @@ function ChatBubbleMessageInner({
                             <Avatar
                                 uri={authorAvatarUrl ?? undefined}
                                 size={28}
-                                initials={getInitials(displayName)}
+                                initials={displayName}
                                 frameUrl={authorAvatarFrameUrl}
                             />
                         </Pressable>
@@ -229,7 +221,7 @@ function ChatBubbleMessageInner({
                         <Avatar
                             uri={authorAvatarUrl ?? undefined}
                             size={28}
-                            initials={getInitials(displayName)}
+                            initials={displayName}
                             frameUrl={authorAvatarFrameUrl}
                         />
                     )}
@@ -240,6 +232,19 @@ function ChatBubbleMessageInner({
                 <Pressable
                     onLongPress={handleLongPress}
                     delayLongPress={350}
+                    // The action row is long-press-only, which no screen
+                    // reader announces on its own. Labelling the bubble and
+                    // stating the gesture is what makes it reachable without
+                    // a pointer.
+                    accessibilityRole="button"
+                    accessibilityLabel={`Message from ${displayName}`}
+                    accessibilityHint="Long press for reply, react, thread, pin and delete"
+                    accessibilityActions={[
+                        { name: "activate", label: "Show message actions" },
+                    ]}
+                    onAccessibilityAction={() => {
+                        if (!removed) toggleActions();
+                    }}
                     style={[
                         styles.bubble,
                         {

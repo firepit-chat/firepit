@@ -274,7 +274,7 @@ export default function HomeScreen() {
 
                                 {instanceError || error ? (
                                     <ThemedText
-                                        themeColor="danger"
+                                        themeColor="destructive"
                                         style={styles.metaText}
                                     >
                                         {instanceError ?? error}

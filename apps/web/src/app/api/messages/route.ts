@@ -22,6 +22,7 @@ import {
 } from "@/lib/message-constraints";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";
 import { resolveMessageImageUrl } from "@/lib/message-image-url";
+import { parseReactions, type Reaction } from "@/lib/reactions-utils";
 import {
     getChannelAccessForUser,
     getServerPermissionsForUser,
@@ -118,14 +119,13 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
         mentions: Array.isArray(doc.mentions)
             ? (doc.mentions as string[])
             : undefined,
-        reactions: Array.isArray(doc.reactions)
-            ? (doc.reactions as Array<{
-                  emoji: string;
-                  userIds: string[];
-                  count: number;
-                  reactedByMe?: boolean;
-              }>)
-            : undefined,
+        // parseReactions, not a bare cast: it accepts the JSON-string and
+        // legacy emoji-map shapes and normalizes userIds. Without it a client
+        // cannot derive "did I already react", so it keeps sending adds and
+        // the toggle fails. Mirrors the direct-messages route.
+        reactions: parseReactions(
+            doc.reactions as string | Reaction[] | undefined,
+        ),
     };
 }
 
@@ -833,7 +833,16 @@ export async function PATCH(request: NextRequest) {
             serverId: normalizeStringField(doc.serverId),
             imageFileId: normalizeStringField(doc.imageFileId),
             imageUrl: normalizeStringField(doc.imageUrl),
-            replyToId: normalizeStringField(doc.replyToId),
+        replyToId: normalizeStringField(doc.replyToId),
+        // Thread linkage. Without these the client cannot tell a thread parent
+        // from an ordinary message, so the "N replies" affordance never
+        // renders and thread replies leak into the main timeline. Mirrors
+        // mapDirectMessageDocument in the direct-messages route.
+        threadId: normalizeStringField(doc.threadId),
+        threadMessageCount:
+            typeof doc.threadMessageCount === "number"
+                ? doc.threadMessageCount
+                : undefined,
         };
 
         recordEvent("message_edited", {
