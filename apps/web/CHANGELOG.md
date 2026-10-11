@@ -123,6 +123,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Toggling a reaction on a channel message failed.** The channel message API
+  copied the raw `reactions` field instead of parsing it, so messages stored in
+  the older JSON-string or emoji-keyed shapes came back with no reaction data
+  at all. The client then could not tell whether you had already reacted, kept
+  sending "add", and the server rejected it with a 400. Reactions are now
+  normalized the same way direct messages already were.
+- **Channel messages never showed their thread replies.** The channel message
+  API dropped `threadId` and `threadMessageCount` when mapping documents, while
+  the direct message API returned both. Messages that started a thread therefore
+  looked identical to ordinary messages: the "N replies" indicator never
+  appeared, and replies leaked into the main channel timeline. Both fields are
+  now returned, matching direct messages.
 - **Long names pushed the date and options menu out of the DM list.** A user
   with a long name, or a long system-announcement line in amber, widened the
   whole row so the timestamp was cut off and the mute/options menu could not be

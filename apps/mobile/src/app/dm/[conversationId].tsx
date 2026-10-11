@@ -57,6 +57,7 @@ import { authHeaders } from "@/lib/firepit/http";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { extractAppwriteConfig } from "@/lib/firepit/bootstrap";
 import { getAvatarUrl, getEmojiUrl, getMessageAvatarFileId } from "@/lib/avatars";
+import { insertDayDividers, type DayRow } from "@/lib/chat-dates";
 import { getProfilesBatch } from "@/lib/profile-cache";
 import { getLastReadAt, setLastReadAt, countUnread } from "@/lib/channel-read-state";
 import { buildPollCommand } from "@/lib/mention-utils";
@@ -115,16 +116,16 @@ function getStatusLabel(statuses: Record<string, DmUserStatus>, userId: string |
   return statusColor(statuses[userId]?.status)?.label ?? "";
 }
 
-function getStatusColor(statuses: Record<string, DmUserStatus>, userId: string | null): "mutedForeground" | "success" {
+function getStatusColor(statuses: Record<string, DmUserStatus>, userId: string | null): "mutedForeground" | "successText" {
   if (!userId) return "mutedForeground";
   const s = statuses[userId];
   if (!s || !isOnlineStatus(s.status)) return "mutedForeground";
-  if (s.status === "online") return "success";
+  if (s.status === "online") return "successText";
   return "mutedForeground";
 }
 
-const keyExtractor = (item: DirectMessage, index: number) =>
-  item.$id ?? `${item.conversationId}-${item.$createdAt}-${index}`;
+const keyExtractor = (item: DayRow<DirectMessage>, index: number) =>
+  item.kind === "divider" ? item.id : (item.item.$id ?? `message-${index}`);
 
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 
@@ -164,7 +165,7 @@ export default function DirectMessageScreen() {
   const [gifStickerPickerVisible, setGifStickerPickerVisible] = useState(false);
   const [peerPublicKeyBase64, setPeerPublicKeyBase64] = useState<string | null>(null);
   const [dmEncryptionEnabled, setDmEncryptionEnabled] = useState(false);
-  const listRef = useRef<FlatList<DirectMessage>>(null);
+  const listRef = useRef<FlatList<DayRow<DirectMessage>>>(null);
   const inputRef = useRef<TextInput>(null);
   const cancelledRef = useRef(false);
   const sendingRef = useRef(false);
@@ -719,8 +720,43 @@ export default function DirectMessageScreen() {
     })) ?? [],
   [customEmojis, instanceUrl]);
 
+  /**
+   * Message list interleaved with day dividers. `messages` is newest-first
+   * because the FlatList is inverted — see insertDayDividers.
+   */
+  const messageRows = useMemo(
+    () => insertDayDividers(messages, (m, i) => `m:${m.$id ?? i}`),
+    [messages],
+  );
+
   const renderItem = useCallback(
-    ({ item }: { item: DirectMessage }) => {
+    ({ item: row }: { item: DayRow<DirectMessage> }) => {
+      if (row.kind === "divider") {
+        return (
+          <View style={styles.dayDivider}>
+            <View
+              style={[
+                styles.dayDividerRule,
+                { backgroundColor: theme.border },
+              ]}
+            />
+            <ThemedText
+              type="code"
+              themeColor="mutedForeground"
+              style={styles.dayDividerLabel}
+            >
+              {row.label}
+            </ThemedText>
+            <View
+              style={[
+                styles.dayDividerRule,
+                { backgroundColor: theme.border },
+              ]}
+            />
+          </View>
+        );
+      }
+      const item = row.item;
       const isMine = Boolean(
         currentUserId && item.senderId && item.senderId === currentUserId,
       );
@@ -1065,7 +1101,7 @@ export default function DirectMessageScreen() {
             <View style={styles.messageAreaInner}>
             <FlatList
               ref={listRef}
-              data={messages}
+              data={messageRows}
               inverted
               extraData={mappedEmojis}
               keyExtractor={keyExtractor}
@@ -1536,6 +1572,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingVertical: Spacing.half,
-    paddingHorizontal: Spacing.two,
+  },
+  dayDivider: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+  },
+  dayDividerRule: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dayDividerLabel: {
+    textAlign: "center",
   },
 });

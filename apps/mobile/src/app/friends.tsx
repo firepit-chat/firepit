@@ -19,6 +19,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useFriends } from "@/hooks/use-friends";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
 import type { FriendshipEntry, BlockedUserEntry } from "@/lib/firepit/types";
+import { getInitials } from "@/lib/avatars";
 import {
   acceptFriendRequest,
   declineFriendRequest,
@@ -41,14 +42,6 @@ const EMPTY_STATE_COPY: Record<Tab, string> = {
   outgoing: "No outgoing friend requests.",
   blocked: "You have not blocked anyone.",
 };
-
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2)
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0].slice(0, 2).toUpperCase();
-}
 
 function FriendshipActions({
   entry,
