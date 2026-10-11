@@ -347,9 +347,7 @@ export default function SessionScreen() {
                                                     if (!server.$id) {
                                                         return;
                                                     }
-                                                    router.push(
-                                                        `/server/${server.$id}`,
-                                                    );
+                                                    router.push("/chat");
                                                 }}
                                             />
                                         ))}
@@ -390,9 +388,7 @@ export default function SessionScreen() {
                                                 if (!server.$id) {
                                                     return;
                                                 }
-                                                router.push(
-                                                    `/server/${server.$id}`,
-                                                );
+                                                router.push("/chat");
                                             }}
                                             onJoin={
                                                 signedIn &&
@@ -412,9 +408,7 @@ export default function SessionScreen() {
                                                                       "",
                                                               );
                                                               await loadServers();
-                                                              router.push(
-                                                                  `/server/${server.$id}`,
-                                                              );
+                                                              router.push("/chat");
                                                           } catch (joinError) {
                                                               setServerError(
                                                                   joinError instanceof

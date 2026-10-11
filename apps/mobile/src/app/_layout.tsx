@@ -91,7 +91,6 @@ function TabLayoutContent() {
                                     <Stack.Screen name="friends" />
                                     <Stack.Screen name="create-server" />
                                     <Stack.Screen name="invite/[inviteCode]" />
-                                    <Stack.Screen name="server/[serverId]" />
                                     <Stack.Screen name="server/messages/[serverId]/[channelId]" />
                                     <Stack.Screen name="thread/[serverId]/[channelId]/[messageId]" />
                                     <Stack.Screen name="thread/[conversationId]/[messageId]" />

@@ -6,15 +6,28 @@
  * user-selectable accent. React Native has no `oklch()` support, so these are
  * hex; the values are the same colours the web app ships in `index.css`.
  *
- * The original themes keep their orange primary in the default accent slot, so
- * picking one with no accent chosen reproduces the pre-Catppuccin look.
+ * The original themes keep an orange primary in the default accent slot, so
+ * picking one with no accent chosen still reproduces the pre-Catppuccin look.
+ * Classic Light's orange is darkened to #AF5900, since the original #D9792B
+ * only reached 2.95:1 under its cream button text.
  *
  * Accent fills are adjusted so that `primaryForeground` clears 4.5:1 against
  * them. Latte's canonical accents are authored to be read as text on `base`
  * and cannot serve as fills unmodified, so they are lightened to pair with
  * Latte's dark `text`; the dark palettes already clear 5.3:1 as-is.
  *
- * `useTheme()` returns the flat 40-token shape below, so call sites are
+ * Status colours come in pairs because a badge fill and a body-text colour
+ * need opposite lightness. `success`/`warning`/`danger` are FILL tokens — a
+ * status pill paints one of them behind `foreground`, so each is authored to
+ * clear 4.5:1 against that palette's `foreground` (dark fills on the dark
+ * palettes, pale fills on the light ones). The canonical Catppuccin accents
+ * are the opposite of that in every flavour, which is why the fills could not
+ * simply reuse them. `successText`/`warningText` are the readable form of the
+ * same hues, for coloured text sitting on `background`/`card`. Error text uses
+ * `destructive` rather than `dangerText`: one red covers both roles because
+ * `destructiveForeground` is the background colour in every palette.
+ *
+ * `useTheme()` returns the flat token shape below, so call sites are
  * unaffected by the palette count.
  */
 
@@ -111,18 +124,18 @@ const ACCENT_COLORS: Record<
   Record<ThemeAccent, { primary: string; primaryForeground: string }>
 > = {
   latte: {
-    blue: { primary: "#A4C4FE", primaryForeground: "#4C4F69" },
+    blue: { primary: "#A7C6FF", primaryForeground: "#4C4F69" },
     mauve: { primary: "#CDB9FF", primaryForeground: "#4C4F69" },
-    teal: { primary: "#60D6C9", primaryForeground: "#4C4F69" },
-    green: { primary: "#79D967", primaryForeground: "#4C4F69" },
+    teal: { primary: "#62D8CB", primaryForeground: "#4C4F69" },
+    green: { primary: "#7BDB69", primaryForeground: "#4C4F69" },
     yellow: { primary: "#FEB561", primaryForeground: "#4C4F69" },
-    peach: { primary: "#FFB193", primaryForeground: "#4C4F69" },
+    peach: { primary: "#FFB396", primaryForeground: "#4C4F69" },
     maroon: { primary: "#FFAFAD", primaryForeground: "#4C4F69" },
-    pink: { primary: "#FFA7E5", primaryForeground: "#4C4F69" },
+    pink: { primary: "#FFAAE6", primaryForeground: "#4C4F69" },
     flamingo: { primary: "#FFAFAD", primaryForeground: "#4C4F69" },
-    rosewater: { primary: "#FEAF9E", primaryForeground: "#4C4F69" },
-    sapphire: { primary: "#61D2E9", primaryForeground: "#4C4F69" },
-    sky: { primary: "#74CCFF", primaryForeground: "#4C4F69" },
+    rosewater: { primary: "#FFB2A1", primaryForeground: "#4C4F69" },
+    sapphire: { primary: "#63D4EB", primaryForeground: "#4C4F69" },
+    sky: { primary: "#7ACEFF", primaryForeground: "#4C4F69" },
   },
   frappe: {
     blue: { primary: "#8CAAEE", primaryForeground: "#303446" },
@@ -167,18 +180,18 @@ const ACCENT_COLORS: Record<
     sky: { primary: "#89DCEB", primaryForeground: "#1E1E2E" },
   },
   classicLight: {
-    blue: { primary: "#D9792B", primaryForeground: "#FBF8F2" },
+    blue: { primary: "#AF5900", primaryForeground: "#FBF8F2" },
     mauve: { primary: "#CDB9FF", primaryForeground: "#4C4F69" },
-    teal: { primary: "#60D6C9", primaryForeground: "#4C4F69" },
-    green: { primary: "#79D967", primaryForeground: "#4C4F69" },
+    teal: { primary: "#62D8CB", primaryForeground: "#4C4F69" },
+    green: { primary: "#7BDB69", primaryForeground: "#4C4F69" },
     yellow: { primary: "#FEB561", primaryForeground: "#4C4F69" },
-    peach: { primary: "#FFB193", primaryForeground: "#4C4F69" },
+    peach: { primary: "#FFB396", primaryForeground: "#4C4F69" },
     maroon: { primary: "#FFAFAD", primaryForeground: "#4C4F69" },
-    pink: { primary: "#FFA7E5", primaryForeground: "#4C4F69" },
+    pink: { primary: "#FFAAE6", primaryForeground: "#4C4F69" },
     flamingo: { primary: "#FFAFAD", primaryForeground: "#4C4F69" },
-    rosewater: { primary: "#FEAF9E", primaryForeground: "#4C4F69" },
-    sapphire: { primary: "#61D2E9", primaryForeground: "#4C4F69" },
-    sky: { primary: "#74CCFF", primaryForeground: "#4C4F69" },
+    rosewater: { primary: "#FFB2A1", primaryForeground: "#4C4F69" },
+    sapphire: { primary: "#63D4EB", primaryForeground: "#4C4F69" },
+    sky: { primary: "#7ACEFF", primaryForeground: "#4C4F69" },
   },
   classicDark: {
     blue: { primary: "#E08B3D", primaryForeground: "#1A140F" },
@@ -230,7 +243,9 @@ export type ThemeTokens = {
   chart4: string;
   chart5: string;
   success: string;
+  successText: string;
   warning: string;
+  warningText: string;
   danger: string;
   backgroundElement: string;
   backgroundSelected: string;
@@ -252,10 +267,10 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     secondary: "#CCD0DA",
     secondaryForeground: "#4C4F69",
     muted: "#CCD0DA",
-    mutedForeground: "#6C6F85",
+    mutedForeground: "#54576C",
     accent: "#BCC0CC",
     accentForeground: "#4C4F69",
-    destructive: "#E64553",
+    destructive: "#B34047",
     destructiveForeground: "#EFF1F5",
     border: "#CCD0DA",
     input: "#CCD0DA",
@@ -273,13 +288,15 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#40A02B",
     chart4: "#DF8E1D",
     chart5: "#E64553",
-    success: "#40A02B",
-    warning: "#DF8E1D",
-    danger: "#E64553",
+    success: "#98D48C",
+    successText: "#245B18",
+    warning: "#F9B972",
+    warningText: "#6E4200",
+    danger: "#FFB1B0",
     backgroundElement: "#E6E9EF",
     backgroundSelected: "#BCC0CC",
     text: "#4C4F69",
-    textSecondary: "#6C6F85",
+    textSecondary: "#54576C",
     accentSoft: "#A4C4FE33",
   },
   frappe: {
@@ -292,7 +309,7 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     secondary: "#414559",
     secondaryForeground: "#C6D0F5",
     muted: "#414559",
-    mutedForeground: "#A5ADCE",
+    mutedForeground: "#ACB4D5",
     accent: "#51576D",
     accentForeground: "#C6D0F5",
     destructive: "#E78284",
@@ -313,13 +330,15 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#A6D189",
     chart4: "#E5C890",
     chart5: "#E78284",
-    success: "#A6D189",
-    warning: "#E5C890",
-    danger: "#E78284",
+    success: "#36622D",
+    successText: "#B3E4A9",
+    warning: "#774908",
+    warningText: "#FEC990",
+    danger: "#823D3F",
     backgroundElement: "#292C3C",
     backgroundSelected: "#51576D",
     text: "#C6D0F5",
-    textSecondary: "#A5ADCE",
+    textSecondary: "#ACB4D5",
     accentSoft: "#8CAAEE33",
   },
   macchiato: {
@@ -353,9 +372,11 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#A6DA95",
     chart4: "#EED49F",
     chart5: "#ED8796",
-    success: "#A6DA95",
-    warning: "#EED49F",
-    danger: "#ED8796",
+    success: "#36622D",
+    successText: "#B3E4A9",
+    warning: "#774908",
+    warningText: "#FEC990",
+    danger: "#823D3F",
     backgroundElement: "#1E2030",
     backgroundSelected: "#494D64",
     text: "#CAD3F5",
@@ -393,9 +414,11 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#A6E3A1",
     chart4: "#F9E2AF",
     chart5: "#F38BA8",
-    success: "#A6E3A1",
-    warning: "#F9E2AF",
-    danger: "#F38BA8",
+    success: "#2D6421",
+    successText: "#ABE79F",
+    warning: "#794900",
+    warningText: "#FFC98E",
+    danger: "#8A3639",
     backgroundElement: "#181825",
     backgroundSelected: "#45475A",
     text: "#CDD6F4",
@@ -412,10 +435,10 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     secondary: "#F2E8D7",
     secondaryForeground: "#3A2D25",
     muted: "#EDE3D3",
-    mutedForeground: "#7A6657",
+    mutedForeground: "#756152",
     accent: "#EBDCC3",
     accentForeground: "#3A2D25",
-    destructive: "#C94A36",
+    destructive: "#BD4C3A",
     destructiveForeground: "#FBF8F2",
     border: "#E4D8C8",
     input: "#E4D8C8",
@@ -433,13 +456,15 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#5E6F90",
     chart4: "#D18A37",
     chart5: "#A45E4D",
-    success: "#DCEFE7",
-    warning: "#F5E5C3",
-    danger: "#F8E0DA",
+    success: "#9BCE91",
+    successText: "#2B5A22",
+    warning: "#E9B276",
+    warningText: "#6E4200",
+    danger: "#F8A4A3",
     backgroundElement: "#FFFDFB",
     backgroundSelected: "#F1E8D8",
     text: "#3A2D25",
-    textSecondary: "#7A6657",
+    textSecondary: "#756152",
     accentSoft: "#EBDCC3",
   },
   classicDark: {
@@ -473,9 +498,11 @@ const BASE_TOKENS: Record<ThemePalette, Omit<ThemeTokens, "primary" | "primaryFo
     chart3: "#C9A46C",
     chart4: "#A272D7",
     chart5: "#CC7F64",
-    success: "#21463F",
-    warning: "#4B361F",
-    danger: "#452522",
+    success: "#34622A",
+    successText: "#B1E5A7",
+    warning: "#794900",
+    warningText: "#FFC98E",
+    danger: "#843B3D",
     backgroundElement: "#241D18",
     backgroundSelected: "#2A231D",
     text: "#F8F2E8",

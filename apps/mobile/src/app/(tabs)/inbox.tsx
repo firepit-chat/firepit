@@ -23,6 +23,7 @@ import type {
 } from "@/lib/firepit/types";
 import { listInboxDigest, markInboxContextRead } from "@/lib/firepit/messages";
 import { captureError } from "@/lib/sentry";
+import { getInitials } from "@/lib/avatars";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { Search , Users } from "lucide-react-native";
 
@@ -35,14 +36,6 @@ const FILTERS: { label: string; value: Filter }[] = [
   { label: "Direct", value: "direct" },
   { label: "Servers", value: "server" },
 ];
-
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2)
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0].slice(0, 2).toUpperCase();
-}
 
 function formatTime(value?: string) {
   if (!value) return "";

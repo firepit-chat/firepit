@@ -55,3 +55,6 @@ credentials/
 reports/
 
 scripts/build-counter.json
+
+# Idea
+.idea/

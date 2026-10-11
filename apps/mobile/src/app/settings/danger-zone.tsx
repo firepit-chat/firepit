@@ -161,7 +161,7 @@ export default function DangerZoneScreen() {
                                     type="card"
                                     style={[styles.card, { borderColor: theme.border }]}
                                 >
-                                    <ThemedText type="smallBold" themeColor="danger">
+                                    <ThemedText type="smallBold" themeColor="destructive">
                                         Delete account
                                     </ThemedText>
                                     <ThemedText themeColor="mutedForeground" style={styles.copy}>
@@ -216,7 +216,7 @@ export default function DangerZoneScreen() {
                                             justifyContent: "center",
                                             paddingHorizontal: Spacing.four,
                                             borderWidth: 1,
-                                            borderColor: theme.danger,
+                                            borderColor: theme.destructive,
                                             backgroundColor: "transparent",
                                             opacity:
                                                 pressed ||
@@ -227,14 +227,14 @@ export default function DangerZoneScreen() {
                                                     : 1,
                                         })}
                                     >
-                                        <ThemedText type="smallBold" themeColor="danger">
+                                        <ThemedText type="smallBold" themeColor="destructive">
                                             {busy === "delete" ? "Deleting…" : "Delete my account forever"}
                                         </ThemedText>
                                     </Pressable>
                                 </ThemedView>
 
                                 {error ? (
-                                    <ThemedText themeColor="danger" style={styles.errorText}>
+                                    <ThemedText themeColor="destructive" style={styles.errorText}>
                                         {error}
                                     </ThemedText>
                                 ) : null}

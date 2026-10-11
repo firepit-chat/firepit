@@ -375,7 +375,7 @@ function ToggleRow({
                 onValueChange={onValueChange}
                 disabled={disabled}
                 trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={value ? "#FFFFFF" : "#888888"}
+                thumbColor={value ? theme.primaryForeground : theme.mutedForeground}
             />
         </View>
     );

@@ -83,7 +83,7 @@ function NsfwToggle({
                 value={value}
                 onValueChange={onValueChange}
                 trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={value ? "#FFFFFF" : "#888888"}
+                thumbColor={value ? theme.primaryForeground : theme.mutedForeground}
             />
         </View>
     );
@@ -370,16 +370,10 @@ export default function ChannelManagementScreen() {
                                 <ThemedText type="smallBold">Actions</ThemedText>
                                 <View style={styles.actionRow}>
                                     <ActionButton
-                                        label="Back to server"
+                                        label="Back to chat"
                                         tone="ghost"
                                         icon="back"
-                                        onPress={() => {
-                                            if (normalizedServerId) {
-                                                router.replace(
-                                                    `/server/${normalizedServerId}`,
-                                                );
-                                            }
-                                        }}
+                                        onPress={() => router.back()}
                                     />
                                     <ActionButton
                                         label="Create channel"

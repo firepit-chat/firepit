@@ -27,7 +27,7 @@ function ActionPill({ label, onPress, tone = "primary", disabled }: ActionButton
     const fg = {
         primary: theme.primaryForeground,
         secondary: theme.foreground,
-        destructive: "#fff",
+        destructive: theme.destructiveForeground,
         ghost: theme.foreground,
     }[tone];
 
@@ -57,15 +57,15 @@ function StatusBadge({ label, tone }: { label: string; tone: "neutral" | "succes
     const theme = useTheme();
     const colors = {
         neutral: theme.muted,
-        success: theme.success ?? "#22c55e",
-        warning: theme.warning ?? "#f59e0b",
+        success: theme.success,
+        warning: theme.warning,
         destructive: theme.destructive,
     };
     const textColors = {
         neutral: theme.mutedForeground,
-        success: "#fff",
-        warning: "#fff",
-        destructive: "#fff",
+        success: theme.foreground,
+        warning: theme.foreground,
+        destructive: theme.destructiveForeground,
     };
 
     return (

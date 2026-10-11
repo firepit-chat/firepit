@@ -302,7 +302,7 @@ export default function MessageModerationScreen() {
 
                             {loadError ? (
                                 <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
-                                    <ThemedText themeColor="danger">{loadError}</ThemedText>
+                                    <ThemedText themeColor="destructive">{loadError}</ThemedText>
                                 </ThemedView>
                             ) : null}
 
@@ -334,7 +334,7 @@ export default function MessageModerationScreen() {
                                             {message.text?.trim() ? message.text : "(attachment or no text)"}
                                         </ThemedText>
                                         {removed ? (
-                                            <ThemedText type="code" themeColor="warning" style={styles.removedLabel}>
+                                            <ThemedText type="code" themeColor="warningText" style={styles.removedLabel}>
                                                 Removed
                                             </ThemedText>
                                         ) : null}
@@ -381,13 +381,13 @@ export default function MessageModerationScreen() {
                                                         style={({ pressed }) => [
                                                             styles.actionButton,
                                                             {
-                                                                borderColor: theme.danger,
+                                                                borderColor: theme.destructive,
                                                                 borderWidth: 1,
                                                                 opacity: pressed || actingId !== null ? 0.6 : 1,
                                                             },
                                                         ]}
                                                     >
-                                                        <ThemedText type="smallBold" themeColor="danger">
+                                                        <ThemedText type="smallBold" themeColor="destructive">
                                                             {actingId === `hard-delete:${message.$id}` ? "…" : "Delete"}
                                                         </ThemedText>
                                                     </Pressable>

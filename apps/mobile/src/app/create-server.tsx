@@ -153,7 +153,7 @@ export default function CreateServerScreen() {
             if (!nextServerId) {
                 throw new Error("Server was created, but no server id was returned.");
             }
-            router.replace(`/server/${nextServerId}`);
+            router.replace("/chat");
         } catch (createError) {
             setError(
                 createError instanceof Error
@@ -325,7 +325,7 @@ export default function CreateServerScreen() {
 
                                     {error ? (
                                         <ThemedText
-                                            themeColor="danger"
+                                            themeColor="destructive"
                                             style={styles.metaText}
                                         >
                                             {error}

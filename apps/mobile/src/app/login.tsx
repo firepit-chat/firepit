@@ -223,7 +223,7 @@ export default function LoginScreen() {
 
                             {authError ? (
                                 <ThemedText
-                                    themeColor="danger"
+                                    themeColor="destructive"
                                     style={styles.metaText}
                                 >
                                     {authError}

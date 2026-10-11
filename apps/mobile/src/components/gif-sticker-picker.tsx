@@ -424,10 +424,10 @@ export function GifStickerPicker({
               },
             ]}
           >
-            <Film size={14} color={mode === "gifs" ? "#fff" : theme.foreground} />
+            <Film size={14} color={mode === "gifs" ? theme.primaryForeground : theme.foreground} />
             <ThemedText
               type="small"
-              style={{ color: mode === "gifs" ? "#fff" : theme.foreground, marginLeft: 6 }}
+              style={{ color: mode === "gifs" ? theme.primaryForeground : theme.foreground, marginLeft: 6 }}
             >
               GIFs
             </ThemedText>
@@ -442,10 +442,10 @@ export function GifStickerPicker({
               },
             ]}
           >
-            <Sticker size={14} color={mode === "stickers" ? "#fff" : theme.foreground} />
+            <Sticker size={14} color={mode === "stickers" ? theme.primaryForeground : theme.foreground} />
             <ThemedText
               type="small"
-              style={{ color: mode === "stickers" ? "#fff" : theme.foreground, marginLeft: 6 }}
+              style={{ color: mode === "stickers" ? theme.primaryForeground : theme.foreground, marginLeft: 6 }}
             >
               Stickers
             </ThemedText>

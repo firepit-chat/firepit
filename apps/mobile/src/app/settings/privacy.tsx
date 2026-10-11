@@ -17,14 +17,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
-
-function getInitials(name: string): string {
-    if (!name) return "?";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2)
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return parts[0].slice(0, 2).toUpperCase();
-}
+import { getInitials } from "@/lib/avatars";
 
 function BlockedRow({
     entry,
@@ -171,8 +164,8 @@ export default function PrivacySettingsScreen() {
                                     }}
                                     thumbColor={
                                         preferences.skipNsfwWarning
-                                            ? "#FFFFFF"
-                                            : "#888888"
+                                            ? theme.primaryForeground
+                                            : theme.mutedForeground
                                     }
                                 />
                             </View>

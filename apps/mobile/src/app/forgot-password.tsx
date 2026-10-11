@@ -159,7 +159,7 @@ export default function ForgotPasswordScreen() {
                                         </Pressable>
                                         {error ? (
                                             <ThemedText
-                                                themeColor="danger"
+                                                themeColor="destructive"
                                                 style={styles.metaText}
                                             >
                                                 {error}

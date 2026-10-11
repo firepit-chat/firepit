@@ -265,7 +265,7 @@ export default function SignupControlsScreen() {
                                                         opacity: pressed || isActing ? 0.6 : 1,
                                                     })}
                                                 >
-                                                    <ThemedText type="smallBold" themeColor="danger">
+                                                    <ThemedText type="smallBold" themeColor="destructive">
                                                         Reject
                                                     </ThemedText>
                                                 </Pressable>
@@ -275,7 +275,7 @@ export default function SignupControlsScreen() {
                                 })}
 
                                 {loadError ? (
-                                    <ThemedText themeColor="danger" style={styles.errorText}>
+                                    <ThemedText themeColor="destructive" style={styles.errorText}>
                                         {loadError}
                                     </ThemedText>
                                 ) : null}

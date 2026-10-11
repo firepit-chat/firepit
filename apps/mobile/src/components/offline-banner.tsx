@@ -7,7 +7,9 @@ export function OfflineBanner() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.destructive }]}>
-      <Text style={styles.text}>You are offline</Text>
+      <Text style={[styles.text, { color: colors.destructiveForeground }]}>
+        You are offline
+      </Text>
     </View>
   );
 }
@@ -19,7 +21,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   text: {
-    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
   },

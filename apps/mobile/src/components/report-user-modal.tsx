@@ -229,7 +229,7 @@ export function ReportUserModal({
                                     >
                                         <ThemedText
                                             type="smallBold"
-                                            style={{ color: "#fff" }}
+                                            style={{ color: theme.destructiveForeground }}
                                         >
                                             {submitting
                                                 ? "Submitting…"

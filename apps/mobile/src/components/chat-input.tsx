@@ -739,13 +739,13 @@ function ChatInputInner({
             height: 36,
             paddingHorizontal: 12,
             borderRadius: 999,
-            backgroundColor: "#D9792B",
+            backgroundColor: theme.primary,
             alignItems: "center",
             justifyContent: "center",
             opacity: disabled || sending ? 0.45 : pressed ? 0.8 : 1,
           })}
         >
-          <Text style={{ color: "#fff", fontWeight: 700, fontSize: 13 }}>
+          <Text style={{ color: theme.primaryForeground, fontWeight: 700, fontSize: 13 }}>
             {sending ? "..." : "Send"}
           </Text>
         </Pressable>

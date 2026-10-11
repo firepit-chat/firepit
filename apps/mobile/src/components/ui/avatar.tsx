@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { useTheme } from "@/hooks/use-theme";
 import { cacheManager } from "@/lib/cache/CacheManager";
+import { getInitials as getInitialsFor } from "@/lib/avatars";
 
 type CacheState = {
   requestedUri: string;
@@ -113,16 +114,11 @@ export function Avatar({
         : Math.round(size * PLAIN_PORTRAIT_FRACTION);
   const offsetPx = Math.round((size - innerSize) / 2);
 
-  const getInitials = (): string => {
-    if (!initials) return "?";
-    const trimmed = initials.trim();
-    if (!trimmed) return "?";
-    const parts = trimmed.split(/\s+/);
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    }
-    return parts[0].slice(0, 2).toUpperCase();
-  };
+  // `initials` is a name to derive a glyph from, not a pre-built glyph — the
+  // web Avatar takes the raw name the same way. Callers must pass the name
+  // rather than the output of getInitials: re-deriving from "JD" would yield
+  // "J", since a single token contributes one character.
+  const getInitials = (): string => getInitialsFor(initials ?? "");
 
   const avatarContent =
     sourceUri && sourceUri.trim() !== "" && !loadFailed ? (

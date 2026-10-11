@@ -283,7 +283,9 @@ export default function AdminTabScreen() {
                                 description="View stats, manage channels, roles, and server settings."
                                 actionLabel="Open admin dashboard"
                                 onAction={() =>
-                                    router.push(`/server/${serverId}` as never)
+                                    router.push(
+                                        `/admin?serverId=${serverId}` as never,
+                                    )
                                 }
                             />
                             <AdminRow
