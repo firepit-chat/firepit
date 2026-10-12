@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { headers, cookies } from "next/headers";
 import { Account, Client } from "node-appwrite";
 
@@ -82,6 +82,7 @@ function mapSession(session: {
  * their own sessions.
  */
 export async function GET() {
+    await connection();
     try {
         const sessionSecret = await getSessionSecret();
 

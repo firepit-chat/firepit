@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
 import { getOrCreateUserProfile, updateUserProfile } from "@/lib/appwrite-profiles";
 import { logger, returnUnauthorized } from "@/lib/posthog-utils";
@@ -43,6 +43,7 @@ function isPatchBody(value: unknown): value is PatchBody {
 }
 
 export async function GET() {
+    await connection();
     try {
         const user = await getServerSession();
         if (!user?.$id) {

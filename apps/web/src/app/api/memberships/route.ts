@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 
 import { getServerClient } from "@/lib/appwrite-server";
@@ -13,6 +13,7 @@ import type { Membership } from "@/lib/types";
  * Fetches all memberships for the authenticated user
  */
 export async function GET() {
+    await connection();
     try {
         // Verify user is authenticated
         const user = await getServerSession();

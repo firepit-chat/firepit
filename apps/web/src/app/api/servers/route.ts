@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Query } from "node-appwrite";
 
@@ -50,6 +50,7 @@ function isMembershipDocument(document: unknown): document is MembershipDocument
  *   - cursor: cursor for pagination
  */
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const session = await getServerSession();
         if (!session?.$id) {

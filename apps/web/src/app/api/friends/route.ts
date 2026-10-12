@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import {
@@ -47,6 +47,7 @@ function serializeFriendshipEntry(
 }
 
 export async function GET() {
+    await connection();
     try {
         const user = await getServerSession();
         if (!user) {

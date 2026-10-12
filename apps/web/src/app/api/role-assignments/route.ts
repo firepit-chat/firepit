@@ -1,5 +1,5 @@
 import { ID, Query } from "node-appwrite";
-import { NextResponse, type NextRequest } from "next/server";
+import { connection, NextResponse, type NextRequest } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -222,6 +222,7 @@ async function updateRoleMemberCount(roleId: string, serverId: string): Promise<
 }
 
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const databases = getDatabases();
         const { searchParams } = new URL(request.url);

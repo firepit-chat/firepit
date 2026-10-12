@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { adminListAuditEvents } from "@/lib/appwrite-audit";
 import { clampLimit } from "@/lib/appwrite-reports";
 import {
@@ -8,6 +8,7 @@ import { logger } from "@/lib/posthog-utils";
 import { requireModerator } from "@/lib/auth-server";
 
 export async function GET(request: Request) {
+    await connection();
     try {
         await requireModerator();
 

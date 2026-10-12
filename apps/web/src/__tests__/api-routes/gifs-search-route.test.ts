@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { connection, NextRequest } from "next/server";
 
 class MockAuthError extends Error {
     readonly code: "UNAUTHORIZED" | "FORBIDDEN";
@@ -126,6 +126,18 @@ describe("GIF search API route", () => {
             401,
             expect.any(Number),
         );
+    });
+
+    it("lets a prerender rejection propagate instead of returning 500", async () => {
+        const prerenderEnded = new Error("prerender ended");
+        vi.mocked(connection).mockRejectedValueOnce(prerenderEnded);
+
+        await expect(
+            GET(new NextRequest("http://localhost/api/gifs/search?q=wave")),
+        ).rejects.toBe(prerenderEnded);
+        expect(mockRequireAuth).not.toHaveBeenCalled();
+        expect(mockLoggerError).not.toHaveBeenCalled();
+        expect(mockTrackApiCall).not.toHaveBeenCalled();
     });
 
     it("returns 400 for invalid search parameters", async () => {

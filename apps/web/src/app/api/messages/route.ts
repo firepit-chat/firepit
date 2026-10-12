@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { ID } from "node-appwrite";
 import { Query } from "node-appwrite";
@@ -134,6 +134,7 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
  * Lists messages for a channel.
  */
 export async function GET(request: NextRequest) {
+    await connection();
     try {
 
         const user = await getServerSession();
