@@ -121,6 +121,12 @@ function PickerRow<T extends string>({
     );
 }
 
+// Hoisted: an inline renderItem lands in the list cell's props and defeats
+// its PureComponent, re-rendering every visible row on any parent render.
+const renderAnnouncementRow = ({ item }: { item: Announcement }) => (
+    <AnnouncementCard item={item} />
+);
+
 export default function InstanceAnnouncementsScreen() {
     const theme = useTheme();
     const { instanceUrl, accessToken } = useFirepitBootstrap();
@@ -549,9 +555,7 @@ export default function InstanceAnnouncementsScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <AnnouncementCard item={item} />
-                        )}
+                        renderItem={renderAnnouncementRow}
                     />
                 </SafeAreaView>
             </View>

@@ -54,6 +54,14 @@ import { ArrowLeft, Megaphone } from "lucide-react-native";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
+// Hoisted so the FlatList's PureComponent check is not defeated by fresh
+// prop identities on every parent render. RN captures both of these once in the
+// VirtualizedList constructor, so this changes nothing functionally.
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
+
+const keyExtractor = (item: Message, index: number) =>
+  item.$id ?? `${item.channelId}-${item.$createdAt}-${index}`;
+
 export default function ServerMessageScreen() {
   const theme = useTheme();
   const { serverId, channelId } = useLocalSearchParams<{
@@ -548,6 +556,17 @@ export default function ServerMessageScreen() {
     markChannelReadRef.current = markChannelRead;
   });
 
+  // Build a map of messages for reply lookup. Without this the reply preview
+  // did a linear scan of the loaded channel history inside renderItem, which is
+  // O(visible x loaded) on every render pass.
+  const messagesById = useMemo(() => {
+    const map = new Map<string, Message>();
+    for (const m of messages) {
+      if (m.$id) map.set(m.$id, m);
+    }
+    return map;
+  }, [messages]);
+
   const mappedEmojis = useMemo(
     () =>
       customEmojis?.map((ce) => ({
@@ -555,6 +574,38 @@ export default function ServerMessageScreen() {
         url: ce.url.startsWith("http") ? ce.url : `${instanceUrl}${ce.url}`,
       })) ?? [],
     [customEmojis, instanceUrl],
+  );
+
+  // Composer emoji shape. Was built inline in the JSX, so every parent render
+  // produced a new array, which invalidated ChatInput's emojiItems memo and
+  // re-ran a scan over the whole standard-emoji table.
+  const composerEmojis = useMemo(
+    () =>
+      mappedEmojis.map((ce) => ({
+        shortcode: ce.name,
+        customUrl: ce.url,
+      })),
+    [mappedEmojis],
+  );
+
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index === 0) {
+        markChannelReadRef.current?.();
+      }
+    },
+    [],
+  );
+
+  const handleScrollEndDrag = useCallback(
+    (e: {
+      nativeEvent: { contentOffset: { y: number } };
+    }) => {
+      if (e.nativeEvent.contentOffset.y <= 10) {
+        markChannelReadRef.current?.();
+      }
+    },
+    [],
   );
 
   const renderItem = useCallback(
@@ -591,7 +642,7 @@ export default function ServerMessageScreen() {
           : null;
       const replyToId = message.replyToId;
       const replyToMsg = replyToId
-        ? messages.find((m) => m.$id === replyToId)
+        ? messagesById.get(replyToId)
         : null;
 
       return (
@@ -738,7 +789,7 @@ export default function ServerMessageScreen() {
     [
       currentUserId,
       mappedEmojis,
-      messages,
+      messagesById,
       instanceUrl,
       accessToken,
       channelPermissions,
@@ -918,22 +969,11 @@ export default function ServerMessageScreen() {
                   data={messages}
                   inverted
                   extraData={mappedEmojis}
-                  keyExtractor={(item, index) =>
-                    item.$id ?? `${item.channelId}-${item.$createdAt}-${index}`
-                  }
+                  keyExtractor={keyExtractor}
                   renderItem={renderItem}
-                  viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-                  onViewableItemsChanged={({ viewableItems }) => {
-                    if (viewableItems.length > 0 && viewableItems[0].index === 0) {
-                      markChannelReadRef.current?.();
-                    }
-                  }}
-                  onScrollEndDrag={(e) => {
-                    const y = e.nativeEvent.contentOffset.y;
-                    if (y <= 10) {
-                      markChannelReadRef.current?.();
-                    }
-                  }}
+                  viewabilityConfig={VIEWABILITY_CONFIG}
+                  onViewableItemsChanged={handleViewableItemsChanged}
+                  onScrollEndDrag={handleScrollEndDrag}
                   ListEmptyComponent={
                     messageLoadState === "loading" ? null : (
                       <ThemedView type="secondary" style={styles.emptyTimeline}>
@@ -1045,10 +1085,7 @@ export default function ServerMessageScreen() {
                       onAttachmentsChange={setComposerAttachments}
                       onSend={() => void sendMessage()}
                       sending={messageSendState === "loading"}
-                      customEmojis={mappedEmojis.map((ce) => ({
-                        shortcode: ce.name,
-                        customUrl: ce.url,
-                      }))}
+                      customEmojis={composerEmojis}
                       onOpenPollCreate={() => setPollModalVisible(true)}
                       onOpenGifStickerPicker={() => setGifStickerPickerVisible(true)}
                     />
