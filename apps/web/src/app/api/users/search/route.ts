@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -23,6 +23,7 @@ function dedupeUsersSearchCache<T>(key: string, fetcher: () => Promise<T>) {
 }
 
 export async function GET(request: Request) {
+    await connection();
     try {
         const session = await getServerSession();
         if (!session?.$id) {

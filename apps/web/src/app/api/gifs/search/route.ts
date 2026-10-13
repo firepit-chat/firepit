@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { AuthError, requireAuth } from "@/lib/auth-server";
 import {
@@ -50,6 +50,7 @@ function resolveErrorStatusCode(error: unknown): number {
 }
 
 export async function GET(request: NextRequest) {
+    await connection();
     const startTime = Date.now();
 
     try {

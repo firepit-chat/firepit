@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { connection, NextResponse, type NextRequest } from "next/server";
 import { Query, ID } from "node-appwrite";
 import type { Permission } from "@/lib/types";
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -99,6 +99,7 @@ function isAuthError(
 
 // GET: List permission overrides for a channel
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const databases = getDatabases();
         const { searchParams } = new URL(request.url);

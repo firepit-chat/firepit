@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { getAvatarUrl, getProfilesByUserIds } from "@/lib/appwrite-profiles";
@@ -8,6 +8,7 @@ import {
 } from "@/lib/appwrite-friendships";
 
 export async function GET() {
+    await connection();
     try {
         const user = await getServerSession();
         if (!user) {

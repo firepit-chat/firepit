@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { getThreadReads, upsertThreadReads } from "@/lib/thread-read-store";
@@ -101,6 +101,7 @@ function isValidReadsMap(value: unknown): value is Record<string, string> {
 }
 
 export async function GET(request: Request) {
+    await connection();
     try {
         const user = await getServerSession();
         if (!user?.$id) {

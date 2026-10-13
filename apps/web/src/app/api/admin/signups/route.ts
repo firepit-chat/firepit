@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { AuthError, requireAdmin } from "@/lib/auth-server";
 import { logger } from "@/lib/posthog-utils";
@@ -32,6 +32,7 @@ function errorResponse(error: unknown): NextResponse {
  * approval. Admin only (Bearer token or session cookie).
  */
 export async function GET() {
+    await connection();
     try {
         await requireAdmin();
 

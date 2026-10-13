@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 import { ID, Query } from "node-appwrite";
@@ -273,6 +273,7 @@ export async function POST(request: NextRequest) {
  *   - cursor: cursor for pagination
  */
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const session = await getServerSession();
         if (!session?.$id) {

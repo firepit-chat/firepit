@@ -2,7 +2,7 @@
  * Tests for /api/memberships endpoint
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
+import { connection, NextRequest } from "next/server";
 
 // Create persistent mocks
 const { mockListDocuments, mockGetServerSession } = vi.hoisted(() => ({
@@ -122,6 +122,14 @@ describe("Memberships API", () => {
 
 			expect(response.status).toBe(200);
 			expect(data.memberships).toEqual([]);
+		});
+
+		it("should let a prerender rejection propagate instead of returning 500", async () => {
+			const prerenderEnded = new Error("prerender ended");
+			vi.mocked(connection).mockRejectedValueOnce(prerenderEnded);
+
+			await expect(GET()).rejects.toBe(prerenderEnded);
+			expect(mockGetServerSession).not.toHaveBeenCalled();
 		});
 
 		it("should handle errors gracefully", async () => {

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { headers } from "next/headers";
@@ -9,6 +9,7 @@ import { headers } from "next/headers";
  * Only available in development mode
  */
 export async function GET() {
+	await connection();
 	// Only allow in development
 	if (process.env.NODE_ENV !== "development") {
 		return NextResponse.json(

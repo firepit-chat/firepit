@@ -139,6 +139,12 @@ if (process.env.VITEST || process.env.VITEST_WORKER_ID) {
         return { ...mod, cacheLife: vi.fn() };
     });
 
+    // connection() throws outside a request scope; route tests call GET directly.
+    vi.mock("next/server", async (importOriginal) => {
+        const mod = await importOriginal<typeof import("next/server")>();
+        return { ...mod, connection: vi.fn().mockResolvedValue(undefined) };
+    });
+
     // server-only throws outside a Server Component; mock it in tests.
     vi.mock("server-only", () => ({}));
 

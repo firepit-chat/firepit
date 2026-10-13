@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import {
     createAnnouncement,
@@ -93,6 +93,7 @@ function authErrorResponse(error: AuthError): NextResponse {
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
+    await connection();
     try {
         await requireAdmin();
 

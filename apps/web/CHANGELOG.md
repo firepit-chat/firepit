@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Fixes
 
 - **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
+- **API errors during build** - Signed-in API routes (for example GIF search and memberships) no longer log failures or return 500 errors when the build prerenders them. Each route now waits for a real request before it reads the session
 
 ## [2.1.0] - 2026-09-27
 
