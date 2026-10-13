@@ -17,6 +17,8 @@ const noop = () => undefined;
 import type { ChatSurfaceMessage } from "@/lib/chat-surface";
 import type { CustomEmoji, FileAttachment } from "@/lib/types";
 import { ChatInput } from "@/components/chat-input";
+import { ChatDateBoundary } from "@/components/chat-date-boundary";
+import { startsNewDay } from "@/lib/chat-surface";
 import { ChatSurfaceMessageItem } from "@/components/chat-surface-message-item";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { FileUploadButton, FilePreview } from "@/components/file-upload-button";
@@ -65,7 +67,10 @@ type ChatSurfacePanelProps = {
         emoji: string,
         isAdding: boolean,
     ) => Promise<void>;
-    onVotePoll?: (message: ChatSurfaceMessage, optionId: string) => Promise<void>;
+    onVotePoll?: (
+        message: ChatSurfaceMessage,
+        optionId: string,
+    ) => Promise<void>;
     onClosePoll?: (message: ChatSurfaceMessage) => Promise<void>;
     onOpenImageViewer: (imageUrl: string) => void;
     onOpenProfileModal?: (
@@ -276,7 +281,11 @@ export function ChatSurfacePanel({
             requestMessageListBottomScroll();
             scrollComposerIntoView();
         });
-    }, [requestMessageListBottomScroll, scrollComposerIntoView, surfaceMessages.length]);
+    }, [
+        requestMessageListBottomScroll,
+        scrollComposerIntoView,
+        surfaceMessages.length,
+    ]);
 
     useEffect(() => {
         const wasLoading = previousLoadingRef.current;
@@ -476,8 +485,13 @@ export function ChatSurfacePanel({
                                 </Button>
                             </div>
                         )}
-                        {surfaceMessages.map((message) => (
+                        {surfaceMessages.map((message, index) => (
                             <div key={message.id}>
+                                {startsNewDay(surfaceMessages, index) ? (
+                                    <ChatDateBoundary
+                                        date={message.createdAt}
+                                    />
+                                ) : null}
                                 {unreadAnchorMessageId === message.id ? (
                                     <UnreadBoundary />
                                 ) : null}

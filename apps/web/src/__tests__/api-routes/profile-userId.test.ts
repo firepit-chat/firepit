@@ -12,6 +12,14 @@ vi.mock("@/lib/appwrite-profiles", () => ({
 	getPredefinedAvatarFrameUrlByPresetId: vi.fn((presetId) =>
 		presetId ? `https://example.com/frame/${presetId}` : undefined,
 	),
+	getAvatarFrameForProfile: vi.fn(async (profile) => {
+		const preset = profile?.avatarFramePreset || undefined;
+		return {
+			preset,
+			url: preset ? `https://example.com/frame/${preset}` : undefined,
+			insetPercent: preset ? 11 : undefined,
+		};
+	}),
 }));
 
 vi.mock("@/lib/appwrite-status", () => ({
