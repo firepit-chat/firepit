@@ -63,8 +63,11 @@ import {
 } from "@/lib/channel-read-state";
 import { markChannelRead as markChannelReadOnServer } from "@/lib/firepit/channel-reads";
 import { captureError } from "@/lib/sentry";
+import { insertDayDividers, type DayRow } from "@/lib/chat-dates";
 import { UserProfileSheet } from "@/components/user-profile-sheet";
-import { ArrowLeft, Megaphone } from "lucide-react-native";
+import { MembersSheet } from "@/components/members-sheet";
+import { ServerMenuSheet } from "@/components/server-menu-sheet";
+import { ArrowLeft, Megaphone, Users } from "lucide-react-native";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -73,8 +76,8 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 // VirtualizedList constructor, so this changes nothing functionally.
 const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 
-const keyExtractor = (item: Message, index: number) =>
-    item.$id ?? `${item.channelId}-${item.$createdAt}-${index}`;
+const keyExtractor = (item: DayRow<Message>, index: number) =>
+    item.kind === "divider" ? item.id : (item.item.$id ?? `message-${index}`);
 
 export default function ServerMessageScreen() {
     const theme = useTheme();
@@ -121,6 +124,8 @@ export default function ServerMessageScreen() {
         displayName?: string;
         avatarUrl?: string;
     } | null>(null);
+    const [membersSheetVisible, setMembersSheetVisible] = useState(false);
+    const [serverMenuVisible, setServerMenuVisible] = useState(false);
     const composerAttachmentsRef = useRef(composerAttachments);
     useEffect(() => {
         composerAttachmentsRef.current = composerAttachments;
@@ -167,6 +172,13 @@ export default function ServerMessageScreen() {
     }, [normalizedChannelId]);
     const [channelPermissions, setChannelPermissions] =
         useState<EffectivePermissions | null>(null);
+    // The server menu's admin entries. This uses the real permission flags the
+    // chat page already loads, rather than the deleted server page's looser
+    // "user has any role at all" check.
+    const canManageChannels =
+        Boolean(channelPermissions?.manageChannels) ||
+        Boolean(channelPermissions?.manageServer) ||
+        Boolean(channelPermissions?.manageRoles);
     const listRef = useRef<FlatList>(null);
     const markChannelReadRef = useRef<() => Promise<void>>(undefined);
 
@@ -718,8 +730,43 @@ export default function ServerMessageScreen() {
         [],
     );
 
+    /**
+     * Message list interleaved with day dividers. `messages` is newest-first
+     * because the FlatList is inverted — see insertDayDividers.
+     */
+    const messageRows = useMemo(
+      () => insertDayDividers(messages, (m, i) => `m:${m.$id ?? i}`),
+      [messages],
+    );
+
     const renderItem = useCallback(
-        ({ item: message, index: idx }: { item: Message; index: number }) => {
+        ({ item: row, index: idx }: { item: DayRow<Message>; index: number }) => {
+            if (row.kind === "divider") {
+                return (
+                    <View style={styles.dayDivider}>
+                        <View
+                            style={[
+                                styles.dayDividerRule,
+                                { backgroundColor: theme.border },
+                            ]}
+                        />
+                        <ThemedText
+                            type="code"
+                            themeColor="mutedForeground"
+                            style={styles.dayDividerLabel}
+                        >
+                            {row.label}
+                        </ThemedText>
+                        <View
+                            style={[
+                                styles.dayDividerRule,
+                                { backgroundColor: theme.border },
+                            ]}
+                        />
+                    </View>
+                );
+            }
+            const message = row.item;
             const isMine = Boolean(
                 message.userId &&
                 currentUserId &&
@@ -978,6 +1025,7 @@ export default function ServerMessageScreen() {
             setMessageError,
             setActiveThreadMessageId,
             setProfileSheetUser,
+            theme.border,
         ],
     );
 
@@ -1016,12 +1064,11 @@ export default function ServerMessageScreen() {
                     <View style={styles.headerLeft}>
                         <Pressable
                             accessibilityRole="button"
+                            accessibilityLabel="Back to chat"
                             onPress={() => {
-                                if (normalizedServerId) {
-                                    router.replace(
-                                        `/server/${normalizedServerId}`,
-                                    );
-                                }
+                                // The chat tab is the channel browser now that
+                                // the dedicated server page is gone.
+                                router.replace("/chat");
                             }}
                             style={styles.backButton}
                         >
@@ -1042,13 +1089,20 @@ export default function ServerMessageScreen() {
                             {isAnnouncement ? (
                                 <Megaphone size={16} color={theme.foreground} />
                             ) : null}
-                            <ThemedText
-                                type="smallBold"
-                                numberOfLines={1}
-                                style={styles.channelName}
+                            <Pressable
+                                accessibilityRole="button"
+                                accessibilityLabel={`${selectedChannel?.name ?? "Channel"} — server options`}
+                                onPress={() => setServerMenuVisible(true)}
+                                style={styles.channelTitleButton}
                             >
-                                {selectedChannel?.name ?? "Channel"}
-                            </ThemedText>
+                                <ThemedText
+                                    type="smallBold"
+                                    numberOfLines={1}
+                                    style={styles.channelName}
+                                >
+                                    {selectedChannel?.name ?? "Channel"}
+                                </ThemedText>
+                            </Pressable>
                             {isAnnouncement ? (
                                 <ThemedText
                                     type="code"
@@ -1080,15 +1134,18 @@ export default function ServerMessageScreen() {
                         ) : null}
                     </View>
                     <View style={styles.headerRight}>
-                        {selectedChannel?.topic ? (
-                            <ThemedText
-                                type="code"
-                                themeColor="mutedForeground"
-                                numberOfLines={1}
-                            >
-                                {selectedChannel.topic}
-                            </ThemedText>
-                        ) : null}
+                        {/* The topic used to live here, squeezed into ~160px
+                            next to the title where it was always truncated to
+                            nothing useful. It reads in full in the server menu. */}
+                        <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Channel members"
+                            onPress={() => setMembersSheetVisible(true)}
+                            hitSlop={6}
+                            style={styles.membersButton}
+                        >
+                            <Users size={16} color={theme.foreground} />
+                        </Pressable>
                     </View>
                 </View>
 
@@ -1174,7 +1231,7 @@ export default function ServerMessageScreen() {
                                         <View style={styles.messageAreaInner}>
                                             <FlatList
                                                 ref={listRef}
-                                                data={messages}
+                                                data={messageRows}
                                                 inverted
                                                 extraData={mappedEmojis}
                                                 keyExtractor={keyExtractor}
@@ -1537,6 +1594,23 @@ export default function ServerMessageScreen() {
                     }
                 }}
             />
+            <MembersSheet
+                visible={membersSheetVisible}
+                onClose={() => setMembersSheetVisible(false)}
+                serverId={normalizedServerId ?? null}
+                channelName={selectedChannel?.name}
+                expectedCount={selectedChannel?.memberCount ?? null}
+            />
+            <ServerMenuSheet
+                visible={serverMenuVisible}
+                onClose={() => setServerMenuVisible(false)}
+                onOpenMembers={() => setMembersSheetVisible(true)}
+                serverId={normalizedServerId ?? ""}
+                serverName={serverName}
+                channelName={selectedChannel?.name}
+                channelTopic={selectedChannel?.topic}
+                canManageServer={canManageChannels}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -1607,8 +1681,17 @@ const styles = StyleSheet.create({
         overflow: "hidden",
     },
     headerRight: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
         flex: 0,
-        maxWidth: 100,
+    },
+    membersButton: {
+        paddingHorizontal: Spacing.one,
+        paddingVertical: Spacing.half,
+    },
+    channelTitleButton: {
+        flexShrink: 1,
     },
     backButton: {
         fontSize: 16,
@@ -1725,5 +1808,19 @@ const styles = StyleSheet.create({
     },
     replyCloseBtn: {
         padding: Spacing.one,
+    },
+    dayDivider: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.two,
+        paddingVertical: Spacing.two,
+        paddingHorizontal: Spacing.three,
+    },
+    dayDividerRule: {
+        flex: 1,
+        height: StyleSheet.hairlineWidth,
+    },
+    dayDividerLabel: {
+        textAlign: "center",
     },
 });

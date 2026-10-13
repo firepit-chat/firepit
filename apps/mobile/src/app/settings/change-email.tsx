@@ -172,7 +172,7 @@ export default function ChangeEmailScreen() {
                                     ) : null}
                                     {error ? (
                                         <ThemedText
-                                            themeColor="danger"
+                                            themeColor="destructive"
                                             style={styles.errorText}
                                         >
                                             {error}

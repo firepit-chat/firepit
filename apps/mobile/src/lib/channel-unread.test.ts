@@ -74,5 +74,29 @@ if (import.meta.main) {
   );
   assert(countUnreadChannels([], {}) === 0, "empty category = 0");
 
+  // --- the per-channel dot must agree with the category counter ---
+  // The sidebar dot and the category badge both come from this rule. If they
+  // ever disagreed, a category could show a count with no channel explaining
+  // it, which is what the dot was added to prevent.
+  const readStates: Record<string, string>[] = [
+    {},
+    { a: "2026-01-06T00:00:00.000Z" },
+    { a: "2026-01-06T00:00:00.000Z", c: "2026-01-06T00:00:00.000Z" },
+  ];
+  for (const reads of readStates) {
+    const counter = countUnreadChannels(channels, reads);
+    const dotted = channels.filter((c) =>
+      isChannelUnread({
+        channelCreatedAt: c.$createdAt,
+        lastMessageAt: c.lastMessageAt,
+        lastReadAt: reads[c.$id],
+      }),
+    ).length;
+    assert(
+      counter === dotted,
+      `dot count ${String(dotted)} matches counter ${String(counter)}`,
+    );
+  }
+
   console.log("channel-unread.test.ts: all assertions passed");
 }

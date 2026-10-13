@@ -395,7 +395,7 @@ export default function SettingsTabScreen() {
                             />
                             <SettingsRow
                                 label="Appearance"
-                                description="Profile background and avatar frame"
+                                description="Theme, profile background, and avatar frame"
                                 onPress={() =>
                                     router.push("/settings/appearance" as never)
                                 }
