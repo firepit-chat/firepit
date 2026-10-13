@@ -369,6 +369,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
                     break;
                 }
 
+                // Retried rather than bailed: this counter is only ever written
+                // here, so one failed update pins the parent at 0 for good and
+                // the "N replies" affordance never renders for that thread.
                 await sleep(100 * (attempt + 1));
             }
         }

@@ -11,7 +11,7 @@ import {
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 type Props = {
@@ -87,7 +87,10 @@ export function PollCreationModal({ visible, onClose, onSubmit }: Props) {
           style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
           onPress={() => Keyboard.dismiss()}
         >
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+          >
             <ThemedText type="title" style={styles.title}>
               Create Poll
             </ThemedText>
@@ -136,7 +139,7 @@ export function PollCreationModal({ visible, onClose, onSubmit }: Props) {
                 {options.length > 2 ? (
                   <Pressable
                     onPress={() => removeOption(index)}
-                    style={[styles.removeBtn, { backgroundColor: theme.destructive + "20" }]}
+                    style={[styles.removeBtn, { backgroundColor: withAlpha(theme.destructive, 0.13) }]}
                   >
                     <ThemedText themeColor="destructive">✕</ThemedText>
                   </Pressable>

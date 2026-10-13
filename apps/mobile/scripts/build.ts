@@ -243,7 +243,6 @@ function androidBuild() {
         stdio: "inherit",
         env: {
             ...process.env,
-            SENTRY_DISABLE_AUTO_UPLOAD: "true",
             ORG_GRADLE_PROJECT_MYAPP_UPLOAD_STORE_PASSWORD: storePassword,
             ORG_GRADLE_PROJECT_MYAPP_UPLOAD_KEY_PASSWORD: keyPassword,
         },

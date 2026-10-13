@@ -263,7 +263,6 @@ export default function InstanceAnnouncementsScreen() {
         <View style={styles.listGap}>
             {/* Hero */}
             <ThemedView
-                type="card"
                 style={[styles.heroCard, { borderColor: theme.border }]}
             >
                 <ThemedText type="code" themeColor="accent">
@@ -301,7 +300,6 @@ export default function InstanceAnnouncementsScreen() {
 
             {/* Compose form */}
             <ThemedView
-                type="card"
                 style={[styles.card, { borderColor: theme.border }]}
             >
                 <ThemedText type="smallBold">
@@ -443,8 +441,7 @@ export default function InstanceAnnouncementsScreen() {
 
             {loadError ? (
                 <ThemedView
-                    type="card"
-                    style={[
+                        style={[
                         styles.card,
                         { borderColor: theme.border },
                     ]}
@@ -529,8 +526,7 @@ export default function InstanceAnnouncementsScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
-                                    style={[
+                                            style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -556,6 +552,8 @@ export default function InstanceAnnouncementsScreen() {
                             ) : null
                         }
                         renderItem={renderAnnouncementRow}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
                     />
                 </SafeAreaView>
             </View>
@@ -566,10 +564,7 @@ export default function InstanceAnnouncementsScreen() {
 function AnnouncementCard({ item }: { item: Announcement }) {
     const theme = useTheme();
     return (
-        <ThemedView
-            type="card"
-            style={[styles.entryCard, { borderColor: theme.border }]}
-        >
+        <View style={styles.entryCard}>
             <View style={styles.entryHeader}>
                 <ThemedText type="smallBold" numberOfLines={1} style={styles.entryTitle}>
                     {item.title || "Untitled announcement"}
@@ -605,7 +600,7 @@ function AnnouncementCard({ item }: { item: Announcement }) {
                     </ThemedText>
                 ) : null}
             </View>
-        </ThemedView>
+        </View>
     );
 }
 
@@ -623,7 +618,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -635,7 +629,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     input: {
         borderRadius: 12,
@@ -695,10 +688,8 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     entryCard: {
-        borderRadius: 18,
-        padding: Spacing.three,
+        paddingVertical: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",

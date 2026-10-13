@@ -208,6 +208,28 @@ describe("useServers", () => {
 
 			expect(result.current.servers).toEqual([]);
 		});
+
+		it("should not poison state when the API resolves with an error body", async () => {
+			// A 401/500 still resolves and parses to JSON without a `servers`
+			// key. That must become an empty list, never `undefined` -- consumers
+			// call `.map` on it and crashed the whole header/app layout.
+			(global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+				ok: false,
+				status: 500,
+				json: async () => ({ error: "Internal Server Error" }),
+			});
+
+			const { result } = renderHook(() =>
+				useServers({ userId: mockUserId, membershipEnabled: false })
+			);
+
+			await waitFor(() => {
+				expect(result.current.initialLoading).toBe(false);
+			});
+
+			expect(Array.isArray(result.current.servers)).toBe(true);
+			expect(result.current.servers).toEqual([]);
+		});
 	});
 
 	describe("Load More", () => {

@@ -116,6 +116,19 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
         imageFileId: normalizeStringField(doc.imageFileId),
         imageUrl: normalizeStringField(doc.imageUrl),
         replyToId: normalizeStringField(doc.replyToId),
+        // Thread linkage. Without these the client cannot tell a thread parent
+        // from an ordinary message, so the "N replies" affordance never renders
+        // and thread replies leak into the main timeline. Mirrors
+        // mapDirectMessageDocument in the direct-messages route.
+        threadId: normalizeStringField(doc.threadId),
+        threadMessageCount:
+            typeof doc.threadMessageCount === "number"
+                ? doc.threadMessageCount
+                : undefined,
+        threadParticipants: Array.isArray(doc.threadParticipants)
+            ? (doc.threadParticipants as string[])
+            : undefined,
+        lastThreadReplyAt: normalizeStringField(doc.lastThreadReplyAt),
         mentions: Array.isArray(doc.mentions)
             ? (doc.mentions as string[])
             : undefined,
