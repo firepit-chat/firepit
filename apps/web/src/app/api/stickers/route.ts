@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { AuthError, requireAuth } from "@/lib/auth-server";
 import { getBuiltinStickerPacks } from "@/lib/gif-sticker";
 import {  trackApiCall } from "@/lib/posthog-utils";
 
 export async function GET(request: NextRequest) {
+    await connection();
     const startTime = Date.now();
 
     try {

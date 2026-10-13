@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
@@ -40,6 +40,7 @@ function parseContextKind(value: string | null): ContextKindParseResult {
 }
 
 export async function GET(request: NextRequest) {
+    await connection();
     const session = await getServerSession();
     if (!session?.$id) {
         return NextResponse.json(

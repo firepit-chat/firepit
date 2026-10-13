@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 
 import { getServerSession } from "@/lib/auth-server";
@@ -16,6 +16,7 @@ type DefaultSignupServerDocument = {
 };
 
 export async function GET() {
+    await connection();
     const session = await getServerSession();
     if (!session?.$id) {
         return returnUnauthorized();

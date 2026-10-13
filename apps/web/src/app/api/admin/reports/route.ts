@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import {
     listReports,
     resolveReport,
@@ -12,6 +12,7 @@ import { requireModerator } from "@/lib/auth-server";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 
 export async function GET(request: Request) {
+    await connection();
     try {
         await requireModerator();
 

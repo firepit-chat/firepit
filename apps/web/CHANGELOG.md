@@ -255,6 +255,152 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   described `allow`/`deny` as objects of booleans rather than arrays of
   permission names, and omitted `userId` entirely.
 - **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
+- **API errors during build** - Signed-in API routes (for example GIF search and memberships) no longer log failures or return 500 errors when the build prerenders them. Each route now waits for a real request before it reads the session
+
+- **The inbox now clears when you read it.** Marking a channel or conversation
+  as read was scheduled behind an 800 ms debounce whose timer was being reset on
+  every single re-render of the chat page — and the page re-renders on every
+  keystroke. Renders arrived faster than the debounce, so the timer never fired
+  and the inbox stayed unread until you navigated away and back. The hooks now
+  return a stable object, so the effect re-runs when the data changes rather than
+  on every frame.
+- **Messages no longer update while you are away.** Cached inbox and
+  conversation data older than five minutes was never refetched when you
+  navigated back to the chat, so you could be reading a several-minute-old view
+  with no indication anything was stale. Stale queries now revalidate on mount;
+  the per-query freshness windows still keep repeat visits free.
+- **Direct messages no longer open a second, redundant presence
+  subscription.** The channel message hook subscribed to the project's presence
+  events even in DM view, where its typing indicator cannot be used, doubling
+  the presence traffic for no benefit.
+- **Realtime message filtering after an account switch.** The channel
+  subscription read the viewer's id from a stale closure, so a message arriving
+  after switching accounts could be filtered against the previous user's id.
+- **The background DM poll no longer runs on hidden tabs.** A backgrounded DM
+  tab re-queried the message list and a profile batch every 15 seconds
+  indefinitely, for a tab nobody was looking at.
+- **Revoked sessions now take effect promptly.** `getServerSession` was wrapped
+  in a framework cache keyed on nothing (it takes no arguments and reads the
+  session from headers), which could keep a session alive well past the
+  30-second window the function already implements deliberately. That wrapper is
+  gone; the intended cache remains.
+- **The analytics configuration is no longer silently discarded.** Both
+  `instrumentation-client.ts` and a React provider were initialising PostHog
+  with different settings, and the second call quietly overwrote the first,
+  discarding cookieless mode, exception capture, and the pinned config snapshot.
+  There is now a single initializer.
+
+### ⚙️ Improvements
+- **Faster chat, and about 25% less JavaScript on every page.** A performance
+  pass across the web app:
+    - The chat page no longer rebuilds the server and channel sidebars, or every
+      visible message row, on every keystroke. Message handlers, the profile
+      modal opener, and the sidebar subtrees are now stable, so typing only
+      re-renders what actually changed.
+    - Timestamps build their date and time formatters once instead of
+      constructing two per message per render.
+    - Switching channels no longer scans your entire unread inbox and discards
+      all but the one channel you asked for.
+    - The server resolves per-server and per-role lookups concurrently on the
+      moderation page and in message search instead of one round trip at a time.
+    - The first realtime message from someone you have already loaded no longer
+      triggers a redundant profile request.
+    - The in-memory server cache is now size-capped, so a long-running instance
+      cannot grow without bound as you visit more channels and conversations.
+  The analytics SDK and the emoji shortcode table are no longer part of the
+  initial page load — both now load on demand, and events captured before the
+  analytics SDK arrives are replayed rather than dropped. Emoji, the image
+  viewer, the GIF/sticker picker, and the notification settings panel are split
+  out of their initial bundles. As a result the shared JavaScript baseline drops
+  from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+- **Avatar frame insets are measured, not guessed.** A script renders the
+  committed frame artwork and reports the inset each one needs, and a test holds
+  the shipped values to it — so a redrawn or added frame cannot drift out of
+  sync silently.
+- **`react-hooks` lint rules are enabled.** The plugin was registered but every
+  rule was off, which is how effects with incomplete dependency arrays shipped.
+  `rules-of-hooks` is now an error and `exhaustive-deps` a warning, with the
+  existing violations fixed. A `use`-prefixed server helper that was not a hook
+  was renamed accordingly.
+- **API client types are now generated from the spec.** `bun run
+generate:api-types` produces TypeScript types directly from the documented
+  API, and CI fails if they drift from the spec. Combined with the existing
+  spec-versus-routes check, the documented API can no longer quietly disagree
+  with either the server or the clients compiling against it.
+- **Fixed client-side analytics and error reporting.** The browser PostHog SDK
+  was never initialized, so every client event — sign-in, registration,
+  onboarding, invitations, and the opt-in/opt-out toggle — was queued against an
+  SDK with no credentials and silently dropped. The same gap left the
+  client-side logger and error reporter as no-ops, since both read a
+  `window.posthog` that only exists once the SDK is initialized.
+  Anonymous visitors are captured by default, so the pre-auth funnel — landing,
+  sign-in, registration, onboarding — is recorded; those events are only
+  observable before an account exists. Consent is still enforced per account:
+  turning telemetry off in Settings opts out persistently, which also suppresses
+  anonymous capture on later visits, and an opted-out user is never identified.
+  **Server-side telemetry now honours the same preference**: API-call metrics,
+  forwarded application logs, and error reports attributed to a user are dropped
+  when that account has telemetry disabled. Telemetry with no identifiable user
+  is still sent, since there is no person whose consent applies.
+- **Dark mode is respected again on both platforms.** Choosing a palette no
+  longer overrides it: on a first visit the app follows the operating system's
+  light or dark setting, and an explicit choice is remembered from then on. This
+  had regressed when the fixed palette list replaced automatic detection, which
+  would have handed every existing dark-mode user a light app.
+- **The palette pickers show real colours.** The swatch previews in Settings
+  were rendering with no background at all, because the build produced no CSS
+  for the utility syntax they used. They now sample the actual palette.
+- **Per-channel permission overrides are resolved from a single place.** The
+  read-only member rail and the role-management screen now share one server-side
+  helper, so they cannot disagree about a member's roles, ban state, or
+  ordering.
+- **The DM encryption preference moved to where it belongs.** It now lives on the
+  profile beside the public key it depends on, rather than among notification
+  preferences. Accounts that enabled encryption before the move are unaffected:
+  reads prefer the new location and fall back to the old one, so nobody's DMs
+  silently fall back to plaintext. As a side effect the message send path is
+  slightly cheaper, since the profiles it already loaded now answer the question.
+- Theme and accent choices are stored in a cookie on the web, so the first paint
+  already uses the right colours and the old light/dark launch flash is gone.
+- The member list is fetched through one shared server-side helper, so the
+  read-only viewer and the role-management endpoint can never disagree about a
+  member's roles, ban state, or ordering.
+- The selected palette is no longer written as a React-owned attribute on
+  `<html>`. It used to be rendered server-side as a placeholder, which the theme
+  library also writes — so any re-render of the root layout could overwrite the
+  palette you had chosen. The default palette is now defined in CSS on `:root`
+  instead, which means the page is never unstyled and the choice cannot be
+  clobbered.
+- The theme library moved from `next-themes` to `@teispace/next-themes`, which
+  supports several palettes on one page and is what per-server themes in a future
+  release will build on.
+- **The OpenAPI spec can no longer drift from the code.** `bun run
+check:openapi` walks the route handlers and fails if the spec and the
+  handlers disagree in either direction — a route that exists but is
+  undocumented, or a documented operation with no handler. It runs in CI, so
+  adding or renaming a route without updating the spec now breaks the build
+  instead of failing silently until a generated client called a route that
+  isn't there. It skips the three debug endpoints and the CORS preflight
+  `OPTIONS` handlers on the upload routes.
+- **Type checking now runs in CI.** `bun run typecheck` covers both the web and
+  mobile workspaces and fails the build on a type error in either. Previously
+  no workflow ran it, and the only implicit check was the web build — so a type
+  error in the mobile app could not fail CI.
+- Pinned TypeScript to 6.x across the workspace. A TypeScript 7 install made
+  `bun run lint` fail before linting anything, because `typescript-eslint` does
+  not support it yet. Bump when 7.1 lands.
+- Fixed a handful of lint errors that were masking real issues, including two
+  unhandled promises in the blocked-users and notification-settings hooks.
+- The permission-override collection ID is now configurable via
+  `APPWRITE_CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID` instead of being
+  hardcoded in four places, so it can be renamed without editing source.
+- **One channel-type normalizer instead of four.** Coercing a channel's type to
+  a known value was copy-pasted into four modules, one of which had drifted to a
+  different implementation, and the accepted-values array was duplicated a fourth
+  time. All 14 call sites now share a single function, so adding a channel type
+  is a one-line change instead of a scavenger hunt. The old copies cast the input
+  rather than validating it, so a malformed `type` could surface as something
+  other than `"text"`.
 
 - **The inbox now clears when you read it.** Marking a channel or conversation
   as read was scheduled behind an 800 ms debounce whose timer was being reset on

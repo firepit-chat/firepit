@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { connection, NextResponse, type NextRequest } from "next/server";
 import { Query, ID } from "node-appwrite";
 import type { Role } from "@/lib/types";
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -79,6 +79,7 @@ function clampPermissions(
 
 // GET: List roles for a server
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const databases = getDatabases();
         const { searchParams } = new URL(request.url);

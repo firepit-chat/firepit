@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { ID, Query, Permission, Role } from "node-appwrite";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -315,6 +315,7 @@ export async function OPTIONS(request: NextRequest) {
  * - Get/create conversation: ?type=conversation&userId1=xxx&userId2=xxx
  */
 export async function GET(request: NextRequest) {
+    await connection();
     const startTime = Date.now();
 
     try {

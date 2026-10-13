@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createHash } from "node:crypto";
 
@@ -368,6 +368,7 @@ function observeInboxDmUnreadConsistency(params: {
 }
 
 export async function GET(request: NextRequest) {
+    await connection();
     const session = await getServerSession();
     if (!session?.$id) {
         return NextResponse.json(

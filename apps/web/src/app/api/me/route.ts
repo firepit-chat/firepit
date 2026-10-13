@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import { getUserRoles } from "@/lib/appwrite-roles";
@@ -10,6 +10,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
  * Disabled outside development.
  */
 export async function GET() {
+    await connection();
     if (process.env.NODE_ENV === "production") {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }

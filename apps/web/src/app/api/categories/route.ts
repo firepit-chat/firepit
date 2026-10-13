@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { connection, NextResponse, type NextRequest } from "next/server";
 import { ID, Query } from "node-appwrite";
 
 import { getEnvConfig } from "@/lib/appwrite-core";
@@ -81,6 +81,7 @@ async function getNextCategoryPosition(serverId: string) {
 }
 
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const databases = getDatabases();
         const { searchParams } = new URL(request.url);

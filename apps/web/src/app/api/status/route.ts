@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { createHash } from "node:crypto";
 
@@ -304,6 +304,7 @@ export async function POST(request: Request) {
  * Get user status(es) (server-side)
  */
 export async function GET(request: Request) {
+    await connection();
     try {
         const { searchParams } = new URL(request.url);
         const userId = searchParams.get("userId");
