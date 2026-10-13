@@ -10,10 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
-import {
-    ActionButton,
-    StatusPill,
-} from "@/components/action-button";
+import { ActionButton } from "@/components/action-button";
+import { NoticeLine } from "@/components/notice-line";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -25,20 +23,6 @@ import {
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
-
-const LOAD_STATE_LABELS: Record<LoadState, string> = {
-    idle: "loading",
-    loading: "loading",
-    ready: "stats loaded",
-    error: "load error",
-};
-
-const LOAD_STATE_TONES: Record<LoadState, "success" | "warning" | "danger"> = {
-    idle: "warning",
-    loading: "warning",
-    ready: "success",
-    error: "danger",
-};
 
 export default function AdminDashboardScreen() {
     const theme = useTheme();
@@ -74,20 +58,6 @@ export default function AdminDashboardScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbTop,
-                        { backgroundColor: "rgba(217, 121, 43, 0.16)" },
-                    ]}
-                />
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbBottom,
-                        { backgroundColor: "rgba(78, 138, 134, 0.10)" },
-                    ]}
-                />
                 <ScrollView
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
@@ -95,7 +65,6 @@ export default function AdminDashboardScreen() {
                     <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
                             style={[styles.heroCard, { borderColor: theme.border }]}
                         >
                             <ThemedText type="code" themeColor="accent">
@@ -105,18 +74,16 @@ export default function AdminDashboardScreen() {
                             <ThemedText themeColor="mutedForeground" style={styles.copy}>
                                 Quick stats and shortcuts for server administration.
                             </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill label="admin" tone="warning" />
-                                <StatusPill
-                                    label={LOAD_STATE_LABELS[loadState]}
-                                    tone={LOAD_STATE_TONES[loadState]}
-                                />
-                            </View>
+                            {loadState === "error" ? (
+                                <NoticeLine tone="danger">
+                                    Could not load server statistics. Pull down to
+                                    retry.
+                                </NoticeLine>
+                            ) : null}
                         </ThemedView>
 
                         {/* Navigation */}
                         <ThemedView
-                            type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <ThemedText type="smallBold">Tools</ThemedText>
@@ -154,8 +121,7 @@ export default function AdminDashboardScreen() {
                         {/* Stats */}
                         {!serverId ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText themeColor="mutedForeground">
                                     No server selected. Navigate to an admin page from within a server to view its statistics.
@@ -174,8 +140,7 @@ export default function AdminDashboardScreen() {
 
                         {loadError ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText themeColor="destructive">
                                     {loadError}
@@ -185,8 +150,7 @@ export default function AdminDashboardScreen() {
 
                         {stats && loadState === "ready" ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText type="smallBold">Server statistics</ThemedText>
                                 <View style={styles.statGrid}>
@@ -252,22 +216,6 @@ const styles = StyleSheet.create({
     root: { flex: 1, overflow: "hidden" },
     scrollView: { flex: 1 },
     scrollContent: { flexGrow: 1 },
-    backdropOrbTop: {
-        position: "absolute",
-        width: 260,
-        height: 260,
-        borderRadius: 260,
-        top: -100,
-        left: -80,
-    },
-    backdropOrbBottom: {
-        position: "absolute",
-        width: 320,
-        height: 320,
-        borderRadius: 320,
-        right: -140,
-        bottom: 20,
-    },
     safeArea: {
         flex: 1,
         paddingHorizontal: Spacing.three,
@@ -284,7 +232,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -296,7 +243,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     toolGrid: {
         flexDirection: "row",

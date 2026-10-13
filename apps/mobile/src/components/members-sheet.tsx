@@ -13,7 +13,6 @@ import { Users } from "lucide-react-native";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusIndicator } from "@/components/status-indicator";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
@@ -65,20 +64,13 @@ const MemberRow = memo(function MemberRow({
                         <StatusIndicator status={status} size={8} />
                     ) : null}
                     {member.role ? (
-                        <ThemedView
-                            style={[
-                                styles.roleChip,
-                                { backgroundColor: `${member.role.color}1f` },
-                            ]}
+                        <ThemedText
+                            type="code"
+                            numberOfLines={1}
+                            style={[styles.role, { color: member.role.color }]}
                         >
-                            <ThemedText
-                                type="small"
-                                numberOfLines={1}
-                                style={{ color: member.role.color }}
-                            >
-                                {member.role.name}
-                            </ThemedText>
-                        </ThemedView>
+                            {member.role.name}
+                        </ThemedText>
                     ) : null}
                 </View>
                 {/* Indented under the name so it reads as a status rather than
@@ -440,11 +432,9 @@ const styles = StyleSheet.create({
     name: {
         flexShrink: 1,
     },
-    roleChip: {
+    role: {
+        flexShrink: 1,
         maxWidth: 120,
-        paddingHorizontal: 6,
-        paddingVertical: 1,
-        borderRadius: 4,
     },
     customStatus: {
         fontStyle: "italic",

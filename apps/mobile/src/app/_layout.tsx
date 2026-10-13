@@ -98,6 +98,7 @@ function TabLayoutContent() {
                                     <Stack.Screen name="settings/notifications" />
                                     <Stack.Screen name="settings/updates" />
                                     <Stack.Screen name="settings/appearance" />
+                                    <Stack.Screen name="settings/help" />
                                     <Stack.Screen name="settings/privacy" />
                                 </Stack>
                             </View>

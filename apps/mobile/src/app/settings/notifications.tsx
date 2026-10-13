@@ -120,10 +120,12 @@ export default function NotificationSettingsScreen() {
         <ScrollView
                 style={[styles.scrollView, { backgroundColor: theme.background }]}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             >
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
-                        <View style={styles.header}>
+                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={() => router.back()}
@@ -393,6 +395,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingVertical: Spacing.two,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     headerButton: {
         paddingVertical: Spacing.one,

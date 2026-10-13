@@ -1,6 +1,11 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
+import MentionAutocomplete, {
+    type MentionableItem,
+    type MentionableUser,
+} from "@/components/mention-autocomplete";
+import { authHeaders } from "@/lib/firepit/http";
 import {
     ActivityIndicator,
     FlatList,
@@ -13,6 +18,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
 import MessageWithMentions from "@/components/message-with-mentions";
+import { EmptyState } from "@/components/empty-state";
+import { Search } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -39,6 +46,50 @@ export default function SearchScreen() {
     const [results, setResults] = useState<SearchMessageResult[]>([]);
 
     const signedIn = Boolean(state === "ready" && instanceUrl && accessToken);
+
+    // `from:` accepts a display name, which can contain spaces, so pick the
+    // partial out of the raw query instead of splitting on whitespace.
+    const [fromPartial, fromMatch] = useMemo(() => {
+        const m = /(?:^|\s)from:([^\s@]*)$/.exec(query);
+        return m ? [m[1], m[0]] : [null, null];
+    }, [query]);
+
+    const [authorCandidates, setAuthorCandidates] = useState<MentionableUser[]>([]);
+    useEffect(() => {
+        if (!signedIn || fromPartial === null || !instanceUrl || !accessToken) {
+            setAuthorCandidates([]);
+            return;
+        }
+        const controller = new AbortController();
+        const handle = setTimeout(async () => {
+            try {
+                const res = await fetch(
+                    `${instanceUrl}/api/users/search?q=${encodeURIComponent(fromPartial)}&limit=10`,
+                    { signal: controller.signal, headers: authHeaders(accessToken) },
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                const users: MentionableUser[] = Array.isArray(data?.users)
+                    ? data.users
+                    : [];
+                setAuthorCandidates(users);
+            } catch {
+                // Aborted or offline; the filter still works if typed by hand.
+            }
+        }, 180);
+        return () => {
+            controller.abort();
+            clearTimeout(handle);
+        };
+    }, [fromPartial, accessToken, instanceUrl, signedIn]);
+
+    const handleAuthorSelect = useCallback(
+        (item: MentionableItem | null) => {
+            if (!item || item.type !== "user" || !fromMatch) return;
+            setQuery(query.slice(0, query.length - fromMatch.length) + `from:"${(item.displayName ?? "").replace(/"/g, "")}"`);
+        },
+        [fromMatch, query],
+    );
 
     const runSearch = useCallback(
         async (nextQuery: string) => {
@@ -110,7 +161,7 @@ export default function SearchScreen() {
                 ListHeaderComponent={
                     <SafeAreaView style={styles.safeArea}>
                         <ThemedView style={styles.shell}>
-                            <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                            <View style={styles.hero}>
                                 <ThemedText type="code" themeColor="accent">
                                     Search
                                 </ThemedText>
@@ -118,6 +169,14 @@ export default function SearchScreen() {
                                 <ThemedText themeColor="mutedForeground" style={styles.copy}>
                                     Search messages and jump straight into the right channel or conversation.
                                 </ThemedText>
+                                {fromPartial !== null &&
+                                authorCandidates.length > 0 && (
+                                    <MentionAutocomplete
+                                        users={authorCandidates}
+                                        roles={[]}
+                                        onSelect={handleAuthorSelect}
+                                    />
+                                )}
                                 <TextInput
                                     editable={signedIn}
                                     placeholder="Search messages, e.g. from:alex or has:image"
@@ -151,7 +210,7 @@ export default function SearchScreen() {
                                         {results.length} result{results.length === 1 ? "" : "s"}
                                     </ThemedText>
                                 ) : null}
-                            </ThemedView>
+                            </View>
                         </ThemedView>
                     </SafeAreaView>
                 }
@@ -163,11 +222,11 @@ export default function SearchScreen() {
                     ) : (
                         <SafeAreaView style={styles.safeArea}>
                             <ThemedView style={styles.shell}>
-                                <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
-                                    <ThemedText themeColor="mutedForeground">
-                                        Enter at least two characters to search.
-                                    </ThemedText>
-                                </ThemedView>
+                                <EmptyState
+                                    icon={<Search size={20} color={theme.mutedForeground} />}
+                                    title="Search messages"
+                                    description="Enter at least two characters to search across your servers and conversations."
+                                />
                             </ThemedView>
                         </SafeAreaView>
                     )
@@ -179,6 +238,8 @@ export default function SearchScreen() {
                 removeClippedSubviews
                 contentContainerStyle={styles.listContent}
                 style={{ backgroundColor: theme.background, flex: 1 }}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             />
         </AuthRouteGuard>
     );
@@ -197,9 +258,13 @@ function SearchResultCard({
     return (
         <Pressable
             onPress={onPress}
-            style={({ pressed }) => [styles.resultWrap, { opacity: pressed ? 0.88 : 1 }]}
+            style={({ pressed }) => [
+                styles.resultWrap,
+                { borderBottomColor: theme.border },
+                pressed && styles.resultPressed,
+            ]}
         >
-            <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+            <View>
                 <View style={styles.resultHeader}>
                     <ThemedText type="smallBold">
                         {message.userName ?? message.userId ?? "Unknown user"}
@@ -219,7 +284,7 @@ function SearchResultCard({
                         </ThemedText>
                     ) : null}
                 </View>
-            </ThemedView>
+            </View>
         </Pressable>
     );
 }
@@ -236,11 +301,9 @@ const styles = StyleSheet.create({
         maxWidth: MaxContentWidth,
         alignSelf: "center",
     },
-    card: {
-        borderRadius: 22,
-        borderWidth: 1,
-        padding: Spacing.three,
+    hero: {
         gap: Spacing.two,
+        paddingVertical: Spacing.three,
     },
     copy: {
         fontSize: 14,
@@ -263,9 +326,16 @@ const styles = StyleSheet.create({
         padding: Spacing.four,
         alignItems: "center",
     },
+    // A list of results reads as one surface divided into rows. A card per
+    // result put four borders on screen for every message and made a long
+    // list look like a stack of unrelated boxes.
     resultWrap: {
         paddingHorizontal: Spacing.three,
-        paddingBottom: Spacing.three,
+        paddingVertical: Spacing.three,
+        borderBottomWidth: StyleSheet.hairlineWidth,
+    },
+    resultPressed: {
+        opacity: 0.6,
     },
     resultHeader: {
         flexDirection: "row",

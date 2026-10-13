@@ -123,6 +123,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Some threads were stuck at "no replies" forever.** The reply count on a
+  thread's first message is only ever written when someone replies, and that
+  write gave up on the first failure instead of retrying — so one unlucky
+  conflict left the count at zero permanently, with nothing left to correct it.
+  Threads that had replies showed no "N replies" indicator at all until the
+  thread was opened once. The write now retries, and the channel message API
+  returns the thread fields on the list endpoint as well, so the indicator is
+  right the first time a channel loads.
 - **Toggling a reaction on a channel message failed.** The channel message API
   copied the raw `reactions` field instead of parsing it, so messages stored in
   the older JSON-string or emoji-keyed shapes came back with no reaction data
