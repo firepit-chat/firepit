@@ -1,13 +1,21 @@
 "use client";
 
 import { memo } from "react";
-import * as emoji from "node-emoji";
+import dynamic from "next/dynamic";
 import type { CustomEmoji } from "@/lib/types";
 
 type EmojiRendererProps = {
   text: string;
   customEmojis?: CustomEmoji[];
 };
+
+// Gate for the `:shortcode:` path. Must stay in sync with the pattern in
+// `emoji-shortcodes.tsx`, which only loads when this matches.
+const SHORTCODE_PATTERN = /:([a-zA-Z0-9_+-]+):/;
+
+const EmojiShortcodes = dynamic(
+  () => import("@/components/emoji-shortcodes").then((m) => m.EmojiShortcodes),
+);
 
 /**
  * Renders text with custom emoji and standard emoji support.
@@ -17,58 +25,15 @@ export const EmojiRenderer = memo(function EmojiRenderer({
   text,
   customEmojis = [],
 }: EmojiRendererProps) {
-  // Match emoji syntax :emoji-name:
-  const emojiPattern = /:([a-zA-Z0-9_+-]+):/g;
-  const parts: Array<string | React.JSX.Element> = [];
-  let lastIndex = 0;
-  let match;
-
-  while ((match = emojiPattern.exec(text)) !== null) {
-    const [fullMatch, emojiName] = match;
-    const matchIndex = match.index;
-
-    // Add text before the emoji
-    if (matchIndex > lastIndex) {
-      parts.push(text.slice(lastIndex, matchIndex));
-    }
-
-    // First, try to find matching custom emoji
-    const customEmoji = customEmojis.find((e) => e.name === emojiName);
-
-    if (customEmoji) {
-      // Render as custom emoji image
-      parts.push(
-        <img
-          key={`${customEmoji.fileId}-${matchIndex}`}
-          src={customEmoji.url}
-          alt={`:${emojiName}:`}
-          title={`:${emojiName}:`}
-          className="inline-block size-5 align-middle"
-          loading="lazy"
-          decoding="async"
-          crossOrigin="anonymous"
-        />
-      );
-    } else {
-      // Try to convert to standard emoji using node-emoji
-      const standardEmoji = emoji.get(emojiName);
-
-      if (standardEmoji && standardEmoji !== `:${emojiName}:`) {
-        // Found a standard emoji, render as Unicode character
-        parts.push(standardEmoji);
-      } else {
-        // Not found in either custom or standard, keep original text
-        parts.push(fullMatch);
-      }
-    }
-
-    lastIndex = matchIndex + fullMatch.length;
+  // Fast path: no `:shortcode:` in the text, so `node-emoji`'s ~29 KB gzip
+  // emojilib dataset is never loaded.
+  if (!SHORTCODE_PATTERN.test(text)) {
+    return <span>{text}</span>;
   }
 
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return <span>{parts}</span>;
+  return (
+    <span>
+      <EmojiShortcodes customEmojis={customEmojis} text={text} />
+    </span>
+  );
 });

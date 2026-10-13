@@ -581,7 +581,6 @@ export function NotificationSettings({
         quietHoursEnd,
         quietHoursTimezone,
         applySettingsResponse,
-        hydrateFormState,
     ]);
 
     const updateOverrideMap = useCallback(

@@ -132,6 +132,17 @@ export function getInitials(name: string): string {
     ).toUpperCase();
 }
 
+// Hoisted: `toLocaleDateString()`/`toLocaleTimeString()` build a fresh
+// `Intl.DateTimeFormat` on every call, and this runs once per visible message
+// per render. These options are exactly the documented defaults of the two
+// methods, so the output is unchanged.
+const messageDateFormatter = new Intl.DateTimeFormat();
+const messageTimeFormatter = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+});
+
 /**
  * Formats a message timestamp as "date time" using the user's locale settings.
  *
@@ -140,7 +151,7 @@ export function getInitials(name: string): string {
  */
 export function formatMessageTimestamp(dateString: string): string {
     const date = new Date(dateString);
-    const dateStr = date.toLocaleDateString();
-    const timeStr = date.toLocaleTimeString();
+    const dateStr = messageDateFormatter.format(date);
+    const timeStr = messageTimeFormatter.format(date);
     return `${dateStr} ${timeStr}`;
 }
