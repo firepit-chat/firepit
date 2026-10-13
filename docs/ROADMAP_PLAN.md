@@ -594,8 +594,12 @@ Infrastructure:
   `bearerAuth` path is documented alongside `sessionCookie`. The stale
   `apps/mobile/docs/openapi-doc.yml` is deleted; the web copy is the single
   source of truth.
-- **outstanding** — Generated client types do not exist yet. This is the last
-  item in the OpenAPI chain.
+- **met** — Generated client types exist. `bun run generate:api-types` runs
+  `openapi-typescript` over the spec into `src/lib/api/schema.ts` (7,645 lines,
+  zero runtime), and `bun run check:api-types` fails CI if the committed output
+  no longer matches the spec. `src/lib/api/typed.ts` holds ergonomic aliases
+  that are `paths` projections rather than restated shapes, so consumers get
+  readable names without reintroducing a hand-written copy.
 - **met** — All four federation schema decisions are settled and the two columns
   they need (`sequence`, `sender_instance` on `direct_messages`) are reserved
   and null. The other two need no column at all. `dmEncryptionEnabled` moved to
@@ -657,6 +661,18 @@ Worth stating plainly: this will not make the apps lighter. Measured against
 mobile's ~36,000 lines, a core package is under 5%, and types contribute
 nothing to a bundle. The value is that the two clients stop being able to
 silently disagree.
+
+**The hard part is already done, which shrinks this job a lot.** The spec is
+verified against the real routes by `check:openapi`, the generator runs clean
+over it, and `check:api-types` keeps the output in step. What remains for 2.3 is
+largely *relocating a generated artifact* into `packages/firepit-types` and
+pointing both apps at it — not designing an extraction.
+
+The reason mobile cannot simply import today's output is the one this package
+exists to solve: `apps/web/src/lib/api/schema.ts` is inside the web app, and
+reaching across app boundaries from mobile is exactly the coupling the package
+removes. Generating a second copy into mobile would duplicate 7,645 lines to
+solve a file-location problem, so it is deliberately not done.
 
 #### The split that must happen first: wire types vs view models
 

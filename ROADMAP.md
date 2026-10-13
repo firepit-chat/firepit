@@ -106,11 +106,12 @@ where noted
   and `normalizeChannelType` exists in four hand-copied versions that have
   already drifted. Pure deletion, and it is what makes 2.3's forum work safe.
 - Document every undocument API route, fix the incorrect
-  `ChannelPermissionOverride` schema, and fail CI when the spec drifts from the
-  routes. Done: the spec now covers all 144 in-scope operations, the
-  `bearerAuth` path is documented alongside `sessionCookie`, the stale mobile
-  copy is deleted, and `bun run check:openapi` gates CI. Still outstanding:
-  generating client types with `openapi-typescript`.
+  `ChannelPermissionOverride` schema, generate client types, and fail CI when
+  the spec drifts from the routes. Done: the spec covers all 144 in-scope
+  operations, the `bearerAuth` path is documented alongside `sessionCookie`, the
+  stale mobile copy is deleted, `bun run check:openapi` gates CI on spec-versus-
+  routes drift, and `bun run generate:api-types` plus `check:api-types` keep
+  generated client types in step with the spec.
 - Settle the four federation schema decisions listed in the plan document and
   reserve the columns, so 2.6 implements rather than decides. Done, and cheaper
   than scoped: the account ID doubles as the federation `username` (no column,
