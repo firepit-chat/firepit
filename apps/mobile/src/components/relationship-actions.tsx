@@ -4,6 +4,7 @@ import { ThemedText } from "@/components/themed-text";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useRelationship } from "@/hooks/use-relationship";
+import type { RelationshipStatus } from "@/lib/firepit/types";
 
 type RelationshipActionsProps = {
     targetUserId: string;
@@ -53,35 +54,41 @@ function ActionPill({ label, onPress, tone = "primary", disabled }: ActionButton
     );
 }
 
-function StatusBadge({ label, tone }: { label: string; tone: "neutral" | "success" | "warning" | "destructive" }) {
+type StatusTone = "neutral" | "success" | "warning" | "destructive";
+
+/**
+ * The single most relevant thing to say about a relationship.
+ *
+ * This used to render one pill per fact, so a blocked outgoing request could
+ * put "Friend", "Incoming request", "Blocked" and "Friends-only DMs" in a
+ * wrapped row of badges. A row of pills for one subject reads as clutter and
+ * undercuts the rest of the UI; one line of text reads as a status.
+ */
+function statusFor(relationship: RelationshipStatus): {
+    label: string;
+    tone: StatusTone;
+} | null {
+    if (relationship.blockedMe) return { label: "Blocked you", tone: "destructive" };
+    if (relationship.blockedByMe) return { label: "Blocked", tone: "destructive" };
+    if (relationship.incomingRequest) return { label: "Incoming request", tone: "warning" };
+    if (relationship.outgoingRequest) return { label: "Request sent", tone: "neutral" };
+    if (relationship.isFriend) return { label: "Friends", tone: "success" };
+    return null;
+}
+
+function StatusLine({ label, tone }: { label: string; tone: StatusTone }) {
     const theme = useTheme();
-    const colors = {
-        neutral: theme.muted,
+    const dot = {
+        neutral: theme.mutedForeground,
         success: theme.success,
         warning: theme.warning,
         destructive: theme.destructive,
-    };
-    const textColors = {
-        neutral: theme.mutedForeground,
-        success: theme.foreground,
-        warning: theme.foreground,
-        destructive: theme.destructiveForeground,
-    };
+    }[tone];
 
     return (
-        <View
-            style={{
-                backgroundColor: colors[tone],
-                paddingHorizontal: Spacing.two,
-                paddingVertical: Spacing.half,
-                borderRadius: 999,
-                alignSelf: "flex-start",
-            }}
-        >
-            <ThemedText
-                type="code"
-                style={{ color: textColors[tone], fontSize: 11 }}
-            >
+        <View style={styles.statusLine}>
+            <View style={[styles.statusDot, { backgroundColor: dot }]} />
+            <ThemedText type="code" themeColor="mutedForeground">
                 {label}
             </ThemedText>
         </View>
@@ -121,24 +128,25 @@ export function RelationshipActions({
     return (
         <View style={styles.container}>
             {relationship ? (
-                <View style={styles.badgeRow}>
-                    {relationship.isFriend ? (
-                        <StatusBadge label="Friend" tone="success" />
+                <View style={styles.statusGroup}>
+                    {statusFor(relationship) ? (
+                        <StatusLine
+                            {...(statusFor(relationship) as {
+                                label: string;
+                                tone: StatusTone;
+                            })}
+                        />
                     ) : null}
-                    {relationship.incomingRequest ? (
-                        <StatusBadge label="Incoming request" tone="warning" />
-                    ) : null}
-                    {relationship.outgoingRequest ? (
-                        <StatusBadge label="Request sent" tone="neutral" />
-                    ) : null}
-                    {relationship.blockedByMe ? (
-                        <StatusBadge label="Blocked" tone="destructive" />
-                    ) : null}
-                    {relationship.blockedMe ? (
-                        <StatusBadge label="Blocked you" tone="neutral" />
-                    ) : null}
-                    {relationship.directMessagePrivacy === "friends" && !relationship.isFriend ? (
-                        <StatusBadge label="Friends-only DMs" tone="neutral" />
+                    {/* A privacy setting, not a status, so it reads as a note
+                        rather than competing with the relationship state. */}
+                    {relationship.directMessagePrivacy === "friends" &&
+                    !relationship.isFriend ? (
+                        <ThemedText
+                            type="code"
+                            themeColor="mutedForeground"
+                        >
+                            Friends-only DMs
+                        </ThemedText>
                     ) : null}
                 </View>
             ) : null}
@@ -230,10 +238,18 @@ const styles = StyleSheet.create({
     container: {
         gap: Spacing.two,
     },
-    badgeRow: {
+    statusGroup: {
+        gap: Spacing.half,
+    },
+    statusLine: {
         flexDirection: "row",
-        flexWrap: "wrap",
+        alignItems: "center",
         gap: Spacing.one,
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     buttonRow: {
         flexDirection: "row",

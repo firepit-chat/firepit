@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -464,6 +466,10 @@ export default function ChannelManagementScreen() {
                     onPress={() => setShowCreate(false)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            style={{ width: "100%" }}
+                        >
                         <ThemedView
                             type="card"
                             style={[
@@ -566,6 +572,7 @@ export default function ChannelManagementScreen() {
                                 />
                             </View>
                         </ThemedView>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>
@@ -582,6 +589,10 @@ export default function ChannelManagementScreen() {
                     onPress={() => setShowEdit(false)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            style={{ width: "100%" }}
+                        >
                         <ThemedView
                             type="card"
                             style={[
@@ -684,6 +695,7 @@ export default function ChannelManagementScreen() {
                                 />
                             </View>
                         </ThemedView>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>
@@ -700,6 +712,10 @@ export default function ChannelManagementScreen() {
                     onPress={() => setDeletingChannel(null)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            style={{ width: "100%" }}
+                        >
                         <ThemedView
                             type="card"
                             style={[
@@ -734,6 +750,7 @@ export default function ChannelManagementScreen() {
                                 />
                             </View>
                         </ThemedView>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>

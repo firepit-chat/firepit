@@ -231,6 +231,17 @@ export async function resolveProfileUserId(identifier: string) {
             );
         }
 
+        // Display names can contain spaces, which is why search filters quote
+        // them (`from:"August Unit"`). Last resort so existing bare
+        // userId/userName lookups keep their original single-query path.
+        if (profiles.documents.length === 0) {
+            profiles = await databases.listDocuments(
+                env.databaseId,
+                env.collections.profiles,
+                [Query.equal("displayName", trimmedIdentifier), Query.limit(1)],
+            );
+        }
+
         const profile = profiles.documents[0] as unknown as
             | UserProfile
             | undefined;

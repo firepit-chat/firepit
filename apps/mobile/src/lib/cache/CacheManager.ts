@@ -141,8 +141,27 @@ class CacheManager {
   }
 
   // --- Storage tracking ---
+  /**
+   * Everything this app puts on disk as a cache, not just what it wrote itself.
+   *
+   * This used to report CACHE_DIR only, which covers the images, emoji and
+   * messages CacheManager downloads. It missed the far larger `expo-image`
+   * disk cache: `Image` defaults to `cachePolicy="disk"`, so every avatar,
+   * attachment and sticker rendered through it is written under
+   * FileSystem.cacheDirectory — never counted. On a device that reads as a
+   * small number here and a much larger one in the OS settings app.
+   *
+   * Measuring the whole cacheDirectory rather than a guessed `ImageCache/`
+   * subpath keeps this correct if expo-image changes its layout.
+   */
   async getCacheSize(): Promise<number> {
-    return await this.getDirSize(CACHE_DIR);
+    const ours = await this.getDirSize(CACHE_DIR);
+    // Deduplicated: on some platforms documentDirectory sits inside
+    // cacheDirectory, which would otherwise double-count our own files.
+    const root = FileSystem.cacheDirectory;
+    const nested = root && CACHE_DIR.startsWith(root) ? ours : 0;
+    const systemCache = root ? await this.getDirSize(root) : 0;
+    return ours + Math.max(0, systemCache - nested);
   }
 
   private async getDirSize(dir: string): Promise<number> {
@@ -181,6 +200,14 @@ class CacheManager {
   // --- Clear cache ---
   async clearCache(): Promise<void> {
     await FileSystem.deleteAsync(CACHE_DIR, { idempotent: true });
+    // expo-image's disk cache is the bulk of what this reports; leaving it
+    // behind would make "Clear cache" look like it did nothing.
+    if (FileSystem.cacheDirectory) {
+      const root = FileSystem.cacheDirectory;
+      if (!CACHE_DIR.startsWith(root)) {
+        await FileSystem.deleteAsync(root, { idempotent: true });
+      }
+    }
     const { clearMessageCache } = await import("./MessageCache");
     await clearMessageCache();
     const { clearThreadCache } = await import("./ThreadCache");

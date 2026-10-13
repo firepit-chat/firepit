@@ -8,6 +8,7 @@ import {
   isThemeAccent,
   isThemePalette,
 } from "@/constants/theme-palettes";
+import { withAlpha } from "@/constants/theme-alpha";
 
 const assert = (cond: boolean, msg: string) => {
   if (!cond) throw new Error(msg);
@@ -162,6 +163,32 @@ if (import.meta.main) {
   }
 
   console.log("theme contrast: all pairings clear 4.5:1");
+}
+
+// withAlpha replaces the hand-written `theme.x + "40"` tints, so its output
+// shape matters: a 6-digit token gains an alpha pair, an 8-digit one keeps its
+// colour channels.
+if (import.meta.main) {
+  assert(withAlpha("#A4C4FE", 1) === "#A4C4FEFF", "full alpha");
+  assert(withAlpha("#A4C4FE", 0) === "#A4C4FE00", "zero alpha");
+  assert(withAlpha("#A4C4FE", 0.12).length === 9, "8-digit output");
+  assert(
+    withAlpha("#A4C4FE", 0.12).startsWith("#A4C4FE"),
+    "colour channels unchanged",
+  );
+  // accentSoft is already 8-digit; only the alpha pair may change.
+  assert(
+    withAlpha("#A4C4FE33", 1) === "#A4C4FEFF",
+    "8-digit input keeps its channels",
+  );
+  assert(
+    withAlpha("#A4C4FEFF", 0.5) === "#A4C4FE80",
+    "re-alpha replaces the existing alpha",
+  );
+  assert(withAlpha("#A4C4FE", -1) === "#A4C4FE00", "clamps below zero");
+  assert(withAlpha("#A4C4FE", 5) === "#A4C4FEFF", "clamps above one");
+
+  console.log("theme alpha: all assertions passed");
 }
 
 // The pre-2.2 theme system followed the OS light/dark setting. Defaulting to a

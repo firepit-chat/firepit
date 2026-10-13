@@ -48,7 +48,10 @@ function getOtherIdFromDirectMessage(
 
 const MAX_ACCESSIBLE_CHANNELS = 100;
 
-const FROM_FILTER_REGEX = /from:@?([a-zA-Z0-9_-]+)/;
+// Quoted names carry spaces and punctuation (display names like
+// `from:"August Unit"`); unquoted keeps the original single-token form so
+// `from:@alice test` still treats "test" as free text.
+const FROM_FILTER_REGEX = /from:@?(?:"([^"]+)"|([a-zA-Z0-9_-]+))/;
 const IN_FILTER_REGEX = /in:#?([a-zA-Z0-9_-]+)/;
 const BEFORE_FILTER_REGEX = /before:(\d{4}-\d{2}-\d{2})/;
 const AFTER_FILTER_REGEX = /after:(\d{4}-\d{2}-\d{2})/;
@@ -166,7 +169,7 @@ function parseFilters(query: string) {
     // Extract from:@username or from:username
     const fromMatch = remainingText.match(FROM_FILTER_REGEX);
     if (fromMatch) {
-        filters.fromUser = fromMatch[1];
+        filters.fromUser = fromMatch[1] ?? fromMatch[2];
         remainingText = remainingText.replace(fromMatch[0], "").trim();
     }
 

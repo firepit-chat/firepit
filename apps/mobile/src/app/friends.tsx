@@ -14,7 +14,7 @@ import { Image } from "expo-image";
 import { ArrowLeft } from "lucide-react-native";
 
 import { ThemedText } from "@/components/themed-text";
-import { MaxContentWidth, Spacing } from "@/constants/theme";
+import { MaxContentWidth, Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useFriends } from "@/hooks/use-friends";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
@@ -421,13 +421,13 @@ export default function FriendsScreen() {
               </View>
             ) : null}
             {incoming.length > 0 ? (
-              <View style={[styles.statCard, { backgroundColor: theme.primary + "15" }]}>
+              <View style={[styles.statCard, { backgroundColor: withAlpha(theme.primary, 0.08) }]}>
                 <ThemedText type="code" themeColor="accent">{incoming.length}</ThemedText>
                 <ThemedText type="smallBold">Pending</ThemedText>
               </View>
             ) : null}
             {blocked.length > 0 ? (
-              <View style={[styles.statCard, { backgroundColor: theme.destructive + "15" }]}>
+              <View style={[styles.statCard, { backgroundColor: withAlpha(theme.destructive, 0.08) }]}>
                 <ThemedText type="code" themeColor="destructive">{blocked.length}</ThemedText>
                 <ThemedText type="smallBold">Blocked</ThemedText>
               </View>

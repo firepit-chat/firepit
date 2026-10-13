@@ -3,7 +3,9 @@ import { useState, useCallback, useEffect } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -144,7 +146,7 @@ export default function ModerationScreen() {
             <AuthRouteGuard>
                 <View style={[styles.root, { backgroundColor: theme.background }]}>
                     <View style={styles.centerShell}>
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedView style={styles.card}>
                             <ThemedText type="title">No server selected</ThemedText>
                             <ThemedText themeColor="mutedForeground" style={{ fontSize: 14, lineHeight: 20, marginTop: Spacing.one }}>
                                 Select a server from the admin dashboard to moderate its members.
@@ -214,20 +216,6 @@ export default function ModerationScreen() {
     return (
         <AuthRouteGuard>
             <View style={styles.root}>
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbTop,
-                        { backgroundColor: "rgba(217, 121, 43, 0.16)" },
-                    ]}
-                />
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbBottom,
-                        { backgroundColor: "rgba(78, 138, 134, 0.10)" },
-                    ]}
-                />
                 <ScrollView
                     style={[styles.scrollView, { backgroundColor: theme.background }]}
                     contentContainerStyle={styles.scrollContent}
@@ -235,7 +223,6 @@ export default function ModerationScreen() {
                     <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
                             style={[styles.heroCard, { borderColor: theme.border }]}
                         >
                             <ThemedText type="code" themeColor="accent">
@@ -264,7 +251,6 @@ export default function ModerationScreen() {
                         </ThemedView>
 
                         <ThemedView
-                            type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <View style={styles.sectionHeaderRow}>
@@ -307,8 +293,7 @@ export default function ModerationScreen() {
 
                         {loadState === "ready" && members.length === 0 ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText themeColor="mutedForeground">
                                     No members loaded.
@@ -340,8 +325,11 @@ export default function ModerationScreen() {
                     onPress={() => setShowAction(false)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            style={{ width: "100%" }}
+                        >
                         <ThemedView
-                            type="card"
                             style={[styles.modalCard, { borderColor: theme.border }]}
                         >
                             <ThemedText type="smallBold">
@@ -393,6 +381,7 @@ export default function ModerationScreen() {
                                 />
                             </View>
                         </ThemedView>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>
@@ -407,15 +396,11 @@ function MemberRow({
     member: MemberInfo;
     onAction: (member: MemberInfo, action: ModerationAction) => void;
 }) {
-    const theme = useTheme();
     const name = member.displayName ?? member.userName ?? member.userId;
     const initial = name.slice(0, 1).toUpperCase();
 
     return (
-        <ThemedView
-            type="card"
-            style={[styles.card, { borderColor: theme.border }]}
-        >
+        <ThemedView style={styles.card}>
             <View style={styles.memberHeader}>
                 <View style={styles.memberInfo}>
                     <View style={styles.avatarShell}>
@@ -489,22 +474,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         paddingHorizontal: Spacing.three,
     },
-    backdropOrbTop: {
-        position: "absolute",
-        width: 260,
-        height: 260,
-        borderRadius: 260,
-        top: -100,
-        left: -80,
-    },
-    backdropOrbBottom: {
-        position: "absolute",
-        width: 320,
-        height: 320,
-        borderRadius: 320,
-        right: -140,
-        bottom: 20,
-    },
     safeArea: {
         flex: 1,
         paddingHorizontal: Spacing.three,
@@ -521,7 +490,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -533,7 +501,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     sectionHeaderRow: {
         flexDirection: "row",

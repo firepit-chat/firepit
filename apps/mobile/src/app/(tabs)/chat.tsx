@@ -11,6 +11,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
+import { EmptyState } from "@/components/empty-state";
+import { ActionButton } from "@/components/action-button";
+import { Hash, Users } from "lucide-react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -477,9 +480,17 @@ export default function ChatTabScreen() {
               </View>
             )}
             {serverLoadState === "ready" && sortedServers.length === 0 && (
-              <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
-                You haven&apos;t joined any servers yet.
-              </ThemedText>
+              <EmptyState
+                icon={<Hash size={20} color={theme.mutedForeground} />}
+                title="No servers yet"
+                description="Join one from Explore, or create your own, and its channels will appear here."
+                action={
+                  <ActionButton
+                    label="Browse servers"
+                    onPress={() => router.push("/explore")}
+                  />
+                }
+              />
             )}
             {sortedServers.map((server) => {
               const isExpanded = expandedServerId === server.$id;
@@ -543,12 +554,11 @@ export default function ChatTabScreen() {
                         />
                       )}
                       {channelLoadState === "ready" && channels.length === 0 && (
-                        <ThemedText
-                          themeColor="mutedForeground"
-                          style={styles.emptyChannels}
-                        >
-                          No channels in this server.
-                        </ThemedText>
+                        <EmptyState
+                          icon={<Hash size={18} color={theme.mutedForeground} />}
+                          title="No channels"
+                          description="This server has no channels you can see yet."
+                        />
                       )}
                       {channelLoadState === "ready" && groupedChannels.map(({ category, channels: catChannels }) => (
                         <View key={category.$id} style={styles.categorySection}>
@@ -644,9 +654,11 @@ export default function ChatTabScreen() {
               </View>
             )}
             {dmLoadState === "ready" && sortedDms.length === 0 && (
-              <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
-                No direct messages yet.
-              </ThemedText>
+              <EmptyState
+                icon={<Users size={20} color={theme.mutedForeground} />}
+                title="No direct messages"
+                description="Start one from a friend's profile or by tapping someone in a channel."
+              />
             )}
             {sortedDms.map((dm) => {
               const unread = dm.unreadCount ?? 0;

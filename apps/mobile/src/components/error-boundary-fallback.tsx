@@ -92,6 +92,10 @@ const styles = StyleSheet.create({
   },
   emoji: {
     fontSize: 48,
+    // Android derives the line box from font metrics, which clipped the glyph
+    // top and bottom. An explicit lineHeight comfortably above the font size
+    // gives the emoji room; without one the warning sign was cut off.
+    lineHeight: 64,
     marginBottom: Spacing.three,
   },
   title: {

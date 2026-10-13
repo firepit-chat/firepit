@@ -1,5 +1,6 @@
 import {
   buildPollCommand,
+  findMentionSpans,
   getMentionAtCursor,
   parseMentions,
 } from "@/lib/mention-utils";
@@ -80,5 +81,69 @@ if (import.meta.main) {
     `unexpected command shape: ${valid.ok ? valid.command : valid.error}`,
   );
 
-  console.log("mention-utils.test.ts: all assertions passed");
+  // --- findMentionSpans: display-name matching ---
+{
+  const apostrophe = "@August's test account again";
+  const spans = findMentionSpans(apostrophe, ["August's test account"]);
+  assert(spans.length === 1, "one mention span");
+  assert(
+    spans[0].fullMatch === "@August's test account",
+    "span covers the whole display name, apostrophe included",
+  );
+  assert(
+    apostrophe.substring(spans[0].startIndex, spans[0].endIndex) ===
+      "@August's test account",
+    "slice matches the highlight",
+  );
+
+  // Longest name first, so "avery <3" is not shadowed by "avery".
+  const longest = findMentionSpans("hey @avery <3", ["avery", "avery <3"]);
+  assert(longest[0].fullMatch === "@avery <3", "longest name wins");
+
+  // The regex fallback still catches mentions we have no name for.
+  assert(
+    findMentionSpans("hi @someone", []).length === 1,
+    "regex fallback covers unknown mentions",
+  );
+  // ...and does not double-highlight one already matched by name.
+  const single = findMentionSpans("@alex hello", ["alex"]);
+  assert(single.length === 1, "no duplicate span for a named mention");
+
+  assert(findMentionSpans("nothing here", ["alex"]).length === 0, "no false positive");
+  assert(findMentionSpans("a@b.example", ["x"]).length === 0, "email is not a mention");
+}
+
+// A short name that is a prefix of a longer one must not steal the span:
+// "August" vs "August's test account".
+{
+  const overlapText = "@August's test account";
+  const overlap = findMentionSpans(overlapText, ["August"], [
+    "August's test account",
+  ]);
+  assert(overlap.length === 1, "one span despite overlapping names");
+  assert(
+    overlap[0].fullMatch === "@August's test account",
+    "longer display name wins over the prefix",
+  );
+  assert(
+    overlap[0].username === "August's test account",
+    "resolves to the intended account",
+  );
+
+  // The send path must notify the intended account, not the prefix match.
+  const payload = [
+    ...new Set(
+      findMentionSpans(overlapText, [], [
+        "August",
+        "August's test account",
+      ]).map((m) => m.username),
+    ),
+  ];
+  assert(
+    payload.length === 1 && payload[0] === "August's test account",
+    "mention payload targets the intended account",
+  );
+}
+
+console.log("mention-utils.test.ts: all assertions passed");
 }

@@ -102,6 +102,7 @@ export default function LoginScreen() {
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                 >
                     <ThemedView style={styles.shell}>
                         <ThemedView

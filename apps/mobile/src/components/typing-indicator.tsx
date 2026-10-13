@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useTheme } from "@/hooks/use-theme";
-import { Spacing } from "@/constants/theme";
+import { Spacing, withAlpha } from "@/constants/theme";
 
 function safeName(name: string): string {
   const trimmed = name.trim();
@@ -25,7 +25,7 @@ export function TypingIndicator({ names }: { names: string[] }) {
   }
 
   return (
-    <View style={[styles.row, { backgroundColor: theme.primary + "15", borderWidth: 1, borderColor: theme.primary + "30" }]}>
+    <View style={[styles.row, { backgroundColor: withAlpha(theme.primary, 0.08), borderWidth: 1, borderColor: withAlpha(theme.primary, 0.19) }]}>
       <View style={[styles.dot, { backgroundColor: theme.primary }]} />
       <Text style={[styles.text, { color: theme.foreground }]} numberOfLines={1}>
         {label}

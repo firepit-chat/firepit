@@ -24,13 +24,13 @@ type MentionableRole = {
   memberCount: number;
 };
 
-type MentionableUser = {
+export type MentionableUser = {
   userId: string;
   displayName?: string;
   type?: "user";
 };
 
-type MentionableItem =
+export type MentionableItem =
   | { readonly type: "all" }
   | MentionableRole
   | MentionableUser;

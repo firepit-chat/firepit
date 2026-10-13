@@ -3,7 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -485,6 +487,10 @@ export default function RolesManagementScreen() {
                     onPress={() => setDeletingRole(null)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
+                        <KeyboardAvoidingView
+                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            style={{ width: "100%" }}
+                        >
                         <Pressable onPress={() => undefined}>
                             <ThemedView
                                 type="card"
@@ -524,6 +530,7 @@ export default function RolesManagementScreen() {
                                 </View>
                             </ThemedView>
                         </Pressable>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>
@@ -644,6 +651,10 @@ function RoleEditorModal({
         >
             <Pressable style={styles.modalBackdrop} onPress={onClose}>
                 <View pointerEvents="box-none" style={styles.modalAnchor}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === "ios" ? "padding" : undefined}
+                        style={{ width: "100%" }}
+                    >
                     <ScrollView
                         style={styles.modalScroll}
                         contentContainerStyle={styles.modalScrollContent}
@@ -761,6 +772,7 @@ function RoleEditorModal({
                             </View>
                         </ThemedView>
                     </ScrollView>
+                    </KeyboardAvoidingView>
                 </View>
             </Pressable>
         </Modal>

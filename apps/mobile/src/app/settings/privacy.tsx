@@ -13,7 +13,7 @@ import { Image } from "expo-image";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxContentWidth, Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
@@ -46,7 +46,7 @@ function BlockedRow({
                         contentFit="cover"
                     />
                 ) : (
-                    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.mutedForeground + "33" }]}>
+                    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: withAlpha(theme.mutedForeground, 0.2) }]}>
                         <ThemedText type="smallBold" style={{ fontSize: 14 }}>
                             {initials}
                         </ThemedText>
@@ -119,7 +119,7 @@ export default function PrivacySettingsScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.shell}>
-                        <View style={styles.header}>
+                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={() => router.back()}
@@ -256,6 +256,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingVertical: Spacing.two,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     headerButton: {
         paddingVertical: Spacing.one,

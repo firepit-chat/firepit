@@ -5,6 +5,12 @@ type ProfileData = {
   avatarUrl?: string;
   userName?: string;
   status?: string;
+  /** Frame fields were missing here, so the batch endpoint's frame data was
+   *  discarded on arrival and no frame could ever render in the chat list. */
+  avatarFramePreset?: string;
+  avatarFrameUrl?: string;
+  /** 0 signals an overlay frame (artwork crosses the centre). */
+  avatarFrameInsetPercent?: number;
 };
 
 type CachedProfile = ProfileData & {
@@ -60,6 +66,9 @@ export async function getProfilesBatch(
         avatarUrl: cached.avatarUrl,
         userName: cached.userName,
         status: cached.status,
+        avatarFramePreset: cached.avatarFramePreset,
+        avatarFrameUrl: cached.avatarFrameUrl,
+        avatarFrameInsetPercent: cached.avatarFrameInsetPercent,
       };
     } else {
       uncached.push(id);

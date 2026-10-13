@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { NoticeLine } from "@/components/notice-line";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { AuthRouteGuard } from "@/components/auth-route-guard";
@@ -77,7 +78,6 @@ export default function SessionScreen() {
         authenticate,
         signOut,
         resetConnection,
-        version,
         accessToken,
     } = useFirepitBootstrap();
     const theme = useTheme();
@@ -92,18 +92,24 @@ export default function SessionScreen() {
 
     const signedIn = Boolean(currentUser && accessToken && state === "ready");
 
-    const shellStatus = useMemo(() => {
-        if (state === "ready") {
-            return "connected";
-        }
+    // Only a real problem gets a line of text. "connected" and "signed in"
+    // were the default state of any working session, so the pills sat there
+    // saying nothing while looking like a status board.
+    const problem = useMemo((): { text: string; tone: "warning" | "danger" } | null => {
         if (state === "needs-auth") {
-            return "needs login";
+            return { text: "Sign in to browse servers.", tone: "warning" };
         }
         if (state === "incompatible") {
-            return "blocked";
+            return {
+                text: "This app version is not supported by your instance.",
+                tone: "danger",
+            };
         }
-        return state;
-    }, [state]);
+        if (!instanceUrl) {
+            return { text: "No instance connected.", tone: "warning" };
+        }
+        return null;
+    }, [instanceUrl, state]);
 
     const joinedServerIds = useMemo(() => {
         const nextJoinedServerIds = new Set<string>();
@@ -168,6 +174,8 @@ export default function SessionScreen() {
                     { backgroundColor: theme.background },
                 ]}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             >
                 <View
                     style={[
@@ -199,28 +207,9 @@ export default function SessionScreen() {
                             <ThemedText type="subtitle">
                                 Open an instance, then pick a server.
                             </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill
-                                    label={shellStatus}
-                                    tone={
-                                        state === "ready"
-                                            ? "success"
-                                            : state === "incompatible"
-                                              ? "danger"
-                                              : "warning"
-                                    }
-                                />
-                                <StatusPill
-                                    label={
-                                        signedIn ? "signed in" : "signed out"
-                                    }
-                                    tone={signedIn ? "success" : "warning"}
-                                />
-                                <StatusPill
-                                    label={version?.version ?? "no version"}
-                                    tone="neutral"
-                                />
-                            </View>
+                            {problem ? (
+                                <NoticeLine tone={problem.tone}>{problem.text}</NoticeLine>
+                            ) : null}
                         </View>
 
                         {/* Compact sign-in section */}
@@ -459,8 +448,6 @@ function ServerCard({
     onJoin?: () => void;
     joinLabel?: string;
 }) {
-    const theme = useTheme();
-
     return (
         <View style={styles.serverCard}>
             <View style={styles.serverCardHeader}>

@@ -7,7 +7,7 @@ import {
     Spoiler as SpoilerBlock,
     registerSpoilerRule,
 } from "@firepit-chat/markdown-spoiler/react-native";
-import { parseMentions } from "@/lib/mention-utils";
+import { findMentionSpans } from "@/lib/mention-utils";
 import {
   EmojiRenderer,
   NO_CUSTOM_EMOJIS,
@@ -18,6 +18,11 @@ import { useTheme } from "@/hooks/use-theme";
 type MessageWithMentionsProps = {
     text: string;
     customEmojis?: readonly CustomEmoji[];
+    /** Display names stored on the message. Lets a mention cover the whole
+     *  name, including spaces and apostrophes. */
+    mentions?: readonly string[];
+    /** Display names visible in the chat. */
+    knownNames?: readonly string[];
 };
 
 const MARKDOWN_PATTERN =
@@ -53,6 +58,8 @@ type InlineRule = {
 export function MessageWithMentions({
     text,
     customEmojis = NO_CUSTOM_EMOJIS,
+    mentions = [],
+    knownNames,
 }: MessageWithMentionsProps) {
     const colors = useTheme();
 
@@ -62,7 +69,7 @@ export function MessageWithMentions({
             txt: string,
             keyBase: string,
         ): React.ReactNode[] => {
-            const mentionMatches = parseMentions(txt);
+            const mentionMatches = findMentionSpans(txt, mentions, knownNames);
             if (mentionMatches.length === 0) {
                 return [
                     <EmojiRenderer
@@ -306,7 +313,7 @@ export function MessageWithMentions({
         // Split mentions and render tokens
         const parts: { text: string; isMention?: boolean; offset: number }[] =
             [];
-        const matches = parseMentions(text);
+        const matches = findMentionSpans(text, mentions, knownNames);
         if (matches.length === 0) {
             return (
                 <View>
@@ -357,7 +364,7 @@ export function MessageWithMentions({
                 )}
             </Text>
         );
-    }, [text, customEmojis, colors]);
+    }, [text, customEmojis, colors, mentions, knownNames]);
 }
 
 export default MessageWithMentions;

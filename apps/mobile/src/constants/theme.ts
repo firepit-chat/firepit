@@ -7,6 +7,8 @@
 
 import { Platform } from "react-native";
 
+export { withAlpha } from "@/constants/theme-alpha";
+
 export * from "@/constants/theme-palettes";
 
 export const Fonts = Platform.select({

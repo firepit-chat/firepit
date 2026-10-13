@@ -154,7 +154,6 @@ export default function InstanceReportsScreen() {
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
                             style={[styles.heroCard, { borderColor: theme.border }]}
                         >
                             <ThemedText type="code" themeColor="accent">
@@ -204,8 +203,7 @@ export default function InstanceReportsScreen() {
 
                         {loadError ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText themeColor="destructive">
                                     {loadError}
@@ -238,8 +236,7 @@ export default function InstanceReportsScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
-                                    style={[
+                                            style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -265,6 +262,8 @@ export default function InstanceReportsScreen() {
                             ) : null
                         }
                         renderItem={renderReport}
+                        keyboardShouldPersistTaps="handled"
+                        automaticallyAdjustKeyboardInsets
                     />
                 </SafeAreaView>
             </View>
@@ -288,11 +287,8 @@ function ReportCard({
     const [resolutionNotes, setResolutionNotes] = useState("");
 
     return (
-        <View style={styles.entryWrap}>
-            <ThemedView
-                type="card"
-                style={[styles.entryCard, { borderColor: theme.border }]}
-            >
+        <View style={[styles.entryWrap, { borderBottomColor: theme.border }]}>
+            <View style={styles.entryCard}>
                 <View style={styles.entryHeader}>
                     <StatusPill
                         label={entry.status ?? "unknown"}
@@ -404,7 +400,7 @@ function ReportCard({
                         </View>
                     </View>
                 ) : null}
-            </ThemedView>
+            </View>
         </View>
     );
 }
@@ -426,7 +422,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -438,7 +433,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     emptyCard: {
         marginTop: Spacing.three,
@@ -469,12 +463,12 @@ const styles = StyleSheet.create({
         maxWidth: MaxContentWidth,
         alignSelf: "center",
         width: "100%",
+        paddingHorizontal: Spacing.three,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     entryCard: {
-        borderRadius: 18,
-        padding: Spacing.three,
+        paddingVertical: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",
@@ -497,7 +491,6 @@ const styles = StyleSheet.create({
     },
     notesInput: {
         borderRadius: 12,
-        borderWidth: 1,
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.two,
         fontSize: 14,

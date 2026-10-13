@@ -149,8 +149,7 @@ export default function SignupControlsScreen() {
                             </View>
 
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText type="smallBold">Signup policy</ThemedText>
                                 <ThemedText themeColor="mutedForeground" style={styles.copy}>
@@ -168,9 +167,19 @@ export default function SignupControlsScreen() {
                                                 style={({ pressed }) => [
                                                     styles.policyOption,
                                                     {
+                                                        // These rows lost their
+                                                        // card, so the press is
+                                                        // signalled with a border
+                                                        // as well as opacity —
+                                                        // opacity alone is too
+                                                        // faint to read as
+                                                        // "this is tappable".
                                                         borderColor: selected
                                                             ? theme.primary
-                                                            : theme.border,
+                                                            : pressed
+                                                              ? theme.mutedForeground
+                                                              : theme.border,
+                                                        borderWidth: selected || pressed ? 2 : 1,
                                                         backgroundColor: selected
                                                             ? theme.secondary
                                                             : theme.card,
@@ -191,8 +200,7 @@ export default function SignupControlsScreen() {
                             </ThemedView>
 
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ThemedText type="smallBold">
                                     Pending approvals
@@ -317,7 +325,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     policyRow: {
         flexDirection: "row",

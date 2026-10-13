@@ -1,6 +1,8 @@
 import { useState } from "react";
 import {
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     StyleSheet,
     TextInput,
@@ -86,7 +88,10 @@ export function ReportUserModal({
             animationType="slide"
             onRequestClose={handleClose}
         >
-        <View style={styles.overlay}>
+        <KeyboardAvoidingView
+            style={styles.overlay}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
             <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close report dialog"
@@ -240,7 +245,7 @@ export function ReportUserModal({
                             </>
                         )}
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

@@ -32,7 +32,7 @@ import {
     updateChannelMessage,
 } from "@/lib/firepit";
 import { uploadFile, uploadImage } from "@/lib/firepit/uploads";
-import { parseMentions, buildPollCommand } from "@/lib/mention-utils";
+import { findMentionSpans, buildPollCommand } from "@/lib/mention-utils";
 import { toggleReaction } from "@/lib/reactions-client";
 import { cacheMessages, getCachedMessages } from "@/lib/cache/MessageCache";
 import {
@@ -79,6 +79,27 @@ const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
 const keyExtractor = (item: DayRow<Message>, index: number) =>
     item.kind === "divider" ? item.id : (item.item.$id ?? `message-${index}`);
 
+/**
+ * Realtime payloads carry the same document shape as the list endpoint, except
+ * `reactions` may arrive as a JSON string.
+ */
+function normalizeRealtimeMessage(
+    payload: Record<string, unknown>,
+): Message {
+    const raw = payload.reactions;
+    let reactions: Message["reactions"];
+    if (typeof raw === "string") {
+        try {
+            reactions = JSON.parse(raw) as Message["reactions"];
+        } catch {
+            reactions = undefined;
+        }
+    } else if (Array.isArray(raw)) {
+        reactions = raw as Message["reactions"];
+    }
+    return { ...(payload as Message), reactions };
+}
+
 export default function ServerMessageScreen() {
     const theme = useTheme();
     const { serverId, channelId } = useLocalSearchParams<{
@@ -117,6 +138,12 @@ export default function ServerMessageScreen() {
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
+  // Stable identity: ChatBubbleMessage is memoized and compares this prop, so a
+  // fresh arrow on every render would defeat the memo on every row.
+  const openImageViewer = useCallback(
+    (url: string) => setViewerImageUrl(url),
+    [],
+  );
     const [composerAttachments, setComposerAttachments] =
         useState<ComposerAttachmentState>({ image: null, files: [] });
     const [profileSheetUser, setProfileSheetUser] = useState<{
@@ -181,6 +208,11 @@ export default function ServerMessageScreen() {
         Boolean(channelPermissions?.manageRoles);
     const listRef = useRef<FlatList>(null);
     const markChannelReadRef = useRef<() => Promise<void>>(undefined);
+    // Newest timestamp already PUT to the server. Opening a thread panel
+    // unmounts the list, so closing it remounts and recalculates viewability
+    // several times as cells measure — without this the server took the same
+    // PUT ten times in a row for one visit.
+    const lastReadSentRef = useRef<string | null>(null);
 
     const loadServer = useCallback(async () => {
         if (!instanceUrl || !accessToken || !normalizedServerId) return;
@@ -289,6 +321,17 @@ export default function ServerMessageScreen() {
                                 if (profileMap[senderId].avatarUrl) {
                                     msg.authorAvatarUrl =
                                         profileMap[senderId].avatarUrl;
+                                }
+                                if (profileMap[senderId].avatarFrameUrl) {
+                                    msg.avatarFrameUrl =
+                                        profileMap[senderId].avatarFrameUrl;
+                                }
+                                if (
+                                    typeof profileMap[senderId]
+                                        .avatarFrameInsetPercent === "number"
+                                ) {
+                                    msg.avatarFrameInsetPercent =
+                                        profileMap[senderId].avatarFrameInsetPercent;
                                 }
                             }
                         }
@@ -425,6 +468,17 @@ export default function ServerMessageScreen() {
         normalizedServerId,
     ]);
 
+    // The strict mention regex only ever matched `[a-zA-Z0-9_]+`, so a stored
+    // `mentions` value for "@August's test account" is just "August". Matching
+    // against the display names we can actually see keeps the highlight (and the
+    // mention we notify with) on the intended account.
+    const knownDisplayNames = useMemo(() => {
+        const names = messages
+            .map((m) => m.displayName ?? m.userName)
+            .filter((n): n is string => Boolean(n));
+        return [...new Set(names)];
+    }, [messages]);
+
     const sendMessage = useCallback(async () => {
         if (
             !instanceUrl ||
@@ -472,9 +526,42 @@ export default function ServerMessageScreen() {
             return;
         }
 
-        const mentions = parseMentions(text)
-            .map((m) => m.username)
-            .filter((u, i, l) => l.indexOf(u) === i);
+        const mentions = [
+            ...new Set(
+                findMentionSpans(text, [], knownDisplayNames).map(
+                    (m) => m.username,
+                ),
+            ),
+        ];
+
+        // Show the message immediately instead of waiting on uploads + create +
+        // the full reload below. `local` marks it as unconfirmed so a failure
+        // can drop it and the realtime/refresh merge can replace it.
+        const optimisticId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const optimistic: Message = {
+            $id: optimisticId,
+            userId: currentUserId ?? undefined,
+            userName: currentUser?.name,
+            text: text || undefined,
+            channelId: selectedChannel.$id,
+            serverId: normalizedServerId,
+            mentions,
+            imageUrl: ca.image?.uri ?? null,
+            attachments: ca.files.map((f) => ({
+                fileName: f.name,
+                fileSize: f.size ?? undefined,
+                fileType: f.mimeType ?? undefined,
+                fileUrl: f.remoteAttachment?.fileUrl ?? f.uri,
+            })),
+            replyToId: replyingTo?.$id ?? null,
+            $createdAt: new Date().toISOString(),
+            local: true,
+        };
+        setMessages((prev) =>
+            prev.some((m) => m.$id === optimisticId)
+                ? prev
+                : [optimistic, ...prev],
+        );
 
         setMessageSendState("loading");
         setMessageError(null);
@@ -494,7 +581,8 @@ export default function ServerMessageScreen() {
                     ),
                 ),
             ]);
-            await createChannelMessage(instanceUrl, accessToken, {
+            const { message: createdMessage } =
+                await createChannelMessage(instanceUrl, accessToken, {
                 channelId: selectedChannel.$id,
                 serverId: normalizedServerId,
                 text: text || undefined,
@@ -504,13 +592,25 @@ export default function ServerMessageScreen() {
                 attachments: [...(fileUploads ?? []), ...remoteAttachments],
                 replyToId: replyingTo?.$id,
             });
-            if (cancelledRef.current) return;
             setMessageDraft("");
             setReplyingTo(null);
             setComposerAttachments({ image: null, files: [] });
             setMessageSendState("ready");
+            // Swap the placeholder for the authoritative row so attachments and
+            // mention ids are correct, then let the reload reconcile the rest.
+            setMessages((prev) =>
+                prev.map((m) =>
+                    m.$id === optimisticId && createdMessage
+                        ? { ...createdMessage, local: undefined }
+                        : m,
+                ),
+            );
+            if (cancelledRef.current) return;
             await loadMessages(selectedChannel.$id);
         } catch (error) {
+            setMessages((prev) =>
+                prev.filter((m) => m.$id !== optimisticId),
+            );
             setMessageSendState("error");
             setMessageError(
                 error instanceof Error
@@ -520,8 +620,11 @@ export default function ServerMessageScreen() {
         }
     }, [
         accessToken,
+        currentUser?.name,
+        currentUserId,
         editingMessage,
         instanceUrl,
+        knownDisplayNames,
         loadMessages,
         messageDraft,
         messageSendState,
@@ -584,20 +687,49 @@ export default function ServerMessageScreen() {
     }, []);
 
     // Realtime message subscription
-    const lastRealtimeReloadRef = useRef(0);
     useRealtimeMessages({
         instance,
         accessToken,
         collectionId: "messages",
         filterField: "channelId",
         filterValue: normalizedChannelId,
-        onMessageEvent: () => {
+        onMessageEvent: (payload) => {
             if (!normalizedChannelId) return;
-            // ponytail: coalesce bursts (reaction/typing events) so a full reload isn't fired per event
-            const now = Date.now();
-            if (now - lastRealtimeReloadRef.current < 1500) return;
-            lastRealtimeReloadRef.current = now;
-            void loadMessages(normalizedChannelId);
+            const incoming = normalizeRealtimeMessage(payload);
+            const id = incoming.$id;
+            if (!id) return;
+            // Thread replies are not rendered in this list. The parent's own
+            // update event carries the new count, and it has no threadId, so it
+            // falls through to the merge below — bumping the count here instead
+            // raced that merge and made the counter flap.
+            if (incoming.threadId) return;
+
+            setMessages((prev) => {
+                const existing = prev.findIndex((m) => m.$id === id);
+                const next = prev.slice();
+                if (existing !== -1) {
+                    // Merge rather than replace so the enrichment added at load
+                    // time (avatar, sender name) survives.
+                    next[existing] = { ...next[existing], ...incoming };
+                    return next;
+                }
+                const isNewMessage = Boolean(
+                    incoming.text || incoming.imageUrl || incoming.attachments?.length,
+                );
+                // A reaction/edit on a message outside the loaded window. There
+                // is nothing to patch, and refetching the list for it is what
+                // burned through the instance rate limit.
+                if (!isNewMessage) return prev;
+
+                next.unshift({
+                    ...incoming,
+                    authorAvatarUrl: getAvatarUrl(
+                        getMessageAvatarFileId(incoming),
+                        extractAppwriteConfig(instance ?? {}),
+                    ),
+                });
+                return next;
+            });
         },
     });
 
@@ -646,6 +778,8 @@ export default function ServerMessageScreen() {
         if (!normalizedChannelId || !messages.length) return;
         const newest = messages[0]?.$createdAt;
         if (!newest) return;
+        if (newest === lastReadSentRef.current) return;
+        lastReadSentRef.current = newest;
         await setLastReadAt(normalizedChannelId, newest);
         setLastReadAtState(newest);
         setUnreadCount(0);
@@ -662,7 +796,8 @@ export default function ServerMessageScreen() {
                     newest,
                 );
             } catch {
-                // ignore
+                // Let the next viewability pass retry this one.
+                lastReadSentRef.current = null;
             }
         }
     }, [
@@ -812,6 +947,11 @@ export default function ServerMessageScreen() {
                             ? message.avatarFrameUrl
                             : undefined
                     }
+                    authorAvatarFrameInsetPercent={
+                        typeof message.avatarFrameInsetPercent === "number"
+                            ? message.avatarFrameInsetPercent
+                            : undefined
+                    }
                     authorPronouns={
                         typeof message.pronouns === "string"
                             ? message.pronouns
@@ -844,6 +984,7 @@ export default function ServerMessageScreen() {
                     reactions={reactions}
                     attachments={message.attachments}
                     mentions={message.mentions}
+                    knownNames={knownDisplayNames}
                     poll={message.poll ?? null}
                     customEmojis={mappedEmojis}
                     onToggleReaction={async (
@@ -851,18 +992,11 @@ export default function ServerMessageScreen() {
                         isAdding: boolean,
                     ) => {
                         if (!instanceUrl || !accessToken) return;
-                        try {
-                            const msgId = message.$id;
-                            if (!msgId) return;
-                            await toggleReaction(
-                                String(msgId),
-                                emoji,
-                                isAdding,
-                                false,
-                                instanceUrl,
-                                accessToken,
-                            );
-                            setMessages((prev) =>
+                        const msgId = message.$id;
+                        if (!msgId) return;
+                        // Apply locally first. Waiting on the round-trip made
+                        // reactions feel several seconds behind the tap.
+                        setMessages((prev) =>
                                 prev.map((m) => {
                                     if (
                                         m.$id !== msgId ||
@@ -922,8 +1056,25 @@ export default function ServerMessageScreen() {
                                         .filter((r) => r.count > 0);
                                     return { ...m, reactions: updated };
                                 }),
+                            )
+                        try {
+                            await toggleReaction(
+                                String(msgId),
+                                emoji,
+                                isAdding,
+                                false,
+                                instanceUrl,
+                                accessToken,
                             );
                         } catch {
+                            // Roll back to the server truth.
+                            setMessages((prev) =>
+                                prev.map((m) =>
+                                    m.$id === msgId
+                                        ? { ...m, reactions: message.reactions }
+                                        : m,
+                                ),
+                            );
                             setMessageError("Unable to update reaction");
                         }
                     }}
@@ -955,7 +1106,7 @@ export default function ServerMessageScreen() {
                             setMessageError("Unable to update pin");
                         }
                     }}
-                    onOpenImageViewer={(url) => setViewerImageUrl(url)}
+                    onOpenImageViewer={openImageViewer}
                     onShowEmojiPicker={() => {
                         setEmojiPickerMsgId(message.$id ?? null);
                         setEmojiPickerVisible(true);
@@ -1010,13 +1161,14 @@ export default function ServerMessageScreen() {
         },
         [
             currentUserId,
+            knownDisplayNames,
             mappedEmojis,
             messagesById,
+            openImageViewer,
             instanceUrl,
             accessToken,
             channelPermissions,
             setMessages,
-            setViewerImageUrl,
             setEmojiPickerMsgId,
             setEmojiPickerVisible,
             setReplyingTo,
@@ -1221,9 +1373,39 @@ export default function ServerMessageScreen() {
                                         instanceUrl={instanceUrl}
                                         accessToken={accessToken}
                                         customEmojis={mappedEmojis}
+                                        contextId={normalizedChannelId}
+                                        currentUserId={currentUserId ?? null}
+                                        onOpenImageViewer={openImageViewer}
                                         onClose={() =>
                                             setActiveThreadMessageId(null)
                                         }
+                                        onReplyCountChange={(count) => {
+                                            const parentId =
+                                                activeThreadMessageId;
+                                            if (!parentId) return;
+                                            setMessages((prev) => {
+                                                const parent = prev.find(
+                                                    (m) =>
+                                                        m.$id === parentId,
+                                                );
+                                                if (
+                                                    !parent ||
+                                                    parent.threadMessageCount ===
+                                                        count
+                                                ) {
+                                                    return prev;
+                                                }
+                                                return prev.map((m) =>
+                                                    m.$id === parentId
+                                                        ? {
+                                                              ...m,
+                                                              threadMessageCount:
+                                                                  count,
+                                                          }
+                                                        : m,
+                                                );
+                                            });
+                                        }}
                                         type="channel"
                                     />
                                 ) : (

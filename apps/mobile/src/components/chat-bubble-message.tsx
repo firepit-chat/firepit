@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
+import { MessageSquare } from "lucide-react-native";
 
 import { truncatePlainText } from "@firepit-chat/markdown-spoiler/react-native";
 
@@ -8,7 +9,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { ActionButton } from "@/components/action-button";
 import MessageWithMentions from "@/components/message-with-mentions";
 import { ReactionButton } from "@/components/reaction-button";
-import { Spacing } from "@/constants/theme";
+import { Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { MessagePoll, type PollData } from "@/components/message-poll";
 import {
@@ -38,6 +39,9 @@ export type ChatBubbleMessageProps = {
     authorAvatarUrl?: string | null;
     authorAvatarFramePreset?: string;
     authorAvatarFrameUrl?: string;
+    /** Each frame is drawn for its own inset; without it every frame used the
+     *  same 12% default and looked misaligned inside its ring. */
+    authorAvatarFrameInsetPercent?: number;
     authorPronouns?: string;
     text: string;
     createdAt?: string;
@@ -52,6 +56,9 @@ export type ChatBubbleMessageProps = {
     attachments?: FileAttachment[];
     threadReplyCount?: number | null;
     mentions?: string[];
+    /** Display names of everyone visible in the chat, so a mention that
+     *  contains spaces or punctuation highlights in full. */
+    knownNames?: readonly string[];
     customEmojis?: readonly CustomEmoji[];
     customEmojiUrls?: Record<string, string>;
     poll?: PollData | null;
@@ -105,6 +112,7 @@ function ChatBubbleMessageInner({
     authorName,
     authorAvatarUrl,
     authorAvatarFrameUrl,
+    authorAvatarFrameInsetPercent,
     authorPronouns,
     text,
     createdAt,
@@ -118,6 +126,8 @@ function ChatBubbleMessageInner({
     reactions,
     attachments,
     threadReplyCount,
+    mentions,
+    knownNames,
     customEmojis = NO_CUSTOM_EMOJIS,
     customEmojiUrls: propCustomEmojiUrls,
     poll,
@@ -158,7 +168,15 @@ function ChatBubbleMessageInner({
         [onOpenThread],
     );
     const handleOpenImageViewer = useCallback(
-        (url: string) => onOpenImageViewer?.(url),
+        (url: string) => {
+            if (onOpenImageViewer) {
+                onOpenImageViewer(url);
+                return;
+            }
+            // No host viewer wired up (thread panels used to hit this). Open it
+            // externally rather than swallowing the tap.
+            Linking.openURL(url).catch(() => {});
+        },
         [onOpenImageViewer],
     );
     const handleOpenProfile = useCallback(
@@ -179,6 +197,30 @@ function ChatBubbleMessageInner({
     const gap = compact ? Spacing.half : Spacing.one;
     const pad = compact ? Spacing.one : Spacing.two;
     const metaSize = compact ? 11 : 12;
+
+    // One place for the metadata style. Every meta chip (pronouns, time,
+    // edited, pin, removal notice) used to repeat the same fontSize/colour
+    // pair inline, so tuning the metadata line meant editing five sites.
+    const metaStyle = useMemo(
+        () => ({
+            fontSize: metaSize - 1,
+            color: theme.mutedForeground,
+        }),
+        [metaSize, theme.mutedForeground],
+    );
+
+    // Tinted surfaces instead of hairline outlines. The border on every bubble
+    // was drawing a box around each message; a fill separates just as well and
+    // keeps the transcript calm when a run of messages arrives.
+    const bubbleSurface = useMemo(
+        () =>
+            removed
+                ? { backgroundColor: withAlpha(theme.muted, 0.33) }
+                : isMine
+                  ? { backgroundColor: withAlpha(theme.primary, 0.12) }
+                  : { backgroundColor: theme.backgroundElement },
+        [isMine, removed, theme.backgroundElement, theme.muted, theme.primary],
+    );
 
     const customEmojiUrlMap = useMemo(() => {
         if (propCustomEmojiUrls) return propCustomEmojiUrls;
@@ -205,28 +247,34 @@ function ChatBubbleMessageInner({
 
     return (
         <View style={[styles.row, isMine ? styles.rowMine : styles.rowOther]}>
-            {/* Avatar */}
-            {!isMine && (
-                <View style={styles.avatarCol}>
-                    {onOpenProfile ? (
-                        <Pressable onPress={handleOpenProfile}>
-                            <Avatar
-                                uri={authorAvatarUrl ?? undefined}
-                                size={28}
-                                initials={displayName}
-                                frameUrl={authorAvatarFrameUrl}
-                            />
-                        </Pressable>
-                    ) : (
+            {/* Avatar — shown for every message, yours included, matching the
+                web list. Own messages stay right-aligned (rowMine flips the
+                row), so the avatar simply sits on the opposite side. */}
+            <View style={styles.avatarCol}>
+                {onOpenProfile ? (
+                    <Pressable
+                        onPress={handleOpenProfile}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View ${displayName}'s profile`}
+                    >
                         <Avatar
                             uri={authorAvatarUrl ?? undefined}
                             size={28}
                             initials={displayName}
                             frameUrl={authorAvatarFrameUrl}
+                            frameInset={authorAvatarFrameInsetPercent}
                         />
-                    )}
-                </View>
-            )}
+                    </Pressable>
+                ) : (
+                    <Avatar
+                        uri={authorAvatarUrl ?? undefined}
+                        size={28}
+                        initials={displayName}
+                        frameUrl={authorAvatarFrameUrl}
+                        frameInset={authorAvatarFrameInsetPercent}
+                    />
+                )}
+            </View>
 
             <View style={{ flex: 1, minWidth: 0 }}>
                 <Pressable
@@ -245,22 +293,26 @@ function ChatBubbleMessageInner({
                     onAccessibilityAction={() => {
                         if (!removed) toggleActions();
                     }}
-                    style={[
+                    style={({ pressed }) => [
                         styles.bubble,
                         {
                             padding: pad,
                             gap: gap,
-                            backgroundColor: isMine
-                                ? theme.primary + "14"
-                                : theme.card,
-                            borderColor: isMine
-                                ? theme.primary + "30"
-                                : theme.border,
+                            ...bubbleSurface,
                         },
+                        // A tap that long-press also produces briefly dims the
+                        // bubble, so the press is acknowledged before the
+                        // action row slides in.
+                        pressed && styles.bubblePressed,
                     ]}
                 >
                     {/* Header: name + pronouns + timestamp + badges */}
-                    <View style={styles.headerRow}>
+                    <View
+                        style={[
+                            styles.headerRow,
+                            isMine && styles.headerRowMine,
+                        ]}
+                    >
                         <Text
                             style={[
                                 styles.authorName,
@@ -274,10 +326,7 @@ function ChatBubbleMessageInner({
                             <Text
                                 style={[
                                     styles.meta,
-                                    {
-                                        fontSize: metaSize - 1,
-                                        color: theme.mutedForeground,
-                                    },
+                                    metaStyle,
                                 ]}
                             >
                                 ({authorPronouns})
@@ -287,10 +336,7 @@ function ChatBubbleMessageInner({
                             <Text
                                 style={[
                                     styles.meta,
-                                    {
-                                        fontSize: metaSize - 1,
-                                        color: theme.mutedForeground,
-                                    },
+                                    metaStyle,
                                 ]}
                             >
                                 {ts}
@@ -300,10 +346,7 @@ function ChatBubbleMessageInner({
                             <Text
                                 style={[
                                     styles.meta,
-                                    {
-                                        fontSize: metaSize - 1,
-                                        color: theme.mutedForeground,
-                                    },
+                                    metaStyle,
                                 ]}
                             >
                                 (edited)
@@ -313,10 +356,7 @@ function ChatBubbleMessageInner({
                             <Text
                                 style={[
                                     styles.meta,
-                                    {
-                                        fontSize: metaSize - 1,
-                                        color: theme.primary,
-                                    },
+                                    { ...metaStyle, color: theme.primary },
                                 ]}
                             >
                                 📌
@@ -326,10 +366,7 @@ function ChatBubbleMessageInner({
                             <Text
                                 style={[
                                     styles.meta,
-                                    {
-                                        fontSize: metaSize - 1,
-                                        color: theme.destructive,
-                                    },
+                                    { ...metaStyle, color: theme.destructive },
                                 ]}
                             >
                                 {removedBy ? "Removed by mod" : "Removed"}
@@ -342,16 +379,16 @@ function ChatBubbleMessageInner({
                         <View
                             style={[
                                 styles.replyPreview,
-                                {
-                                    backgroundColor: theme.muted + "60",
-                                    borderColor: theme.border,
-                                },
+                                { backgroundColor: withAlpha(theme.muted, 0.27) },
                             ]}
                         >
                             <Text
                                 style={[
                                     styles.replyAuthor,
-                                    { fontSize: metaSize, color: theme.text },
+                                    {
+                                        fontSize: metaSize + 1,
+                                        color: theme.text,
+                                    },
                                 ]}
                             >
                                 {replyTo.authorLabel || "User"}
@@ -376,6 +413,8 @@ function ChatBubbleMessageInner({
                         <MessageWithMentions
                             text={poll ? "" : text}
                             customEmojis={customEmojis}
+                            mentions={mentions}
+                            knownNames={knownNames}
                         />
                     ) : null}
 
@@ -383,6 +422,8 @@ function ChatBubbleMessageInner({
                     {imageUrl && !removed ? (
                         <Pressable
                             onPress={() => handleOpenImageViewer(imageUrl)}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel="Open image"
                             style={{ marginTop: gap }}
                         >
                             <Image
@@ -423,39 +464,13 @@ function ChatBubbleMessageInner({
                         </View>
                     ) : null}
 
-                    {/* Thread indicator */}
-                    {typeof threadReplyCount === "number" &&
-                    threadReplyCount > 0 &&
-                    onOpenThread ? (
-                        <Pressable
-                            onPress={handleOpenThread}
-                            style={[
-                                styles.threadRow,
-                                {
-                                    borderColor: theme.border,
-                                    backgroundColor: theme.muted + "40",
-                                },
-                            ]}
-                        >
-                            <Text
-                                style={[
-                                    styles.threadText,
-                                    {
-                                        fontSize: metaSize,
-                                        color: theme.primary,
-                                    },
-                                ]}
-                            >
-                                {threadReplyCount}{" "}
-                                {threadReplyCount === 1 ? "reply" : "replies"}
-                            </Text>
-                        </Pressable>
-                    ) : null}
-
-                    {/* Reactions */}
-                    {reactions && reactions.length > 0 ? (
+                    {/* Reactions and the reply count share one row. With the
+                        count in its own row underneath, a message that had both
+                        read as though the reactions had displaced it. */}
+                    {(reactions && reactions.length > 0) ||
+                    (typeof threadReplyCount === "number" && threadReplyCount > 0 && onOpenThread) ? (
                         <View style={styles.reactionsRow}>
-                            {reactions.map((reaction) => (
+                            {reactions?.map((reaction) => (
                                 <ReactionButton
                                     key={`${messageId}-${reaction.emoji}`}
                                     reaction={reaction}
@@ -463,6 +478,31 @@ function ChatBubbleMessageInner({
                                     onToggle={handleToggleReaction}
                                 />
                             ))}
+                            {typeof threadReplyCount === "number" && threadReplyCount > 0 && onOpenThread ? (
+                                <Pressable
+                                    onPress={handleOpenThread}
+                                    accessibilityRole="button"
+                                    accessibilityLabel={`${threadReplyCount} ${threadReplyCount === 1 ? "reply" : "replies"}, open thread`}
+                                    style={[
+                                        styles.threadRow,
+                                        { backgroundColor: theme.accentSoft },
+                                    ]}
+                                >
+                                    <MessageSquare size={12} color={theme.primary} />
+                                    <Text
+                                        style={[
+                                            styles.threadText,
+                                            {
+                                                fontSize: metaSize,
+                                                color: theme.primary,
+                                            },
+                                        ]}
+                                    >
+                                        {threadReplyCount}{" "}
+                                        {threadReplyCount === 1 ? "reply" : "replies"}
+                                    </Text>
+                                </Pressable>
+                            ) : null}
                         </View>
                     ) : null}
 
@@ -593,16 +633,25 @@ const styles = StyleSheet.create({
         paddingTop: 2,
     },
     bubble: {
-        flex: 1,
+        // No flex here. `flex: 1` implies flexBasis 0, so inside the
+        // auto-height column above, the bubble resolved to zero height while its
+        // text still drew at full size and spilled out below the box. The
+        // wrapper already carries flex: 1, which is what actually needs to
+        // grow (web puts flex-1 on the content column, not the bubble).
         minWidth: 0,
         borderRadius: 12,
-        borderWidth: StyleSheet.hairlineWidth,
+    },
+    bubblePressed: {
+        opacity: 0.72,
     },
     headerRow: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "baseline",
         gap: Spacing.one,
         flexWrap: "wrap",
+    },
+    headerRowMine: {
+        justifyContent: "flex-end",
     },
     authorName: {
         fontWeight: "700",
@@ -611,7 +660,6 @@ const styles = StyleSheet.create({
         fontStyle: "italic",
     },
     replyPreview: {
-        borderWidth: StyleSheet.hairlineWidth,
         borderRadius: 6,
         paddingHorizontal: Spacing.one,
         paddingVertical: Spacing.half,
@@ -627,11 +675,12 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     threadRow: {
-        borderWidth: StyleSheet.hairlineWidth,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.half,
         borderRadius: 6,
         paddingHorizontal: Spacing.one,
         paddingVertical: Spacing.half,
-        alignSelf: "flex-start",
     },
     threadText: {
         fontWeight: "700",
@@ -686,6 +735,11 @@ export const ChatBubbleMessage = React.memo(
             return false;
         if (prev.authorAvatarFrameUrl !== next.authorAvatarFrameUrl)
             return false;
+        if (
+            prev.authorAvatarFrameInsetPercent !==
+            next.authorAvatarFrameInsetPercent
+        )
+            return false;
         if (prev.authorPronouns !== next.authorPronouns) return false;
         if (prev.text !== next.text) return false;
         if (prev.createdAt !== next.createdAt) return false;
@@ -711,6 +765,12 @@ export const ChatBubbleMessage = React.memo(
         if (prev.pollReadOnly !== next.pollReadOnly) return false;
         if (prev.canManageMessages !== next.canManageMessages) return false;
         if (prev.compact !== next.compact) return false;
+        // Callbacks are compared too. Returning true here means "will not
+        // re-render", so a bubble that first rendered without
+        // onOpenImageViewer kept that dead closure permanently and its image
+        // taps did nothing. Call sites pass this one from useCallback, so the
+        // identity is stable and the memo still skips renders.
+        if (prev.onOpenImageViewer !== next.onOpenImageViewer) return false;
         return true;
     },
 );

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "../../app/api/search/messages/route";
+import { resolveProfileUserId } from "@/lib/appwrite-profiles";
 
 const { mockConnection, mockGetRelationshipMap } = vi.hoisted(() => ({
     mockConnection: vi.fn(),
@@ -81,9 +82,12 @@ vi.mock("@/lib/appwrite-profiles", () => ({
     getAvatarUrl: vi.fn(
         (fileId: string) => `http://localhost/avatar/${fileId}`,
     ),
-    resolveProfileUserId: vi.fn(async (identifier: string) =>
-        identifier === "alice" ? "user-1" : undefined,
-    ),
+    resolveProfileUserId: vi.fn(async (identifier: string) => {
+        if (identifier === "alice") return "user-1";
+        // Display names are resolvable now that `from:` accepts them quoted.
+        if (identifier === "August Unit") return "user-8";
+        return undefined;
+    }),
 }));
 
 vi.mock("@/lib/appwrite-friendships", () => ({
@@ -286,6 +290,29 @@ describe("Message Search API Route", () => {
                 expect.arrayContaining([
                     expect.stringContaining("equal(userId,user-1)"),
                     expect.stringContaining("search(text,test)"),
+                ]),
+            );
+        });
+
+        it("should parse a quoted from: display name and keep surrounding text", async () => {
+            mockAccessibleChannelSetup();
+            mockDatabases.listDocuments.mockResolvedValue({ documents: [] });
+
+            const request = new NextRequest(
+                'http://localhost/api/search/messages?q=from:"August Unit"%20hello',
+            );
+
+            const response = await GET(request);
+
+            expect(response.status).toBe(200);
+            // The whole display name is resolved, not the first word only.
+            expect(resolveProfileUserId).toHaveBeenCalledWith("August Unit");
+            // "hello" stays free text instead of being swallowed by the filter.
+            expect(mockDatabases.listDocuments).toHaveBeenCalledWith(
+                expect.anything(),
+                expect.anything(),
+                expect.arrayContaining([
+                    expect.stringContaining("search(text,hello)"),
                 ]),
             );
         });

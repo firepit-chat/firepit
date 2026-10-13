@@ -170,6 +170,8 @@ export default function CreateServerScreen() {
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             >
                 <View
                     pointerEvents="none"

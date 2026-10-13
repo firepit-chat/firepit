@@ -54,6 +54,9 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
 
   const filterAllowedServers = useCallback(
     (all: Server[], mems: Membership[]): Server[] => {
+      if (!Array.isArray(all)) {
+        return [];
+      }
       if (!membershipEnabled) {
         return all;
       }
@@ -80,7 +83,10 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
           `servers:initial:${userId}`,
           () => fetch("/api/servers?limit=25")
             .then((res) => res.json())
-            .then((data) => data as { servers: Server[]; nextCursor: string | null }),
+            .then((data) => ({
+              servers: Array.isArray(data?.servers) ? data.servers : [],
+              nextCursor: data?.nextCursor ?? null,
+            })),
           CACHE_TTL.SERVERS
         );
 
@@ -164,7 +170,10 @@ export function useServers({ userId, membershipEnabled }: UseServersOptions) {
 
           const serverReq = fetch("/api/servers?limit=25")
             .then((res) => res.json())
-            .then((data) => data as { servers: Server[]; nextCursor: string | null });
+            .then((data) => ({
+              servers: Array.isArray(data?.servers) ? data.servers : [],
+              nextCursor: data?.nextCursor ?? null,
+            }));
 
           const membershipReq = membershipEnabled
             ? fetch("/api/memberships")

@@ -193,6 +193,7 @@ export default function MessageModerationScreen() {
                         contentContainerStyle={styles.scrollContent}
                         keyboardShouldPersistTaps="handled"
                         showsVerticalScrollIndicator={false}
+                        automaticallyAdjustKeyboardInsets
                     >
                         <View style={styles.shell}>
                             <View style={styles.header}>
@@ -213,8 +214,7 @@ export default function MessageModerationScreen() {
                             </ThemedText>
 
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                    style={[styles.card, { borderColor: theme.border }]}
                             >
                                 <ScrollView
                                     horizontal
@@ -301,13 +301,13 @@ export default function MessageModerationScreen() {
                             ) : null}
 
                             {loadError ? (
-                                <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                                <ThemedView style={styles.card}>
                                     <ThemedText themeColor="destructive">{loadError}</ThemedText>
                                 </ThemedView>
                             ) : null}
 
                             {loadState === "ready" && messages.length === 0 ? (
-                                <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                                <ThemedView style={styles.card}>
                                     <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
                                         No messages match these filters.
                                     </ThemedText>
@@ -319,8 +319,7 @@ export default function MessageModerationScreen() {
                                 return (
                                     <ThemedView
                                         key={message.$id}
-                                        type="card"
-                                        style={[styles.card, { borderColor: theme.border }]}
+                                                    style={[styles.card, { borderColor: theme.border }]}
                                     >
                                         <View style={styles.messageHeader}>
                                             <ThemedText type="smallBold" numberOfLines={1} style={styles.messageSender}>
@@ -456,7 +455,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     channelRow: {
         gap: Spacing.two,

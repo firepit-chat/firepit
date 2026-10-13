@@ -11,27 +11,63 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
+import { Bell, Hand, MessageSquare, Users, Flame } from "lucide-react-native";
 
-const SLIDES = [
+const SLIDE_ICONS = {
+    flame: Flame,
+    messages: MessageSquare,
+    hand: Hand,
+    users: Users,
+    bell: Bell,
+} as const;
+
+function SlideIcon({ name }: { name: SlideIconName }) {
+    const theme = useTheme();
+    const Icon = SLIDE_ICONS[name];
+    return <Icon size={14} color={theme.mutedForeground} />;
+}
+
+type SlideIconName = keyof typeof SLIDE_ICONS;
+
+/**
+ * Every slide has to earn its place: either it teaches a gesture the app
+ * cannot advertise on its own, or it says something true the UI does not.
+ *
+ * The previous copy was marketing filler ("a messaging platform for your
+ * community") and had gone stale — it still told people to browse channels
+ * from the Home tab, which stopped being true when channel browsing moved
+ * into the Chat tab.
+ */
+const SLIDES: { icon: SlideIconName; title: string; subtitle: string; body: string }[] = [
     {
+        icon: "flame",
         title: "Welcome to Firepit",
-        subtitle: "A messaging platform for your community.",
-        body: "Browse servers, join channels, and chat with your people — all from your own instance.",
+        subtitle: "Your server, your rules.",
+        body: "Servers, channels and direct messages — hosted on an instance you control. Everything here is yours to run, from the themes to where the data lives.",
     },
     {
-        title: "Servers & channels",
-        subtitle: "Organised spaces for every topic.",
-        body: "The Home tab shows your servers. Tap one to browse its channels — each channel is a dedicated chat room.",
+        icon: "messages",
+        title: "Finding a conversation",
+        subtitle: "Everything starts in the Chat tab.",
+        body: "The Chat tab lists every server you belong to. Tap one to expand its channels, then tap a channel to open it. Direct messages sit underneath.",
     },
     {
-        title: "Messages & media",
-        subtitle: "Share more than text.",
-        body: "Send messages, reply in threads, share images and files, and use GIFs and stickers in any conversation.",
+        icon: "hand",
+        title: "What to do with a message",
+        subtitle: "Press and hold any message.",
+        body: "That opens the action row: react, reply, start a thread, edit, delete, pin. A message with replies also shows a count you can tap to follow the thread.",
     },
     {
-        title: "Stay in the loop",
-        subtitle: "Inbox, friends & settings.",
-        body: "Use the Inbox tab for direct messages and notifications. Customise your experience in Settings.",
+        icon: "users",
+        title: "While you're in a channel",
+        subtitle: "Everything lives in the header.",
+        body: "Tap the people icon to see who is in the channel and who is online. Tap the channel name for server settings — channels, roles, mute — and to read the topic.",
+    },
+    {
+        icon: "bell",
+        title: "Catching up, and making it yours",
+        subtitle: "Inbox, Friends, Settings.",
+        body: "The Inbox collects mentions and thread replies. Settings holds your theme, notifications and caching — and Help, which explains the rest whenever you need it.",
     },
 ];
 
@@ -112,11 +148,13 @@ export function OnboardingOverlay({ onComplete }: Props) {
                                 { borderColor: theme.border },
                             ]}
                         >
-                            {/* Number indicator */}
+                            {/* Step number, paired with an icon so the slides
+                                read as a sequence rather than a wall of text. */}
                             <ThemedView
                                 type="muted"
                                 style={styles.stepBadge}
                             >
+                                <SlideIcon name={slide.icon} />
                                 <ThemedText
                                     type="code"
                                     themeColor="mutedForeground"
@@ -232,6 +270,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     stepBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: Spacing.one,
         alignSelf: "flex-start",
         paddingHorizontal: Spacing.two,
         paddingVertical: Spacing.one,

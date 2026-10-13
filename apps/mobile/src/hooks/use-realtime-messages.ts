@@ -7,13 +7,22 @@ import type { InstanceMetadata } from "@/lib/firepit/types";
 
 const DATABASE_ID = "main";
 
+// Typing/reaction bursts land in quick succession. Coalesce them into one local
+// patch rather than one list fetch each.
+const DEBOUNCE_MS = 400;
+
 interface UseRealtimeMessagesOptions {
     instance: InstanceMetadata | null;
     accessToken: string | null;
     collectionId: string;
     filterField: string;
     filterValue: string | null | undefined;
-    onMessageEvent: () => void;
+    /**
+     * Receives the changed document straight from the realtime payload. Callers
+     * should patch local state from it; refetching the whole list per event is
+     * what burned through the instance rate limit.
+     */
+    onMessageEvent: (payload: Record<string, unknown>) => void;
 }
 
 export function useRealtimeMessages({
@@ -60,8 +69,8 @@ export function useRealtimeMessages({
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
                 debounceRef.current = null;
-                onEventRef.current();
-            }, 1000);
+                onEventRef.current(payload);
+            }, DEBOUNCE_MS);
         };
 
         try {

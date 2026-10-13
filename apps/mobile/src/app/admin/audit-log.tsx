@@ -27,13 +27,6 @@ import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-const LOAD_STATE_TONES: Record<LoadState, "success" | "warning" | "danger"> = {
-    idle: "warning",
-    loading: "warning",
-    ready: "success",
-    error: "danger",
-};
-
 function actionTone(action?: string): "neutral" | "success" | "warning" | "danger" {
     if (!action) return "neutral";
     const a = action.toLowerCase();
@@ -104,7 +97,7 @@ export default function AuditLogScreen() {
                 <View style={[styles.root, { backgroundColor: theme.background }]}>
                     <SafeAreaView style={styles.safeArea}>
                         <ThemedView style={styles.shell}>
-                            <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                            <ThemedView style={styles.card}>
                                 <ThemedText type="title">No server selected</ThemedText>
                                 <ThemedText themeColor="mutedForeground" style={{ fontSize: 14, lineHeight: 20, marginTop: Spacing.one }}>
                                     Select a server from the admin dashboard to view its audit logs.
@@ -142,7 +135,6 @@ export default function AuditLogScreen() {
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
                             style={[styles.heroCard, { borderColor: theme.border }]}
                         >
                             <ThemedText type="code" themeColor="accent">
@@ -154,20 +146,10 @@ export default function AuditLogScreen() {
                             <ThemedText themeColor="mutedForeground" style={styles.copy}>
                                 Review recent moderation actions and server changes.
                             </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill
-                                    label={
-                                        loadState === "ready"
-                                            ? `${entries.length} entries`
-                                            : "loading"
-                                    }
-                                    tone={LOAD_STATE_TONES[loadState]}
-                                />
-                            </View>
+
                         </ThemedView>
 
                         <ThemedView
-                            type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <View style={styles.sectionHeaderRow}>
@@ -224,8 +206,7 @@ export default function AuditLogScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
-                                    style={[
+                                            style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -250,11 +231,8 @@ function AuditEntryCard({ entry }: { entry: ServerAuditLogEntry }) {
     const tone = actionTone(entry.action);
 
     return (
-        <View style={styles.entryWrap}>
-            <ThemedView
-                type="card"
-                style={[styles.entryCard, { borderColor: theme.border }]}
-            >
+        <View style={[styles.entryWrap, { borderBottomColor: theme.border }]}>
+            <View style={styles.entryCard}>
                 <View style={styles.entryHeader}>
                     <StatusPill
                         label={entry.action ?? "unknown"}
@@ -290,7 +268,7 @@ function AuditEntryCard({ entry }: { entry: ServerAuditLogEntry }) {
                         </ThemedText>
                     ) : null}
                 </View>
-            </ThemedView>
+            </View>
         </View>
     );
 }
@@ -312,7 +290,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -324,7 +301,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     emptyCard: {
         marginTop: Spacing.three,
@@ -357,12 +333,12 @@ const styles = StyleSheet.create({
         maxWidth: MaxContentWidth,
         alignSelf: "center",
         width: "100%",
+        paddingHorizontal: Spacing.three,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     entryCard: {
-        borderRadius: 18,
-        padding: Spacing.three,
+        paddingVertical: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",

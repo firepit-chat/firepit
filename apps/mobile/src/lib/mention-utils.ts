@@ -37,6 +37,61 @@ export function parseMentions(text: string): MentionMatch[] {
   return matches;
 }
 
+
+/**
+ * Locates `@mention` spans, preferring exact display-name matches.
+ *
+ * The regex alone only ever matched `[a-zA-Z0-9_]+`, so a mention of
+ * "August's test account" highlighted just "@August" and left "'s test
+ * account" unstyled. Usernames are display names and can contain spaces,
+ * apostrophes and punctuation, so the stored mention names are matched
+ * literally first (longest first, so "avery <3" wins over "avery"), and the
+ * regex is kept only as a fallback for mentions we have no name for.
+ *
+ * Mirrors the web app's findMentionSpans.
+ */
+export function findMentionSpans(
+  text: string,
+  mentionNames: readonly string[],
+  knownNames: readonly string[] = [],
+): MentionMatch[] {
+  const lowerText = text.toLowerCase();
+  const matches: MentionMatch[] = [];
+  const taken: { start: number; end: number }[] = [];
+  const overlaps = (start: number, end: number) =>
+    taken.some((r) => !(end <= r.start || start >= r.end));
+
+  const names = [...new Set([...mentionNames, ...knownNames])]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+
+  for (const name of names) {
+    const needle = `@${name.toLowerCase()}`;
+    let pos = lowerText.indexOf(needle);
+    while (pos !== -1) {
+      const end = pos + needle.length;
+      if (!overlaps(pos, end)) {
+        matches.push({
+          fullMatch: text.substring(pos, end),
+          username: name,
+          startIndex: pos,
+          endIndex: end,
+        });
+        taken.push({ start: pos, end });
+      }
+      pos = lowerText.indexOf(needle, end);
+    }
+  }
+
+  for (const match of parseMentions(text)) {
+    if (overlaps(match.startIndex, match.endIndex)) continue;
+    matches.push(match);
+    taken.push({ start: match.startIndex, end: match.endIndex });
+  }
+
+  return matches.sort((a, b) => a.startIndex - b.startIndex);
+}
+
 export function getMentionAtCursor(
   text: string,
   cursorPosition: number,

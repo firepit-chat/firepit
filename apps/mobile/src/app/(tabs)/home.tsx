@@ -12,23 +12,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
+import { NoticeLine } from "@/components/notice-line";
 import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { getServers } from "@/lib/server-cache";
 import type { Server } from "@/lib/firepit/types";
-import { FirepitHttpError } from "@/lib/firepit/http";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
-
-type StatusTone = "neutral" | "success" | "warning" | "danger";
-
-function statusToneFor(state: string): StatusTone {
-    if (state === "ready") return "success";
-    if (state === "needs-auth") return "warning";
-    if (state === "incompatible") return "danger";
-    return "neutral";
-}
 
 function ActionChip({
     label,
@@ -76,25 +66,8 @@ function ActionChip({
     );
 }
 
-function StatusPill({ label, tone }: { label: string; tone: StatusTone }) {
-    return (
-        <ThemedView
-            type={tone === "neutral" ? "muted" : tone}
-            style={styles.pill}
-        >
-            <ThemedText
-                type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
-            >
-                {label}
-            </ThemedText>
-        </ThemedView>
-    );
-}
-
 function useProfileSummary() {
-    const { currentUser, state, signOut, accessToken, instanceUrl } =
-        useFirepitBootstrap();
+    const { currentUser, state, signOut, instanceUrl } = useFirepitBootstrap();
 
     const username = useMemo(() => {
         return (
@@ -107,36 +80,34 @@ function useProfileSummary() {
         );
     }, [currentUser]);
 
-    const statusLabel = useMemo(() => {
-        if (state === "ready" && accessToken) {
-            return "online";
-        }
+    // Null when everything is healthy. Only a real problem earns a line of
+    // text; "online" was just this same fact spelled out.
+    const problem = useMemo((): { text: string; tone: "warning" | "danger" } | null => {
         if (state === "needs-auth") {
-            return "needs login";
+            return { text: "Sign in to continue.", tone: "warning" };
         }
         if (state === "incompatible") {
-            return "blocked";
+            return {
+                text: "This app version is not supported by your instance.",
+                tone: "danger",
+            };
         }
         if (!instanceUrl) {
-            return "no instance";
+            return { text: "No instance connected.", tone: "warning" };
         }
-        return state;
-    }, [accessToken, instanceUrl, state]);
-
-    const statusTone: StatusTone = statusToneFor(state);
+        return null;
+    }, [instanceUrl, state]);
 
     return {
         currentUser,
         signOut,
         username,
-        statusLabel,
-        statusTone,
+        problem,
     };
 }
 
 function ProfileMenu() {
-    const { currentUser, signOut, username, statusLabel, statusTone } =
-        useProfileSummary();
+    const { currentUser, signOut, username } = useProfileSummary();
     const theme = useTheme();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -216,7 +187,6 @@ function ProfileMenu() {
                             </View>
 
                             <View style={styles.menuBody}>
-                                <StatusPill label={statusLabel} tone={statusTone} />
                                 <ThemedText
                                     type="code"
                                     themeColor="mutedForeground"
@@ -291,14 +261,9 @@ function useJoinedServers() {
 }
 
 export default function HomeTabScreen() {
-    const {
-        compatibility,
-        version,
-        featureFlags,
-    } = useFirepitBootstrap();
-    const theme = useTheme();
+    const { featureFlags } = useFirepitBootstrap();
     const { servers, loadState, loadError, refresh } = useJoinedServers();
-    const { username, statusLabel, statusTone } = useProfileSummary();
+    const { username, problem } = useProfileSummary();
 
     return (
         <AuthRouteGuard>
@@ -334,25 +299,9 @@ export default function HomeTabScreen() {
                             <ProfileMenu />
                         </View>
 
-                        <View style={styles.statusRow}>
-                            <StatusPill label={statusLabel} tone={statusTone} />
-                            <StatusPill
-                                label={
-                                    compatibility?.compatible
-                                        ? "compatible"
-                                        : "check version"
-                                }
-                                tone={
-                                    compatibility?.compatible
-                                        ? "success"
-                                        : "warning"
-                                }
-                            />
-                            <StatusPill
-                                label={version?.version ?? "no version"}
-                                tone="neutral"
-                            />
-                        </View>
+                        {problem ? (
+                            <NoticeLine tone={problem.tone}>{problem.text}</NoticeLine>
+                        ) : null}
 
                         <View style={styles.actionsRow}>
                             <ActionChip
@@ -550,18 +499,6 @@ const styles = StyleSheet.create({
     metaText: {
         fontSize: 13,
         lineHeight: 18,
-    },
-    statusRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: Spacing.one,
-        paddingVertical: Spacing.one,
-    },
-    pill: {
-        alignSelf: "flex-start",
-        paddingHorizontal: Spacing.two,
-        paddingVertical: Spacing.one,
-        borderRadius: 999,
     },
     actionsRow: {
         flexDirection: "row",

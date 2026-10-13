@@ -192,7 +192,7 @@ export default function UpdateSettingsScreen() {
     >
       <SafeAreaView style={styles.safeArea}>
         <ThemedView style={styles.shell}>
-          <View style={styles.header}>
+          <View style={[styles.header, { borderBottomColor: theme.border }]}>
             <Pressable
               accessibilityRole="button"
               onPress={() => router.back()}
@@ -331,6 +331,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingVertical: Spacing.two,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerButton: {
     paddingVertical: Spacing.one,

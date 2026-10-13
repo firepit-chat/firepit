@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Spacing } from "@/constants/theme";
+import { Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 
 export type PollOption = {
@@ -52,7 +52,7 @@ export function MessagePoll({
     <ThemedView
       style={[
         styles.container,
-        { borderColor: theme.border, backgroundColor: theme.muted + "40" },
+        { borderColor: theme.border, backgroundColor: withAlpha(theme.muted, 0.25) },
       ]}
     >
       {/* Header: question + closed badge */}
@@ -90,7 +90,7 @@ export function MessagePoll({
                 {
                   borderColor: isSelected ? theme.primary : theme.border,
                   backgroundColor: isSelected
-                    ? theme.primary + "18"
+                    ? withAlpha(theme.primary, 0.09)
                     : theme.card,
                   opacity: pressed && !readOnly && !closed ? 0.8 : 1,
                 },
@@ -103,8 +103,8 @@ export function MessagePoll({
                   {
                     width: `${pct}%`,
                     backgroundColor: isSelected
-                      ? theme.primary + "25"
-                      : theme.muted + "80",
+                      ? withAlpha(theme.primary, 0.15)
+                      : withAlpha(theme.muted, 0.5),
                   },
                 ]}
               />
@@ -152,7 +152,7 @@ export function MessagePoll({
               style={({ pressed }) => [
                 styles.closeButton,
                 {
-                  backgroundColor: theme.destructive + "20",
+                  backgroundColor: withAlpha(theme.destructive, 0.13),
                   opacity: pressed ? 0.8 : 1,
                 },
               ]}
