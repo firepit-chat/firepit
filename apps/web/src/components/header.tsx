@@ -8,21 +8,28 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
     Check,
     ChevronDown,
+    Coffee,
     Flame,
-    LaptopMinimal,
     LogOut,
     Moon,
+    MoonStar,
     Search,
     Sun,
     UserPlus,
 } from "lucide-react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@teispace/next-themes";
 import { toast } from "sonner";
 
 import { logoutAction } from "@/app/(auth)/login/actions";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { useAuth } from "@/contexts/auth-context";
 import { useDeveloperMode } from "@/hooks/useDeveloperMode";
+import {
+    DEFAULT_THEME,
+    THEME_LABELS,
+    THEME_NAMES,
+    isThemeName,
+} from "@/lib/themes";
 import { useFriends } from "@/hooks/useFriends";
 import type { NavigationItemPreferenceId } from "@/lib/types";
 import { resetSharedClient } from "@/lib/realtime-pool";
@@ -42,9 +49,12 @@ import {
 import { StatusIndicator } from "./status-indicator";
 
 const THEME_ICONS = {
-    light: Sun,
-    dark: Moon,
-    system: LaptopMinimal,
+    latte: Sun,
+    frappe: Coffee,
+    macchiato: MoonStar,
+    mocha: Moon,
+    classicLight: Flame,
+    classicDark: Flame,
 } as const;
 
 type HeaderProps = {
@@ -106,7 +116,7 @@ function getNavigationLinkClassName(active: boolean) {
 export default function Header({ onSearchClick }: HeaderProps) {
     const pathname = usePathname();
     const router = useRouter();
-    const { setTheme, theme } = useTheme();
+    const { setTheme, resolvedTheme } = useTheme();
     const { userData, userStatus, loading, setUserData, updateUserStatus } =
         useAuth();
     const { navigationPreferences } = useDeveloperMode(
@@ -203,7 +213,9 @@ export default function Header({ onSearchClick }: HeaderProps) {
         },
     };
 
-    const menuTheme = theme ?? "system";
+    // Before hydration the library has not resolved yet, so fall back to
+    // the default palette rather than rendering an unchecked menu.
+    const menuTheme = resolvedTheme ?? DEFAULT_THEME;
 
     const links: NavigationLink[] = [
         { to: "/", label: "Home", visible: true },
@@ -510,13 +522,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                 Theme
                                             </p>
                                         </div>
-                                        {(
-                                            [
-                                                "light",
-                                                "dark",
-                                                "system",
-                                            ] as const
-                                        ).map((nextTheme) => {
+                                        {THEME_NAMES.map((nextTheme) => {
                                             const Icon =
                                                 THEME_ICONS[nextTheme];
                                             return (
@@ -530,12 +536,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                     <div className="flex w-full items-center justify-between gap-3">
                                                         <span className="inline-flex items-center gap-2">
                                                             <Icon className="h-4 w-4 text-primary" />
-                                                            {nextTheme
-                                                                .charAt(0)
-                                                                .toUpperCase() +
-                                                                nextTheme.slice(
-                                                                    1,
-                                                                )}
+                                                            {THEME_LABELS[nextTheme]}
                                                         </span>
                                                         {menuTheme ===
                                                         nextTheme ? (
@@ -598,27 +599,21 @@ function ThemeToggleMenu({
                     type="button"
                     variant="outline"
                 >
-                    <span className="relative inline-flex size-5 items-center justify-center">
-                        <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                        <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    </span>
+                    <CurrentThemeIcon theme={theme} />
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="end"
                 className="w-40 rounded-xl border border-border/60 bg-card/95 p-2 shadow-lg"
             >
-                {(["light", "dark", "system"] as const).map((nextTheme) => (
+                {THEME_NAMES.map((nextTheme) => (
                     <DropdownMenuItem
                         key={nextTheme}
                         onClick={() => setTheme(nextTheme)}
                         className="rounded-md px-3 py-2"
                     >
                         <div className="flex w-full items-center justify-between gap-3">
-                            <span>
-                                {nextTheme.charAt(0).toUpperCase() +
-                                    nextTheme.slice(1)}
-                            </span>
+                            <span>{THEME_LABELS[nextTheme]}</span>
                             {theme === nextTheme ? (
                                 <Check className="h-4 w-4 text-primary" />
                             ) : null}
@@ -628,4 +623,10 @@ function ThemeToggleMenu({
             </DropdownMenuContent>
         </DropdownMenu>
     );
+}
+
+/** Shows the icon for the palette currently applied, not a light/dark pair. */
+function CurrentThemeIcon({ theme }: { theme: string }) {
+    const Icon = isThemeName(theme) ? THEME_ICONS[theme] : Coffee;
+    return <Icon className="h-[1.2rem] w-[1.2rem]" />;
 }

@@ -700,6 +700,24 @@ components:
                 roleId:
                     type: string
 
+        MemberPrimaryRole:
+            type: object
+            description: >-
+                The single role shown next to a member in a member list: their
+                highest-ranked one.
+            required: [id, name, color, position]
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                color:
+                    type: string
+                    description: Hex colour, for example "#5865F2".
+                position:
+                    type: integer
+                    description: Higher means higher in the role hierarchy.
+
         Permission:
             type: string
             description: A single permission that can be granted or denied.
@@ -2598,6 +2616,83 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/ServerStats"
+
+    /api/servers/{serverId}/viewer/members:
+        get:
+            tags: [Servers]
+            summary: List members for the member rail
+            x-roles:
+                - any member of the server
+            description: >-
+                Read-only member list for the chat right rail. Available to any
+                member, unlike the sibling /members endpoint, which requires
+                manageRoles because it exposes every role id a member holds plus
+                their ban and mute state. Each member carries only their
+                highest-ranked role, resolved server-side so a client never
+                needs the full role list. Results are ordered by role rank
+                (highest position first) and then by display name; members with
+                no role sort last.
+            security:
+                - sessionCookie: []
+                - bearerAuth: []
+            parameters:
+                - name: serverId
+                  in: path
+                  required: true
+                  schema:
+                      type: string
+            responses:
+                "200":
+                    description: Server members
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                required: [members]
+                                properties:
+                                    members:
+                                        type: array
+                                        items:
+                                            type: object
+                                            required: [userId, role]
+                                            properties:
+                                                userId:
+                                                    type: string
+                                                username:
+                                                    type: [string, "null"]
+                                                displayName:
+                                                    type: [string, "null"]
+                                                avatarUrl:
+                                                    type: [string, "null"]
+                                                role:
+                                                    description: >-
+                                                        The member's highest-ranked
+                                                        role, or null when they hold
+                                                        no roles.
+                                                    oneOf:
+                                                        - type: "null"
+                                                        - $ref: "#/components/schemas/MemberPrimaryRole"
+                                    truncated:
+                                        type: boolean
+                                        description: True when the listing hit its document cap.
+                "401":
+                    description: Unauthorized
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "403":
+                    description: Not a member of the server
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
+                "500":
+                    description: Failed to list members
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/Error"
 
     /api/servers/{serverId}/members:
         get:

@@ -505,6 +505,14 @@ export type UserProfileData = {
     profileBackgroundImageFileId?: string;
     profileBackgroundImageChangedAt?: string;
     dmEncryptionPublicKey?: string;
+    /**
+     * Canonical home for the DM encryption preference. It used to live on
+     * `notification_settings`, which is the wrong layer — this is a per-user
+     * capability that sits beside the key it depends on, not a notification
+     * preference. See `lib/dm-encryption-preference.ts` for the fallback used
+     * for accounts that predate the column.
+     */
+    dmEncryptionEnabled?: boolean;
     // Tombstone: set when the account was deleted (this profile becomes the
     // "Deleted User" record that keeps the userId from being reused).
     deletedAt?: string;

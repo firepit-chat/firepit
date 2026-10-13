@@ -72,21 +72,26 @@ the A/V lane should not ride along.
 
 **Ships**
 
-- **Custom themes.** Full theme system replacing light/dark-only: a set of four
-  Catppuccin palettes (Latte, Frappé, Macchiato, Mocha) defined in OKLCH to
-  match the existing token set, plus a user-selectable accent. Adopts
-  `@teispace/next-themes` for cookie-authoritative storage, which removes the
-  launch flash, and for the scoped sub-themes that 2.3 per-server theming
-  depends on. Mobile ports the palettes manually — its 40-token theme system
-  has no library dependency and needs none.
+- **Custom themes.** Full theme system replacing light/dark-only: **six**
+  palettes defined in OKLCH against the existing token set — the four Catppuccin
+  flavours (Latte, Frappé, Macchiato, Mocha) plus **Classic Light** and
+  **Classic Dark**, which preserve the original Firepit themes — and a choice of
+  twelve accent colours. Accent fills are adjusted per palette so text on an
+  accent-coloured button always clears WCAG AA. Uses `@teispace/next-themes` for
+  cookie-authoritative storage, which removes the launch flash, and for the
+  scoped sub-themes that 2.3 per-server theming depends on. Mobile ports the
+  palettes manually — its 40-token theme system has no library dependency and
+  needs none.
 - **Role and member viewer.** A Discord-style member list on the right rail,
-  sorted by role rank then username, showing the highest applicable role per
-  member. The rail itself already exists. The permissions model underneath this
-  is already live — this is the surface that exposes it. Backed by a new
-  read-only members endpoint, because the existing one requires `manageRoles`
-  and would 403 for every non-admin.
+  sorted by role rank then name, showing the highest applicable role per member.
+  The rail itself already exists. The permissions model underneath this is
+  already live — this is the surface that exposes it. Backed by a new read-only
+  members endpoint, because the existing one requires `manageRoles` and would
+  403 for every non-admin. Mobile ships a member list screen, which was net-new
+  rather than a port.
 
-**Carried-over unblockers** (infrastructure, not user-facing)
+**Carried-over unblockers** (infrastructure, not user-facing) — all done except
+where noted
 
 - Make the quality gate real: clear the remaining lint errors, and add
   `typecheck` to CI covering both workspaces. It currently runs in no workflow
@@ -100,11 +105,20 @@ the A/V lane should not ride along.
 - Consolidate the channel-type union. `CHANNEL_TYPE_VALUES` has zero consumers
   and `normalizeChannelType` exists in four hand-copied versions that have
   already drifted. Pure deletion, and it is what makes 2.3's forum work safe.
-- Document the 37 missing API routes, fix the incorrect
-  `ChannelPermissionOverride` schema, generate types with `openapi-typescript`,
-  and fail CI when the spec drifts from the routes.
+- Document every undocument API route, fix the incorrect
+  `ChannelPermissionOverride` schema, and fail CI when the spec drifts from the
+  routes. Done: the spec now covers all 144 in-scope operations, the
+  `bearerAuth` path is documented alongside `sessionCookie`, the stale mobile
+  copy is deleted, and `bun run check:openapi` gates CI. Still outstanding:
+  generating client types with `openapi-typescript`.
 - Settle the four federation schema decisions listed in the plan document and
-  reserve the columns, so 2.6 implements rather than decides.
+  reserve the columns, so 2.6 implements rather than decides. Done, and cheaper
+  than scoped: the account ID doubles as the federation `username` (no column,
+  and reversible later if a real handle is wanted), the `IIID:` participant
+  format is a wire concern handled in the adapter (no column), and the
+  deterministic conversation ID becomes the Appwrite document ID directly (one
+  function, nothing to migrate). Only `sequence` and `sender_instance` are
+  actual columns, and both are reserved and null.
 
 **Explicitly not in 2.2:** forum channels, OAuth, the voice/video canary, stage
 channels (they need stable voice first), mobile calling, any federation

@@ -32,9 +32,10 @@ vi.mock("@/hooks/useFriends", () => ({
 }));
 
 // Mock theme provider
-vi.mock("next-themes", () => ({
+vi.mock("@teispace/next-themes", () => ({
     useTheme: () => ({
-        theme: "light",
+        theme: "latte",
+        resolvedTheme: "latte",
         setTheme: vi.fn(),
     }),
 }));
@@ -69,6 +70,14 @@ function renderWithQueryClient(component: React.ReactElement<any>) {
         </QueryClientProvider>,
     );
 }
+
+/**
+ * The search dialog is a real `React.lazy` dynamic import, so the test waits on
+ * an actual module load. Under a full parallel run that transform can take
+ * several seconds, which is what made these two tests intermittent. The
+ * assertion still fails fast if the dialog never appears.
+ */
+const LAZY_DIALOG_TIMEOUT_MS = 15_000;
 
 describe("AppLayout", () => {
     beforeEach(() => {
@@ -105,7 +114,7 @@ describe("AppLayout", () => {
             await screen.findByRole(
                 "heading",
                 { name: "Search Messages" },
-                { timeout: 3000 },
+                { timeout: LAZY_DIALOG_TIMEOUT_MS },
             ),
         ).toBeInTheDocument();
     });
@@ -122,7 +131,11 @@ describe("AppLayout", () => {
 
         // Wait for lazy-loaded dialog to appear
         expect(
-            await screen.findByRole("heading", { name: "Search Messages" }),
+            await screen.findByRole(
+                "heading",
+                { name: "Search Messages" },
+                { timeout: LAZY_DIALOG_TIMEOUT_MS },
+            ),
         ).toBeInTheDocument();
     });
 
@@ -139,7 +152,11 @@ describe("AppLayout", () => {
 
         // Wait for lazy-loaded dialog to appear and check for search heading
         expect(
-            await screen.findByRole("heading", { name: "Search Messages" }),
+            await screen.findByRole(
+                "heading",
+                { name: "Search Messages" },
+                { timeout: LAZY_DIALOG_TIMEOUT_MS },
+            ),
         ).toBeInTheDocument();
 
         // Close search by pressing Escape
