@@ -165,6 +165,8 @@ export default function ThreadScreen() {
             <ScrollView
                 style={[styles.scrollView, { backgroundColor: theme.background }]}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             >
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
@@ -176,9 +178,11 @@ export default function ThreadScreen() {
                             <ThemedText themeColor="mutedForeground" style={styles.copy}>
                                 View the parent message and reply directly in context.
                             </ThemedText>
+                            {/* The reply count is worth a pill; the route
+                                parameters it used to sit beside are database
+                                ids and belong in neither a badge nor the
+                                reader's view. */}
                             <View style={styles.pillRow}>
-                                <StatusPill label={normalizedServerId ?? "unknown server"} tone="neutral" />
-                                <StatusPill label={normalizedChannelId ?? "unknown channel"} tone="neutral" />
                                 <StatusPill
                                     label={
                                         loadState === "ready"

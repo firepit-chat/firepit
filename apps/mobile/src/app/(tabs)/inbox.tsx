@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
@@ -15,17 +15,19 @@ import { Image } from "expo-image";
 import { AuthRouteGuard } from "@/components/auth-route-guard";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import { BottomTabInset, MaxContentWidth, Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import type {
   InboxDigestItem,
   InboxDigestResponse,
 } from "@/lib/firepit/types";
 import { listInboxDigest, markInboxContextRead } from "@/lib/firepit/messages";
+import { markThreadRead } from "@/lib/firepit/thread-reads";
 import { captureError } from "@/lib/sentry";
 import { getInitials } from "@/lib/avatars";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
-import { Search , Users } from "lucide-react-native";
+import { Inbox, Search, Users } from "lucide-react-native";
+import { EmptyState } from "@/components/empty-state";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 type Filter = "all" | "mention" | "direct" | "server";
@@ -123,6 +125,9 @@ export default function InboxScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const navigateToItem = useCallback((item: InboxDigestItem) => {
+    // Drop the cached digest up front so returning to the tab cannot flash the
+    // stale list while the mark-read request is still in flight.
+    invalidateInboxCache();
     if (instanceUrl && accessToken) {
       void markInboxContextRead(instanceUrl, accessToken, {
         contextId: item.contextId,
@@ -136,6 +141,20 @@ export default function InboxScreen() {
             contextKind: item.contextKind,
           });
         });
+
+      // Opening a thread notification is what marks that thread read.
+      // Without this the thread kept its unread state even after you read it
+      // from the digest.
+      if (item.kind === "thread" && item.parentMessageId) {
+        void markThreadRead(
+          instanceUrl,
+          accessToken,
+          item.contextKind,
+          item.contextId,
+          item.parentMessageId,
+          item.activityAt,
+        ).catch(() => undefined);
+      }
     }
 
     if (item.contextKind === "channel" && item.serverId) {
@@ -185,9 +204,14 @@ export default function InboxScreen() {
     await fetchDigest();
   }, [canLoad, instanceUrl, accessToken, fetchDigest]);
 
-  useEffect(() => {
-    void loadInbox();
-  }, [loadInbox]);
+  // Refetch whenever the tab regains focus, not just on mount. Tab screens stay
+  // mounted, so without this the digest kept showing the stale unread list after
+  // you followed a notification and came back.
+  useFocusEffect(
+    useCallback(() => {
+      void loadInbox();
+    }, [loadInbox]),
+  );
 
   useRetryOnReconnect(loadState === "error", fetchDigest);
 
@@ -324,12 +348,11 @@ export default function InboxScreen() {
                 {error}
               </ThemedText>
             ) : filtered.length === 0 ? (
-              <View style={styles.emptyState}>
-                <ThemedText type="smallBold">No notifications</ThemedText>
-                <ThemedText themeColor="mutedForeground" style={styles.emptySubtext}>
-                  You&apos;re all caught up. New mentions and messages will appear here.
-                </ThemedText>
-              </View>
+              <EmptyState
+                icon={<Inbox size={20} color={theme.mutedForeground} />}
+                title="You're all caught up"
+                description="New mentions and thread replies will appear here."
+              />
             ) : (
               <FlatList
                 data={filtered}
@@ -374,7 +397,7 @@ function InboxItemRow({
         styles.itemRow,
         {
           backgroundColor: isUnread
-            ? theme.primary + "08"
+            ? withAlpha(theme.primary, 0.03)
             : "transparent",
           opacity: pressed ? 0.85 : 1,
         },
@@ -428,14 +451,14 @@ function InboxItemRow({
         </ThemedText>
         <View style={styles.itemMeta}>
           {item.kind === "mention" && (
-            <View style={[styles.badge, { backgroundColor: theme.primary + "20" }]}>
+            <View style={[styles.badge, { backgroundColor: withAlpha(theme.primary, 0.13) }]}>
               <ThemedText type="code" themeColor="accent">
                 mention
               </ThemedText>
             </View>
           )}
           {item.contextKind === "conversation" && (
-            <View style={[styles.badge, { backgroundColor: theme.secondary + "20" }]}>
+            <View style={[styles.badge, { backgroundColor: withAlpha(theme.secondary, 0.13) }]}>
               <ThemedText type="code" themeColor="foreground">
                 DM
               </ThemedText>

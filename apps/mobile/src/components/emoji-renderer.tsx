@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from "react";
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
 import { cacheManager } from "@/lib/cache/CacheManager";
+import { useTheme } from "@/hooks/use-theme";
 
 export type CustomEmoji = {
   fileId: string;
@@ -404,6 +405,7 @@ const byLowerName = (customEmojis: readonly CustomEmoji[]) => {
 };
 
 export function EmojiRenderer({ text, customEmojis = NO_CUSTOM_EMOJIS }: Props) {
+  const theme = useTheme();
   const customByName = useMemo(() => byLowerName(customEmojis), [customEmojis]);
 
   const parts = useMemo(() => {
@@ -444,8 +446,12 @@ export function EmojiRenderer({ text, customEmojis = NO_CUSTOM_EMOJIS }: Props) 
 
   if (parts.length === 0) return null;
 
+  // An explicit colour rather than relying on inheritance. Nested inside
+  // styled message text this is the same colour it was inheriting; used
+  // directly — the pinned-message panel did — it previously fell back to React
+  // Native's default black, which disappears on a dark surface.
   return (
-    <Text>
+    <Text style={{ color: theme.text }}>
       {parts.map((part) => {
         if (part.type === "custom" && part.url) {
           const emojiName = part.name ?? part.content;
