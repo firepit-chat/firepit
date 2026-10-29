@@ -39,7 +39,9 @@ describe("theme + accent settings end to end", () => {
         await act(async () => {
             await user.click(screen.getByRole("radio", { name: "Frappé" }));
         });
-        expect(document.documentElement.getAttribute("data-theme")).toBe("frappe");
+        expect(document.documentElement.getAttribute("data-theme")).toBe(
+            "frappe",
+        );
     });
 
     it("applies the picked accent to <html>", async () => {
@@ -48,14 +50,18 @@ describe("theme + accent settings end to end", () => {
         await act(async () => {
             await user.click(screen.getByRole("radio", { name: "Teal" }));
         });
-        expect(document.documentElement.getAttribute("data-accent")).toBe("teal");
+        expect(document.documentElement.getAttribute("data-accent")).toBe(
+            "teal",
+        );
     });
 
     it("applies the original dark theme and its dark: utilities", async () => {
         const user = userEvent.setup();
         renderTree();
         await act(async () => {
-            await user.click(screen.getByRole("radio", { name: "Classic Dark" }));
+            await user.click(
+                screen.getByRole("radio", { name: "Classic Dark" }),
+            );
         });
         expect(document.documentElement.getAttribute("data-theme")).toBe(
             "classicDark",
@@ -72,10 +78,14 @@ describe("theme + accent settings end to end", () => {
             await user.click(screen.getByRole("radio", { name: "Mocha" }));
         });
         expect(
-            screen.getByRole("radio", { name: "Mocha" }).getAttribute("aria-checked"),
+            screen
+                .getByRole("radio", { name: "Mocha" })
+                .getAttribute("aria-checked"),
         ).toBe("true");
         expect(
-            screen.getByRole("radio", { name: "Latte" }).getAttribute("aria-checked"),
+            screen
+                .getByRole("radio", { name: "Latte" })
+                .getAttribute("aria-checked"),
         ).toBe("false");
     });
 });

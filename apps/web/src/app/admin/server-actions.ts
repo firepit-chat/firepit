@@ -16,9 +16,7 @@ const MEMBERSHIPS_COLLECTION_ID = env.collections.memberships || undefined;
 
 // Result shapes are returned inline; no exported type aliases here.
 
-type MutationResult =
-    | { success: true }
-    | { success: false; error: string };
+type MutationResult = { success: true } | { success: false; error: string };
 
 async function listDefaultSignupServers(): Promise<Array<{ $id: string }>> {
     const { databases } = getServerClient();
@@ -113,11 +111,17 @@ export async function createServerAction(name: string) {
                     membershipPerms,
                 );
             } catch (error) {
-                logger.error("Membership creation failed after server creation", {
-                    serverId: serverDoc.$id,
-                    ownerId,
-                    error: error instanceof Error ? error.message : String(error),
-                });
+                logger.error(
+                    "Membership creation failed after server creation",
+                    {
+                        serverId: serverDoc.$id,
+                        ownerId,
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                );
                 // Non-critical: membership creation failed but server exists
             }
         }
@@ -268,7 +272,9 @@ export async function setDefaultSignupServerAction(
                             ? serversToReset[index]?.$id
                             : null,
                     )
-                    .filter((value): value is string => typeof value === "string");
+                    .filter(
+                        (value): value is string => typeof value === "string",
+                    );
 
                 if (successfullyResetServerIds.length > 0) {
                     const restoreResults = await Promise.allSettled(
@@ -282,23 +288,33 @@ export async function setDefaultSignupServerAction(
                         ),
                     );
 
-                    for (const [index, restoreResult] of restoreResults.entries()) {
+                    for (const [
+                        index,
+                        restoreResult,
+                    ] of restoreResults.entries()) {
                         if (restoreResult.status === "rejected") {
-                            logger.error("Failed to restore partially reset default signup server", {
-                                defaultServerId: successfullyResetServerIds[index],
-                                error:
-                                    restoreResult.reason instanceof Error
-                                        ? restoreResult.reason.message
-                                        : String(restoreResult.reason),
-                            });
+                            logger.error(
+                                "Failed to restore partially reset default signup server",
+                                {
+                                    defaultServerId:
+                                        successfullyResetServerIds[index],
+                                    error:
+                                        restoreResult.reason instanceof Error
+                                            ? restoreResult.reason.message
+                                            : String(restoreResult.reason),
+                                },
+                            );
                         }
                     }
                 }
 
-                logger.error("Failed to clear existing default signup servers", {
-                    failureCount: resetFailures.length,
-                    serverId,
-                });
+                logger.error(
+                    "Failed to clear existing default signup servers",
+                    {
+                        failureCount: resetFailures.length,
+                        serverId,
+                    },
+                );
 
                 return {
                     success: false,
@@ -318,7 +334,10 @@ export async function setDefaultSignupServerAction(
                 );
             } catch (setError) {
                 logger.error("Failed to set default signup server", {
-                    error: setError instanceof Error ? setError.message : String(setError),
+                    error:
+                        setError instanceof Error
+                            ? setError.message
+                            : String(setError),
                     serverId,
                 });
 
@@ -333,13 +352,20 @@ export async function setDefaultSignupServerAction(
                         ),
                     );
 
-                    const restoreResults = await Promise.allSettled(restorePromises);
+                    const restoreResults =
+                        await Promise.allSettled(restorePromises);
                     for (const [i, r] of restoreResults.entries()) {
                         if (r.status === "rejected") {
-                            logger.error("Failed to restore cleared default signup server", {
-                                defaultServerId: serversToReset[i].$id,
-                                error: r.reason instanceof Error ? r.reason.message : String(r.reason),
-                            });
+                            logger.error(
+                                "Failed to restore cleared default signup server",
+                                {
+                                    defaultServerId: serversToReset[i].$id,
+                                    error:
+                                        r.reason instanceof Error
+                                            ? r.reason.message
+                                            : String(r.reason),
+                                },
+                            );
                         }
                     }
                 }

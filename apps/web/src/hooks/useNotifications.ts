@@ -4,7 +4,10 @@ import { Channel, Query } from "appwrite";
 import { useEffect, useRef, useCallback, useState } from "react";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { logger } from "@/lib/client-logger";
-import { closeSubscriptionSafely, type RealtimeSubscription } from "@/lib/realtime-error-suppression";
+import {
+    closeSubscriptionSafely,
+    type RealtimeSubscription,
+} from "@/lib/realtime-error-suppression";
 
 const env = getEnvConfig();
 
@@ -72,9 +75,8 @@ async function setupRealtimeSubscription(params: {
     isCancelled: () => boolean;
     onEvent: (event: RealtimeEvent) => void;
 }): Promise<() => void> {
-    const { getSharedRealtime, trackSubscription } = await import(
-        "@/lib/realtime-pool"
-    );
+    const { getSharedRealtime, trackSubscription } =
+        await import("@/lib/realtime-pool");
     const realtime = getSharedRealtime();
     const messageChannel = Channel.database(env.databaseId)
         .collection(params.collectionId)
@@ -284,9 +286,7 @@ export function useNotifications({
             }
 
             const payload = event.payload;
-            const messageChannelId = payload.channelId as
-                | string
-                | undefined;
+            const messageChannelId = payload.channelId as string | undefined;
             const senderId = payload.userId as string;
 
             // Only process messages for the current channel
@@ -305,17 +305,17 @@ export function useNotifications({
                     const {
                         shouldNotifyUser,
                         buildNotificationPayload,
-                            extractMentionedUserIds,
-                        } = await import("@/lib/notification-triggers");
-                        const { hasEveryoneMention } = await import("@/lib/mention-utils");
+                        extractMentionedUserIds,
+                    } = await import("@/lib/notification-triggers");
+                    const { hasEveryoneMention } =
+                        await import("@/lib/mention-utils");
 
                     const messageText = payload.text as string;
                     const mentionedUserIds =
                         extractMentionedUserIds(messageText);
                     const mentionsEveryone = hasEveryoneMention(messageText);
                     const replyToAuthorId = payload.replyToAuthorId as
-                        | string
-                        | undefined;
+                        string | undefined;
 
                     const result = await shouldNotifyUser({
                         senderId,
@@ -328,29 +328,27 @@ export function useNotifications({
                     });
 
                     if (result.shouldNotify) {
-                        const notificationPayload =
-                            buildNotificationPayload(result.type, {
+                        const notificationPayload = buildNotificationPayload(
+                            result.type,
+                            {
                                 senderName:
-                                    (payload.userName as string) ??
-                                    "Someone",
+                                    (payload.userName as string) ?? "Someone",
                                 messageContent: messageText,
                                 channelName: undefined, // Would need to pass this in
                                 serverName: undefined, // Would need to pass this in
                                 messageId: payload.$id as string,
                                 channelId,
                                 serverId: serverId ?? undefined,
-                            });
+                            },
+                        );
 
                         if (result.showDesktop) {
-                            showDesktopNotification(
-                                notificationPayload.title,
-                                {
-                                    body: notificationPayload.body,
-                                    icon: notificationPayload.icon,
-                                    tag: `message-${String(payload.$id)}`,
-                                    data: notificationPayload.data,
-                                },
-                            );
+                            showDesktopNotification(notificationPayload.title, {
+                                body: notificationPayload.body,
+                                icon: notificationPayload.icon,
+                                tag: `message-${String(payload.$id)}`,
+                                data: notificationPayload.data,
+                            });
                         }
 
                         if (result.playSound) {
@@ -452,10 +450,8 @@ export function useNotifications({
             // Check if we should notify this user (async but fire-and-forget)
             void (async () => {
                 try {
-                    const {
-                        shouldNotifyUser,
-                        buildNotificationPayload,
-                    } = await import("@/lib/notification-triggers");
+                    const { shouldNotifyUser, buildNotificationPayload } =
+                        await import("@/lib/notification-triggers");
 
                     const result = await shouldNotifyUser({
                         senderId,
@@ -464,26 +460,24 @@ export function useNotifications({
                     });
 
                     if (result.shouldNotify) {
-                        const notificationPayload =
-                            buildNotificationPayload(result.type, {
+                        const notificationPayload = buildNotificationPayload(
+                            result.type,
+                            {
                                 senderName:
-                                    (payload.senderName as string) ??
-                                    "Someone",
+                                    (payload.senderName as string) ?? "Someone",
                                 messageContent:
                                     (payload.content as string) ?? "",
                                 conversationId,
-                            });
+                            },
+                        );
 
                         if (result.showDesktop) {
-                            showDesktopNotification(
-                                notificationPayload.title,
-                                {
-                                    body: notificationPayload.body,
-                                    icon: notificationPayload.icon,
-                                    tag: `dm-${String(payload.$id)}`,
-                                    data: notificationPayload.data,
-                                },
-                            );
+                            showDesktopNotification(notificationPayload.title, {
+                                body: notificationPayload.body,
+                                icon: notificationPayload.icon,
+                                tag: `dm-${String(payload.$id)}`,
+                                data: notificationPayload.data,
+                            });
                         }
 
                         if (result.playSound) {

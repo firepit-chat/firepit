@@ -39,7 +39,10 @@ function SettingsRow({
         >
             <View style={styles.settingsRowCopy}>
                 <ThemedText type="smallBold">{label}</ThemedText>
-                <ThemedText themeColor="mutedForeground" style={styles.settingsRowDesc}>
+                <ThemedText
+                    themeColor="mutedForeground"
+                    style={styles.settingsRowDesc}
+                >
                     {description}
                 </ThemedText>
             </View>
@@ -51,144 +54,169 @@ function SettingsRow({
 }
 
 type CacheStrategyOption = {
-  value: CacheStrategy;
-  label: string;
-  desc: string;
+    value: CacheStrategy;
+    label: string;
+    desc: string;
 };
 
 const CACHE_STRATEGIES: CacheStrategyOption[] = [
-  { value: "aggressive", label: "Aggressive", desc: "Pictures, emojis, messages, media" },
-  { value: "medium", label: "Medium", desc: "Pictures, emojis, DMs" },
-  { value: "minimal", label: "Minimal", desc: "Pictures & emojis only" },
-  { value: "none", label: "None", desc: "No caching" },
+    {
+        value: "aggressive",
+        label: "Aggressive",
+        desc: "Pictures, emojis, messages, media",
+    },
+    { value: "medium", label: "Medium", desc: "Pictures, emojis, DMs" },
+    { value: "minimal", label: "Minimal", desc: "Pictures & emojis only" },
+    { value: "none", label: "None", desc: "No caching" },
 ];
 
 function CacheSettingsSection() {
-  const theme = useTheme();
-  const { strategy, setStrategy, cacheSize, refreshCacheSize, clearCache } =
-    useCacheSettings();
-  const [expanded, setExpanded] = useState(false);
+    const theme = useTheme();
+    const { strategy, setStrategy, cacheSize, refreshCacheSize, clearCache } =
+        useCacheSettings();
+    const [expanded, setExpanded] = useState(false);
 
-  const handleClear = () => {
-    Alert.alert(
-      "Clear Cache",
-      `This will remove ${cacheSize} of cached data. Continue?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Clear",
-          style: "destructive",
-          onPress: async () => {
-            await clearCache();
-            Alert.alert("Cache cleared", "All cached data has been removed.");
-          },
-        },
-      ],
-    );
-  };
+    const handleClear = () => {
+        Alert.alert(
+            "Clear Cache",
+            `This will remove ${cacheSize} of cached data. Continue?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Clear",
+                    style: "destructive",
+                    onPress: async () => {
+                        await clearCache();
+                        Alert.alert(
+                            "Cache cleared",
+                            "All cached data has been removed.",
+                        );
+                    },
+                },
+            ],
+        );
+    };
 
-  const current = CACHE_STRATEGIES.find((s) => s.value === strategy);
+    const current = CACHE_STRATEGIES.find((s) => s.value === strategy);
 
-  return (
-    <View style={styles.section}>
-      <ThemedText type="smallBold">Cache & Troubleshooting</ThemedText>
+    return (
+        <View style={styles.section}>
+            <ThemedText type="smallBold">Cache & Troubleshooting</ThemedText>
 
-      <View style={[styles.cacheCard, { backgroundColor: theme.muted }]}>
-        <View style={styles.cacheHeader}>
-          <ThemedText type="smallBold">Storage Used</ThemedText>
-          <ThemedText type="code" themeColor="mutedForeground">
-            {cacheSize}
-          </ThemedText>
-        </View>
+            <View style={[styles.cacheCard, { backgroundColor: theme.muted }]}>
+                <View style={styles.cacheHeader}>
+                    <ThemedText type="smallBold">Storage Used</ThemedText>
+                    <ThemedText type="code" themeColor="mutedForeground">
+                        {cacheSize}
+                    </ThemedText>
+                </View>
 
-        <Pressable
-          onPress={() => setExpanded(!expanded)}
-          style={({ pressed }) => [
-            styles.strategySelector,
-            { opacity: pressed ? 0.92 : 1 },
-          ]}
-        >
-          <View>
-            <ThemedText type="smallBold">Caching Strategy</ThemedText>
-            <ThemedText themeColor="mutedForeground" style={styles.strategyDesc}>
-              {current?.label} — {current?.desc}
-            </ThemedText>
-          </View>
-          <ThemedText type="code" themeColor="mutedForeground">
-            {expanded ? "▲" : "▼"}
-          </ThemedText>
-        </Pressable>
-
-        {expanded && (
-          <View style={styles.strategyOptions}>
-            {CACHE_STRATEGIES.map((s) => (
-              <Pressable
-                key={s.value}
-                onPress={async () => {
-                  await setStrategy(s.value);
-                  setExpanded(false);
-                }}
-                style={({ pressed }) => [
-                  styles.strategyOption,
-                  {
-                    backgroundColor:
-                      strategy === s.value ? theme.primary + "20" : "transparent",
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <ThemedText
-                  type={strategy === s.value ? "smallBold" : "default"}
-                  themeColor={strategy === s.value ? "foreground" : "mutedForeground"}
+                <Pressable
+                    onPress={() => setExpanded(!expanded)}
+                    style={({ pressed }) => [
+                        styles.strategySelector,
+                        { opacity: pressed ? 0.92 : 1 },
+                    ]}
                 >
-                  {s.label}
-                </ThemedText>
-                <ThemedText themeColor="mutedForeground" style={styles.optionDesc}>
-                  {s.desc}
-                </ThemedText>
-              </Pressable>
-            ))}
-          </View>
-        )}
+                    <View>
+                        <ThemedText type="smallBold">
+                            Caching Strategy
+                        </ThemedText>
+                        <ThemedText
+                            themeColor="mutedForeground"
+                            style={styles.strategyDesc}
+                        >
+                            {current?.label} — {current?.desc}
+                        </ThemedText>
+                    </View>
+                    <ThemedText type="code" themeColor="mutedForeground">
+                        {expanded ? "▲" : "▼"}
+                    </ThemedText>
+                </Pressable>
 
-        <View style={styles.cacheActions}>
-          <Pressable
-            onPress={handleClear}
-            style={({ pressed }) => [
-              styles.clearButton,
-              {
-                backgroundColor: theme.destructive + "15",
-                opacity: pressed ? 0.8 : 1,
-              },
-            ]}
-          >
-            <ThemedText type="smallBold" themeColor="destructive">
-              Clear Cache
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            onPress={refreshCacheSize}
-            style={({ pressed }) => [
-              styles.refreshButton,
-              { opacity: pressed ? 0.8 : 1 },
-            ]}
-          >
-            <ThemedText type="code" themeColor="mutedForeground">
-              ↻ Refresh
-            </ThemedText>
-          </Pressable>
+                {expanded && (
+                    <View style={styles.strategyOptions}>
+                        {CACHE_STRATEGIES.map((s) => (
+                            <Pressable
+                                key={s.value}
+                                onPress={async () => {
+                                    await setStrategy(s.value);
+                                    setExpanded(false);
+                                }}
+                                style={({ pressed }) => [
+                                    styles.strategyOption,
+                                    {
+                                        backgroundColor:
+                                            strategy === s.value
+                                                ? theme.primary + "20"
+                                                : "transparent",
+                                        opacity: pressed ? 0.8 : 1,
+                                    },
+                                ]}
+                            >
+                                <ThemedText
+                                    type={
+                                        strategy === s.value
+                                            ? "smallBold"
+                                            : "default"
+                                    }
+                                    themeColor={
+                                        strategy === s.value
+                                            ? "foreground"
+                                            : "mutedForeground"
+                                    }
+                                >
+                                    {s.label}
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.optionDesc}
+                                >
+                                    {s.desc}
+                                </ThemedText>
+                            </Pressable>
+                        ))}
+                    </View>
+                )}
+
+                <View style={styles.cacheActions}>
+                    <Pressable
+                        onPress={handleClear}
+                        style={({ pressed }) => [
+                            styles.clearButton,
+                            {
+                                backgroundColor: theme.destructive + "15",
+                                opacity: pressed ? 0.8 : 1,
+                            },
+                        ]}
+                    >
+                        <ThemedText type="smallBold" themeColor="destructive">
+                            Clear Cache
+                        </ThemedText>
+                    </Pressable>
+                    <Pressable
+                        onPress={refreshCacheSize}
+                        style={({ pressed }) => [
+                            styles.refreshButton,
+                            { opacity: pressed ? 0.8 : 1 },
+                        ]}
+                    >
+                        <ThemedText type="code" themeColor="mutedForeground">
+                            ↻ Refresh
+                        </ThemedText>
+                    </Pressable>
+                </View>
+            </View>
         </View>
-      </View>
-    </View>
-  );
+    );
 }
 
 function safeHostname(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return url;
+    }
 }
 
 export default function SettingsTabScreen() {
@@ -274,7 +302,10 @@ export default function SettingsTabScreen() {
                                 Firepit settings
                             </ThemedText>
                             <ThemedText type="title">Settings</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
                                 Account, notifications, and app preferences.
                             </ThemedText>
                             {/* The account name and instance host are stated
@@ -299,7 +330,10 @@ export default function SettingsTabScreen() {
                             <ThemedText type="smallBold">Account</ThemedText>
                             <View style={styles.accountInfo}>
                                 <View style={styles.accountRow}>
-                                    <ThemedText type="code" themeColor="mutedForeground">
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
                                         Display name
                                     </ThemedText>
                                     <ThemedText>
@@ -307,7 +341,10 @@ export default function SettingsTabScreen() {
                                     </ThemedText>
                                 </View>
                                 <View style={styles.accountRow}>
-                                    <ThemedText type="code" themeColor="mutedForeground">
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
                                         User ID
                                     </ThemedText>
                                     <ThemedText type="code">
@@ -315,7 +352,10 @@ export default function SettingsTabScreen() {
                                     </ThemedText>
                                 </View>
                                 <View style={styles.accountRow}>
-                                    <ThemedText type="code" themeColor="mutedForeground">
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
                                         Email
                                     </ThemedText>
                                     <ThemedText>
@@ -324,19 +364,32 @@ export default function SettingsTabScreen() {
                                 </View>
                                 {currentUser?.emailVerified === false ? (
                                     <View style={styles.accountRow}>
-                                        <ThemedText type="code" themeColor="mutedForeground">
+                                        <ThemedText
+                                            type="code"
+                                            themeColor="mutedForeground"
+                                        >
                                             Verification
                                         </ThemedText>
                                         <Pressable
                                             accessibilityRole="button"
                                             disabled={verifyingEmail}
-                                            onPress={() => void handleResendVerification()}
+                                            onPress={() =>
+                                                void handleResendVerification()
+                                            }
                                             style={({ pressed }) => ({
-                                                opacity: pressed || verifyingEmail ? 0.6 : 1,
+                                                opacity:
+                                                    pressed || verifyingEmail
+                                                        ? 0.6
+                                                        : 1,
                                             })}
                                         >
-                                            <ThemedText type="smallBold" themeColor="accent">
-                                                {verifyingEmail ? "Sending…" : "Verify email"}
+                                            <ThemedText
+                                                type="smallBold"
+                                                themeColor="accent"
+                                            >
+                                                {verifyingEmail
+                                                    ? "Sending…"
+                                                    : "Verify email"}
                                             </ThemedText>
                                         </Pressable>
                                     </View>
@@ -346,7 +399,9 @@ export default function SettingsTabScreen() {
                                 label="Change Email"
                                 description="Switch the email address on your account"
                                 onPress={() =>
-                                    router.push("/settings/change-email" as never)
+                                    router.push(
+                                        "/settings/change-email" as never,
+                                    )
                                 }
                             />
                             <SettingsRow
@@ -379,7 +434,9 @@ export default function SettingsTabScreen() {
 
                         {/* Notifications category */}
                         <View style={styles.section}>
-                            <ThemedText type="smallBold">Notifications</ThemedText>
+                            <ThemedText type="smallBold">
+                                Notifications
+                            </ThemedText>
                             <SettingsRow
                                 label="Push Notifications"
                                 description={
@@ -388,20 +445,22 @@ export default function SettingsTabScreen() {
                                         : "Push notifications disabled"
                                 }
                                 onPress={() =>
-                                    router.push("/settings/notifications" as never)
+                                    router.push(
+                                        "/settings/notifications" as never,
+                                    )
                                 }
                             />
                         </View>
 
                         {/* Connections category */}
                         <View style={styles.section}>
-                            <ThemedText type="smallBold">Connections</ThemedText>
+                            <ThemedText type="smallBold">
+                                Connections
+                            </ThemedText>
                             <SettingsRow
                                 label="Friends"
                                 description="Manage friends, requests, and blocked users"
-                                onPress={() =>
-                                    router.push("/friends" as never)
-                                }
+                                onPress={() => router.push("/friends" as never)}
                             />
                             <SettingsRow
                                 label="Privacy & Blocking"
@@ -414,7 +473,9 @@ export default function SettingsTabScreen() {
 
                         {/* App Updates category */}
                         <View style={styles.section}>
-                            <ThemedText type="smallBold">App Updates</ThemedText>
+                            <ThemedText type="smallBold">
+                                App Updates
+                            </ThemedText>
                             <SettingsRow
                                 label="Update Settings"
                                 description="Automatic updates and release notifications"
@@ -444,7 +505,10 @@ export default function SettingsTabScreen() {
                             <ThemedText type="smallBold">About</ThemedText>
                             <View style={styles.accountInfo}>
                                 <View style={styles.accountRow}>
-                                    <ThemedText type="code" themeColor="mutedForeground">
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
                                         Version
                                     </ThemedText>
                                     <ThemedText type="code">
@@ -455,21 +519,20 @@ export default function SettingsTabScreen() {
                         </View>
                     </View>
 
-                        {/* Last on the page: destructive and rarely wanted,
+                    {/* Last on the page: destructive and rarely wanted,
                             so it should not sit among routine account rows. */}
-                        <View style={styles.section}>
-                            <ThemedText type="smallBold" themeColor="destructive">
-                                Danger Zone
-                            </ThemedText>
-                            <SettingsRow
-                                label="Deactivate or delete account"
-                                description="Permanently remove your account and its data"
-                                onPress={() =>
-                                    router.push("/settings/danger-zone" as never)
-                                }
-                            />
-                        </View>
-
+                    <View style={styles.section}>
+                        <ThemedText type="smallBold" themeColor="destructive">
+                            Danger Zone
+                        </ThemedText>
+                        <SettingsRow
+                            label="Deactivate or delete account"
+                            description="Permanently remove your account and its data"
+                            onPress={() =>
+                                router.push("/settings/danger-zone" as never)
+                            }
+                        />
+                    </View>
                 </ScrollView>
             </SafeAreaView>
         </View>

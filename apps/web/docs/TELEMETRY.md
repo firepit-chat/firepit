@@ -86,12 +86,12 @@ you can disable rewrites with `POSTHOG_REWRITE_ENABLED=false`.
 
 Events emitted by `src/lib/posthog-utils.ts`:
 
-| Helper                               | PostHog output                                                                     |
-| ------------------------------------ | ---------------------------------------------------------------------------------- |
-| `recordEvent(eventType, attributes)` | capture event `eventType` with `attributes`                                        |
-| `recordMetric(name, value)`          | capture event `metric_recorded` with `{ metricName: name, value }`                 |
-| `recordError(error, attrs)`          | `captureException` with normalized error fields plus attrs                         |
-| `logger.info/warn/error/debug`       | capture event `application_log` plus OTLP log record                               |
+| Helper                               | PostHog output                                                     |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| `recordEvent(eventType, attributes)` | capture event `eventType` with `attributes`                        |
+| `recordMetric(name, value)`          | capture event `metric_recorded` with `{ metricName: name, value }` |
+| `recordError(error, attrs)`          | `captureException` with normalized error fields plus attrs         |
+| `logger.info/warn/error/debug`       | capture event `application_log` plus OTLP log record               |
 
 Client helpers emit `log_info`, `log_warn`, `log_error`, `client_error` events
 and use `captureException` for rich client errors.

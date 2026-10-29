@@ -20,7 +20,9 @@ const {
 vi.mock("node-appwrite", () => ({
     ID: { unique: () => "vote-id" },
     Query: {
-        equal: vi.fn((field: string, value: string) => `equal(${field},${value})`),
+        equal: vi.fn(
+            (field: string, value: string) => `equal(${field},${value})`,
+        ),
         orderAsc: vi.fn((field: string) => `orderAsc(${field})`),
         limit: vi.fn((value: number) => `limit(${value})`),
         cursorAfter: vi.fn((value: string) => `cursorAfter(${value})`),
@@ -69,9 +71,8 @@ describe("Message Poll Votes API", () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        const module = await import(
-            "../../app/api/messages/[messageId]/poll-votes/route"
-        );
+        const module =
+            await import("../../app/api/messages/[messageId]/poll-votes/route");
         POST = module.POST;
 
         mockGetChannelAccessForUser.mockResolvedValue({
@@ -259,7 +260,9 @@ describe("Message Poll Votes API", () => {
                 ],
             });
 
-        mockCreateDocument.mockRejectedValue({ type: "document_already_exists" });
+        mockCreateDocument.mockRejectedValue({
+            type: "document_already_exists",
+        });
 
         const response = await POST(
             new NextRequest("http://localhost/api/messages/msg-1/poll-votes", {

@@ -5,7 +5,8 @@ import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { listPages } from "@/lib/appwrite-pagination";
-import { logger,
+import {
+    logger,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
@@ -93,7 +94,9 @@ async function validateRoleBelongsToServer(
         throw error;
     }
 
-    if (String((roleDocument as { serverId?: unknown }).serverId) !== serverId) {
+    if (
+        String((roleDocument as { serverId?: unknown }).serverId) !== serverId
+    ) {
         return NextResponse.json(
             { error: "Role does not belong to this server" },
             { status: 400 },
@@ -180,7 +183,10 @@ async function enrichAssignmentsWithProfiles(
     });
 }
 
-async function updateRoleMemberCount(roleId: string, serverId: string): Promise<void> {
+async function updateRoleMemberCount(
+    roleId: string,
+    serverId: string,
+): Promise<void> {
     try {
         const databases = getDatabases();
         let memberCount: number | null = null;
@@ -197,11 +203,15 @@ async function updateRoleMemberCount(roleId: string, serverId: string): Promise<
             );
             memberCount = typeof res.total === "number" ? res.total : 0;
         } catch (error) {
-            logger.warn("Failed to query role assignment count using contains", {
-                roleId,
-                serverId,
-                error: error instanceof Error ? error.message : String(error),
-            });
+            logger.warn(
+                "Failed to query role assignment count using contains",
+                {
+                    roleId,
+                    serverId,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
             memberCount = null;
         }
 
@@ -231,7 +241,10 @@ export async function GET(request: NextRequest) {
         const userId = searchParams.get("userId");
 
         if (!serverId) {
-            return NextResponse.json({ error: "serverId is required" }, { status: 400 });
+            return NextResponse.json(
+                { error: "serverId is required" },
+                { status: 400 },
+            );
         }
 
         const authError = await requireManageRolesAccess(serverId);
@@ -303,7 +316,10 @@ export async function GET(request: NextRequest) {
         logger.error("Failed to list role assignments", {
             error: error instanceof Error ? error.message : String(error),
         });
-        return NextResponse.json({ error: "Failed to list role assignments" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to list role assignments" },
+            { status: 500 },
+        );
     }
 }
 
@@ -414,8 +430,7 @@ export async function POST(request: NextRequest) {
             }
 
             const racedAssignment = raced.documents[0];
-            const racedRoleIds =
-                (racedAssignment.roleIds as string[]) || [];
+            const racedRoleIds = (racedAssignment.roleIds as string[]) || [];
             if (racedRoleIds.includes(roleId)) {
                 return NextResponse.json(
                     { error: "User already has this role" },
@@ -443,7 +458,10 @@ export async function POST(request: NextRequest) {
         logger.error("Failed to assign role", {
             error: error instanceof Error ? error.message : String(error),
         });
-        return NextResponse.json({ error: "Failed to assign role" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to assign role" },
+            { status: 500 },
+        );
     }
 }
 
@@ -527,6 +545,9 @@ export async function DELETE(request: NextRequest) {
         logger.error("Failed to remove role", {
             error: error instanceof Error ? error.message : String(error),
         });
-        return NextResponse.json({ error: "Failed to remove role" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Failed to remove role" },
+            { status: 500 },
+        );
     }
 }

@@ -72,7 +72,10 @@ async function fetchServerOptions(serverIds: string[]): Promise<Server[]> {
             const d = raw as Record<string, unknown>;
             servers.push({
                 $id: String(d.$id),
-                name: typeof d.name === "string" && d.name ? d.name : "Unnamed Server",
+                name:
+                    typeof d.name === "string" && d.name
+                        ? d.name
+                        : "Unnamed Server",
                 $createdAt: String(d.$createdAt ?? ""),
                 ownerId: String(d.ownerId ?? ""),
             });
@@ -129,7 +132,10 @@ async function listModeratableServers(
                         server.$id,
                         userId,
                     );
-                    return [server.$id, access.permissions.manageMessages] as const;
+                    return [
+                        server.$id,
+                        access.permissions.manageMessages,
+                    ] as const;
                 } catch {
                     // Skip servers the user can no longer access (e.g. deleted)
                     return [server.$id, false] as const;
@@ -412,7 +418,10 @@ function Header({ serverName }: { serverName?: string }) {
     return (
         <header className="rounded-xl border border-border/80 p-6 sm:p-8">
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                <ShieldAlert className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                <ShieldAlert
+                    className="h-3.5 w-3.5 text-primary"
+                    aria-hidden="true"
+                />
                 Live moderation tools
             </div>
             <h1 className="mt-4 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">

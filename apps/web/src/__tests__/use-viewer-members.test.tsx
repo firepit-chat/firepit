@@ -16,10 +16,16 @@ function Probe({ serverId }: { serverId: string | null }) {
     return createElement(
         "div",
         null,
-        createElement("span", { "data-testid": "state" },
-            loading ? "loading" : "settled"),
-        createElement("span", { "data-testid": "count" },
-            String(members.length)),
+        createElement(
+            "span",
+            { "data-testid": "state" },
+            loading ? "loading" : "settled",
+        ),
+        createElement(
+            "span",
+            { "data-testid": "count" },
+            String(members.length),
+        ),
     );
 }
 
@@ -56,11 +62,11 @@ describe("useViewerMembers loading state", () => {
             .mockResolvedValueOnce(
                 new Response(JSON.stringify(memberResponse(2))),
             )
-            .mockResolvedValue(
-                new Response(JSON.stringify(memberResponse(5))),
-            );
+            .mockResolvedValue(new Response(JSON.stringify(memberResponse(5))));
 
-        const { rerender } = render(createElement(Probe, { serverId: "server-1" }));
+        const { rerender } = render(
+            createElement(Probe, { serverId: "server-1" }),
+        );
         await waitFor(() =>
             expect(screen.getByTestId("state").textContent).toBe("settled"),
         );

@@ -87,8 +87,12 @@ vi.mock("@/lib/appwrite-core", () => ({
 }));
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: {
         info: vi.fn(),
         warn: vi.fn(),
@@ -128,7 +132,11 @@ vi.mock("@/lib/thread-read-store", () => ({
         items: T[];
         worker: (item: T) => Promise<void>;
     }) => {
-        for (let index = 0; index < params.items.length; index += params.batchSize) {
+        for (
+            let index = 0;
+            index < params.items.length;
+            index += params.batchSize
+        ) {
             await Promise.all(
                 params.items
                     .slice(index, index + params.batchSize)
@@ -211,14 +219,14 @@ describe("Direct Messages API", () => {
                     ]),
                 ),
         );
-            mockGetOrCreateNotificationSettings.mockResolvedValue({
-                dmEncryptionEnabled: false,
-            });
-            mockGetNotificationSettings.mockResolvedValue({
-                dmEncryptionEnabled: false,
-            });
-            mockGetUserProfile.mockResolvedValue(null);
-            mockGetUserProfilesBatch.mockResolvedValue(new Map());
+        mockGetOrCreateNotificationSettings.mockResolvedValue({
+            dmEncryptionEnabled: false,
+        });
+        mockGetNotificationSettings.mockResolvedValue({
+            dmEncryptionEnabled: false,
+        });
+        mockGetUserProfile.mockResolvedValue(null);
+        mockGetUserProfilesBatch.mockResolvedValue(new Map());
 
         // Dynamically import the route handlers
         const module = await import("../../app/api/direct-messages/route");
@@ -336,14 +344,19 @@ describe("Direct Messages API", () => {
                     }
 
                     if (collectionId === "direct-messages-collection") {
-                        if (queryText.includes("greaterThan(threadMessageCount,0)")) {
+                        if (
+                            queryText.includes(
+                                "greaterThan(threadMessageCount,0)",
+                            )
+                        ) {
                             return {
                                 documents: [
                                     {
                                         $id: "parent-1",
                                         conversationId: "conv-1",
                                         threadMessageCount: 1,
-                                        lastThreadReplyAt: "2026-03-11T13:05:00.000Z",
+                                        lastThreadReplyAt:
+                                            "2026-03-11T13:05:00.000Z",
                                     },
                                 ],
                             };
@@ -801,9 +814,7 @@ describe("Direct Messages API", () => {
             const data = await response.json();
 
             expect(response.status).toBe(400);
-            expect(String(data.error)).toContain(
-                "encryptionSenderPublicKey",
-            );
+            expect(String(data.error)).toContain("encryptionSenderPublicKey");
             expect(mockCreateDocument).not.toHaveBeenCalled();
         });
 

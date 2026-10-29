@@ -61,7 +61,10 @@ export default function ForgotPasswordScreen() {
                         <ThemedView style={styles.shell}>
                             <ThemedView
                                 type="card"
-                                style={[styles.heroCard, { borderColor: theme.border }]}
+                                style={[
+                                    styles.heroCard,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText type="code" themeColor="accent">
                                     Firepit
@@ -80,7 +83,10 @@ export default function ForgotPasswordScreen() {
 
                             <ThemedView
                                 type="card"
-                                style={[styles.panel, { borderColor: theme.border }]}
+                                style={[
+                                    styles.panel,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 {submitted ? (
                                     <View style={styles.successBox}>
@@ -91,17 +97,21 @@ export default function ForgotPasswordScreen() {
                                             themeColor="mutedForeground"
                                             style={styles.copy}
                                         >
-                                            If that address is registered, a password
-                                            reset link is on its way. Open it on any
-                                            device to set a new password.
+                                            If that address is registered, a
+                                            password reset link is on its way.
+                                            Open it on any device to set a new
+                                            password.
                                         </ThemedText>
                                         <Pressable
                                             accessibilityRole="button"
-                                            onPress={() => router.replace("/login")}
+                                            onPress={() =>
+                                                router.replace("/login")
+                                            }
                                             style={({ pressed }) => [
                                                 styles.button,
                                                 {
-                                                    backgroundColor: theme.primary,
+                                                    backgroundColor:
+                                                        theme.primary,
                                                     opacity: pressed ? 0.85 : 1,
                                                 },
                                             ]}
@@ -122,7 +132,9 @@ export default function ForgotPasswordScreen() {
                                             autoComplete="email"
                                             keyboardType="email-address"
                                             placeholder="Email address"
-                                            placeholderTextColor={theme.mutedForeground}
+                                            placeholderTextColor={
+                                                theme.mutedForeground
+                                            }
                                             textContentType="emailAddress"
                                             value={email}
                                             onChangeText={setEmail}
@@ -142,9 +154,12 @@ export default function ForgotPasswordScreen() {
                                             style={({ pressed }) => [
                                                 styles.button,
                                                 {
-                                                    backgroundColor: theme.primary,
+                                                    backgroundColor:
+                                                        theme.primary,
                                                     opacity:
-                                                        pressed || loading ? 0.85 : 1,
+                                                        pressed || loading
+                                                            ? 0.85
+                                                            : 1,
                                                 },
                                             ]}
                                         >

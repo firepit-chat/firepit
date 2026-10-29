@@ -86,7 +86,12 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         );
     }
 
-    const access = await getChannelAccessForUser(databases, env, channelId, user.$id);
+    const access = await getChannelAccessForUser(
+        databases,
+        env,
+        channelId,
+        user.$id,
+    );
     if (!access.isMember || !access.canRead) {
         return returnForbidden();
     }
@@ -96,7 +101,10 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         poll = await getPollDocumentByMessageId(databases, env, messageId);
     } catch (error) {
         if (isNotFoundError(error)) {
-            return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Poll not found" },
+                { status: 404 },
+            );
         }
 
         throw error;
@@ -140,7 +148,10 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         pollState = await getPollStateForMessage(databases, env, messageId);
     } catch (error) {
         if (isNotFoundError(error)) {
-            return NextResponse.json({ error: "Poll not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Poll not found" },
+                { status: 404 },
+            );
         }
 
         throw error;

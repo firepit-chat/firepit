@@ -81,9 +81,13 @@ describe("useBlockedUsers", () => {
 
         expect(unblocked).toBe(true);
 
-        expect(global.fetch).toHaveBeenNthCalledWith(2, "/api/users/user-2/block", {
-            method: "DELETE",
-        });
+        expect(global.fetch).toHaveBeenNthCalledWith(
+            2,
+            "/api/users/user-2/block",
+            {
+                method: "DELETE",
+            },
+        );
         expect(global.fetch).toHaveBeenNthCalledWith(3, "/api/users/blocked");
     });
 

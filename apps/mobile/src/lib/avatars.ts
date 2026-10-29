@@ -1,15 +1,15 @@
 const AVATARS_BUCKET_ID = "avatars";
 
 function buildStorageUrl(
-  fileId: string | null | undefined,
-  config: { endpoint: string; project: string } | null,
-  bucketId: string,
+    fileId: string | null | undefined,
+    config: { endpoint: string; project: string } | null,
+    bucketId: string,
 ): string | undefined {
-  if (!fileId || !config) return undefined;
-  const trimmed = fileId.trim();
-  if (!trimmed) return undefined;
-  const endpoint = config.endpoint.replace(/\/$/, "");
-  return `${endpoint}/storage/buckets/${bucketId}/files/${encodeURIComponent(trimmed)}/view?project=${encodeURIComponent(config.project)}`;
+    if (!fileId || !config) return undefined;
+    const trimmed = fileId.trim();
+    if (!trimmed) return undefined;
+    const endpoint = config.endpoint.replace(/\/$/, "");
+    return `${endpoint}/storage/buckets/${bucketId}/files/${encodeURIComponent(trimmed)}/view?project=${encodeURIComponent(config.project)}`;
 }
 
 /**
@@ -20,16 +20,16 @@ export function getAvatarUrl(
     fileId: string | null | undefined,
     config: { endpoint: string; project: string } | null,
 ): string | undefined {
-  return buildStorageUrl(fileId, config, AVATARS_BUCKET_ID);
+    return buildStorageUrl(fileId, config, AVATARS_BUCKET_ID);
 }
 
 const EMOJIS_BUCKET_ID = "emojis";
 
 export function getEmojiUrl(
-  fileId: string | null | undefined,
-  config: { endpoint: string; project: string } | null,
+    fileId: string | null | undefined,
+    config: { endpoint: string; project: string } | null,
 ): string | undefined {
-  return buildStorageUrl(fileId, config, EMOJIS_BUCKET_ID);
+    return buildStorageUrl(fileId, config, EMOJIS_BUCKET_ID);
 }
 
 /**
@@ -40,12 +40,19 @@ export function getMessageAvatarFileId(
     message: Record<string, unknown>,
 ): string | undefined {
     // Direct avatarFileId on message
-    if (typeof message.avatarFileId === "string" && message.avatarFileId.trim()) {
+    if (
+        typeof message.avatarFileId === "string" &&
+        message.avatarFileId.trim()
+    ) {
         return message.avatarFileId.trim();
     }
     // Nested in author
     const author = message.author as Record<string, unknown> | undefined;
-    if (author && typeof author.avatarFileId === "string" && author.avatarFileId.trim()) {
+    if (
+        author &&
+        typeof author.avatarFileId === "string" &&
+        author.avatarFileId.trim()
+    ) {
         return author.avatarFileId.trim();
     }
     return undefined;
@@ -73,4 +80,3 @@ export function getInitials(name: string | null | undefined): string {
         .join("")
         .toUpperCase();
 }
-

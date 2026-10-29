@@ -30,7 +30,9 @@ type LoginFormProps = {
 const REMEMBER_KEY = "firepit.remember";
 
 function getRemembered(): boolean {
-    if (typeof window === "undefined") {return true;}
+    if (typeof window === "undefined") {
+        return true;
+    }
     try {
         return window.localStorage.getItem(REMEMBER_KEY) !== "false";
     } catch {
@@ -38,7 +40,9 @@ function getRemembered(): boolean {
     }
 }
 
-const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) => {
+const LoginFormContent: React.FC<LoginFormProps> = ({
+    showResendVerification,
+}) => {
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -55,7 +59,9 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
     const notifiedVerificationStatusRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (recoveryCooldown <= 0) {return;}
+        if (recoveryCooldown <= 0) {
+            return;
+        }
         const id = setInterval(
             () => setRecoveryCooldown((seconds) => Math.max(0, seconds - 1)),
             1000,
@@ -80,7 +86,9 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             toast.error("Email verification link is invalid or expired.");
         }
 
-        const updatedSearchParams = new URLSearchParams(searchParams.toString());
+        const updatedSearchParams = new URLSearchParams(
+            searchParams.toString(),
+        );
         updatedSearchParams.delete("verified");
         const nextQuery = updatedSearchParams.toString();
         const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
@@ -88,8 +96,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
     }, [pathname, router, searchParams]);
 
     const redirectPath = searchParams.get("redirect");
-    const destination =
-        redirectPath?.startsWith("/") ? redirectPath : "/chat";
+    const destination = redirectPath?.startsWith("/") ? redirectPath : "/chat";
 
     const onLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -107,7 +114,9 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             });
 
             if (!sessionResponse.ok) {
-                const errorData = await sessionResponse.json().catch(() => ({}));
+                const errorData = await sessionResponse
+                    .json()
+                    .catch(() => ({}));
                 toast.error(
                     (errorData as { error?: string }).error ??
                         "Authentication failed",
@@ -164,7 +173,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     const onResendVerification = async () => {
         if (!email || !password) {
@@ -194,7 +203,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
         } finally {
             setResendingVerification(false);
         }
-    }
+    };
 
     const onRequestPasswordReset = async () => {
         if (!awaitingRecoveryEmail) {
@@ -222,9 +231,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             if (data.error) {
                 toast.error(data.error);
             } else {
-                toast.success(
-                    data.message ?? "Password reset link sent.",
-                );
+                toast.success(data.message ?? "Password reset link sent.");
                 setRecoverySent(true);
                 setRecoveryCooldown(30);
             }
@@ -237,7 +244,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
         } finally {
             setResettingPassword(false);
         }
-    }
+    };
 
     return (
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-6xl items-center px-4 py-8 sm:px-6 lg:px-8">
@@ -245,7 +252,10 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                 <section className="p-8 sm:p-10">
                     <div className="space-y-6">
                         <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                            <Flame className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                            <Flame
+                                className="h-3.5 w-3.5 text-primary"
+                                aria-hidden="true"
+                            />
                             Firepit
                         </div>
 
@@ -254,22 +264,38 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                 Sign in and return to your workspace.
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                                Access your chats, inbox, settings, and admin tools from one entry point.
+                                Access your chats, inbox, settings, and admin
+                                tools from one entry point.
                             </p>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-3">
                             <div>
-                                <p className="text-xs font-semibold text-muted-foreground">Chat</p>
-                                <p className="mt-1 text-sm text-foreground">Jump straight back into servers and direct messages.</p>
+                                <p className="text-xs font-semibold text-muted-foreground">
+                                    Chat
+                                </p>
+                                <p className="mt-1 text-sm text-foreground">
+                                    Jump straight back into servers and direct
+                                    messages.
+                                </p>
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-muted-foreground">Security</p>
-                                <p className="mt-1 text-sm text-foreground">Session handling stays cookie-based and server-controlled.</p>
+                                <p className="text-xs font-semibold text-muted-foreground">
+                                    Security
+                                </p>
+                                <p className="mt-1 text-sm text-foreground">
+                                    Session handling stays cookie-based and
+                                    server-controlled.
+                                </p>
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-muted-foreground">Profile</p>
-                                <p className="mt-1 text-sm text-foreground">Continue into onboarding if your account still needs setup.</p>
+                                <p className="text-xs font-semibold text-muted-foreground">
+                                    Profile
+                                </p>
+                                <p className="mt-1 text-sm text-foreground">
+                                    Continue into onboarding if your account
+                                    still needs setup.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -278,12 +304,18 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                 <Card className="rounded-xl border border-border/80">
                     <CardHeader className="space-y-2">
                         <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <Shield className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                            <Shield
+                                className="h-3.5 w-3.5 text-primary"
+                                aria-hidden="true"
+                            />
                             Secure access
                         </div>
-                        <CardTitle className="text-xl font-semibold tracking-tight">Sign in to Firepit</CardTitle>
+                        <CardTitle className="text-xl font-semibold tracking-tight">
+                            Sign in to Firepit
+                        </CardTitle>
                         <CardDescription className="leading-6">
-                            Use your Appwrite account to reach chat, onboarding, and workspace controls.
+                            Use your Appwrite account to reach chat, onboarding,
+                            and workspace controls.
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -307,7 +339,9 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     autoComplete="current-password"
                                     id="password"
                                     name="password"
-                                    onChange={(e) => setPassword(e.target.value)}
+                                    onChange={(e) =>
+                                        setPassword(e.target.value)
+                                    }
                                     required
                                     type="password"
                                     value={password}
@@ -337,7 +371,10 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                 </label>
                                 <button
                                     className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                                    disabled={resettingPassword || recoveryCooldown > 0}
+                                    disabled={
+                                        resettingPassword ||
+                                        recoveryCooldown > 0
+                                    }
                                     onClick={onRequestPasswordReset}
                                     type="button"
                                 >
@@ -354,7 +391,9 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     <Input
                                         autoComplete="email"
                                         id="recovery-email"
-                                        onChange={(e) => setEmail(e.target.value)}
+                                        onChange={(e) =>
+                                            setEmail(e.target.value)
+                                        }
                                         placeholder="you@example.com"
                                         type="email"
                                         value={email}
@@ -362,7 +401,8 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     <Button
                                         disabled={
                                             resettingPassword ||
-                                            (recoverySent && recoveryCooldown > 0)
+                                            (recoverySent &&
+                                                recoveryCooldown > 0)
                                         }
                                         onClick={onRequestPasswordReset}
                                         type="button"
@@ -379,16 +419,25 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                                     </Button>
                                     {recoverySent && (
                                         <p className="text-xs text-muted-foreground">
-                                            Check your inbox for a reset link. If
-                                            it does not arrive, you can resend in
-                                            a moment.
+                                            Check your inbox for a reset link.
+                                            If it does not arrive, you can
+                                            resend in a moment.
                                         </p>
                                     )}
                                 </div>
                             )}
-                            <Button disabled={loading} type="submit" className="rounded-lg">
+                            <Button
+                                disabled={loading}
+                                type="submit"
+                                className="rounded-lg"
+                            >
                                 {loading ? "Signing in..." : "Sign in"}
-                                {!loading && <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />}
+                                {!loading && (
+                                    <ArrowRight
+                                        className="ml-2 h-4 w-4"
+                                        aria-hidden="true"
+                                    />
+                                )}
                             </Button>
                             {showResendVerification && (
                                 <Button
@@ -406,7 +455,10 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
                         </form>
                         <p className="mt-6 text-sm text-muted-foreground">
                             Need an account?{" "}
-                            <Link className="font-medium text-primary underline-offset-4 hover:underline" href="/register">
+                            <Link
+                                className="font-medium text-primary underline-offset-4 hover:underline"
+                                href="/register"
+                            >
                                 Create one
                             </Link>
                             .
@@ -416,7 +468,7 @@ const LoginFormContent: React.FC<LoginFormProps> = ({ showResendVerification }) 
             </div>
         </div>
     );
-}
+};
 
 const LoginForm: React.FC<LoginFormProps> = ({ showResendVerification }) => {
     return (
@@ -430,6 +482,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ showResendVerification }) => {
             <LoginFormContent showResendVerification={showResendVerification} />
         </Suspense>
     );
-}
+};
 
 export default LoginForm;

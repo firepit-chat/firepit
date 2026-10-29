@@ -96,8 +96,7 @@ vi.mock("@/lib/realtime-pool", () => ({
         subscribe: mockRealtimeSubscribe,
     })),
     isTransientRealtimeSubscribeError: vi.fn((error: unknown) => {
-        const message =
-            error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error);
         const normalized = message.toLowerCase();
         return (
             normalized.includes("was interrupted while the page was loading") ||
@@ -295,8 +294,7 @@ describe("useDirectMessages", () => {
 
     it("clears direct messages while the next conversation is loading", async () => {
         let resolveNextLoad:
-            | ((value: DirectMessagesResult) => void)
-            | undefined;
+            ((value: DirectMessagesResult) => void) | undefined;
 
         mockListDirectMessages
             .mockResolvedValueOnce(createListResult())
@@ -554,10 +552,12 @@ describe("useDirectMessages", () => {
 
     it("keeps realtime-created messages when initial history load resolves", async () => {
         let resolveInitialLoad:
-            | ((value: DirectMessagesResult) => void)
-            | undefined;
+            ((value: DirectMessagesResult) => void) | undefined;
         let realtimeCallback:
-            | ((response: { events: string[]; payload: Record<string, unknown> }) => void)
+            | ((response: {
+                  events: string[];
+                  payload: Record<string, unknown>;
+              }) => void)
             | undefined;
 
         mockListDirectMessages.mockImplementationOnce(
@@ -566,16 +566,19 @@ describe("useDirectMessages", () => {
                     resolveInitialLoad = resolve;
                 }),
         );
-        mockRealtimeSubscribe.mockImplementationOnce(async (_channel, callback) => {
-            realtimeCallback = callback as (
-                response: { events: string[]; payload: Record<string, unknown> },
-            ) => void;
-            return {
-                close: vi.fn(),
-                update: vi.fn().mockResolvedValue(),
-                disconnect: vi.fn().mockResolvedValue(),
-            };
-        });
+        mockRealtimeSubscribe.mockImplementationOnce(
+            async (_channel, callback) => {
+                realtimeCallback = callback as (response: {
+                    events: string[];
+                    payload: Record<string, unknown>;
+                }) => void;
+                return {
+                    close: vi.fn(),
+                    update: vi.fn().mockResolvedValue(),
+                    disconnect: vi.fn().mockResolvedValue(),
+                };
+            },
+        );
 
         const { result } = renderHook(() =>
             useDirectMessages({
@@ -791,7 +794,8 @@ describe("useDirectMessages", () => {
 
         // Verify typing POST was called
         const typingPostCalls = fetchMock.mock.calls.filter(
-            (call) => String(call[0]) === "/api/typing" && call[1]?.method === "POST",
+            (call) =>
+                String(call[0]) === "/api/typing" && call[1]?.method === "POST",
         );
         expect(typingPostCalls.length).toBeGreaterThan(0);
         const postBody = JSON.parse(typingPostCalls[0][1]?.body as string);
@@ -809,7 +813,9 @@ describe("useDirectMessages", () => {
 
         // Verify typing DELETE was called
         const typingDeleteCalls = fetchMock.mock.calls.filter(
-            (call) => String(call[0]) === "/api/typing" && call[1]?.method === "DELETE",
+            (call) =>
+                String(call[0]) === "/api/typing" &&
+                call[1]?.method === "DELETE",
         );
         expect(typingDeleteCalls.length).toBeGreaterThan(0);
         expect(typingDeleteCalls[0][1]).toMatchObject({

@@ -40,7 +40,12 @@ type ChannelDraft = {
     nsfw: boolean;
 };
 
-const EMPTY_DRAFT: ChannelDraft = { name: "", type: "text", topic: "", nsfw: false };
+const EMPTY_DRAFT: ChannelDraft = {
+    name: "",
+    type: "text",
+    topic: "",
+    nsfw: false,
+};
 
 function StatusPill({
     label,
@@ -50,10 +55,15 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
             <ThemedText
                 type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
             >
                 {label}
             </ThemedText>
@@ -85,7 +95,9 @@ function NsfwToggle({
                 value={value}
                 onValueChange={onValueChange}
                 trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={value ? theme.primaryForeground : theme.mutedForeground}
+                thumbColor={
+                    value ? theme.primaryForeground : theme.mutedForeground
+                }
             />
         </View>
     );
@@ -121,13 +133,16 @@ function ActionButton({
                               : tone === "secondary"
                                 ? theme.secondary
                                 : theme.muted,
-                    borderColor: tone === "danger" ? theme.destructive : theme.border,
+                    borderColor:
+                        tone === "danger" ? theme.destructive : theme.border,
                 },
                 pressed && !disabled && styles.actionButtonPressed,
                 disabled && styles.actionButtonDisabled,
             ]}
         >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
                 {icon === "back" && (
                     <ArrowLeft
                         size={16}
@@ -175,7 +190,9 @@ export default function ChannelManagementScreen() {
     const [showEdit, setShowEdit] = useState(false);
 
     // Delete confirmation
-    const [deletingChannel, setDeletingChannel] = useState<Channel | null>(null);
+    const [deletingChannel, setDeletingChannel] = useState<Channel | null>(
+        null,
+    );
 
     const normalizedServerId = Array.isArray(serverId) ? serverId[0] : serverId;
 
@@ -190,9 +207,11 @@ export default function ChannelManagementScreen() {
         try {
             const [nextChannels, rolesRes] = await Promise.all([
                 getChannels(instanceUrl, accessToken, normalizedServerId),
-                fetchServerRoles(instanceUrl, accessToken, normalizedServerId).catch(
-                    () => ({ roles: [] as ServerRole[] }),
-                ),
+                fetchServerRoles(
+                    instanceUrl,
+                    accessToken,
+                    normalizedServerId,
+                ).catch(() => ({ roles: [] as ServerRole[] })),
             ]);
             setChannels(nextChannels);
             setRoles(rolesRes.roles ?? []);
@@ -200,7 +219,9 @@ export default function ChannelManagementScreen() {
         } catch (error) {
             setLoadState("error");
             setLoadError(
-                error instanceof Error ? error.message : "Unable to load channels",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load channels",
             );
         }
     }, [accessToken, instanceUrl, normalizedServerId]);
@@ -212,7 +233,8 @@ export default function ChannelManagementScreen() {
     useRetryOnReconnect(loadState === "error", loadData);
 
     const handleCreate = async () => {
-        if (!instanceUrl || !accessToken || !normalizedServerId || saving) return;
+        if (!instanceUrl || !accessToken || !normalizedServerId || saving)
+            return;
         const name = createDraft.name.trim();
         if (!name) return;
 
@@ -231,7 +253,9 @@ export default function ChannelManagementScreen() {
             await loadData();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to create channel",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to create channel",
             );
         } finally {
             setSaving(false);
@@ -240,7 +264,14 @@ export default function ChannelManagementScreen() {
 
     const handleEdit = async () => {
         const channelId = editingChannel?.$id;
-        if (!instanceUrl || !accessToken || !channelId || !normalizedServerId || saving) return;
+        if (
+            !instanceUrl ||
+            !accessToken ||
+            !channelId ||
+            !normalizedServerId ||
+            saving
+        )
+            return;
         const name = editDraft.name.trim();
         if (!name) return;
 
@@ -258,7 +289,9 @@ export default function ChannelManagementScreen() {
             await loadData();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to update channel",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to update channel",
             );
         } finally {
             setSaving(false);
@@ -278,7 +311,9 @@ export default function ChannelManagementScreen() {
             await loadData();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to delete channel",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to delete channel",
             );
         } finally {
             setSaving(false);
@@ -306,7 +341,10 @@ export default function ChannelManagementScreen() {
     return (
         <AuthRouteGuard>
             <ScrollView
-                style={[styles.scrollView, { backgroundColor: theme.background }]}
+                style={[
+                    styles.scrollView,
+                    { backgroundColor: theme.background },
+                ]}
                 contentContainerStyle={styles.scrollContent}
             >
                 <View
@@ -328,18 +366,23 @@ export default function ChannelManagementScreen() {
                         {/* Header */}
                         <ThemedView
                             type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Channel management
                             </ThemedText>
-                            <ThemedText type="title">Manage server channels</ThemedText>
+                            <ThemedText type="title">
+                                Manage server channels
+                            </ThemedText>
                             <ThemedText
                                 themeColor="mutedForeground"
                                 style={styles.copy}
                             >
-                                Create, rename, and delete channels. Changes apply
-                                immediately for all server members.
+                                Create, rename, and delete channels. Changes
+                                apply immediately for all server members.
                             </ThemedText>
                             <View style={styles.pillRow}>
                                 <StatusPill
@@ -369,7 +412,9 @@ export default function ChannelManagementScreen() {
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <View style={styles.sectionHeaderRow}>
-                                <ThemedText type="smallBold">Actions</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Actions
+                                </ThemedText>
                                 <View style={styles.actionRow}>
                                     <ActionButton
                                         label="Back to chat"
@@ -443,10 +488,14 @@ export default function ChannelManagementScreen() {
                         {loadState === "ready" && channels.length === 0 ? (
                             <ThemedView
                                 type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText themeColor="mutedForeground">
-                                    No channels found. Create the first one to get started.
+                                    No channels found. Create the first one to
+                                    get started.
                                 </ThemedText>
                             </ThemedView>
                         ) : null}
@@ -467,52 +516,69 @@ export default function ChannelManagementScreen() {
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
                         <KeyboardAvoidingView
-                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            behavior={
+                                Platform.OS === "ios" ? "padding" : undefined
+                            }
                             style={{ width: "100%" }}
                         >
-                        <ThemedView
-                            type="card"
-                            style={[
-                                styles.modalCard,
-                                { borderColor: theme.border },
-                            ]}
-                        >
-                            <ThemedText type="smallBold">Create channel</ThemedText>
-                            <TextInput
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                placeholder="e.g. general"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={createDraft.name}
-                                onChangeText={(text) =>
-                                    setCreateDraft((d) => ({ ...d, name: text }))
-                                }
+                            <ThemedView
+                                type="card"
                                 style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
+                                    styles.modalCard,
+                                    { borderColor: theme.border },
                                 ]}
-                            />
-                            <View style={styles.typeRow}>
-                                {(["text", "voice", "announcement"] as const).map(
-                                    (type) => (
+                            >
+                                <ThemedText type="smallBold">
+                                    Create channel
+                                </ThemedText>
+                                <TextInput
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    placeholder="e.g. general"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={createDraft.name}
+                                    onChangeText={(text) =>
+                                        setCreateDraft((d) => ({
+                                            ...d,
+                                            name: text,
+                                        }))
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
+                                />
+                                <View style={styles.typeRow}>
+                                    {(
+                                        [
+                                            "text",
+                                            "voice",
+                                            "announcement",
+                                        ] as const
+                                    ).map((type) => (
                                         <Pressable
                                             key={type}
                                             onPress={() =>
-                                                setCreateDraft((d) => ({ ...d, type }))
+                                                setCreateDraft((d) => ({
+                                                    ...d,
+                                                    type,
+                                                }))
                                             }
                                             style={[
                                                 styles.typePill,
                                                 {
                                                     backgroundColor:
-                                                        createDraft.type === type
+                                                        createDraft.type ===
+                                                        type
                                                             ? theme.primary
                                                             : theme.card,
                                                     borderColor:
-                                                        createDraft.type === type
+                                                        createDraft.type ===
+                                                        type
                                                             ? theme.primary
                                                             : theme.border,
                                                 },
@@ -529,49 +595,53 @@ export default function ChannelManagementScreen() {
                                                 {type}
                                             </ThemedText>
                                         </Pressable>
-                                    ),
-                                )}
-                            </View>
-                            <NsfwToggle
-                                value={createDraft.nsfw}
-                                onValueChange={(nsfw) =>
-                                    setCreateDraft((d) => ({ ...d, nsfw }))
-                                }
-                            />
-                            <TextInput
-                                placeholder="Topic (optional)"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={createDraft.topic}
-                                onChangeText={(text) =>
-                                    setCreateDraft((d) => ({ ...d, topic: text }))
-                                }
-                                style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
-                                ]}
-                            />
-                            {actionError ? (
-                                <ThemedText themeColor="destructive">
-                                    {actionError}
-                                </ThemedText>
-                            ) : null}
-                            <View style={styles.modalActions}>
-                                <ActionButton
-                                    label="Cancel"
-                                    tone="ghost"
-                                    onPress={() => setShowCreate(false)}
+                                    ))}
+                                </View>
+                                <NsfwToggle
+                                    value={createDraft.nsfw}
+                                    onValueChange={(nsfw) =>
+                                        setCreateDraft((d) => ({ ...d, nsfw }))
+                                    }
                                 />
-                                <ActionButton
-                                    label={saving ? "Creating…" : "Create"}
-                                    disabled={saving || !createDraft.name.trim()}
-                                    onPress={() => void handleCreate()}
+                                <TextInput
+                                    placeholder="Topic (optional)"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={createDraft.topic}
+                                    onChangeText={(text) =>
+                                        setCreateDraft((d) => ({
+                                            ...d,
+                                            topic: text,
+                                        }))
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
                                 />
-                            </View>
-                        </ThemedView>
+                                {actionError ? (
+                                    <ThemedText themeColor="destructive">
+                                        {actionError}
+                                    </ThemedText>
+                                ) : null}
+                                <View style={styles.modalActions}>
+                                    <ActionButton
+                                        label="Cancel"
+                                        tone="ghost"
+                                        onPress={() => setShowCreate(false)}
+                                    />
+                                    <ActionButton
+                                        label={saving ? "Creating…" : "Create"}
+                                        disabled={
+                                            saving || !createDraft.name.trim()
+                                        }
+                                        onPress={() => void handleCreate()}
+                                    />
+                                </View>
+                            </ThemedView>
                         </KeyboardAvoidingView>
                     </View>
                 </Pressable>
@@ -590,42 +660,57 @@ export default function ChannelManagementScreen() {
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
                         <KeyboardAvoidingView
-                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            behavior={
+                                Platform.OS === "ios" ? "padding" : undefined
+                            }
                             style={{ width: "100%" }}
                         >
-                        <ThemedView
-                            type="card"
-                            style={[
-                                styles.modalCard,
-                                { borderColor: theme.border },
-                            ]}
-                        >
-                            <ThemedText type="smallBold">Edit channel</ThemedText>
-                            <TextInput
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                placeholder="Channel name"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={editDraft.name}
-                                onChangeText={(text) =>
-                                    setEditDraft((d) => ({ ...d, name: text }))
-                                }
+                            <ThemedView
+                                type="card"
                                 style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
+                                    styles.modalCard,
+                                    { borderColor: theme.border },
                                 ]}
-                            />
-                            <View style={styles.typeRow}>
-                                {(["text", "voice", "announcement"] as const).map(
-                                    (type) => (
+                            >
+                                <ThemedText type="smallBold">
+                                    Edit channel
+                                </ThemedText>
+                                <TextInput
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    placeholder="Channel name"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={editDraft.name}
+                                    onChangeText={(text) =>
+                                        setEditDraft((d) => ({
+                                            ...d,
+                                            name: text,
+                                        }))
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
+                                />
+                                <View style={styles.typeRow}>
+                                    {(
+                                        [
+                                            "text",
+                                            "voice",
+                                            "announcement",
+                                        ] as const
+                                    ).map((type) => (
                                         <Pressable
                                             key={type}
                                             onPress={() =>
-                                                setEditDraft((d) => ({ ...d, type }))
+                                                setEditDraft((d) => ({
+                                                    ...d,
+                                                    type,
+                                                }))
                                             }
                                             style={[
                                                 styles.typePill,
@@ -652,49 +737,53 @@ export default function ChannelManagementScreen() {
                                                 {type}
                                             </ThemedText>
                                         </Pressable>
-                                    ),
-                                )}
-                            </View>
-                            <NsfwToggle
-                                value={editDraft.nsfw}
-                                onValueChange={(nsfw) =>
-                                    setEditDraft((d) => ({ ...d, nsfw }))
-                                }
-                            />
-                            <TextInput
-                                placeholder="Topic (optional)"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={editDraft.topic}
-                                onChangeText={(text) =>
-                                    setEditDraft((d) => ({ ...d, topic: text }))
-                                }
-                                style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
-                                ]}
-                            />
-                            {actionError ? (
-                                <ThemedText themeColor="destructive">
-                                    {actionError}
-                                </ThemedText>
-                            ) : null}
-                            <View style={styles.modalActions}>
-                                <ActionButton
-                                    label="Cancel"
-                                    tone="ghost"
-                                    onPress={() => setShowEdit(false)}
+                                    ))}
+                                </View>
+                                <NsfwToggle
+                                    value={editDraft.nsfw}
+                                    onValueChange={(nsfw) =>
+                                        setEditDraft((d) => ({ ...d, nsfw }))
+                                    }
                                 />
-                                <ActionButton
-                                    label={saving ? "Saving…" : "Save"}
-                                    disabled={saving || !editDraft.name.trim()}
-                                    onPress={() => void handleEdit()}
+                                <TextInput
+                                    placeholder="Topic (optional)"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={editDraft.topic}
+                                    onChangeText={(text) =>
+                                        setEditDraft((d) => ({
+                                            ...d,
+                                            topic: text,
+                                        }))
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
                                 />
-                            </View>
-                        </ThemedView>
+                                {actionError ? (
+                                    <ThemedText themeColor="destructive">
+                                        {actionError}
+                                    </ThemedText>
+                                ) : null}
+                                <View style={styles.modalActions}>
+                                    <ActionButton
+                                        label="Cancel"
+                                        tone="ghost"
+                                        onPress={() => setShowEdit(false)}
+                                    />
+                                    <ActionButton
+                                        label={saving ? "Saving…" : "Save"}
+                                        disabled={
+                                            saving || !editDraft.name.trim()
+                                        }
+                                        onPress={() => void handleEdit()}
+                                    />
+                                </View>
+                            </ThemedView>
                         </KeyboardAvoidingView>
                     </View>
                 </Pressable>
@@ -713,43 +802,47 @@ export default function ChannelManagementScreen() {
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
                         <KeyboardAvoidingView
-                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            behavior={
+                                Platform.OS === "ios" ? "padding" : undefined
+                            }
                             style={{ width: "100%" }}
                         >
-                        <ThemedView
-                            type="card"
-                            style={[
-                                styles.modalCard,
-                                { borderColor: theme.border },
-                            ]}
-                        >
-                            <ThemedText type="smallBold">Delete channel</ThemedText>
-                            <ThemedText themeColor="mutedForeground">
-                                Are you sure you want to delete{" "}
+                            <ThemedView
+                                type="card"
+                                style={[
+                                    styles.modalCard,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
                                 <ThemedText type="smallBold">
-                                    #{deletingChannel?.name}
+                                    Delete channel
                                 </ThemedText>
-                                ? This action cannot be undone.
-                            </ThemedText>
-                            {actionError ? (
-                                <ThemedText themeColor="destructive">
-                                    {actionError}
+                                <ThemedText themeColor="mutedForeground">
+                                    Are you sure you want to delete{" "}
+                                    <ThemedText type="smallBold">
+                                        #{deletingChannel?.name}
+                                    </ThemedText>
+                                    ? This action cannot be undone.
                                 </ThemedText>
-                            ) : null}
-                            <View style={styles.modalActions}>
-                                <ActionButton
-                                    label="Cancel"
-                                    tone="ghost"
-                                    onPress={() => setDeletingChannel(null)}
-                                />
-                                <ActionButton
-                                    label={saving ? "Deleting…" : "Delete"}
-                                    tone="danger"
-                                    disabled={saving}
-                                    onPress={() => void handleDelete()}
-                                />
-                            </View>
-                        </ThemedView>
+                                {actionError ? (
+                                    <ThemedText themeColor="destructive">
+                                        {actionError}
+                                    </ThemedText>
+                                ) : null}
+                                <View style={styles.modalActions}>
+                                    <ActionButton
+                                        label="Cancel"
+                                        tone="ghost"
+                                        onPress={() => setDeletingChannel(null)}
+                                    />
+                                    <ActionButton
+                                        label={saving ? "Deleting…" : "Delete"}
+                                        tone="danger"
+                                        disabled={saving}
+                                        onPress={() => void handleDelete()}
+                                    />
+                                </View>
+                            </ThemedView>
                         </KeyboardAvoidingView>
                     </View>
                 </Pressable>

@@ -26,9 +26,8 @@ vi.mock("next/server", () => ({
     NextResponse: { json: (body: unknown) => body },
 }));
 
-const { __resetTelemetryConsentCache, isTelemetryAllowedForUser } = await import(
-    "@/lib/telemetry-consent"
-);
+const { __resetTelemetryConsentCache, isTelemetryAllowedForUser } =
+    await import("@/lib/telemetry-consent");
 
 const { recordEvent, recordError } = await import("@/lib/posthog-utils");
 

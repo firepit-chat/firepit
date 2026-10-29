@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-    fetchBlockedUsers,
-    unblockUser,
-} from "@/lib/firepit/messages";
+import { fetchBlockedUsers, unblockUser } from "@/lib/firepit/messages";
 import type { BlockedUserEntry } from "@/lib/firepit/types";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 const BLOCKED_CACHE_TTL = 30_000;
-const blockedCache = new Map<string, { data: BlockedUserEntry[]; cachedAt: number }>();
+const blockedCache = new Map<
+    string,
+    { data: BlockedUserEntry[]; cachedAt: number }
+>();
 
 /**
  * Subscribers are notified whenever a cached list changes.
@@ -31,7 +31,10 @@ function blockedCacheKey(instanceUrl: string, accountId: string): string {
 export function useBlockedUsers() {
     const { instanceUrl, accessToken, currentUser } = useFirepitBootstrap();
     const accountId = currentUser?.$id;
-    const key = instanceUrl && accountId ? blockedCacheKey(instanceUrl, accountId) : null;
+    const key =
+        instanceUrl && accountId
+            ? blockedCacheKey(instanceUrl, accountId)
+            : null;
     const [items, setItems] = useState<BlockedUserEntry[]>(() => {
         if (key) {
             const cached = blockedCache.get(key);

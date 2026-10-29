@@ -161,17 +161,12 @@ export default function InstanceAnnouncementsScreen() {
             setLoadError(null);
 
             try {
-                const statuses =
-                    filter === "all" ? undefined : [filter];
-                const res = await listAnnouncements(
-                    instanceUrl,
-                    accessToken,
-                    {
-                        cursorAfter,
-                        limit: 25,
-                        statuses,
-                    },
-                );
+                const statuses = filter === "all" ? undefined : [filter];
+                const res = await listAnnouncements(instanceUrl, accessToken, {
+                    cursorAfter,
+                    limit: 25,
+                    statuses,
+                });
                 const items = res.items ?? [];
                 if (cursorAfter) {
                     setAnnouncements((prev) => {
@@ -268,16 +263,10 @@ export default function InstanceAnnouncementsScreen() {
                 <ThemedText type="code" themeColor="accent">
                     Announcements
                 </ThemedText>
-                <ThemedText type="title">
-                    Instance announcements
-                </ThemedText>
-                <ThemedText
-                    themeColor="mutedForeground"
-                    style={styles.copy}
-                >
-                    Compose, schedule, and send system announcements
-                    to every profiled user through read-only DM
-                    threads.
+                <ThemedText type="title">Instance announcements</ThemedText>
+                <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                    Compose, schedule, and send system announcements to every
+                    profiled user through read-only DM threads.
                 </ThemedText>
                 <View style={styles.pillRow}>
                     <StatusPill
@@ -299,12 +288,8 @@ export default function InstanceAnnouncementsScreen() {
             </ThemedView>
 
             {/* Compose form */}
-            <ThemedView
-                style={[styles.card, { borderColor: theme.border }]}
-            >
-                <ThemedText type="smallBold">
-                    Compose announcement
-                </ThemedText>
+            <ThemedView style={[styles.card, { borderColor: theme.border }]}>
+                <ThemedText type="smallBold">Compose announcement</ThemedText>
 
                 <TextInput
                     style={[
@@ -340,10 +325,7 @@ export default function InstanceAnnouncementsScreen() {
                     onChangeText={setBody}
                 />
 
-                <ThemedText
-                    type="code"
-                    themeColor="mutedForeground"
-                >
+                <ThemedText type="code" themeColor="mutedForeground">
                     Mode
                 </ThemedText>
                 <PickerRow
@@ -352,10 +334,7 @@ export default function InstanceAnnouncementsScreen() {
                     onChange={setMode}
                 />
 
-                <ThemedText
-                    type="code"
-                    themeColor="mutedForeground"
-                >
+                <ThemedText type="code" themeColor="mutedForeground">
                     Priority
                 </ThemedText>
                 <PickerRow
@@ -366,10 +345,7 @@ export default function InstanceAnnouncementsScreen() {
 
                 {mode === "schedule" ? (
                     <>
-                        <ThemedText
-                            type="code"
-                            themeColor="mutedForeground"
-                        >
+                        <ThemedText type="code" themeColor="mutedForeground">
                             Scheduled for
                         </ThemedText>
                         <TextInput
@@ -382,9 +358,7 @@ export default function InstanceAnnouncementsScreen() {
                                 },
                             ]}
                             placeholder="YYYY-MM-DD HH:MM"
-                            placeholderTextColor={
-                                theme.mutedForeground
-                            }
+                            placeholderTextColor={theme.mutedForeground}
                             value={scheduledFor}
                             onChangeText={setScheduledFor}
                         />
@@ -415,10 +389,7 @@ export default function InstanceAnnouncementsScreen() {
                             styles.submitButton,
                             {
                                 backgroundColor: theme.primary,
-                                opacity:
-                                    pressed || isSubmitting
-                                        ? 0.7
-                                        : 1,
+                                opacity: pressed || isSubmitting ? 0.7 : 1,
                             },
                         ]}
                     >
@@ -441,10 +412,7 @@ export default function InstanceAnnouncementsScreen() {
 
             {loadError ? (
                 <ThemedView
-                        style={[
-                        styles.card,
-                        { borderColor: theme.border },
-                    ]}
+                    style={[styles.card, { borderColor: theme.border }]}
                 >
                     <ThemedText themeColor="destructive">
                         {loadError}
@@ -462,9 +430,7 @@ export default function InstanceAnnouncementsScreen() {
             ) : null}
 
             {/* List header + filter */}
-            <ThemedText type="smallBold">
-                Recent announcements
-            </ThemedText>
+            <ThemedText type="smallBold">Recent announcements</ThemedText>
             <View style={styles.filterRow}>
                 {FILTER_OPTIONS.map((opt) => {
                     const selected = opt.value === filter;
@@ -472,9 +438,7 @@ export default function InstanceAnnouncementsScreen() {
                         <Pressable
                             key={opt.value}
                             accessibilityRole="button"
-                            onPress={() =>
-                                setFilter(opt.value)
-                            }
+                            onPress={() => setFilter(opt.value)}
                             style={[
                                 styles.filterChip,
                                 {
@@ -526,7 +490,7 @@ export default function InstanceAnnouncementsScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                            style={[
+                                    style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -552,8 +516,8 @@ export default function InstanceAnnouncementsScreen() {
                             ) : null
                         }
                         renderItem={renderAnnouncementRow}
-                keyboardShouldPersistTaps="handled"
-                automaticallyAdjustKeyboardInsets
+                        keyboardShouldPersistTaps="handled"
+                        automaticallyAdjustKeyboardInsets
                     />
                 </SafeAreaView>
             </View>
@@ -566,7 +530,11 @@ function AnnouncementCard({ item }: { item: Announcement }) {
     return (
         <View style={styles.entryCard}>
             <View style={styles.entryHeader}>
-                <ThemedText type="smallBold" numberOfLines={1} style={styles.entryTitle}>
+                <ThemedText
+                    type="smallBold"
+                    numberOfLines={1}
+                    style={styles.entryTitle}
+                >
                     {item.title || "Untitled announcement"}
                 </ThemedText>
                 <StatusPill

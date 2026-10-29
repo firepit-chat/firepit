@@ -381,7 +381,9 @@ function withReplyContext(
         return message;
     }
 
-    const parentMessage = messages.find((candidate) => candidate.$id === replyToId);
+    const parentMessage = messages.find(
+        (candidate) => candidate.$id === replyToId,
+    );
     if (parentMessage) {
         return {
             ...message,
@@ -501,8 +503,9 @@ export function useDirectMessages({
         useState(false);
     const [dmEncryptionPeerEnabled, setDmEncryptionPeerEnabled] =
         useState(false);
-    const [dmEncryptionPeerPublicKey, setDmEncryptionPeerPublicKey] =
-        useState<string | null>(null);
+    const [dmEncryptionPeerPublicKey, setDmEncryptionPeerPublicKey] = useState<
+        string | null
+    >(null);
     const dmEncryptionPeerPublicKeyRef = useRef<string | null>(null);
     const dmEncryptionMutualEnabled =
         dmEncryptionSelfEnabled && dmEncryptionPeerEnabled;
@@ -532,10 +535,15 @@ export function useDirectMessages({
         >
     >({});
 
-    const messageSubscriptionRef = useRef<{
-        close: () => Promise<void>;
-        update?: (args: { queries: ReturnType<typeof Query.equal>[] }) => Promise<void>;
-    } | undefined>(undefined);
+    const messageSubscriptionRef = useRef<
+        | {
+              close: () => Promise<void>;
+              update?: (args: {
+                  queries: ReturnType<typeof Query.equal>[];
+              }) => Promise<void>;
+          }
+        | undefined
+    >(undefined);
 
     const typingIdleMs = 1500;
     const typingStartDebounceMs = 0;
@@ -649,7 +657,9 @@ export function useDirectMessages({
             setRelationship(result.relationship ?? null);
             setDmEncryptionSelfEnabled(Boolean(result.dmEncryptionSelfEnabled));
             setDmEncryptionPeerEnabled(Boolean(result.dmEncryptionPeerEnabled));
-            setDmEncryptionPeerPublicKey(result.dmEncryptionPeerPublicKey ?? null);
+            setDmEncryptionPeerPublicKey(
+                result.dmEncryptionPeerPublicKey ?? null,
+            );
         } catch (err) {
             setError(
                 err instanceof Error ? err.message : "Failed to load messages",
@@ -692,7 +702,9 @@ export function useDirectMessages({
             setHasMore(Boolean(result.nextCursor));
             setDmEncryptionSelfEnabled(Boolean(result.dmEncryptionSelfEnabled));
             setDmEncryptionPeerEnabled(Boolean(result.dmEncryptionPeerEnabled));
-            setDmEncryptionPeerPublicKey(result.dmEncryptionPeerPublicKey ?? null);
+            setDmEncryptionPeerPublicKey(
+                result.dmEncryptionPeerPublicKey ?? null,
+            );
         } catch (err) {
             setError(
                 err instanceof Error
@@ -738,7 +750,10 @@ export function useDirectMessages({
 
         const syncMissedMessages = async () => {
             const activeConversationId = currentConversationIdRef.current;
-            if (!activeConversationId || activeConversationId !== conversationId) {
+            if (
+                !activeConversationId ||
+                activeConversationId !== conversationId
+            ) {
                 return;
             }
 
@@ -803,8 +818,12 @@ export function useDirectMessages({
                 setReadOnly(result.readOnly);
                 setReadOnlyReason(result.readOnlyReason ?? null);
                 setRelationship(result.relationship ?? null);
-                setDmEncryptionSelfEnabled(Boolean(result.dmEncryptionSelfEnabled));
-                setDmEncryptionPeerEnabled(Boolean(result.dmEncryptionPeerEnabled));
+                setDmEncryptionSelfEnabled(
+                    Boolean(result.dmEncryptionSelfEnabled),
+                );
+                setDmEncryptionPeerEnabled(
+                    Boolean(result.dmEncryptionPeerEnabled),
+                );
                 setDmEncryptionPeerPublicKey(
                     result.dmEncryptionPeerPublicKey ?? null,
                 );
@@ -897,7 +916,7 @@ export function useDirectMessages({
             let subscription: { close: () => Promise<void> } | undefined;
             let untrack: (() => void) | undefined;
 
-                try {
+            try {
                 const realtime = getSharedRealtime();
 
                 // If existing subscription supports update, try updating
@@ -906,7 +925,12 @@ export function useDirectMessages({
                     if (existing && typeof existing.update === "function") {
                         try {
                             await existing.update({
-                                queries: [Query.equal("conversationId", conversationId)],
+                                queries: [
+                                    Query.equal(
+                                        "conversationId",
+                                        conversationId,
+                                    ),
+                                ],
                             });
                             return;
                         } catch {
@@ -947,9 +971,8 @@ export function useDirectMessages({
                                     return;
                                 }
 
-                                const resolvedMessage = await decryptMessage(
-                                    messageData,
-                                );
+                                const resolvedMessage =
+                                    await decryptMessage(messageData);
                                 resolvedMessageId = resolvedMessage.$id;
 
                                 // Handle different event types to avoid full reload
@@ -1064,7 +1087,8 @@ export function useDirectMessages({
                                         Date.now();
                                     setMessages((prev) =>
                                         prev.filter(
-                                            (m) => m.$id !== resolvedMessage.$id,
+                                            (m) =>
+                                                m.$id !== resolvedMessage.$id,
                                         ),
                                     );
                                 }
@@ -1100,7 +1124,9 @@ export function useDirectMessages({
                 messageSubscriptionRef.current = subscription;
 
                 if (cancelled) {
-                    await closeSubscriptionSafely(messageSubscriptionRef.current);
+                    await closeSubscriptionSafely(
+                        messageSubscriptionRef.current,
+                    );
                     messageSubscriptionRef.current = undefined;
                     return;
                 }
@@ -1108,7 +1134,9 @@ export function useDirectMessages({
                 untrack = trackSubscription(messageChannelKey);
                 cleanupFn = () => {
                     untrack?.();
-                    void closeSubscriptionSafely(messageSubscriptionRef.current);
+                    void closeSubscriptionSafely(
+                        messageSubscriptionRef.current,
+                    );
                     messageSubscriptionRef.current = undefined;
                 };
             } catch (error) {
@@ -1120,14 +1148,18 @@ export function useDirectMessages({
                         isTransientRealtimeSubscribeError(error);
                     const retryDelayMs = isTransient ? 1200 : 4000;
 
-                    if (messageRealtimeRetryNonce >= MAX_MESSAGE_REALTIME_RETRIES) {
+                    if (
+                        messageRealtimeRetryNonce >=
+                        MAX_MESSAGE_REALTIME_RETRIES
+                    ) {
                         logger.error(
                             "Direct message realtime subscription max retries reached",
                             error instanceof Error
                                 ? error
                                 : new Error(String(error)),
                             {
-                                conversationId: currentConversationIdRef.current,
+                                conversationId:
+                                    currentConversationIdRef.current,
                                 retryDelayMs,
                                 attempts: messageRealtimeRetryNonce,
                             },
@@ -1163,8 +1195,8 @@ export function useDirectMessages({
                     }
 
                     retryTimeout = setTimeout(() => {
-                        setMessageRealtimeRetryNonce((currentValue) =>
-                            currentValue + 1,
+                        setMessageRealtimeRetryNonce(
+                            (currentValue) => currentValue + 1,
                         );
                     }, retryDelayMs);
                 }
@@ -1217,11 +1249,10 @@ export function useDirectMessages({
             setSending(true);
             try {
                 const plainText = text.trim() || "";
-                let encryptionPayload: DirectMessageEncryptionPayload | undefined;
+                let encryptionPayload:
+                    DirectMessageEncryptionPayload | undefined;
                 const encryptionRequired =
-                    plainText.length > 0 &&
-                    dmEncryptionMutualEnabled &&
-                    Boolean(dmEncryptionPeerPublicKey);
+                    plainText.length > 0 && dmEncryptionMutualEnabled;
 
                 if (encryptionRequired) {
                     if (!dmEncryptionPeerPublicKey) {
@@ -1243,8 +1274,7 @@ export function useDirectMessages({
                             await ensurePublishedDmEncryptionKey(userId);
                         encryptionPayload = await encryptDmText({
                             context: conversationId,
-                            recipientPublicKeyBase64:
-                                dmEncryptionPeerPublicKey,
+                            recipientPublicKeyBase64: dmEncryptionPeerPublicKey,
                             senderKeyPair,
                             text: plainText,
                         });
@@ -1313,7 +1343,9 @@ export function useDirectMessages({
                 const enrichedMessage: DirectMessage = {
                     ...message,
                     text:
-                        encryptionPayload && plainText ? plainText : message.text,
+                        encryptionPayload && plainText
+                            ? plainText
+                            : message.text,
                     senderDisplayName: profile?.displayName,
                     senderAvatarUrl: profile?.avatarUrl,
                     senderAvatarFramePreset: profile?.avatarFramePreset,
@@ -1333,9 +1365,7 @@ export function useDirectMessages({
                     );
                     // Check if message already exists to prevent duplicates
                     if (
-                        prev.some(
-                            (m) => m.$id === enrichedWithReplyContext.$id,
-                        )
+                        prev.some((m) => m.$id === enrichedWithReplyContext.$id)
                     ) {
                         return prev.map((m) =>
                             m.$id === enrichedWithReplyContext.$id
@@ -1530,58 +1560,60 @@ export function useDirectMessages({
 
     const updateTypingPresence = useCallback(
         async (state: boolean) => {
-        if (!userIdRef.current || !conversationIdRef.current) {
-            return;
-        }
-        if (state && !typingPresenceIdRef.current) {
-            typingPresenceIdRef.current = userIdRef.current;
-        }
-
-        // Throttle: skip re-upsert if we're already typing and the
-        // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
-        // alive; we only need to refresh it periodically.
-        if (state && typingPresenceCreatedRef.current) {
-            const elapsed = Date.now() - lastTypingSentAt.current;
-            if (elapsed < TYPING_COOLDOWN_MS) {
+            if (!userIdRef.current || !conversationIdRef.current) {
                 return;
             }
-        }
-
-        lastTypingSentAt.current = Date.now();
-
-        if (!state && !typingPresenceCreatedRef.current) {
-            return;
-        }
-
-        try {
-            if (state) {
-                const response = await fetch("/api/typing", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                        channelId: conversationIdRef.current,
-                        userName: userName || undefined,
-                        expiresAt: new Date(Date.now() + 4000).toISOString(),
-                    }),
-                });
-                if (response.ok) {
-                    typingPresenceCreatedRef.current = true;
-                }
-            } else {
-                await fetch("/api/typing", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                    }),
-                });
-                typingPresenceCreatedRef.current = false;
-                typingPresenceIdRef.current = null;
+            if (state && !typingPresenceIdRef.current) {
+                typingPresenceIdRef.current = userIdRef.current;
             }
-        } catch {
-            // ignore
-        }
+
+            // Throttle: skip re-upsert if we're already typing and the
+            // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
+            // alive; we only need to refresh it periodically.
+            if (state && typingPresenceCreatedRef.current) {
+                const elapsed = Date.now() - lastTypingSentAt.current;
+                if (elapsed < TYPING_COOLDOWN_MS) {
+                    return;
+                }
+            }
+
+            lastTypingSentAt.current = Date.now();
+
+            if (!state && !typingPresenceCreatedRef.current) {
+                return;
+            }
+
+            try {
+                if (state) {
+                    const response = await fetch("/api/typing", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                            channelId: conversationIdRef.current,
+                            userName: userName || undefined,
+                            expiresAt: new Date(
+                                Date.now() + 4000,
+                            ).toISOString(),
+                        }),
+                    });
+                    if (response.ok) {
+                        typingPresenceCreatedRef.current = true;
+                    }
+                } else {
+                    await fetch("/api/typing", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                        }),
+                    });
+                    typingPresenceCreatedRef.current = false;
+                    typingPresenceIdRef.current = null;
+                }
+            } catch {
+                // ignore
+            }
         },
         [userName],
     );
@@ -1662,21 +1694,21 @@ export function useDirectMessages({
 
                 const subscription = await realtime.subscribe(
                     presenceChannel,
-                    (
-                        event: RealtimeResponseEvent<Record<string, unknown>>,
-                    ) => {
+                    (event: RealtimeResponseEvent<Record<string, unknown>>) => {
                         if (cancelled) {
                             return;
                         }
-                        const payload = event.payload as Record<string, unknown>;
-                        const metadata = payload.metadata as Record<string, unknown> | undefined;
+                        const payload = event.payload as Record<
+                            string,
+                            unknown
+                        >;
+                        const metadata = payload.metadata as
+                            Record<string, unknown> | undefined;
                         const eventChannelId = String(
                             metadata?.channelId ?? "",
                         );
                         const eventUserId = String(payload.userId ?? "");
-                        const eventUserName = String(
-                            metadata?.userName ?? "",
-                        );
+                        const eventUserName = String(metadata?.userName ?? "");
                         const eventUpdatedAt = String(
                             payload.$updatedAt ?? payload.updatedAt ?? "",
                         );
@@ -1695,8 +1727,7 @@ export function useDirectMessages({
                         );
                         const isUpsert = event.events.some(
                             (e) =>
-                                e.endsWith(".upsert") ||
-                                e.endsWith(".update"),
+                                e.endsWith(".upsert") || e.endsWith(".update"),
                         );
 
                         setTypingUsers((prev) => {

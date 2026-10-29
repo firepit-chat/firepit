@@ -224,11 +224,13 @@ export async function enrichMessageWithProfile(
             ? `profile-visibility:${viewerId}:${message.userId}`
             : null;
 
-        const cachedProfile = apiCache.get<{ profile: BatchProfileData | null }>(
-            profileKey,
-        );
+        const cachedProfile = apiCache.get<{
+            profile: BatchProfileData | null;
+        }>(profileKey);
         const cachedVisibility =
-            visibilityKey !== null ? apiCache.get<boolean>(visibilityKey) : null;
+            visibilityKey !== null
+                ? apiCache.get<boolean>(visibilityKey)
+                : null;
 
         let profile: BatchProfileData | null;
         let isVisible: boolean;

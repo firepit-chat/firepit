@@ -55,10 +55,14 @@ export default async function DocsIndexPage() {
                         </div>
                         <div className="space-y-4">
                             <h2 className="max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-                                Everything you need to build, operate, and extend Firepit.
+                                Everything you need to build, operate, and
+                                extend Firepit.
                             </h2>
                             <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                                Start with product and onboarding guidance, move through realtime chat and server administration, and jump into the generated API reference when you need endpoint detail.
+                                Start with product and onboarding guidance, move
+                                through realtime chat and server administration,
+                                and jump into the generated API reference when
+                                you need endpoint detail.
                             </p>
                         </div>
 
@@ -116,7 +120,8 @@ export default async function DocsIndexPage() {
                                     API Reference
                                 </h3>
                                 <p className="text-sm leading-6 text-muted-foreground">
-                                    Generated from the in-repo OpenAPI spec and organized by tag.
+                                    Generated from the in-repo OpenAPI spec and
+                                    organized by tag.
                                 </p>
                             </div>
                         </div>
@@ -145,9 +150,18 @@ export default async function DocsIndexPage() {
                                 Entry points
                             </div>
                             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
-                                <p>Product and onboarding guidance for new operators.</p>
-                                <p>Realtime messaging and server administration references.</p>
-                                <p>Operations and platform details for deploy-time work.</p>
+                                <p>
+                                    Product and onboarding guidance for new
+                                    operators.
+                                </p>
+                                <p>
+                                    Realtime messaging and server administration
+                                    references.
+                                </p>
+                                <p>
+                                    Operations and platform details for
+                                    deploy-time work.
+                                </p>
                             </div>
                         </div>
                     </div>

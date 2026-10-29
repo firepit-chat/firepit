@@ -4,7 +4,9 @@ import { createInvite, listServerInvites } from "@/lib/appwrite-invites";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
-import { logger, recordError,
+import {
+    logger,
+    recordError,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
@@ -37,11 +39,18 @@ function validateBody(body: unknown): {
         unknown
     >;
 
-    if (channelId !== null && channelId !== undefined && typeof channelId !== "string") {
+    if (
+        channelId !== null &&
+        channelId !== undefined &&
+        typeof channelId !== "string"
+    ) {
         return null;
     }
     if (expiresAt !== null && expiresAt !== undefined) {
-        if (typeof expiresAt !== "string" || Number.isNaN(Date.parse(expiresAt))) {
+        if (
+            typeof expiresAt !== "string" ||
+            Number.isNaN(Date.parse(expiresAt))
+        ) {
             return null;
         }
         if (new Date(expiresAt).getTime() <= Date.now()) {
@@ -57,7 +66,11 @@ function validateBody(body: unknown): {
             return null;
         }
     }
-    if (temporary !== null && temporary !== undefined && typeof temporary !== "boolean") {
+    if (
+        temporary !== null &&
+        temporary !== undefined &&
+        typeof temporary !== "boolean"
+    ) {
         return null;
     }
 

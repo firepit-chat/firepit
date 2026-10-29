@@ -19,7 +19,10 @@ const NotificationSettings = dynamic(
     {
         ssr: false,
         loading: () => (
-            <div className="space-y-4" data-testid="notification-settings-loading">
+            <div
+                className="space-y-4"
+                data-testid="notification-settings-loading"
+            >
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-32 w-full" />
                 <Skeleton className="h-10 w-full" />

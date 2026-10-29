@@ -113,7 +113,9 @@ async function listVoteDocumentsForPolls(params: {
     return voteDocuments;
 }
 
-export async function enrichMessagesWithPolls(messages: Message[]): Promise<Message[]> {
+export async function enrichMessagesWithPolls(
+    messages: Message[],
+): Promise<Message[]> {
     if (messages.length === 0) {
         return messages;
     }
@@ -151,14 +153,21 @@ export async function enrichMessagesWithPolls(messages: Message[]): Promise<Mess
         }
 
         // One poll per message is the expected data invariant.
-        const pollsByMessageId = new Map<string, ReturnType<typeof buildMessagePoll>>();
+        const pollsByMessageId = new Map<
+            string,
+            ReturnType<typeof buildMessagePoll>
+        >();
         for (const poll of pollDocuments) {
             if (pollsByMessageId.has(poll.messageId)) {
-                logger.warn("Multiple poll documents found for a single message", {
-                    messageId: poll.messageId,
-                    existingPollId: pollsByMessageId.get(poll.messageId)?.id ?? null,
-                    incomingPollId: poll.$id,
-                });
+                logger.warn(
+                    "Multiple poll documents found for a single message",
+                    {
+                        messageId: poll.messageId,
+                        existingPollId:
+                            pollsByMessageId.get(poll.messageId)?.id ?? null,
+                        incomingPollId: poll.$id,
+                    },
+                );
                 continue; // Preserve first-seen poll
             }
 

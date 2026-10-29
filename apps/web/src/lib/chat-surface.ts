@@ -58,6 +58,8 @@ export type ChatSurfaceMessage = {
     pinnedAt?: string;
     pinnedBy?: string;
     threadHasUnread?: boolean;
+    /** Direct messages only. Encrypted rows cannot be edited or threaded. */
+    isEncrypted?: boolean;
     threadLastReadAt?: string;
 };
 
@@ -113,7 +115,9 @@ function clonePoll(
         ...clonedPoll,
         options: safeOptions.map((option) => ({
             ...option,
-            voterIds: Array.isArray(option.voterIds) ? [...option.voterIds] : [],
+            voterIds: Array.isArray(option.voterIds)
+                ? [...option.voterIds]
+                : [],
         })),
     };
 }
@@ -287,6 +291,7 @@ export function fromDirectMessage(
         isPinned: message.isPinned ?? false,
         pinnedAt: message.pinnedAt,
         pinnedBy: message.pinnedBy,
+        isEncrypted: message.isEncrypted,
     };
 }
 

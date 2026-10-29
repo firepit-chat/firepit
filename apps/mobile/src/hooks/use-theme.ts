@@ -9,12 +9,16 @@
  * palette rather than throwing, so isolated components and tests keep working.
  */
 
-import { buildTheme, DEFAULT_THEME_ACCENT, DEFAULT_THEME_PALETTE } from "@/constants/theme";
+import {
+    buildTheme,
+    DEFAULT_THEME_ACCENT,
+    DEFAULT_THEME_PALETTE,
+} from "@/constants/theme";
 import { useThemePreference } from "@/providers/theme-preference-context";
 
 export function useTheme() {
-  const preference = useThemePreference();
-  return buildTheme(preference.palette, preference.accent);
+    const preference = useThemePreference();
+    return buildTheme(preference.palette, preference.accent);
 }
 
 export { DEFAULT_THEME_ACCENT, DEFAULT_THEME_PALETTE };

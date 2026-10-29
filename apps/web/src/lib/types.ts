@@ -17,8 +17,7 @@ export const ATTACHMENT_MEDIA_KIND_VALUES = [
     "sticker",
 ] as const;
 
-export type AttachmentMediaKind =
-    (typeof ATTACHMENT_MEDIA_KIND_VALUES)[number];
+export type AttachmentMediaKind = (typeof ATTACHMENT_MEDIA_KIND_VALUES)[number];
 
 export const ATTACHMENT_SOURCE_VALUES = [
     "upload",
@@ -585,11 +584,7 @@ export type InviteUsage = {
     joinedAt: string;
 };
 
-const FRIENDSHIP_STATUS_VALUES = [
-    "pending",
-    "accepted",
-    "declined",
-] as const;
+const FRIENDSHIP_STATUS_VALUES = ["pending", "accepted", "declined"] as const;
 
 export type FriendshipStatus = (typeof FRIENDSHIP_STATUS_VALUES)[number];
 

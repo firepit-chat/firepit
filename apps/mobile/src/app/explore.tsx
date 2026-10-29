@@ -95,7 +95,10 @@ export default function SessionScreen() {
     // Only a real problem gets a line of text. "connected" and "signed in"
     // were the default state of any working session, so the pills sat there
     // saying nothing while looking like a status board.
-    const problem = useMemo((): { text: string; tone: "warning" | "danger" } | null => {
+    const problem = useMemo((): {
+        text: string;
+        tone: "warning" | "danger";
+    } | null => {
         if (state === "needs-auth") {
             return { text: "Sign in to browse servers.", tone: "warning" };
         }
@@ -208,7 +211,9 @@ export default function SessionScreen() {
                                 Open an instance, then pick a server.
                             </ThemedText>
                             {problem ? (
-                                <NoticeLine tone={problem.tone}>{problem.text}</NoticeLine>
+                                <NoticeLine tone={problem.tone}>
+                                    {problem.text}
+                                </NoticeLine>
                             ) : null}
                         </View>
 
@@ -336,7 +341,9 @@ export default function SessionScreen() {
                                                     if (!server.$id) {
                                                         return;
                                                     }
-                                                    router.push("/chat");
+                                                    router.push(
+                                                        `/chat?server=${server.$id}` as never,
+                                                    );
                                                 }}
                                             />
                                         ))}
@@ -397,7 +404,9 @@ export default function SessionScreen() {
                                                                       "",
                                                               );
                                                               await loadServers();
-                                                              router.push("/chat");
+                                                              router.push(
+                                                                  `/chat?server=${server.$id}` as never,
+                                                              );
                                                           } catch (joinError) {
                                                               setServerError(
                                                                   joinError instanceof

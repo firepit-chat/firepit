@@ -1,11 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetRelationshipStatus, mockGetServerSession } = vi.hoisted(
-    () => ({
-        mockGetRelationshipStatus: vi.fn(),
-        mockGetServerSession: vi.fn(),
-    }),
-);
+const { mockGetRelationshipStatus, mockGetServerSession } = vi.hoisted(() => ({
+    mockGetRelationshipStatus: vi.fn(),
+    mockGetServerSession: vi.fn(),
+}));
 
 vi.mock("@/lib/auth-server", () => ({
     getServerSession: mockGetServerSession,
@@ -43,9 +41,12 @@ describe("user relationship API route", () => {
     it("returns 401 when unauthenticated", async () => {
         mockGetServerSession.mockResolvedValue(null);
 
-        const response = await GET(new Request("http://localhost/api/users/user-2/relationship"), {
-            params: Promise.resolve({ userId: "user-2" }),
-        });
+        const response = await GET(
+            new Request("http://localhost/api/users/user-2/relationship"),
+            {
+                params: Promise.resolve({ userId: "user-2" }),
+            },
+        );
         const data = await response.json();
 
         expect(response.status).toBe(401);
@@ -84,12 +85,14 @@ describe("user relationship API route", () => {
     });
 
     it("surfaces relationship errors with their status codes", async () => {
-        const { RelationshipError } = await import(
-            "@/lib/appwrite-friendships"
-        );
+        const { RelationshipError } =
+            await import("@/lib/appwrite-friendships");
 
         mockGetRelationshipStatus.mockRejectedValue(
-            new RelationshipError("You cannot check a relationship with yourself", 400),
+            new RelationshipError(
+                "You cannot check a relationship with yourself",
+                400,
+            ),
         );
 
         const response = await GET(

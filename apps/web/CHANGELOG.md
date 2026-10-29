@@ -30,8 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   leaving the page you are on. It checks when you open the popup rather than on
   every page load, and mentions, DMs and thread activity are unchanged below it.
 - **A dot beside channels you have not read.** The sidebar now marks each
-  channel with new messages, so a category counter no longer tells you *that*
-  something is unread without telling you *which*. It uses the same rule as the
+  channel with new messages, so a category counter no longer tells you _that_
+  something is unread without telling you _which_. It uses the same rule as the
   counter, so the two always agree, and the channel you have open is not marked.
 - **The notifications page lists channels with unread messages.** The page
   previously showed nothing for an ordinary unread channel message, because it
@@ -123,6 +123,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Encrypted direct messages now read correctly across web and mobile.** The
+  mobile app was not binding the conversation id into the message's
+  authenticated data, so anything sent from web showed as "[Encrypted message
+  unavailable]" on mobile. New messages bind the conversation, and messages
+  written before the fix still decrypt. Live encrypted messages also appear
+  immediately instead of only after a refresh.
+- **Encrypted messages can no longer be edited or threaded.** Both actions sent
+  plaintext to the server, which rejected the edit and stored thread replies in
+  the clear inside a conversation the user believes is end-to-end encrypted.
+  Encrypted messages now hide those actions, and the thread endpoint refuses a
+  reply to an encrypted parent.
 - **Some threads were stuck at "no replies" forever.** The reply count on a
   thread's first message is only ever written when someone replies, and that
   write gave up on the first failure instead of retrying — so one unlucky
@@ -291,6 +302,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   There is now a single initializer.
 
 ### ⚙️ Improvements
+
 - **Faster chat, and about 25% less JavaScript on every page.** A performance
   pass across the web app:
     - The chat page no longer rebuilds the server and channel sidebars, or every
@@ -307,12 +319,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       triggers a redundant profile request.
     - The in-memory server cache is now size-capped, so a long-running instance
       cannot grow without bound as you visit more channels and conversations.
-  The analytics SDK and the emoji shortcode table are no longer part of the
-  initial page load — both now load on demand, and events captured before the
-  analytics SDK arrives are replayed rather than dropped. Emoji, the image
-  viewer, the GIF/sticker picker, and the notification settings panel are split
-  out of their initial bundles. As a result the shared JavaScript baseline drops
-  from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+      The analytics SDK and the emoji shortcode table are no longer part of the
+      initial page load — both now load on demand, and events captured before the
+      analytics SDK arrives are replayed rather than dropped. Emoji, the image
+      viewer, the GIF/sticker picker, and the notification settings panel are split
+      out of their initial bundles. As a result the shared JavaScript baseline drops
+      from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
 - **Avatar frame insets are measured, not guessed.** A script renders the
   committed frame artwork and reports the inset each one needs, and a test holds
   the shipped values to it — so a redrawn or added frame cannot drift out of
@@ -436,6 +448,7 @@ check:openapi` walks the route handlers and fails if the spec and the
   There is now a single initializer.
 
 ### ⚙️ Improvements
+
 - **Faster chat, and about 25% less JavaScript on every page.** A performance
   pass across the web app:
     - The chat page no longer rebuilds the server and channel sidebars, or every
@@ -452,12 +465,12 @@ check:openapi` walks the route handlers and fails if the spec and the
       triggers a redundant profile request.
     - The in-memory server cache is now size-capped, so a long-running instance
       cannot grow without bound as you visit more channels and conversations.
-  The analytics SDK and the emoji shortcode table are no longer part of the
-  initial page load — both now load on demand, and events captured before the
-  analytics SDK arrives are replayed rather than dropped. Emoji, the image
-  viewer, the GIF/sticker picker, and the notification settings panel are split
-  out of their initial bundles. As a result the shared JavaScript baseline drops
-  from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+      The analytics SDK and the emoji shortcode table are no longer part of the
+      initial page load — both now load on demand, and events captured before the
+      analytics SDK arrives are replayed rather than dropped. Emoji, the image
+      viewer, the GIF/sticker picker, and the notification settings panel are split
+      out of their initial bundles. As a result the shared JavaScript baseline drops
+      from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
 - **Avatar frame insets are measured, not guessed.** A script renders the
   committed frame artwork and reports the inset each one needs, and a test holds
   the shipped values to it — so a redrawn or added frame cannot drift out of

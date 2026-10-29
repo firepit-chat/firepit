@@ -767,12 +767,7 @@ export type AnnouncementCreateMode = "draft" | "schedule" | "send_now";
 export type AnnouncementPriority = "normal" | "urgent";
 
 export type AnnouncementStatus =
-    | "draft"
-    | "scheduled"
-    | "dispatching"
-    | "sent"
-    | "failed"
-    | "archived";
+    "draft" | "scheduled" | "dispatching" | "sent" | "failed" | "archived";
 
 export type Announcement = {
     $id: string;

@@ -17,24 +17,24 @@ const { mockCloseSocket, mockPublicClose, mockRealtimeSubscribe } = vi.hoisted(
 );
 
 // Mock Appwrite Client
- vi.mock("appwrite", () => ({
-     Client: vi.fn().mockImplementation(function () {
-         return {
-             setEndpoint: vi.fn().mockReturnThis(),
-             setProject: vi.fn().mockReturnThis(),
-         };
-     }),
-     Realtime: vi.fn().mockImplementation(function () {
-         const instance = {
-             activeSubscriptions: new Map<number, unknown>(),
-             closeSocket: mockCloseSocket,
-             reconnect: true,
-             subscribe: mockRealtimeSubscribe,
-         };
+vi.mock("appwrite", () => ({
+    Client: vi.fn().mockImplementation(function () {
+        return {
+            setEndpoint: vi.fn().mockReturnThis(),
+            setProject: vi.fn().mockReturnThis(),
+        };
+    }),
+    Realtime: vi.fn().mockImplementation(function () {
+        const instance = {
+            activeSubscriptions: new Map<number, unknown>(),
+            closeSocket: mockCloseSocket,
+            reconnect: true,
+            subscribe: mockRealtimeSubscribe,
+        };
 
-         return instance;
-     }),
- }));
+        return instance;
+    }),
+}));
 
 // Mock appwrite-core to dynamically read env vars (avoiding cache issues)
 vi.mock("@/lib/appwrite-core", () => ({

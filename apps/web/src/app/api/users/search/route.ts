@@ -55,10 +55,11 @@ export async function GET(request: Request) {
         let profiles = await dedupeUsersSearchCache(
             `api:users-search:exact:${searchTerm}`,
             () =>
-                databases.listDocuments(env.databaseId, env.collections.profiles, [
-                    Query.equal("userId", searchTerm),
-                    Query.limit(25),
-                ]),
+                databases.listDocuments(
+                    env.databaseId,
+                    env.collections.profiles,
+                    [Query.equal("userId", searchTerm), Query.limit(25)],
+                ),
         );
 
         // If no exact userId match, search by displayName
@@ -66,10 +67,14 @@ export async function GET(request: Request) {
             profiles = await dedupeUsersSearchCache(
                 `api:users-search:display-name:${searchTerm.toLowerCase()}`,
                 () =>
-                    databases.listDocuments(env.databaseId, env.collections.profiles, [
-                        Query.search("displayName", searchTerm),
-                        Query.limit(25),
-                    ]),
+                    databases.listDocuments(
+                        env.databaseId,
+                        env.collections.profiles,
+                        [
+                            Query.search("displayName", searchTerm),
+                            Query.limit(25),
+                        ],
+                    ),
             );
         }
 

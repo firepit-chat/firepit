@@ -86,7 +86,11 @@ export function useStatusSubscription(userIds: string[], enabled = true) {
             // rather than parallel: a member list is normally well under the
             // cap, and this keeps the common case to a single request.
             const statusMap = new Map<string, UserStatus>();
-            for (let offset = 0; offset < normalizedUserIds.length; offset += STATUS_BATCH_CHUNK_SIZE) {
+            for (
+                let offset = 0;
+                offset < normalizedUserIds.length;
+                offset += STATUS_BATCH_CHUNK_SIZE
+            ) {
                 const chunk = normalizedUserIds.slice(
                     offset,
                     offset + STATUS_BATCH_CHUNK_SIZE,

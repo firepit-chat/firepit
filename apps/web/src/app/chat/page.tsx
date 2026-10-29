@@ -667,11 +667,11 @@ export default function ChatPage() {
         activeContext?.contextKind ?? currentContextSummary?.contextKind;
 
     // Applies a deep link once, then strips the routing params from the URL.
-//
-// They used to be left in place, and because this effect re-runs whenever they
-// change, a stale `?server=&channel=` kept re-selecting the channel the user
-// had navigated away from — so clicking another channel or server snapped back.
-const consumedRouteRef = useRef<string | null>(null);
+    //
+    // They used to be left in place, and because this effect re-runs whenever they
+    // change, a stale `?server=&channel=` kept re-selecting the channel the user
+    // had navigated away from — so clicking another channel or server snapped back.
+    const consumedRouteRef = useRef<string | null>(null);
 
     useEffect(() => {
         const routeKey = searchParamsString;
@@ -2001,11 +2001,13 @@ const consumedRouteRef = useRef<string | null>(null);
                 // Same predicate as the category counter, so a dot beside a
                 // channel always explains that category's number. An open
                 // channel is not unread however old its last message is.
-                const hasUnread = !active && isChannelUnread({
-                    channelCreatedAt: channel.$createdAt,
-                    lastMessageAt: channel.lastMessageAt,
-                    lastReadAt: channelReads[channel.$id],
-                });
+                const hasUnread =
+                    !active &&
+                    isChannelUnread({
+                        channelCreatedAt: channel.$createdAt,
+                        lastMessageAt: channel.lastMessageAt,
+                        lastReadAt: channelReads[channel.$id],
+                    });
 
                 return (
                     <li key={channel.$id} className="group relative min-w-0">

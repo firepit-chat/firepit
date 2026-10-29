@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { presenceLabel, presenceText } from "@/app/chat/components/presence-label";
+import {
+    presenceLabel,
+    presenceText,
+} from "@/app/chat/components/presence-label";
 
 /**
  * Rows used to render the raw stored status word, so an automatic status read

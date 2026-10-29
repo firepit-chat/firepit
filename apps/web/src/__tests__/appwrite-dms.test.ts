@@ -264,7 +264,9 @@ vi.mock("appwrite", () => {
                     const parsedFields = JSON.parse(selectMatch[1]) as unknown;
                     if (
                         !Array.isArray(parsedFields) ||
-                        !parsedFields.every((field) => typeof field === "string")
+                        !parsedFields.every(
+                            (field) => typeof field === "string",
+                        )
                     ) {
                         return limited;
                     }

@@ -7,8 +7,8 @@ import { onRequestRecovered } from "../lib/firepit/http";
  * stale timeout error clears itself once connectivity returns.
  */
 export function useRetryOnReconnect(active: boolean, retry: () => void): void {
-  useEffect(() => {
-    if (!active) return;
-    return onRequestRecovered(retry);
-  }, [active, retry]);
+    useEffect(() => {
+        if (!active) return;
+        return onRequestRecovered(retry);
+    }, [active, retry]);
 }

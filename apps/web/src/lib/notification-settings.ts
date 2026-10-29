@@ -516,7 +516,10 @@ async function resolveNotificationOverrideLabels(
                 serverOverrideIds,
             );
             const serverNameById = new Map(
-                servers.map((server) => [String(server.$id), String(server.name)]),
+                servers.map((server) => [
+                    String(server.$id),
+                    String(server.name),
+                ]),
             );
             const allowedServerIds = Array.from(serverNameById.keys());
 
@@ -644,7 +647,10 @@ export async function buildNotificationSettingsResponse(
  */
 const NOTIF_SETTINGS_CACHE_TTL_MS = 30_000;
 const NOTIF_SETTINGS_CACHE_MAX_SIZE = 5_000;
-const notifSettingsCache = new Map<string, { data: NotificationSettings | null; ts: number }>();
+const notifSettingsCache = new Map<
+    string,
+    { data: NotificationSettings | null; ts: number }
+>();
 
 function getNotifSettingsCache(userId: string): {
     data: NotificationSettings | null;

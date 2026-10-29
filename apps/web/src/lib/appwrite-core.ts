@@ -134,31 +134,87 @@ const COLLECTION_DEFS: Array<{
     { key: "categories", envSuffix: "CATEGORIES", defaultName: "categories" },
     { key: "messages", envSuffix: "MESSAGES", defaultName: "messages" },
     { key: "audit", envSuffix: "AUDIT", defaultName: "audit" },
-    { key: "memberships", envSuffix: "MEMBERSHIPS", defaultName: "memberships" },
-    { key: "bannedUsers", envSuffix: "BANNED_USERS", defaultName: "banned_users" },
+    {
+        key: "memberships",
+        envSuffix: "MEMBERSHIPS",
+        defaultName: "memberships",
+    },
+    {
+        key: "bannedUsers",
+        envSuffix: "BANNED_USERS",
+        defaultName: "banned_users",
+    },
     { key: "mutedUsers", envSuffix: "MUTED_USERS", defaultName: "muted_users" },
-    { key: "friendships", envSuffix: "FRIENDSHIPS", defaultName: "friendships" },
+    {
+        key: "friendships",
+        envSuffix: "FRIENDSHIPS",
+        defaultName: "friendships",
+    },
     { key: "blocks", envSuffix: "BLOCKS", defaultName: "blocks" },
     { key: "profiles", envSuffix: "PROFILES", defaultName: "profiles" },
-    { key: "conversations", envSuffix: "CONVERSATIONS", defaultName: "conversations" },
-    { key: "directMessages", envSuffix: "DIRECT_MESSAGES", defaultName: "direct_messages" },
+    {
+        key: "conversations",
+        envSuffix: "CONVERSATIONS",
+        defaultName: "conversations",
+    },
+    {
+        key: "directMessages",
+        envSuffix: "DIRECT_MESSAGES",
+        defaultName: "direct_messages",
+    },
     { key: "statuses", envSuffix: "STATUSES", defaultName: "statuses" },
-    { key: "messageAttachments", envSuffix: "MESSAGE_ATTACHMENTS", defaultName: "message_attachments" },
-    { key: "pinnedMessages", envSuffix: "PINNED_MESSAGES", defaultName: "pinned_messages" },
-    { key: "featureFlags", envSuffix: "FEATURE_FLAGS", defaultName: "feature_flags" },
-    { key: "notificationSettings", envSuffix: "NOTIFICATION_SETTINGS", defaultName: "notification_settings" },
+    {
+        key: "messageAttachments",
+        envSuffix: "MESSAGE_ATTACHMENTS",
+        defaultName: "message_attachments",
+    },
+    {
+        key: "pinnedMessages",
+        envSuffix: "PINNED_MESSAGES",
+        defaultName: "pinned_messages",
+    },
+    {
+        key: "featureFlags",
+        envSuffix: "FEATURE_FLAGS",
+        defaultName: "feature_flags",
+    },
+    {
+        key: "notificationSettings",
+        envSuffix: "NOTIFICATION_SETTINGS",
+        defaultName: "notification_settings",
+    },
     { key: "inboxItems", envSuffix: "INBOX_ITEMS", defaultName: "inbox_items" },
-    { key: "threadReads", envSuffix: "THREAD_READS", defaultName: "thread_reads" },
-    { key: "channelReads", envSuffix: "CHANNEL_READS", defaultName: "channel_reads" },
+    {
+        key: "threadReads",
+        envSuffix: "THREAD_READS",
+        defaultName: "thread_reads",
+    },
+    {
+        key: "channelReads",
+        envSuffix: "CHANNEL_READS",
+        defaultName: "channel_reads",
+    },
     { key: "reports", envSuffix: "REPORTS", defaultName: "reports" },
     { key: "roles", envSuffix: "ROLES", defaultName: "roles" },
     { key: "polls", envSuffix: "POLLS", defaultName: "polls" },
     { key: "pollVotes", envSuffix: "POLL_VOTES", defaultName: "poll_votes" },
-    { key: "roleAssignments", envSuffix: "ROLE_ASSIGNMENTS", defaultName: "role_assignments" },
-    { key: "channelPermissionOverrides", envSuffix: "CHANNEL_PERMISSION_OVERRIDES", defaultName: "channel_permission_overrides" },
+    {
+        key: "roleAssignments",
+        envSuffix: "ROLE_ASSIGNMENTS",
+        defaultName: "role_assignments",
+    },
+    {
+        key: "channelPermissionOverrides",
+        envSuffix: "CHANNEL_PERMISSION_OVERRIDES",
+        defaultName: "channel_permission_overrides",
+    },
     { key: "pushTokens", envSuffix: "PUSH_TOKENS", defaultName: "push_tokens" },
     { key: "invites", envSuffix: "INVITES", defaultName: "invites" },
-    { key: "inviteUsage", envSuffix: "INVITE_USAGE", defaultName: "invite_usage" },
+    {
+        key: "inviteUsage",
+        envSuffix: "INVITE_USAGE",
+        defaultName: "invite_usage",
+    },
 ];
 
 const BUCKET_DEFS: Array<{
@@ -172,14 +228,29 @@ const BUCKET_DEFS: Array<{
     { key: "files", envSuffix: "FILES", defaultName: "files" },
     { key: "gifs", envSuffix: "GIFS", defaultName: "gifs" },
     { key: "stickers", envSuffix: "STICKERS", defaultName: "stickers" },
-    { key: "profileBackgrounds", envSuffix: "PROFILE_BACKGROUNDS", defaultName: "profile-backgrounds" },
-    { key: "avatarFramesPredefined", envSuffix: "AVATAR_FRAMES_PREDEFINED", defaultName: "avatar-frames-predefined" },
+    {
+        key: "profileBackgrounds",
+        envSuffix: "PROFILE_BACKGROUNDS",
+        defaultName: "profile-backgrounds",
+    },
+    {
+        key: "avatarFramesPredefined",
+        envSuffix: "AVATAR_FRAMES_PREDEFINED",
+        defaultName: "avatar-frames-predefined",
+    },
 ];
 
-function resolveId(publicVar: string, serverVar: string, defaultName: string): string {
+function resolveId(
+    publicVar: string,
+    serverVar: string,
+    defaultName: string,
+): string {
     return (
-        firstDefined(process.env[publicVar], process.env[serverVar], defaultName) ??
-        defaultName
+        firstDefined(
+            process.env[publicVar],
+            process.env[serverVar],
+            defaultName,
+        ) ?? defaultName
     );
 }
 

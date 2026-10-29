@@ -7,182 +7,238 @@ import * as appwriteInvites from "@/lib/appwrite-invites";
 vi.mock("@/lib/auth-server");
 vi.mock("@/lib/appwrite-invites");
 vi.mock("@/lib/posthog-utils", () => ({
-	returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-	returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
-	logger: {
-		info: vi.fn(),
-		error: vi.fn(),
-		warn: vi.fn(),
-	},
-	recordError: vi.fn(),
-	getPostHogClient: () => ({ capture: vi.fn() }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    logger: {
+        info: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+    },
+    recordError: vi.fn(),
+    getPostHogClient: () => ({ capture: vi.fn() }),
 }));
 
 describe("POST /api/invites/[code]/join", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-	});
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
 
-	it("should join server with valid invite", async () => {
-		const mockUser = { $id: "user-1" };
-		const mockResult = {
-			success: true,
-			serverId: "server-1",
-		};
+    it("should join server with valid invite", async () => {
+        const mockUser = { $id: "user-1" };
+        const mockResult = {
+            success: true,
+            serverId: "server-1",
+        };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(
+            mockResult as never,
+        );
 
-		const request = new Request("http://localhost/api/invites/TEST123/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "TEST123" });
+        const request = new Request(
+            "http://localhost/api/invites/TEST123/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "TEST123" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(200);
-		expect(data.success).toBe(true);
-		expect(data.serverId).toBe("server-1");
-		expect(appwriteInvites.redeemInvite).toHaveBeenCalledWith("TEST123", "user-1");
-	});
+        expect(response.status).toBe(200);
+        expect(data.success).toBe(true);
+        expect(data.serverId).toBe("server-1");
+        expect(appwriteInvites.redeemInvite).toHaveBeenCalledWith(
+            "TEST123",
+            "user-1",
+        );
+    });
 
-	it("should return 401 if not authenticated", async () => {
-		vi.mocked(authServer.getServerSession).mockResolvedValue(null as never);
+    it("should return 401 if not authenticated", async () => {
+        vi.mocked(authServer.getServerSession).mockResolvedValue(null as never);
 
-		const request = new Request("http://localhost/api/invites/TEST123/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "TEST123" });
+        const request = new Request(
+            "http://localhost/api/invites/TEST123/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "TEST123" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(401);
-		expect(data.error).toBe("Unauthorized");
-	});
+        expect(response.status).toBe(401);
+        expect(data.error).toBe("Unauthorized");
+    });
 
-	it("should return 400 if invite is invalid", async () => {
-		const mockUser = { $id: "user-1" };
-		const mockResult = {
-			success: false,
-			error: "Invite not found",
-		};
+    it("should return 400 if invite is invalid", async () => {
+        const mockUser = { $id: "user-1" };
+        const mockResult = {
+            success: false,
+            error: "Invite not found",
+        };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(
+            mockResult as never,
+        );
 
-		const request = new Request("http://localhost/api/invites/INVALID/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "INVALID" });
+        const request = new Request(
+            "http://localhost/api/invites/INVALID/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "INVALID" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(400);
-		expect(data.error).toBe("Invite not found");
-	});
+        expect(response.status).toBe(400);
+        expect(data.error).toBe("Invite not found");
+    });
 
-	it("should return 400 if invite is expired", async () => {
-		const mockUser = { $id: "user-1" };
-		const mockResult = {
-			success: false,
-			error: "Invite has expired",
-		};
+    it("should return 400 if invite is expired", async () => {
+        const mockUser = { $id: "user-1" };
+        const mockResult = {
+            success: false,
+            error: "Invite has expired",
+        };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(
+            mockResult as never,
+        );
 
-		const request = new Request("http://localhost/api/invites/EXPIRED/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "EXPIRED" });
+        const request = new Request(
+            "http://localhost/api/invites/EXPIRED/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "EXPIRED" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(400);
-		expect(data.error).toBe("Invite has expired");
-	});
+        expect(response.status).toBe(400);
+        expect(data.error).toBe("Invite has expired");
+    });
 
-	it("should return 400 if invite max uses reached", async () => {
-		const mockUser = { $id: "user-1" };
-		const mockResult = {
-			success: false,
-			error: "Invite has reached maximum uses",
-		};
+    it("should return 400 if invite max uses reached", async () => {
+        const mockUser = { $id: "user-1" };
+        const mockResult = {
+            success: false,
+            error: "Invite has reached maximum uses",
+        };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(
+            mockResult as never,
+        );
 
-		const request = new Request("http://localhost/api/invites/MAXED/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "MAXED" });
+        const request = new Request("http://localhost/api/invites/MAXED/join", {
+            method: "POST",
+        });
+        const params = Promise.resolve({ code: "MAXED" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(400);
-		expect(data.error).toBe("Invite has reached maximum uses");
-	});
+        expect(response.status).toBe(400);
+        expect(data.error).toBe("Invite has reached maximum uses");
+    });
 
-	it("should return 400 if user is already a member", async () => {
-		const mockUser = { $id: "user-1" };
-		const mockResult = {
-			success: false,
-			error: "User is already a member of this server",
-		};
+    it("should return 400 if user is already a member", async () => {
+        const mockUser = { $id: "user-1" };
+        const mockResult = {
+            success: false,
+            error: "User is already a member of this server",
+        };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(mockResult as never);
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockResolvedValue(
+            mockResult as never,
+        );
 
-		const request = new Request("http://localhost/api/invites/TEST123/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "TEST123" });
+        const request = new Request(
+            "http://localhost/api/invites/TEST123/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "TEST123" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(400);
-		expect(data.error).toBe("User is already a member of this server");
-	});
+        expect(response.status).toBe(400);
+        expect(data.error).toBe("User is already a member of this server");
+    });
 
-	it("should handle unexpected errors", async () => {
-		const mockUser = { $id: "user-1" };
+    it("should handle unexpected errors", async () => {
+        const mockUser = { $id: "user-1" };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue(new Error("Database connection lost"));
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue(
+            new Error("Database connection lost"),
+        );
 
-		const request = new Request("http://localhost/api/invites/TEST123/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "TEST123" });
+        const request = new Request(
+            "http://localhost/api/invites/TEST123/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "TEST123" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(500);
-		expect(data.error).toBe("Failed to join server");
-	});
+        expect(response.status).toBe(500);
+        expect(data.error).toBe("Failed to join server");
+    });
 
-	it("should handle non-Error exceptions", async () => {
-		const mockUser = { $id: "user-1" };
+    it("should handle non-Error exceptions", async () => {
+        const mockUser = { $id: "user-1" };
 
-		vi.mocked(authServer.getServerSession).mockResolvedValue(mockUser as never);
-		vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue("Unknown error");
+        vi.mocked(authServer.getServerSession).mockResolvedValue(
+            mockUser as never,
+        );
+        vi.mocked(appwriteInvites.redeemInvite).mockRejectedValue(
+            "Unknown error",
+        );
 
-		const request = new Request("http://localhost/api/invites/TEST123/join", {
-			method: "POST",
-		});
-		const params = Promise.resolve({ code: "TEST123" });
+        const request = new Request(
+            "http://localhost/api/invites/TEST123/join",
+            {
+                method: "POST",
+            },
+        );
+        const params = Promise.resolve({ code: "TEST123" });
 
-		const response = await POST(request, { params });
-		const data = await response.json();
+        const response = await POST(request, { params });
+        const data = await response.json();
 
-		expect(response.status).toBe(500);
-		expect(data.error).toBe("Failed to join server");
-	});
+        expect(response.status).toBe(500);
+        expect(data.error).toBe("Failed to join server");
+    });
 });

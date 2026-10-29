@@ -47,7 +47,7 @@ Two consequences:
 2. **The channel list costs one extra query**, not one per channel. Raising this
    to per-channel lookups is an N+1 on every sidebar load.
 
-The window is deliberately biased toward *missing* old unreads rather than
+The window is deliberately biased toward _missing_ old unreads rather than
 showing an unread badge forever on a dead channel. A channel that has gone quiet
 has nothing urgent, and the alternative — an exact count for every channel on
 every sidebar load — costs a query per channel.

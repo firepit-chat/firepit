@@ -41,12 +41,12 @@ function mockEndpoints(
     ) => {
         const url = String(input);
         if (url.includes("/api/channel-reads")) {
-            return new Response(JSON.stringify({ reads, serverId: "server-1" }));
+            return new Response(
+                JSON.stringify({ reads, serverId: "server-1" }),
+            );
         }
         if (url.includes("/api/channels")) {
-            return new Response(
-                JSON.stringify({ channels, nextCursor: null }),
-            );
+            return new Response(JSON.stringify({ channels, nextCursor: null }));
         }
         return new Response("{}", { status: 404 });
     }) as typeof fetch);
@@ -151,24 +151,24 @@ describe("useUnreadChannels", () => {
     // A failing read endpoint is cosmetic, so it degrades to "nothing unread"
     // instead of an error state.
     it("degrades to no channels when reads cannot be loaded", async () => {
-        const spy = vi
-            .spyOn(globalThis, "fetch")
-            .mockImplementation((async (input: RequestInfo | URL) => {
-                const url = String(input);
-                if (url.includes("/api/channel-reads")) {
-                    return new Response("nope", { status: 500 });
-                }
-                return new Response(
-                    JSON.stringify({
-                        channels: [
-                            channel({
-                                lastMessageAt: "2026-01-02T00:00:00.000Z",
-                            }),
-                        ],
-                        nextCursor: null,
-                    }),
-                );
-            }) as typeof fetch);
+        const spy = vi.spyOn(globalThis, "fetch").mockImplementation((async (
+            input: RequestInfo | URL,
+        ) => {
+            const url = String(input);
+            if (url.includes("/api/channel-reads")) {
+                return new Response("nope", { status: 500 });
+            }
+            return new Response(
+                JSON.stringify({
+                    channels: [
+                        channel({
+                            lastMessageAt: "2026-01-02T00:00:00.000Z",
+                        }),
+                    ],
+                    nextCursor: null,
+                }),
+            );
+        }) as typeof fetch);
 
         const { container } = render(createElement(Probe), {
             wrapper: withClient(),

@@ -8,14 +8,13 @@ const {
     mockUpdate,
     mockBuildResponse,
     mockGetUserProfile,
-} =
-    vi.hoisted(() => ({
-        mockSession: vi.fn(),
-        mockGetOrCreate: vi.fn(),
-        mockUpdate: vi.fn(),
-        mockBuildResponse: vi.fn(),
-        mockGetUserProfile: vi.fn(),
-    }));
+} = vi.hoisted(() => ({
+    mockSession: vi.fn(),
+    mockGetOrCreate: vi.fn(),
+    mockUpdate: vi.fn(),
+    mockBuildResponse: vi.fn(),
+    mockGetUserProfile: vi.fn(),
+}));
 
 vi.mock("@/lib/auth-server", () => ({
     getServerSession: mockSession,

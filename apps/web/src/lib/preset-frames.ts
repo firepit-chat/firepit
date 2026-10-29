@@ -352,4 +352,3 @@ export function getEligibleFramesForUser(
 
     return [...defaultFrames, ...seasonalFrames];
 }
-

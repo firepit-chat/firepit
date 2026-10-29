@@ -51,10 +51,15 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
             <ThemedText
                 type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
             >
                 {label}
             </ThemedText>
@@ -92,14 +97,26 @@ function ActionButton({
                               : tone === "secondary"
                                 ? theme.secondary
                                 : theme.muted,
-                    borderColor: tone === "danger" ? theme.destructive : theme.border,
+                    borderColor:
+                        tone === "danger" ? theme.destructive : theme.border,
                 },
                 pressed && !disabled && styles.actionButtonPressed,
                 disabled && styles.actionButtonDisabled,
             ]}
         >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                {icon === "back" && <ArrowLeft size={16} color={tone === "primary" || tone === "danger" ? theme.primaryForeground : theme.foreground} />}
+            <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
+                {icon === "back" && (
+                    <ArrowLeft
+                        size={16}
+                        color={
+                            tone === "primary" || tone === "danger"
+                                ? theme.primaryForeground
+                                : theme.foreground
+                        }
+                    />
+                )}
                 <ThemedText
                     type="smallBold"
                     themeColor={
@@ -218,7 +235,8 @@ export default function RolesManagementScreen() {
     useRetryOnReconnect(loadState === "error", loadRoles);
 
     const handleCreate = async () => {
-        if (!instanceUrl || !accessToken || !normalizedServerId || saving) return;
+        if (!instanceUrl || !accessToken || !normalizedServerId || saving)
+            return;
         const name = createDraft.name.trim();
         if (!name) return;
 
@@ -245,7 +263,9 @@ export default function RolesManagementScreen() {
             await loadRoles();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to create role",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to create role",
             );
         } finally {
             setSaving(false);
@@ -282,7 +302,9 @@ export default function RolesManagementScreen() {
             await loadRoles();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to update role",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to update role",
             );
         } finally {
             setSaving(false);
@@ -297,16 +319,14 @@ export default function RolesManagementScreen() {
         setSaving(true);
         setActionError(null);
         try {
-            await deleteServerRole(
-                instanceUrl,
-                accessToken,
-                roleId,
-            );
+            await deleteServerRole(instanceUrl, accessToken, roleId);
             setDeletingRole(null);
             await loadRoles();
         } catch (error) {
             setActionError(
-                error instanceof Error ? error.message : "Unable to delete role",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to delete role",
             );
         } finally {
             setSaving(false);
@@ -323,7 +343,10 @@ export default function RolesManagementScreen() {
     return (
         <AuthRouteGuard>
             <ScrollView
-                style={[styles.scrollView, { backgroundColor: theme.background }]}
+                style={[
+                    styles.scrollView,
+                    { backgroundColor: theme.background },
+                ]}
                 contentContainerStyle={styles.scrollContent}
             >
                 <View
@@ -345,7 +368,10 @@ export default function RolesManagementScreen() {
                         {/* Header */}
                         <ThemedView
                             type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Role management
@@ -357,8 +383,9 @@ export default function RolesManagementScreen() {
                                 themeColor="mutedForeground"
                                 style={styles.copy}
                             >
-                                Create roles with specific permissions. Members with
-                                the Manage Roles permission can assign roles to others.
+                                Create roles with specific permissions. Members
+                                with the Manage Roles permission can assign
+                                roles to others.
                             </ThemedText>
                             <View style={styles.pillRow}>
                                 <StatusPill
@@ -384,7 +411,9 @@ export default function RolesManagementScreen() {
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <View style={styles.sectionHeaderRow}>
-                                <ThemedText type="smallBold">Actions</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Actions
+                                </ThemedText>
                                 <View style={styles.actionRow}>
                                     <ActionButton
                                         label="Back to chat"
@@ -422,11 +451,14 @@ export default function RolesManagementScreen() {
                         {loadState === "ready" && roles.length === 0 ? (
                             <ThemedView
                                 type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText themeColor="mutedForeground">
-                                    No custom roles found. Create the first one to manage
-                                    permissions.
+                                    No custom roles found. Create the first one
+                                    to manage permissions.
                                 </ThemedText>
                             </ThemedView>
                         ) : null}
@@ -488,48 +520,54 @@ export default function RolesManagementScreen() {
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
                         <KeyboardAvoidingView
-                            behavior={Platform.OS === "ios" ? "padding" : undefined}
+                            behavior={
+                                Platform.OS === "ios" ? "padding" : undefined
+                            }
                             style={{ width: "100%" }}
                         >
-                        <Pressable onPress={() => undefined}>
-                            <ThemedView
-                                type="card"
-                                style={[
-                                    styles.modalCard,
-                                    { borderColor: theme.border },
-                                ]}
-                            >
-                                <ThemedText type="smallBold">Delete role</ThemedText>
-                                <ThemedText themeColor="mutedForeground">
-                                    Are you sure you want to delete the role{" "}
+                            <Pressable onPress={() => undefined}>
+                                <ThemedView
+                                    type="card"
+                                    style={[
+                                        styles.modalCard,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
                                     <ThemedText type="smallBold">
-                                        {deletingRole?.name}
+                                        Delete role
                                     </ThemedText>
-                                    ? This action cannot be undone.
-                                </ThemedText>
-                                {actionError ? (
-                                    <ThemedText themeColor="destructive">
-                                        {actionError}
+                                    <ThemedText themeColor="mutedForeground">
+                                        Are you sure you want to delete the role{" "}
+                                        <ThemedText type="smallBold">
+                                            {deletingRole?.name}
+                                        </ThemedText>
+                                        ? This action cannot be undone.
                                     </ThemedText>
-                                ) : null}
-                                <View style={styles.modalActions}>
-                                    <ActionButton
-                                        label="Cancel"
-                                        tone="ghost"
-                                        onPress={() => {
-                                            setActionError(null);
-                                            setDeletingRole(null);
-                                        }}
-                                    />
-                                    <ActionButton
-                                        label={saving ? "Deleting…" : "Delete"}
-                                        tone="danger"
-                                        disabled={saving}
-                                        onPress={() => void handleDelete()}
-                                    />
-                                </View>
-                            </ThemedView>
-                        </Pressable>
+                                    {actionError ? (
+                                        <ThemedText themeColor="destructive">
+                                            {actionError}
+                                        </ThemedText>
+                                    ) : null}
+                                    <View style={styles.modalActions}>
+                                        <ActionButton
+                                            label="Cancel"
+                                            tone="ghost"
+                                            onPress={() => {
+                                                setActionError(null);
+                                                setDeletingRole(null);
+                                            }}
+                                        />
+                                        <ActionButton
+                                            label={
+                                                saving ? "Deleting…" : "Delete"
+                                            }
+                                            tone="danger"
+                                            disabled={saving}
+                                            onPress={() => void handleDelete()}
+                                        />
+                                    </View>
+                                </ThemedView>
+                            </Pressable>
                         </KeyboardAvoidingView>
                     </View>
                 </Pressable>
@@ -570,7 +608,11 @@ function RoleCard({
                     </ThemedText>
                 </View>
                 <View style={styles.roleActions}>
-                    <ActionButton label="Edit" tone="secondary" onPress={onEdit} />
+                    <ActionButton
+                        label="Edit"
+                        tone="secondary"
+                        onPress={onEdit}
+                    />
                     <ActionButton
                         label="Delete"
                         tone="danger"
@@ -655,123 +697,134 @@ function RoleEditorModal({
                         behavior={Platform.OS === "ios" ? "padding" : undefined}
                         style={{ width: "100%" }}
                     >
-                    <ScrollView
-                        style={styles.modalScroll}
-                        contentContainerStyle={styles.modalScrollContent}
-                    >
-                        <ThemedView
-                            type="card"
-                            style={[
-                                styles.modalCard,
-                                { borderColor: theme.border },
-                            ]}
+                        <ScrollView
+                            style={styles.modalScroll}
+                            contentContainerStyle={styles.modalScrollContent}
                         >
-                            <ThemedText type="smallBold">{title}</ThemedText>
-
-                            {error ? (
-                                <ThemedText themeColor="destructive">
-                                    {error}
-                                </ThemedText>
-                            ) : null}
-
-                            <TextInput
-                                autoCapitalize="words"
-                                autoCorrect={false}
-                                placeholder="Role name"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={draft.name}
-                                onChangeText={(text) =>
-                                    onDraftChange({ ...draft, name: text })
-                                }
+                            <ThemedView
+                                type="card"
                                 style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
+                                    styles.modalCard,
+                                    { borderColor: theme.border },
                                 ]}
-                            />
-
-                            <TextInput
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                placeholder="Color hex, e.g. #FF5500"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={draft.color}
-                                onChangeText={(text) =>
-                                    onDraftChange({ ...draft, color: text })
-                                }
-                                style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
-                                ]}
-                            />
-
-                            <View style={styles.toggleSection}>
-                                <ThemedText
-                                    type="code"
-                                    themeColor="mutedForeground"
-                                >
-                                    Role settings
+                            >
+                                <ThemedText type="smallBold">
+                                    {title}
                                 </ThemedText>
-                                <ToggleRow
-                                    label="Mentionable"
-                                    value={draft.mentionable}
-                                    onValueChange={(v) =>
-                                        onDraftChange({ ...draft, mentionable: v })
-                                    }
-                                />
-                                <ToggleRow
-                                    label="Default on join"
-                                    value={draft.defaultOnJoin}
-                                    onValueChange={(v) =>
-                                        onDraftChange({ ...draft, defaultOnJoin: v })
-                                    }
-                                />
-                            </View>
 
-                            <View style={styles.toggleSection}>
-                                <ThemedText
-                                    type="code"
-                                    themeColor="mutedForeground"
-                                >
-                                    Permissions
-                                </ThemedText>
-                                {PERMISSION_FLAGS.map((perm) => (
+                                {error ? (
+                                    <ThemedText themeColor="destructive">
+                                        {error}
+                                    </ThemedText>
+                                ) : null}
+
+                                <TextInput
+                                    autoCapitalize="words"
+                                    autoCorrect={false}
+                                    placeholder="Role name"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={draft.name}
+                                    onChangeText={(text) =>
+                                        onDraftChange({ ...draft, name: text })
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
+                                />
+
+                                <TextInput
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                    placeholder="Color hex, e.g. #FF5500"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={draft.color}
+                                    onChangeText={(text) =>
+                                        onDraftChange({ ...draft, color: text })
+                                    }
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
+                                />
+
+                                <View style={styles.toggleSection}>
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
+                                        Role settings
+                                    </ThemedText>
                                     <ToggleRow
-                                        key={perm.key}
-                                        label={perm.label}
-                                        value={
-                                            draft[
-                                                perm.key as keyof RoleDraft
-                                            ] as boolean
-                                        }
+                                        label="Mentionable"
+                                        value={draft.mentionable}
                                         onValueChange={(v) =>
-                                            onDraftChange({ ...draft, [perm.key]: v })
+                                            onDraftChange({
+                                                ...draft,
+                                                mentionable: v,
+                                            })
                                         }
                                     />
-                                ))}
-                            </View>
+                                    <ToggleRow
+                                        label="Default on join"
+                                        value={draft.defaultOnJoin}
+                                        onValueChange={(v) =>
+                                            onDraftChange({
+                                                ...draft,
+                                                defaultOnJoin: v,
+                                            })
+                                        }
+                                    />
+                                </View>
 
-                            <View style={styles.modalActions}>
-                                <ActionButton
-                                    label="Cancel"
-                                    tone="ghost"
-                                    onPress={onClose}
-                                />
-                                <ActionButton
-                                    label={saving ? "Saving…" : submitLabel}
-                                    disabled={saving || !draft.name.trim()}
-                                    onPress={onSubmit}
-                                />
-                            </View>
-                        </ThemedView>
-                    </ScrollView>
+                                <View style={styles.toggleSection}>
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
+                                        Permissions
+                                    </ThemedText>
+                                    {PERMISSION_FLAGS.map((perm) => (
+                                        <ToggleRow
+                                            key={perm.key}
+                                            label={perm.label}
+                                            value={
+                                                draft[
+                                                    perm.key as keyof RoleDraft
+                                                ] as boolean
+                                            }
+                                            onValueChange={(v) =>
+                                                onDraftChange({
+                                                    ...draft,
+                                                    [perm.key]: v,
+                                                })
+                                            }
+                                        />
+                                    ))}
+                                </View>
+
+                                <View style={styles.modalActions}>
+                                    <ActionButton
+                                        label="Cancel"
+                                        tone="ghost"
+                                        onPress={onClose}
+                                    />
+                                    <ActionButton
+                                        label={saving ? "Saving…" : submitLabel}
+                                        disabled={saving || !draft.name.trim()}
+                                        onPress={onSubmit}
+                                    />
+                                </View>
+                            </ThemedView>
+                        </ScrollView>
                     </KeyboardAvoidingView>
                 </View>
             </Pressable>

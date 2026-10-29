@@ -152,6 +152,30 @@ describe("chat-surface adapters", () => {
         });
     });
 
+    it("carries the encrypted flag for direct messages only", () => {
+        expect(
+            fromDirectMessage({
+                $id: "dm-encrypted",
+                conversationId: "conversation-1",
+                senderId: "user-2",
+                text: "",
+                isEncrypted: true,
+                $createdAt: "2026-03-10T12:00:00.000Z",
+            }).isEncrypted,
+        ).toBe(true);
+
+        expect(
+            fromChannelMessage({
+                $id: "channel-message",
+                userId: "user-1",
+                text: "",
+                channelId: "channel-1",
+                serverId: "server-1",
+                $createdAt: "2026-03-10T12:00:00.000Z",
+            }).isEncrypted,
+        ).toBeUndefined();
+    });
+
     it("sorts adapted messages by createdAt and id", () => {
         const channelMessages: Message[] = [
             {

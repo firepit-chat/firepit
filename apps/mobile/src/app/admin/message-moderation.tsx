@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -42,7 +42,9 @@ export default function MessageModerationScreen() {
     const { serverId } = useLocalSearchParams<{ serverId?: string }>();
 
     const [channels, setChannels] = useState<Channel[]>([]);
-    const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+    const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
+        null,
+    );
     const [onlyRemoved, setOnlyRemoved] = useState(false);
     const [searchText, setSearchText] = useState("");
     const [messages, setMessages] = useState<ModerationMessageEntry[]>([]);
@@ -55,28 +57,53 @@ export default function MessageModerationScreen() {
     const loadChannels = useCallback(async () => {
         if (!instanceUrl || !accessToken || !serverId) return;
         try {
-            const res = await fetchChannels(instanceUrl, accessToken, serverId, 100);
+            const res = await fetchChannels(
+                instanceUrl,
+                accessToken,
+                serverId,
+                100,
+            );
             setChannels(res.channels ?? []);
         } catch {
             // Channel picker is optional; default to listing all channels.
         }
     }, [accessToken, instanceUrl, serverId]);
 
+    // The search box feeds loadMessages directly, so every keystroke fired its
+    // own request and a ten-character query meant ten overlapping ones whose
+    // responses could land out of order — leaving results for a prefix of what
+    // was typed. Settle the query first, then keep only the newest request.
+    const [debouncedSearch, setDebouncedSearch] = useState(searchText);
+    useEffect(() => {
+        const handle = setTimeout(() => setDebouncedSearch(searchText), 250);
+        return () => clearTimeout(handle);
+    }, [searchText]);
+
+    const loadSeqRef = useRef(0);
+
     const loadMessages = useCallback(async () => {
         if (!instanceUrl || !accessToken || !serverId) return;
         setLoadState("loading");
         setLoadError(null);
+        const seq = ++loadSeqRef.current;
         try {
-            const res = await fetchModerationMessages(instanceUrl, accessToken, serverId, {
-                channelId: selectedChannelId ?? undefined,
-                onlyRemoved,
-                text: searchText.trim() || undefined,
-                limit: 30,
-            });
+            const res = await fetchModerationMessages(
+                instanceUrl,
+                accessToken,
+                serverId,
+                {
+                    channelId: selectedChannelId ?? undefined,
+                    onlyRemoved,
+                    text: debouncedSearch.trim() || undefined,
+                    limit: 30,
+                },
+            );
+            if (seq !== loadSeqRef.current) return;
             setMessages(res.items ?? []);
             setNextCursor(res.nextCursor ?? null);
             setLoadState("ready");
         } catch (error) {
+            if (seq !== loadSeqRef.current) return;
             setLoadState("error");
             setLoadError(
                 error instanceof Error
@@ -84,7 +111,14 @@ export default function MessageModerationScreen() {
                     : "Unable to load moderation messages",
             );
         }
-    }, [accessToken, instanceUrl, serverId, selectedChannelId, onlyRemoved, searchText]);
+    }, [
+        accessToken,
+        instanceUrl,
+        serverId,
+        selectedChannelId,
+        onlyRemoved,
+        debouncedSearch,
+    ]);
 
     useEffect(() => {
         void loadChannels();
@@ -97,26 +131,51 @@ export default function MessageModerationScreen() {
     useRetryOnReconnect(loadState === "error", loadMessages);
 
     const loadMore = useCallback(async () => {
-        if (!instanceUrl || !accessToken || !serverId || !nextCursor || loadingMore) return;
+        if (
+            !instanceUrl ||
+            !accessToken ||
+            !serverId ||
+            !nextCursor ||
+            loadingMore
+        )
+            return;
         setLoadingMore(true);
         try {
-            const res = await fetchModerationMessages(instanceUrl, accessToken, serverId, {
-                channelId: selectedChannelId ?? undefined,
-                onlyRemoved,
-                text: searchText.trim() || undefined,
-                limit: 30,
-                cursorAfter: nextCursor,
-            });
+            const res = await fetchModerationMessages(
+                instanceUrl,
+                accessToken,
+                serverId,
+                {
+                    channelId: selectedChannelId ?? undefined,
+                    onlyRemoved,
+                    // Must match the filter the visible list was loaded with, or
+                    // the cursor pages a different result set.
+                    text: debouncedSearch.trim() || undefined,
+                    limit: 30,
+                    cursorAfter: nextCursor,
+                },
+            );
             setMessages((prev) => [...prev, ...(res.items ?? [])]);
             setNextCursor(res.nextCursor ?? null);
         } catch (error) {
             setLoadError(
-                error instanceof Error ? error.message : "Failed to load more messages",
+                error instanceof Error
+                    ? error.message
+                    : "Failed to load more messages",
             );
         } finally {
             setLoadingMore(false);
         }
-    }, [accessToken, instanceUrl, serverId, selectedChannelId, onlyRemoved, searchText, nextCursor, loadingMore]);
+    }, [
+        accessToken,
+        instanceUrl,
+        serverId,
+        selectedChannelId,
+        onlyRemoved,
+        debouncedSearch,
+        nextCursor,
+        loadingMore,
+    ]);
 
     const runAction = async (
         message: ModerationMessageEntry,
@@ -126,7 +185,12 @@ export default function MessageModerationScreen() {
         setActingId(`${action}:${message.$id}`);
         setLoadError(null);
         try {
-            await applyMessageAction(instanceUrl, accessToken, message.$id, action);
+            await applyMessageAction(
+                instanceUrl,
+                accessToken,
+                message.$id,
+                action,
+            );
             if (action === "soft-delete") {
                 setMessages((prev) =>
                     prev.map((m) =>
@@ -138,11 +202,15 @@ export default function MessageModerationScreen() {
             } else if (action === "restore") {
                 setMessages((prev) =>
                     prev.map((m) =>
-                        m.$id === message.$id ? { ...m, removedAt: undefined } : m,
+                        m.$id === message.$id
+                            ? { ...m, removedAt: undefined }
+                            : m,
                     ),
                 );
             } else {
-                setMessages((prev) => prev.filter((m) => m.$id !== message.$id));
+                setMessages((prev) =>
+                    prev.filter((m) => m.$id !== message.$id),
+                );
             }
         } catch (error) {
             setLoadError(
@@ -154,7 +222,10 @@ export default function MessageModerationScreen() {
     };
 
     const handleAction = useCallback(
-        async (message: ModerationMessageEntry, action: MessageModerationAction) => {
+        async (
+            message: ModerationMessageEntry,
+            action: MessageModerationAction,
+        ) => {
             if (!instanceUrl || !accessToken || !message.$id) return;
 
             if (action === "hard-delete") {
@@ -187,7 +258,10 @@ export default function MessageModerationScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     <ScrollView
                         style={{ width: "100%" }}
                         contentContainerStyle={styles.scrollContent}
@@ -202,19 +276,29 @@ export default function MessageModerationScreen() {
                                     onPress={() => router.back()}
                                     style={styles.headerButton}
                                 >
-                                    <ThemedText type="smallBold">Back</ThemedText>
+                                    <ThemedText type="smallBold">
+                                        Back
+                                    </ThemedText>
                                 </Pressable>
-                                <ThemedText type="smallBold">Message moderation</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Message moderation
+                                </ThemedText>
                                 <View style={styles.headerButton} />
                             </View>
 
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Review a server’s messages. Remove, restore, or permanently
-                                delete content.
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                Review a server’s messages. Remove, restore, or
+                                permanently delete content.
                             </ThemedText>
 
                             <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ScrollView
                                     horizontal
@@ -223,7 +307,9 @@ export default function MessageModerationScreen() {
                                 >
                                     <Pressable
                                         accessibilityRole="button"
-                                        onPress={() => setSelectedChannelId(null)}
+                                        onPress={() =>
+                                            setSelectedChannelId(null)
+                                        }
                                         style={[
                                             styles.channelChip,
                                             {
@@ -238,24 +324,39 @@ export default function MessageModerationScreen() {
                                             },
                                         ]}
                                     >
-                                        <ThemedText type="smallBold">All channels</ThemedText>
+                                        <ThemedText type="smallBold">
+                                            All channels
+                                        </ThemedText>
                                     </Pressable>
                                     {channels.map((channel) => {
-                                        const selected = selectedChannelId === channel.$id;
+                                        const selected =
+                                            selectedChannelId === channel.$id;
                                         return (
                                             <Pressable
                                                 key={channel.$id}
                                                 accessibilityRole="button"
-                                                onPress={() => setSelectedChannelId(channel.$id ?? null)}
+                                                onPress={() =>
+                                                    setSelectedChannelId(
+                                                        channel.$id ?? null,
+                                                    )
+                                                }
                                                 style={[
                                                     styles.channelChip,
                                                     {
-                                                        borderColor: selected ? theme.primary : theme.border,
-                                                        backgroundColor: selected ? theme.secondary : theme.card,
+                                                        borderColor: selected
+                                                            ? theme.primary
+                                                            : theme.border,
+                                                        backgroundColor:
+                                                            selected
+                                                                ? theme.secondary
+                                                                : theme.card,
                                                     },
                                                 ]}
                                             >
-                                                <ThemedText type="smallBold" numberOfLines={1}>
+                                                <ThemedText
+                                                    type="smallBold"
+                                                    numberOfLines={1}
+                                                >
                                                     {channel.name ?? "channel"}
                                                 </ThemedText>
                                             </Pressable>
@@ -282,11 +383,21 @@ export default function MessageModerationScreen() {
 
                                 <Pressable
                                     accessibilityRole="button"
-                                    onPress={() => setOnlyRemoved((prev) => !prev)}
-                                    style={[styles.removedToggle, { borderColor: onlyRemoved ? theme.primary : theme.border }]}
+                                    onPress={() =>
+                                        setOnlyRemoved((prev) => !prev)
+                                    }
+                                    style={[
+                                        styles.removedToggle,
+                                        {
+                                            borderColor: onlyRemoved
+                                                ? theme.primary
+                                                : theme.border,
+                                        },
+                                    ]}
                                 >
                                     <ThemedText type="smallBold">
-                                        {onlyRemoved ? "✓ " : ""}Removed messages only
+                                        {onlyRemoved ? "✓ " : ""}Removed
+                                        messages only
                                     </ThemedText>
                                 </Pressable>
                             </ThemedView>
@@ -302,13 +413,18 @@ export default function MessageModerationScreen() {
 
                             {loadError ? (
                                 <ThemedView style={styles.card}>
-                                    <ThemedText themeColor="destructive">{loadError}</ThemedText>
+                                    <ThemedText themeColor="destructive">
+                                        {loadError}
+                                    </ThemedText>
                                 </ThemedView>
                             ) : null}
 
                             {loadState === "ready" && messages.length === 0 ? (
                                 <ThemedView style={styles.card}>
-                                    <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.emptyText}
+                                    >
                                         No messages match these filters.
                                     </ThemedText>
                                 </ThemedView>
@@ -319,21 +435,44 @@ export default function MessageModerationScreen() {
                                 return (
                                     <ThemedView
                                         key={message.$id}
-                                                    style={[styles.card, { borderColor: theme.border }]}
+                                        style={[
+                                            styles.card,
+                                            { borderColor: theme.border },
+                                        ]}
                                     >
                                         <View style={styles.messageHeader}>
-                                            <ThemedText type="smallBold" numberOfLines={1} style={styles.messageSender}>
-                                                {message.senderDisplay ?? message.userName ?? message.userId ?? "Unknown"}
+                                            <ThemedText
+                                                type="smallBold"
+                                                numberOfLines={1}
+                                                style={styles.messageSender}
+                                            >
+                                                {message.senderDisplay ??
+                                                    message.userName ??
+                                                    message.userId ??
+                                                    "Unknown"}
                                             </ThemedText>
-                                            <ThemedText type="code" themeColor="mutedForeground" style={styles.messageTime}>
-                                                {formatTime(message.removedAt ?? message.createdAt)}
+                                            <ThemedText
+                                                type="code"
+                                                themeColor="mutedForeground"
+                                                style={styles.messageTime}
+                                            >
+                                                {formatTime(
+                                                    message.removedAt ??
+                                                        message.createdAt,
+                                                )}
                                             </ThemedText>
                                         </View>
                                         <ThemedText style={styles.messageBody}>
-                                            {message.text?.trim() ? message.text : "(attachment or no text)"}
+                                            {message.text?.trim()
+                                                ? message.text
+                                                : "(attachment or no text)"}
                                         </ThemedText>
                                         {removed ? (
-                                            <ThemedText type="code" themeColor="warningText" style={styles.removedLabel}>
+                                            <ThemedText
+                                                type="code"
+                                                themeColor="warningText"
+                                                style={styles.removedLabel}
+                                            >
                                                 Removed
                                             </ThemedText>
                                         ) : null}
@@ -342,52 +481,105 @@ export default function MessageModerationScreen() {
                                                 <Pressable
                                                     accessibilityRole="button"
                                                     disabled={actingId !== null}
-                                                    onPress={() => void handleAction(message, "soft-delete")}
+                                                    onPress={() =>
+                                                        void handleAction(
+                                                            message,
+                                                            "soft-delete",
+                                                        )
+                                                    }
                                                     style={({ pressed }) => [
                                                         styles.actionButton,
                                                         {
-                                                            backgroundColor: theme.secondary,
-                                                            opacity: pressed || actingId !== null ? 0.6 : 1,
+                                                            backgroundColor:
+                                                                theme.secondary,
+                                                            opacity:
+                                                                pressed ||
+                                                                actingId !==
+                                                                    null
+                                                                    ? 0.6
+                                                                    : 1,
                                                         },
                                                     ]}
                                                 >
                                                     <ThemedText type="smallBold">
-                                                        {actingId === `soft-delete:${message.$id}` ? "…" : "Remove"}
+                                                        {actingId ===
+                                                        `soft-delete:${message.$id}`
+                                                            ? "…"
+                                                            : "Remove"}
                                                     </ThemedText>
                                                 </Pressable>
                                             ) : (
                                                 <>
                                                     <Pressable
                                                         accessibilityRole="button"
-                                                        disabled={actingId !== null}
-                                                        onPress={() => void handleAction(message, "restore")}
-                                                        style={({ pressed }) => [
+                                                        disabled={
+                                                            actingId !== null
+                                                        }
+                                                        onPress={() =>
+                                                            void handleAction(
+                                                                message,
+                                                                "restore",
+                                                            )
+                                                        }
+                                                        style={({
+                                                            pressed,
+                                                        }) => [
                                                             styles.actionButton,
                                                             {
-                                                                backgroundColor: theme.secondary,
-                                                                opacity: pressed || actingId !== null ? 0.6 : 1,
+                                                                backgroundColor:
+                                                                    theme.secondary,
+                                                                opacity:
+                                                                    pressed ||
+                                                                    actingId !==
+                                                                        null
+                                                                        ? 0.6
+                                                                        : 1,
                                                             },
                                                         ]}
                                                     >
                                                         <ThemedText type="smallBold">
-                                                            {actingId === `restore:${message.$id}` ? "…" : "Restore"}
+                                                            {actingId ===
+                                                            `restore:${message.$id}`
+                                                                ? "…"
+                                                                : "Restore"}
                                                         </ThemedText>
                                                     </Pressable>
                                                     <Pressable
                                                         accessibilityRole="button"
-                                                        disabled={actingId !== null}
-                                                        onPress={() => void handleAction(message, "hard-delete")}
-                                                        style={({ pressed }) => [
+                                                        disabled={
+                                                            actingId !== null
+                                                        }
+                                                        onPress={() =>
+                                                            void handleAction(
+                                                                message,
+                                                                "hard-delete",
+                                                            )
+                                                        }
+                                                        style={({
+                                                            pressed,
+                                                        }) => [
                                                             styles.actionButton,
                                                             {
-                                                                borderColor: theme.destructive,
+                                                                borderColor:
+                                                                    theme.destructive,
                                                                 borderWidth: 1,
-                                                                opacity: pressed || actingId !== null ? 0.6 : 1,
+                                                                opacity:
+                                                                    pressed ||
+                                                                    actingId !==
+                                                                        null
+                                                                        ? 0.6
+                                                                        : 1,
                                                             },
                                                         ]}
                                                     >
-                                                        <ThemedText type="smallBold" themeColor="destructive">
-                                                            {actingId === `hard-delete:${message.$id}` ? "…" : "Delete"}
+                                                        <ThemedText
+                                                            type="smallBold"
+                                                            themeColor="destructive"
+                                                        >
+                                                            {actingId ===
+                                                            `hard-delete:${message.$id}`
+                                                                ? "…"
+                                                                : "Delete"}
                                                         </ThemedText>
                                                     </Pressable>
                                                 </>
@@ -408,13 +600,19 @@ export default function MessageModerationScreen() {
                                         backgroundColor: theme.secondary,
                                         paddingHorizontal: Spacing.four,
                                         paddingVertical: Spacing.two,
-                                        opacity: pressed || loadingMore ? 0.6 : 1,
+                                        opacity:
+                                            pressed || loadingMore ? 0.6 : 1,
                                     })}
                                 >
                                     {loadingMore ? (
-                                        <ActivityIndicator size="small" color={theme.foreground} />
+                                        <ActivityIndicator
+                                            size="small"
+                                            color={theme.foreground}
+                                        />
                                     ) : (
-                                        <ThemedText type="smallBold">Load more</ThemedText>
+                                        <ThemedText type="smallBold">
+                                            Load more
+                                        </ThemedText>
                                     )}
                                 </Pressable>
                             ) : null}

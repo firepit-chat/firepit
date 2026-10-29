@@ -37,8 +37,7 @@ export async function POST(
         ) {
             return NextResponse.json(
                 {
-                    error:
-                        'Action must be "soft-delete", "restore", or "hard-delete"',
+                    error: 'Action must be "soft-delete", "restore", or "hard-delete"',
                 },
                 { status: 400 },
             );
@@ -55,8 +54,7 @@ export async function POST(
             );
         }
 
-        const message =
-            error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error);
 
         if (message === "Message not found") {
             return NextResponse.json(

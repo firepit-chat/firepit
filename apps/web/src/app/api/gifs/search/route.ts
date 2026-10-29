@@ -26,7 +26,8 @@ function jsonResponse(data: unknown, init?: ResponseInit) {
 function isAbortError(error: unknown): boolean {
     return (
         error instanceof Error &&
-        (error.name === "AbortError" || error.message.toLowerCase().includes("abort"))
+        (error.name === "AbortError" ||
+            error.message.toLowerCase().includes("abort"))
     );
 }
 
@@ -37,7 +38,11 @@ function resolveErrorStatusCode(error: unknown): number {
 
     const statusCode =
         "statusCode" in error ? Number(error.statusCode) : Number.NaN;
-    if (Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599) {
+    if (
+        Number.isInteger(statusCode) &&
+        statusCode >= 400 &&
+        statusCode <= 599
+    ) {
         return statusCode;
     }
 
@@ -54,7 +59,6 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         const user = await requireAuth();
 
         const rateLimitResult = checkRateLimit(`gif-search:${user.$id}`, {
@@ -87,7 +91,9 @@ export async function GET(request: NextRequest) {
         if (provider === "giphy") {
             const giphyConfig = getGiphyConfig();
             if (!giphyConfig.apiKey) {
-                logger.warn("GIPHY_API_KEY missing while GIF search is enabled");
+                logger.warn(
+                    "GIPHY_API_KEY missing while GIF search is enabled",
+                );
                 return jsonResponse(
                     { error: "GIF provider is not configured" },
                     { status: 503 },
@@ -110,7 +116,9 @@ export async function GET(request: NextRequest) {
         } else {
             const tenorConfig = getTenorConfig();
             if (!tenorConfig.apiKey) {
-                logger.warn("TENOR_API_KEY missing while GIF search is enabled");
+                logger.warn(
+                    "TENOR_API_KEY missing while GIF search is enabled",
+                );
                 return jsonResponse(
                     { error: "GIF provider is not configured" },
                     { status: 503 },
@@ -118,7 +126,9 @@ export async function GET(request: NextRequest) {
             }
 
             if (!tenorConfig.clientKey) {
-                logger.warn("TENOR_CLIENT_KEY missing while GIF search is enabled");
+                logger.warn(
+                    "TENOR_CLIENT_KEY missing while GIF search is enabled",
+                );
             }
 
             url.searchParams.set("key", tenorConfig.apiKey);
@@ -147,7 +157,10 @@ export async function GET(request: NextRequest) {
         });
 
         if (!response.ok) {
-            const details = (await response.text().catch(() => "")).slice(0, 500);
+            const details = (await response.text().catch(() => "")).slice(
+                0,
+                500,
+            );
             logger.warn("GIF search provider request failed", {
                 status: response.status,
                 details,
@@ -166,19 +179,15 @@ export async function GET(request: NextRequest) {
                       requestedLimit: params.limit,
                       requestedCursor: params.cursor,
                   })
-                : mapTenorResults((await response.json()) as TenorSearchResponse);
+                : mapTenorResults(
+                      (await response.json()) as TenorSearchResponse,
+                  );
 
-        trackApiCall(
-            "/api/gifs/search",
-            "GET",
-            200,
-            Date.now() - startTime,
-            {
-                itemCount: normalized.items.length,
-                provider,
-                queryLength: params.query.length,
-            },
-        );
+        trackApiCall("/api/gifs/search", "GET", 200, Date.now() - startTime, {
+            itemCount: normalized.items.length,
+            provider,
+            queryLength: params.query.length,
+        });
 
         return jsonResponse(normalized);
     } catch (error) {
@@ -221,13 +230,9 @@ export async function GET(request: NextRequest) {
 
         const upstreamStatus = resolveErrorStatusCode(error);
 
-        trackApiCall(
-            "/api/gifs/search",
-            "GET",
-            500,
-            Date.now() - startTime,
-            { upstreamStatus },
-        );
+        trackApiCall("/api/gifs/search", "GET", 500, Date.now() - startTime, {
+            upstreamStatus,
+        });
 
         return jsonResponse(
             { error: "Failed to search GIFs" },

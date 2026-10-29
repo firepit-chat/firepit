@@ -11,35 +11,35 @@ const mockGetFeatureFlag = vi.fn().mockResolvedValue(false);
 vi.mock("node-appwrite", () => ({
     Account: vi.fn().mockImplementation(function () {
         return {
-        createEmailPasswordSession: vi.fn().mockResolvedValue({
-            $id: "test-session-id",
-            userId: "test-user-id",
-            secret: "test-session-secret",
-        }),
-        createVerification: vi.fn().mockResolvedValue({}),
-        deleteSession: vi.fn().mockResolvedValue({}),
-        create: vi.fn().mockResolvedValue({
-            $id: "test-user-id",
-            email: "test@example.com",
-            name: "Test User",
-        }),
-    };
+            createEmailPasswordSession: vi.fn().mockResolvedValue({
+                $id: "test-session-id",
+                userId: "test-user-id",
+                secret: "test-session-secret",
+            }),
+            createVerification: vi.fn().mockResolvedValue({}),
+            deleteSession: vi.fn().mockResolvedValue({}),
+            create: vi.fn().mockResolvedValue({
+                $id: "test-user-id",
+                email: "test@example.com",
+                name: "Test User",
+            }),
+        };
     }),
     Client: vi.fn().mockImplementation(function () {
         return {
-        setEndpoint: vi.fn().mockReturnThis(),
-        setProject: vi.fn().mockReturnThis(),
-        setKey: vi.fn().mockReturnThis(),
-        setSession: vi.fn().mockReturnThis(),
-    };
+            setEndpoint: vi.fn().mockReturnThis(),
+            setProject: vi.fn().mockReturnThis(),
+            setKey: vi.fn().mockReturnThis(),
+            setSession: vi.fn().mockReturnThis(),
+        };
     }),
     Users: vi.fn().mockImplementation(function () {
         return {
-        get: vi.fn().mockResolvedValue({
-            $id: "test-user-id",
-            emailVerification: true,
-        }),
-    };
+            get: vi.fn().mockResolvedValue({
+                $id: "test-user-id",
+                emailVerification: true,
+            }),
+        };
     }),
     ID: {
         unique: vi.fn().mockReturnValue("unique-id"),
@@ -97,7 +97,9 @@ describe("Login Security", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        (cookies as unknown as { mockResolvedValue: (value: never) => void }).mockResolvedValue(mockCookieStore as never);
+        (
+            cookies as unknown as { mockResolvedValue: (value: never) => void }
+        ).mockResolvedValue(mockCookieStore as never);
         mockDatabases.listDocuments.mockResolvedValue({ documents: [] });
         mockDatabases.createDocument.mockResolvedValue({});
         mockGetFeatureFlag.mockResolvedValue(false);
@@ -201,15 +203,13 @@ describe("Login Security", () => {
         vi.clearAllMocks();
 
         const { Account } = await import("node-appwrite");
-        (Account as any).mockImplementationOnce(
-            function () {
-                return {
-                    createEmailPasswordSession: vi
-                        .fn()
-                        .mockRejectedValue(new Error("Invalid credentials")),
-                } as never;
-                },
-        );
+        (Account as any).mockImplementationOnce(function () {
+            return {
+                createEmailPasswordSession: vi
+                    .fn()
+                    .mockRejectedValue(new Error("Invalid credentials")),
+            } as never;
+        });
 
         const { loginAction } = await import("@/app/(auth)/login/actions");
 
@@ -232,27 +232,23 @@ describe("Login Security", () => {
         process.env.SYSTEM_SENDER_USER_ID = "system-account-id";
 
         const { Account } = await import("node-appwrite");
-        (Account as any).mockImplementationOnce(
-            function () {
-                return {
-                    createEmailPasswordSession: vi.fn().mockResolvedValue({
-                        $id: "system-session-id",
-                        secret: "system-session-secret",
-                        userId: "system-account-id",
-                    }),
-                } as never;
-                },
-        );
+        (Account as any).mockImplementationOnce(function () {
+            return {
+                createEmailPasswordSession: vi.fn().mockResolvedValue({
+                    $id: "system-session-id",
+                    secret: "system-session-secret",
+                    userId: "system-account-id",
+                }),
+            } as never;
+        });
 
         const { Users } = await import("node-appwrite");
         const mockDeleteSession = vi.fn().mockResolvedValue({});
-        (Users as any).mockImplementationOnce(
-            function () {
-                return {
-                    deleteSession: mockDeleteSession,
-                } as never;
-                },
-        );
+        (Users as any).mockImplementationOnce(function () {
+            return {
+                deleteSession: mockDeleteSession,
+            } as never;
+        });
 
         const { loginAction } = await import("@/app/(auth)/login/actions");
 
@@ -277,29 +273,25 @@ describe("Login Security", () => {
         mockGetFeatureFlag.mockResolvedValue(true);
 
         const { Account, Users } = await import("node-appwrite");
-        (Account as any).mockImplementationOnce(
-            function () {
-                return {
-                    createEmailPasswordSession: vi.fn().mockResolvedValue({
-                        $id: "unverified-session-id",
-                        userId: "unverified-user-id",
-                        secret: "unverified-session-secret",
-                    }),
-                    createVerification: vi.fn().mockResolvedValue({}),
-                    deleteSession: vi.fn().mockResolvedValue({}),
-                } as never;
-                },
-        );
-        (Users as any).mockImplementationOnce(
-            function () {
-                return {
-                    get: vi.fn().mockResolvedValue({
-                        $id: "unverified-user-id",
-                        emailVerification: false,
-                    }),
-                } as never;
-                },
-        );
+        (Account as any).mockImplementationOnce(function () {
+            return {
+                createEmailPasswordSession: vi.fn().mockResolvedValue({
+                    $id: "unverified-session-id",
+                    userId: "unverified-user-id",
+                    secret: "unverified-session-secret",
+                }),
+                createVerification: vi.fn().mockResolvedValue({}),
+                deleteSession: vi.fn().mockResolvedValue({}),
+            } as never;
+        });
+        (Users as any).mockImplementationOnce(function () {
+            return {
+                get: vi.fn().mockResolvedValue({
+                    $id: "unverified-user-id",
+                    emailVerification: false,
+                }),
+            } as never;
+        });
 
         const { loginAction } = await import("@/app/(auth)/login/actions");
 
@@ -320,9 +312,8 @@ describe("Login Security", () => {
     it("resendVerificationAction should reject when feature flag is disabled", async () => {
         mockGetFeatureFlag.mockResolvedValue(false);
 
-        const { resendVerificationAction } = await import(
-            "@/app/(auth)/login/actions"
-        );
+        const { resendVerificationAction } =
+            await import("@/app/(auth)/login/actions");
 
         const formData = new FormData();
         formData.set("email", "test@example.com");
@@ -349,35 +340,28 @@ describe("Login Security", () => {
 
         const { Account, Users } = await import("node-appwrite");
         (Account as any)
-            .mockImplementationOnce(
-                function () {
-                    return {
-                        createEmailPasswordSession,
-                    } as never;
-                    },
-            )
-            .mockImplementationOnce(
-                function () {
-                    return {
-                        createVerification,
-                    } as never;
-                    },
-            );
-        (Users as any).mockImplementationOnce(
-            function () {
+            .mockImplementationOnce(function () {
                 return {
-                    get: vi.fn().mockResolvedValue({
-                        $id: "unverified-user-id",
-                        emailVerification: false,
-                    }),
-                    deleteSession,
+                    createEmailPasswordSession,
                 } as never;
-                },
-        );
+            })
+            .mockImplementationOnce(function () {
+                return {
+                    createVerification,
+                } as never;
+            });
+        (Users as any).mockImplementationOnce(function () {
+            return {
+                get: vi.fn().mockResolvedValue({
+                    $id: "unverified-user-id",
+                    emailVerification: false,
+                }),
+                deleteSession,
+            } as never;
+        });
 
-        const { resendVerificationAction } = await import(
-            "@/app/(auth)/login/actions"
-        );
+        const { resendVerificationAction } =
+            await import("@/app/(auth)/login/actions");
 
         const formData = new FormData();
         formData.set("email", "test@example.com");
@@ -408,33 +392,28 @@ describe("Login Security", () => {
         const deleteSession = vi.fn().mockResolvedValue({});
 
         const { Account, Users } = await import("node-appwrite");
-        (Account as any).mockImplementationOnce(
-            function () {
-                return {
-                    createEmailPasswordSession: vi.fn().mockResolvedValue({
-                        $id: "verified-session-id",
-                        userId: "verified-user-id",
-                        secret: "verified-session-secret",
-                    }),
-                    createVerification: vi.fn().mockResolvedValue({}),
-                } as never;
-                },
-        );
-        (Users as any).mockImplementationOnce(
-            function () {
-                return {
-                    get: vi.fn().mockResolvedValue({
-                        $id: "verified-user-id",
-                        emailVerification: true,
-                    }),
-                    deleteSession,
-                } as never;
-                },
-        );
+        (Account as any).mockImplementationOnce(function () {
+            return {
+                createEmailPasswordSession: vi.fn().mockResolvedValue({
+                    $id: "verified-session-id",
+                    userId: "verified-user-id",
+                    secret: "verified-session-secret",
+                }),
+                createVerification: vi.fn().mockResolvedValue({}),
+            } as never;
+        });
+        (Users as any).mockImplementationOnce(function () {
+            return {
+                get: vi.fn().mockResolvedValue({
+                    $id: "verified-user-id",
+                    emailVerification: true,
+                }),
+                deleteSession,
+            } as never;
+        });
 
-        const { resendVerificationAction } = await import(
-            "@/app/(auth)/login/actions"
-        );
+        const { resendVerificationAction } =
+            await import("@/app/(auth)/login/actions");
 
         const formData = new FormData();
         formData.set("email", "verified@example.com");
@@ -458,15 +437,13 @@ describe("Login Security", () => {
         vi.clearAllMocks();
 
         const { Account } = await import("node-appwrite");
-        (Account as any).mockImplementationOnce(
-            function () {
-                return {
-                    create: vi
-                        .fn()
-                        .mockRejectedValue(new Error("User already exists")),
-                } as never;
-                },
-        );
+        (Account as any).mockImplementationOnce(function () {
+            return {
+                create: vi
+                    .fn()
+                    .mockRejectedValue(new Error("User already exists")),
+            } as never;
+        });
 
         const { registerAction } = await import("@/app/(auth)/login/actions");
 

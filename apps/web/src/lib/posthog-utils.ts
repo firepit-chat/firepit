@@ -440,7 +440,10 @@ export function registerPostHogProcessHandlers() {
     posthogProcessHandlersRegistered = true;
 
     process.on("uncaughtExceptionMonitor", (error, origin) => {
-        if (error instanceof Error && capturedUnhandledRejectionErrors.has(error)) {
+        if (
+            error instanceof Error &&
+            capturedUnhandledRejectionErrors.has(error)
+        ) {
             return;
         }
 

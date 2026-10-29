@@ -12,16 +12,19 @@
  * (`idle`, `dnd`, `donotdisturb`) so those read the same way here.
  */
 export function isOnlineStatus(status?: string): boolean {
-  const normalized = status?.trim().toLowerCase().replace(/[\s_-]/g, "");
-  if (!normalized) return false;
-  return (
-    normalized === "online" ||
-    normalized === "busy" ||
-    normalized === "away" ||
-    normalized === "idle" ||
-    normalized === "dnd" ||
-    normalized === "donotdisturb"
-  );
+    const normalized = status
+        ?.trim()
+        .toLowerCase()
+        .replace(/[\s_-]/g, "");
+    if (!normalized) return false;
+    return (
+        normalized === "online" ||
+        normalized === "busy" ||
+        normalized === "away" ||
+        normalized === "idle" ||
+        normalized === "dnd" ||
+        normalized === "donotdisturb"
+    );
 }
 
 /**
@@ -32,19 +35,19 @@ export function isOnlineStatus(status?: string): boolean {
  * place keeps that order instead of re-sorting.
  */
 export function partitionByPresence<T>(
-  members: readonly T[],
-  getStatus: (member: T) => string | undefined,
+    members: readonly T[],
+    getStatus: (member: T) => string | undefined,
 ): { online: T[]; offline: T[] } {
-  const online: T[] = [];
-  const offline: T[] = [];
+    const online: T[] = [];
+    const offline: T[] = [];
 
-  for (const member of members) {
-    if (isOnlineStatus(getStatus(member))) {
-      online.push(member);
-    } else {
-      offline.push(member);
+    for (const member of members) {
+        if (isOnlineStatus(getStatus(member))) {
+            online.push(member);
+        } else {
+            offline.push(member);
+        }
     }
-  }
 
-  return { online, offline };
+    return { online, offline };
 }

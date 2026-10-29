@@ -5,7 +5,9 @@ class MockAuthError extends Error {
     readonly code: "UNAUTHORIZED" | "FORBIDDEN";
 
     constructor(code: "UNAUTHORIZED" | "FORBIDDEN", message?: string) {
-        super(message ?? (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"));
+        super(
+            message ?? (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"),
+        );
         this.name = "AuthError";
         this.code = code;
     }
@@ -31,8 +33,12 @@ vi.mock("@/lib/auth-server", () => ({
 }));
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: {
         error: mockLoggerError,
         warn: mockLoggerWarn,
@@ -70,7 +76,9 @@ describe("GIF search API route", () => {
             return new URL(raw);
         }
 
-        throw new Error("Expected the first fetch call to receive a URL or string");
+        throw new Error(
+            "Expected the first fetch call to receive a URL or string",
+        );
     };
 
     beforeEach(() => {
@@ -170,7 +178,9 @@ describe("GIF search API route", () => {
 
         expect(response.status).toBe(429);
         expect(response.headers.get("retry-after")).toBe("45");
-        expect(data.error).toBe("Too many GIF searches. Please try again shortly.");
+        expect(data.error).toBe(
+            "Too many GIF searches. Please try again shortly.",
+        );
         expect(mockFetch).not.toHaveBeenCalled();
         expect(mockTrackApiCall).not.toHaveBeenCalled();
         // `GET` returns before `mockTrackApiCall` on rate-limited requests, so analytics are intentionally skipped for this `NextRequest`.

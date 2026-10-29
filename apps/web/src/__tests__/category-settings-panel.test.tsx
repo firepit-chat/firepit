@@ -287,11 +287,16 @@ describe("CategorySettingsPanel", () => {
         // Assert POST body included the announcement type
         const calls = (global.fetch as vi.Mock).mock.calls as any[];
         const postCall = calls.find(
-            (c) => typeof c[0] === "string" && c[0] === "/api/channels" && c[1]?.method === "POST",
+            (c) =>
+                typeof c[0] === "string" &&
+                c[0] === "/api/channels" &&
+                c[1]?.method === "POST",
         );
         expect(postCall).toBeDefined();
         const postBody = JSON.parse(postCall[1].body as string);
-        expect(postBody).toEqual(expect.objectContaining({ type: "announcement" }));
+        expect(postBody).toEqual(
+            expect.objectContaining({ type: "announcement" }),
+        );
 
         expect(toast.success).toHaveBeenCalledWith("Channel created");
     });
@@ -370,11 +375,16 @@ describe("CategorySettingsPanel", () => {
         // Assert PATCH body included announcement type
         const patchCalls = (global.fetch as vi.Mock).mock.calls as any[];
         const patchCall = patchCalls.find(
-            (c) => typeof c[0] === "string" && c[0] === "/api/channels/channel-voice" && c[1]?.method === "PATCH",
+            (c) =>
+                typeof c[0] === "string" &&
+                c[0] === "/api/channels/channel-voice" &&
+                c[1]?.method === "PATCH",
         );
         expect(patchCall).toBeDefined();
         const patchBody = JSON.parse(patchCall[1].body as string);
-        expect(patchBody).toEqual(expect.objectContaining({ type: "announcement" }));
+        expect(patchBody).toEqual(
+            expect.objectContaining({ type: "announcement" }),
+        );
 
         expect(toast.success).toHaveBeenCalledWith("Channel type updated");
     });

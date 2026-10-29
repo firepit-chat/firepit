@@ -140,8 +140,7 @@ export function GifStickerPicker({
     const [open, setOpen] = useState(false);
     const [mode, setMode] = useState<PickerMode>("gifs");
     const [query, setQuery] = useState("");
-    const [gifSearchQuery, setGifSearchQuery] =
-        useState(DEFAULT_GIF_QUERY);
+    const [gifSearchQuery, setGifSearchQuery] = useState(DEFAULT_GIF_QUERY);
     const [hasFetchedGifs, setHasFetchedGifs] = useState(false);
 
     const [gifResults, setGifResults] = useState<GifSearchItem[]>([]);
@@ -195,9 +194,12 @@ export function GifStickerPicker({
                     params.set("cursor", cursor);
                 }
 
-                const response = await fetch(`/api/gifs/search?${params.toString()}`, {
-                    signal: controller.signal,
-                });
+                const response = await fetch(
+                    `/api/gifs/search?${params.toString()}`,
+                    {
+                        signal: controller.signal,
+                    },
+                );
 
                 if (response.status === 404) {
                     setGifDisabled(true);
@@ -208,9 +210,9 @@ export function GifStickerPicker({
                 }
 
                 if (!response.ok) {
-                    const body = (await response.json().catch(() => null)) as
-                        | { error?: string }
-                        | null;
+                    const body = (await response.json().catch(() => null)) as {
+                        error?: string;
+                    } | null;
                     throw new Error(body?.error || "Failed to search GIFs");
                 }
 
@@ -225,12 +227,17 @@ export function GifStickerPicker({
                 setGifNextCursor(payload.next);
                 setGifError(null);
             } catch (error) {
-                if (error instanceof DOMException && error.name === "AbortError") {
+                if (
+                    error instanceof DOMException &&
+                    error.name === "AbortError"
+                ) {
                     return;
                 }
 
                 setGifError(
-                    error instanceof Error ? error.message : "Failed to search GIFs",
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to search GIFs",
                 );
                 if (!append) {
                     setGifResults([]);
@@ -277,9 +284,9 @@ export function GifStickerPicker({
             }
 
             if (!response.ok) {
-                const body = (await response.json().catch(() => null)) as
-                    | { error?: string }
-                    | null;
+                const body = (await response.json().catch(() => null)) as {
+                    error?: string;
+                } | null;
                 throw new Error(body?.error || "Failed to load stickers");
             }
 
@@ -375,7 +382,9 @@ export function GifStickerPicker({
                                 }}
                                 size="sm"
                                 type="button"
-                                variant={mode === "gifs" ? "default" : "outline"}
+                                variant={
+                                    mode === "gifs" ? "default" : "outline"
+                                }
                             >
                                 GIFs
                             </Button>
@@ -394,7 +403,10 @@ export function GifStickerPicker({
                         </div>
 
                         <div className="relative">
-                            <Label className="sr-only" htmlFor="gif-sticker-search">
+                            <Label
+                                className="sr-only"
+                                htmlFor="gif-sticker-search"
+                            >
                                 Search GIFs and stickers
                             </Label>
                             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -404,7 +416,10 @@ export function GifStickerPicker({
                                     setQuery(event.target.value);
                                 }}
                                 onKeyDown={(event) => {
-                                    if (mode === "gifs" && event.key === "Enter") {
+                                    if (
+                                        mode === "gifs" &&
+                                        event.key === "Enter"
+                                    ) {
                                         event.preventDefault();
                                         submitGifSearch();
                                     }
@@ -449,7 +464,9 @@ export function GifStickerPicker({
                                                     key={`${item.source}-${item.id}`}
                                                     onClick={() => {
                                                         onSelectAttachment(
-                                                            toGifAttachment(item),
+                                                            toGifAttachment(
+                                                                item,
+                                                            ),
                                                         );
                                                         setOpen(false);
                                                     }}
@@ -457,12 +474,18 @@ export function GifStickerPicker({
                                                 >
                                                     <div className="relative h-36 w-full">
                                                         <Image
-                                                            alt={item.title || "GIF"}
+                                                            alt={
+                                                                item.title ||
+                                                                "GIF"
+                                                            }
                                                             className="object-cover"
                                                             fill
                                                             loading="lazy"
                                                             sizes="(min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
-                                                            src={item.previewUrl || item.gifUrl}
+                                                            src={
+                                                                item.previewUrl ||
+                                                                item.gifUrl
+                                                            }
                                                             unoptimized
                                                         />
                                                     </div>
@@ -473,7 +496,8 @@ export function GifStickerPicker({
                                             ))}
                                         </div>
 
-                                        {gifResults.length === 0 && !gifError ? (
+                                        {gifResults.length === 0 &&
+                                        !gifError ? (
                                             <p className="text-sm text-muted-foreground">
                                                 No GIFs found.
                                             </p>
@@ -545,17 +569,26 @@ export function GifStickerPicker({
                                                                 );
                                                                 setOpen(false);
                                                             }}
-                                                            title={item.name || "Sticker"}
+                                                            title={
+                                                                item.name ||
+                                                                "Sticker"
+                                                            }
                                                             type="button"
                                                         >
                                                             <div className="relative aspect-square w-full">
                                                                 <Image
-                                                                    alt={item.name || "Sticker"}
+                                                                    alt={
+                                                                        item.name ||
+                                                                        "Sticker"
+                                                                    }
                                                                     className="object-cover"
                                                                     fill
                                                                     loading="lazy"
                                                                     sizes="(min-width: 768px) 16vw, (min-width: 640px) 20vw, 33vw"
-                                                                    src={item.previewUrl || item.mediaUrl}
+                                                                    src={
+                                                                        item.previewUrl ||
+                                                                        item.mediaUrl
+                                                                    }
                                                                     unoptimized
                                                                 />
                                                             </div>

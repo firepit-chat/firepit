@@ -10,47 +10,46 @@ import { useEffect, useRef, useCallback } from "react";
  * @returns Function to schedule updates
  */
 export function useDebouncedBatchUpdate<T>(
-  callback: (items: T[]) => void,
-  delay = 150
+    callback: (items: T[]) => void,
+    delay = 150,
 ) {
-  const pendingUpdates = useRef<T[]>([]);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
+    const pendingUpdates = useRef<T[]>([]);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const callbackRef = useRef(callback);
+    callbackRef.current = callback;
 
-  const flush = useCallback(() => {
-    const updates = pendingUpdates.current;
-    pendingUpdates.current = [];
-    timeoutRef.current = null;
+    const flush = useCallback(() => {
+        const updates = pendingUpdates.current;
+        pendingUpdates.current = [];
+        timeoutRef.current = null;
 
-    if (updates.length > 0) {
-      callbackRef.current(updates);
-    }
-  }, []);
+        if (updates.length > 0) {
+            callbackRef.current(updates);
+        }
+    }, []);
 
-  const scheduleUpdate = useCallback(
-    (item: T) => {
-      pendingUpdates.current.push(item);
+    const scheduleUpdate = useCallback(
+        (item: T) => {
+            pendingUpdates.current.push(item);
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
 
-      timeoutRef.current = setTimeout(flush, delay);
-    },
-    [flush, delay]
-  );
+            timeoutRef.current = setTimeout(flush, delay);
+        },
+        [flush, delay],
+    );
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        flush(); // Flush any pending updates
-      }
-    };
-  }, [flush]);
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                flush(); // Flush any pending updates
+            }
+        };
+    }, [flush]);
 
-  return scheduleUpdate;
+    return scheduleUpdate;
 }
-

@@ -19,7 +19,9 @@ const {
 
 vi.mock("node-appwrite", () => ({
     Query: {
-        equal: vi.fn((field: string, value: string) => `equal(${field},${value})`),
+        equal: vi.fn(
+            (field: string, value: string) => `equal(${field},${value})`,
+        ),
         orderAsc: vi.fn((field: string) => `orderAsc(${field})`),
         limit: vi.fn((value: number) => `limit(${value})`),
         cursorAfter: vi.fn((value: string) => `cursorAfter(${value})`),
@@ -61,9 +63,8 @@ describe("Message Poll Close API", () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        const module = await import(
-            "../../app/api/messages/[messageId]/poll/close/route"
-        );
+        const module =
+            await import("../../app/api/messages/[messageId]/poll/close/route");
         POST = module.POST;
 
         mockGetChannelAccessForUser.mockResolvedValue({
@@ -77,7 +78,10 @@ describe("Message Poll Close API", () => {
 
     it("returns 403 when caller cannot close poll", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "user-1", name: "User" });
-        mockGetDocument.mockResolvedValue({ $id: "msg-1", channelId: "channel-1" });
+        mockGetDocument.mockResolvedValue({
+            $id: "msg-1",
+            channelId: "channel-1",
+        });
         mockGetServerPermissionsForUser.mockResolvedValue({
             permissions: { manageMessages: false, administrator: false },
         });
@@ -108,7 +112,10 @@ describe("Message Poll Close API", () => {
 
     it("closes poll when caller is creator", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "user-1", name: "User" });
-        mockGetDocument.mockResolvedValue({ $id: "msg-1", channelId: "channel-1" });
+        mockGetDocument.mockResolvedValue({
+            $id: "msg-1",
+            channelId: "channel-1",
+        });
         mockGetServerPermissionsForUser.mockResolvedValue({
             permissions: { manageMessages: false, administrator: false },
         });

@@ -14,54 +14,54 @@ export type ThreadReadContext = "channel" | "conversation";
 export type ThreadReadMap = Record<string, string>;
 
 export type ThreadReadsResponse = {
-  contextId: string;
-  contextKind: ThreadReadContext;
-  reads: ThreadReadMap;
+    contextId: string;
+    contextKind: ThreadReadContext;
+    reads: ThreadReadMap;
 };
 
 export async function fetchThreadReads(
-  baseUrl: string,
-  token: string,
-  contextKind: ThreadReadContext,
-  contextId: string,
+    baseUrl: string,
+    token: string,
+    contextKind: ThreadReadContext,
+    contextId: string,
 ) {
-  const response = await firepitRequest<ThreadReadsResponse>({
-    baseUrl,
-    path: "/api/thread-reads",
-    query: { contextId, contextKind },
-    token,
-  });
-  return response.reads ?? {};
+    const response = await firepitRequest<ThreadReadsResponse>({
+        baseUrl,
+        path: "/api/thread-reads",
+        query: { contextId, contextKind },
+        token,
+    });
+    return response.reads ?? {};
 }
 
 /** Best-effort: a failed mark only leaves the thread looking unread. */
 export async function markThreadReads(
-  baseUrl: string,
-  token: string,
-  contextKind: ThreadReadContext,
-  contextId: string,
-  reads: ThreadReadMap,
+    baseUrl: string,
+    token: string,
+    contextKind: ThreadReadContext,
+    contextId: string,
+    reads: ThreadReadMap,
 ) {
-  const response = await firepitRequest<ThreadReadsResponse>({
-    baseUrl,
-    path: "/api/thread-reads",
-    method: "PATCH",
-    body: { contextId, contextKind, reads },
-    token,
-  });
-  return response.reads ?? {};
+    const response = await firepitRequest<ThreadReadsResponse>({
+        baseUrl,
+        path: "/api/thread-reads",
+        method: "PATCH",
+        body: { contextId, contextKind, reads },
+        token,
+    });
+    return response.reads ?? {};
 }
 
 /** Marks a single thread read at `at` (defaults to now). */
 export function markThreadRead(
-  baseUrl: string,
-  token: string,
-  contextKind: ThreadReadContext,
-  contextId: string,
-  threadId: string,
-  at: string = new Date().toISOString(),
+    baseUrl: string,
+    token: string,
+    contextKind: ThreadReadContext,
+    contextId: string,
+    threadId: string,
+    at: string = new Date().toISOString(),
 ) {
-  return markThreadReads(baseUrl, token, contextKind, contextId, {
-    [threadId]: at,
-  });
+    return markThreadReads(baseUrl, token, contextKind, contextId, {
+        [threadId]: at,
+    });
 }

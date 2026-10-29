@@ -1,16 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockDatabases, mockGetOrCreateNotificationSettings, mockGetNotificationSettings } =
-    vi.hoisted(() => ({
-        mockDatabases: {
-            listDocuments: vi.fn(),
-            createDocument: vi.fn(),
-            updateDocument: vi.fn(),
-            deleteDocument: vi.fn(),
-        },
-        mockGetOrCreateNotificationSettings: vi.fn(),
-        mockGetNotificationSettings: vi.fn(),
-    }));
+const {
+    mockDatabases,
+    mockGetOrCreateNotificationSettings,
+    mockGetNotificationSettings,
+} = vi.hoisted(() => ({
+    mockDatabases: {
+        listDocuments: vi.fn(),
+        createDocument: vi.fn(),
+        updateDocument: vi.fn(),
+        deleteDocument: vi.fn(),
+    },
+    mockGetOrCreateNotificationSettings: vi.fn(),
+    mockGetNotificationSettings: vi.fn(),
+}));
 
 vi.mock("node-appwrite", () => ({
     ID: {

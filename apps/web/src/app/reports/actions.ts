@@ -62,8 +62,7 @@ function validateJustification(justification: string): string | null {
 }
 
 type SubmitReportResult =
-    | { success: true; report: Report }
-    | { success: false; error: string };
+    { success: true; report: Report } | { success: false; error: string };
 
 export async function submitReportAction(
     reportedUserId: string,
@@ -133,4 +132,3 @@ export async function submitReportAction(
         return { success: false, error: "Failed to submit report." };
     }
 }
-

@@ -104,8 +104,7 @@ export async function POST(request: Request) {
         }
 
         logger.error("Failed to submit report", {
-            error:
-                error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error),
         });
 
         return NextResponse.json(

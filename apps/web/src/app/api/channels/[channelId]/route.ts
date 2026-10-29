@@ -6,9 +6,7 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { getServerSession } from "@/lib/auth-server";
 import { deleteChannel } from "@/lib/appwrite-servers";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
-import { logger,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { logger, returnForbidden } from "@/lib/posthog-utils";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import type { Channel } from "@/lib/types";
@@ -33,8 +31,7 @@ function normalizeChannel(doc: Record<string, unknown>): Channel {
             typeof doc.categoryId === "string" && doc.categoryId.length > 0
                 ? doc.categoryId
                 : undefined,
-        position:
-            typeof doc.position === "number" ? doc.position : undefined,
+        position: typeof doc.position === "number" ? doc.position : undefined,
         nsfw: doc.nsfw === true,
         $createdAt: String(doc.$createdAt ?? ""),
         $updatedAt:
@@ -99,7 +96,10 @@ async function requireManageChannelsAccess(channelId: string) {
         session.$id,
     );
 
-    if (!access.isMember || (!access.isServerOwner && !access.permissions.manageChannels)) {
+    if (
+        !access.isMember ||
+        (!access.isServerOwner && !access.permissions.manageChannels)
+    ) {
         return returnForbidden();
     }
 
@@ -129,22 +129,28 @@ export async function PATCH(
         try {
             parsed = await request.json();
         } catch {
-            return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Invalid JSON" },
+                { status: 400 },
+            );
         }
 
         if (typeof parsed !== "object" || parsed === null) {
-            return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Invalid request body" },
+                { status: 400 },
+            );
         }
 
         const body = parsed as Record<string, unknown>;
 
-        const updateData: Record<
-            string,
-            string | number | boolean | null
-        > = {};
+        const updateData: Record<string, string | number | boolean | null> = {};
         if (body.name !== undefined) {
             if (typeof body.name !== "string") {
-                return NextResponse.json({ error: "name must be a string" }, { status: 400 });
+                return NextResponse.json(
+                    { error: "name must be a string" },
+                    { status: 400 },
+                );
             }
             const nextName = body.name.trim();
             if (!nextName) {
@@ -156,10 +162,19 @@ export async function PATCH(
             updateData.name = nextName;
         }
         if (body.categoryId !== undefined) {
-            if (body.categoryId !== null && typeof body.categoryId !== "string") {
-                return NextResponse.json({ error: "categoryId must be a string or null" }, { status: 400 });
+            if (
+                body.categoryId !== null &&
+                typeof body.categoryId !== "string"
+            ) {
+                return NextResponse.json(
+                    { error: "categoryId must be a string or null" },
+                    { status: 400 },
+                );
             }
-            const nextCategoryId = (body.categoryId === null ? "" : String(body.categoryId).trim()) || "";
+            const nextCategoryId =
+                (body.categoryId === null
+                    ? ""
+                    : String(body.categoryId).trim()) || "";
             if (nextCategoryId) {
                 try {
                     const category = await databases.getDocument(
@@ -167,9 +182,14 @@ export async function PATCH(
                         env.collections.categories,
                         nextCategoryId,
                     );
-                    if (String(category.serverId) !== String(accessResult.channel.serverId)) {
+                    if (
+                        String(category.serverId) !==
+                        String(accessResult.channel.serverId)
+                    ) {
                         return NextResponse.json(
-                            { error: "Category does not belong to this server" },
+                            {
+                                error: "Category does not belong to this server",
+                            },
                             { status: 400 },
                         );
                     }
@@ -201,7 +221,10 @@ export async function PATCH(
         }
         if (body.type !== undefined) {
             if (typeof body.type !== "string") {
-                return NextResponse.json({ error: "type must be a string" }, { status: 400 });
+                return NextResponse.json(
+                    { error: "type must be a string" },
+                    { status: 400 },
+                );
             }
             const normalized = normalizeChannelType(body.type);
             if (body.type !== normalized) {
@@ -215,9 +238,13 @@ export async function PATCH(
         }
         if (body.topic !== undefined) {
             if (body.topic !== null && typeof body.topic !== "string") {
-                return NextResponse.json({ error: "topic must be a string or null" }, { status: 400 });
+                return NextResponse.json(
+                    { error: "topic must be a string or null" },
+                    { status: 400 },
+                );
             }
-            const nextTopic = (body.topic === null ? "" : String(body.topic).trim()) || "";
+            const nextTopic =
+                (body.topic === null ? "" : String(body.topic).trim()) || "";
             if (nextTopic.length > 500) {
                 return NextResponse.json(
                     { error: "topic must be 500 characters or fewer" },

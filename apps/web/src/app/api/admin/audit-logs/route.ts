@@ -1,9 +1,7 @@
 import { connection, NextResponse } from "next/server";
 import { adminListAuditEvents } from "@/lib/appwrite-audit";
 import { clampLimit } from "@/lib/appwrite-reports";
-import {
-    getProfilesByUserIds,
-} from "@/lib/appwrite-profiles";
+import { getProfilesByUserIds } from "@/lib/appwrite-profiles";
 import { logger } from "@/lib/posthog-utils";
 import { requireModerator } from "@/lib/auth-server";
 
@@ -32,8 +30,12 @@ export async function GET(request: Request) {
         // Enrich with profile data
         const userIds = new Set<string>();
         for (const item of items) {
-            if (item.actorId) {userIds.add(item.actorId);}
-            if (item.targetId) {userIds.add(item.targetId);}
+            if (item.actorId) {
+                userIds.add(item.actorId);
+            }
+            if (item.targetId) {
+                userIds.add(item.targetId);
+            }
         }
 
         const profiles = new Map<
@@ -63,8 +65,7 @@ export async function GET(request: Request) {
                 $id: item.$id,
                 action: item.action,
                 actorId: item.actorId,
-                actorName:
-                    actorProfile?.displayName || actorProfile?.userName,
+                actorName: actorProfile?.displayName || actorProfile?.userName,
                 targetId: item.targetId,
                 targetName:
                     targetProfile?.displayName || targetProfile?.userName,

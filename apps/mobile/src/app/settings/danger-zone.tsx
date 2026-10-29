@@ -17,10 +17,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    deactivateAccount,
-    deleteAccount,
-} from "@/lib/firepit";
+import { deactivateAccount, deleteAccount } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 export default function DangerZoneScreen() {
@@ -72,7 +69,11 @@ export default function DangerZoneScreen() {
         try {
             const result =
                 kind === "deactivate"
-                    ? await deactivateAccount(instanceUrl, accessToken, password)
+                    ? await deactivateAccount(
+                          instanceUrl,
+                          accessToken,
+                          password,
+                      )
                     : await deleteAccount(instanceUrl, accessToken, password);
 
             if (result.success) {
@@ -95,7 +96,10 @@ export default function DangerZoneScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     <KeyboardAvoidingView
                         style={styles.flex}
                         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -106,15 +110,24 @@ export default function DangerZoneScreen() {
                             keyboardShouldPersistTaps="handled"
                         >
                             <View style={styles.shell}>
-                                <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                                <View
+                                    style={[
+                                        styles.header,
+                                        { borderBottomColor: theme.border },
+                                    ]}
+                                >
                                     <Pressable
                                         accessibilityRole="button"
                                         onPress={() => router.back()}
                                         style={styles.headerButton}
                                     >
-                                        <ThemedText type="smallBold">Back</ThemedText>
+                                        <ThemedText type="smallBold">
+                                            Back
+                                        </ThemedText>
                                     </Pressable>
-                                    <ThemedText type="smallBold">Danger zone</ThemedText>
+                                    <ThemedText type="smallBold">
+                                        Danger zone
+                                    </ThemedText>
                                     <View style={styles.headerButton} />
                                 </View>
 
@@ -128,52 +141,83 @@ export default function DangerZoneScreen() {
 
                                 <ThemedView
                                     type="card"
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
                                 >
-                                    <ThemedText type="smallBold">Deactivate account</ThemedText>
-                                    <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                        Hides your account and signs you out. Signing back in
-                                        reactivates it.
+                                    <ThemedText type="smallBold">
+                                        Deactivate account
+                                    </ThemedText>
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.copy}
+                                    >
+                                        Hides your account and signs you out.
+                                        Signing back in reactivates it.
                                     </ThemedText>
                                     <Pressable
                                         accessibilityRole="button"
-                                        disabled={busy !== null || password.length === 0}
+                                        disabled={
+                                            busy !== null ||
+                                            password.length === 0
+                                        }
                                         onPress={handleDeactivate}
                                         style={({ pressed }) => [
                                             styles.button,
                                             {
                                                 borderColor: theme.border,
-                                                backgroundColor: theme.secondary,
+                                                backgroundColor:
+                                                    theme.secondary,
                                                 opacity:
-                                                    pressed || busy !== null || password.length === 0
+                                                    pressed ||
+                                                    busy !== null ||
+                                                    password.length === 0
                                                         ? 0.6
                                                         : 1,
                                             },
                                         ]}
                                     >
-                                        <ThemedText type="smallBold" themeColor="foreground">
-                                            {busy === "deactivate" ? "Deactivating…" : "Deactivate account"}
+                                        <ThemedText
+                                            type="smallBold"
+                                            themeColor="foreground"
+                                        >
+                                            {busy === "deactivate"
+                                                ? "Deactivating…"
+                                                : "Deactivate account"}
                                         </ThemedText>
                                     </Pressable>
                                 </ThemedView>
 
                                 <ThemedView
                                     type="card"
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
                                 >
-                                    <ThemedText type="smallBold" themeColor="destructive">
+                                    <ThemedText
+                                        type="smallBold"
+                                        themeColor="destructive"
+                                    >
                                         Delete account
                                     </ThemedText>
-                                    <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                        Permanently removes the account and wipes its profile,
-                                        avatar, and background. This cannot be undone.
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.copy}
+                                    >
+                                        Permanently removes the account and
+                                        wipes its profile, avatar, and
+                                        background. This cannot be undone.
                                     </ThemedText>
 
                                     <TextInput
                                         autoCapitalize="none"
                                         autoCorrect={false}
                                         placeholder="Current password"
-                                        placeholderTextColor={theme.mutedForeground}
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
                                         secureTextEntry
                                         textContentType="password"
                                         value={password}
@@ -192,7 +236,9 @@ export default function DangerZoneScreen() {
                                         autoCapitalize="characters"
                                         autoCorrect={false}
                                         placeholder='Type "DELETE" to confirm'
-                                        placeholderTextColor={theme.mutedForeground}
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
                                         value={confirmText}
                                         onChangeText={setConfirmText}
                                         style={[
@@ -207,7 +253,11 @@ export default function DangerZoneScreen() {
 
                                     <Pressable
                                         accessibilityRole="button"
-                                        disabled={busy !== null || !confirmDelete || password.length === 0}
+                                        disabled={
+                                            busy !== null ||
+                                            !confirmDelete ||
+                                            password.length === 0
+                                        }
                                         onPress={handleDelete}
                                         style={({ pressed }) => ({
                                             minHeight: 48,
@@ -227,14 +277,22 @@ export default function DangerZoneScreen() {
                                                     : 1,
                                         })}
                                     >
-                                        <ThemedText type="smallBold" themeColor="destructive">
-                                            {busy === "delete" ? "Deleting…" : "Delete my account forever"}
+                                        <ThemedText
+                                            type="smallBold"
+                                            themeColor="destructive"
+                                        >
+                                            {busy === "delete"
+                                                ? "Deleting…"
+                                                : "Delete my account forever"}
                                         </ThemedText>
                                     </Pressable>
                                 </ThemedView>
 
                                 {error ? (
-                                    <ThemedText themeColor="destructive" style={styles.errorText}>
+                                    <ThemedText
+                                        themeColor="destructive"
+                                        style={styles.errorText}
+                                    >
                                         {error}
                                     </ThemedText>
                                 ) : null}

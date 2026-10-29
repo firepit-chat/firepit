@@ -7,7 +7,6 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { logger } from "@/lib/posthog-utils";
 import { ensureAllowedRequestOrigin } from "@/lib/request-origin";
 
-
 /**
  * GET /api/session
  *
@@ -44,9 +43,9 @@ export async function GET() {
         const account = await new Account(sessionClient).get();
         const userId = account.$id;
 
-        const jwt = await new Users(
-            getServerClient().client,
-        ).createJWT({ userId });
+        const jwt = await new Users(getServerClient().client).createJWT({
+            userId,
+        });
 
         return NextResponse.json({
             jwt: jwt.jwt,

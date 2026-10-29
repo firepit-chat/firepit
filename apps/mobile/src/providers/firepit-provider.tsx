@@ -47,7 +47,15 @@ import {
 } from "@/lib/firepit/messages";
 import { clearDmEncryptionKeyPairs } from "@/lib/firepit/dm-encryption";
 import { clearProfileCache } from "@/lib/profile-cache";
+import {
+    applyMuteResult,
+    EMPTY_MUTES,
+    fetchMuteOverrides,
+    type MuteOverrides,
+} from "@/lib/firepit/mutes";
 import { resetServerCache } from "@/lib/server-cache";
+import { clearMessageCache } from "@/lib/cache/MessageCache";
+import { clearThreadCache } from "@/lib/cache/ThreadCache";
 import type {
     BootstrapSnapshot,
     CompatibilityEvaluation,
@@ -95,6 +103,17 @@ type FirepitBootstrapContextValue = {
     signOut: () => Promise<void>;
     refresh: () => Promise<CompatibilityEvaluation | null>;
     resetConnection: () => Promise<void>;
+    /**
+     * Server-side mute state, shared because it spans routes: the channel list
+     * and the server menu are different screens, and both need the same answer.
+     */
+    mutes: MuteOverrides;
+    refreshMutes: () => Promise<void>;
+    setMutedOverride: (
+        kind: keyof MuteOverrides,
+        id: string,
+        muted: boolean,
+    ) => void;
 };
 
 const FirepitBootstrapContext =
@@ -161,6 +180,7 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
     );
     const [notificationPreferences, setNotificationPreferences] =
         useState<NotificationPreferences | null>(null);
+    const [mutes, setMutes] = useState<MuteOverrides>(EMPTY_MUTES);
     const [customEmojis, setCustomEmojis] = useState<CustomEmoji[]>([]);
 
     // Handle push notification taps — navigates to the relevant message
@@ -298,6 +318,25 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
+    // Mutes expire on their own ("15m", "1h", ...), so they are re-read on
+    // foreground rather than trusted indefinitely.
+    const refreshMutes = useCallback(async () => {
+        if (!instanceUrl || !accessToken) return;
+        const next = await fetchMuteOverrides(instanceUrl, accessToken);
+        if (!mountedRef.current) return;
+        setMutes(next);
+    }, [accessToken, instanceUrl]);
+
+    const setMutedOverride = useCallback(
+        (kind: keyof MuteOverrides, id: string, muted: boolean) => {
+            setMutes((prev) => ({
+                ...prev,
+                [kind]: applyMuteResult(prev[kind], id, muted),
+            }));
+        },
+        [],
+    );
+
     // Fetch custom emojis when instance is available
     useEffect(() => {
         if (state === "ready") {
@@ -324,6 +363,10 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         clearProfileCache();
         clearDmEncryptionKeyPairs();
         resetServerCache();
+        // The SQLite caches hold decrypted message bodies and were previously
+        // only reachable from the manual "Clear cache" button.
+        await clearMessageCache();
+        await clearThreadCache();
         clearRuntimeState();
     }, [clearRuntimeState]);
 
@@ -789,6 +832,19 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Mutes are server state that can change elsewhere and can expire on a
+    // timer, so they are read when the session becomes ready and again whenever
+    // the app comes back to the foreground.
+    useEffect(() => {
+        if (state !== "ready") return;
+        void refreshMutes();
+
+        const subscription = AppState.addEventListener("change", (next) => {
+            if (next === "active") void refreshMutes();
+        });
+        return () => subscription.remove();
+    }, [refreshMutes, state]);
+
     // Token refresh timer: Appwrite sessions expire, so periodically refresh
     // to keep the session alive. Only runs when state is "ready" (authed).
     useEffect(() => {
@@ -818,8 +874,12 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
                 !cancelled &&
                 !pushRegisteredRef.current
             ) {
-                pushRegisteredRef.current = true;
                 const token = await registerPushToken(instanceUrl, accessToken);
+                // Only latch on success. registerPushToken returns null for every
+                // failure — including a user who dismissed the iOS prompt —
+                // and latching there left them with no notifications, no second
+                // prompt and unseeded preferences until they signed out and back in.
+                pushRegisteredRef.current = token !== null;
                 pushGranted = token !== null;
             }
 
@@ -930,6 +990,12 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
         clearProfileCache();
         clearDmEncryptionKeyPairs();
         resetServerCache();
+        setMutes(EMPTY_MUTES);
+        // Without this, signing in as a second account on a shared device
+        // rendered the previous account's cached messages, because both chat
+        // screens read the cache before the network responds.
+        await clearMessageCache();
+        await clearThreadCache();
         setAccessToken(null);
         setBearerTokenPresent(false);
         setCurrentUser(null);
@@ -976,6 +1042,9 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
             signOut,
             resetConnection,
             refresh: async () => refresh(instanceUrlRef.current ?? undefined),
+            mutes,
+            refreshMutes,
+            setMutedOverride,
         }),
         [
             authenticate,
@@ -998,6 +1067,9 @@ export function FirepitProvider({ children }: { children: React.ReactNode }) {
             signOut,
             state,
             version,
+            mutes,
+            refreshMutes,
+            setMutedOverride,
         ],
     );
 

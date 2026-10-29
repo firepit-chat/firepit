@@ -168,79 +168,87 @@ export default function HelpScreen() {
 
     return (
         <AuthRouteGuard>
-        <SafeAreaView
-            style={[styles.safeArea, { backgroundColor: theme.background }]}
-            edges={["top", "left", "right"]}
-        >
-            <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Back to settings"
-                    onPress={() => router.back()}
-                    style={styles.backButton}
-                    hitSlop={8}
-                >
-                    <ArrowLeft size={18} color={theme.foreground} />
-                    <ThemedText type="smallBold">Settings</ThemedText>
-                </Pressable>
-            </View>
-
-            <ScrollView
-                contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
+            <SafeAreaView
+                style={[styles.safeArea, { backgroundColor: theme.background }]}
+                edges={["top", "left", "right"]}
             >
-                <ThemedText type="title" style={styles.title}>
-                    Help
-                </ThemedText>
-                <ThemedText
-                    themeColor="mutedForeground"
-                    style={styles.intro}
+                <View
+                    style={[styles.header, { borderBottomColor: theme.border }]}
                 >
-                    How the app behaves, and where things moved to.
-                </ThemedText>
+                    <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Back to settings"
+                        onPress={() => router.back()}
+                        style={styles.backButton}
+                        hitSlop={8}
+                    >
+                        <ArrowLeft size={18} color={theme.foreground} />
+                        <ThemedText type="smallBold">Settings</ThemedText>
+                    </Pressable>
+                </View>
 
-                {SECTIONS.map((section) => (
-                    <View key={section.title} style={styles.section}>
-                        <ThemedText type="subtitle" style={styles.sectionTitle}>
-                            {section.title}
-                        </ThemedText>
-                        {section.entries.map((entry) => (
-                            <View
-                                key={entry.question}
-                                style={[
-                                    styles.card,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.border,
-                                    },
-                                ]}
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <ThemedText type="title" style={styles.title}>
+                        Help
+                    </ThemedText>
+                    <ThemedText
+                        themeColor="mutedForeground"
+                        style={styles.intro}
+                    >
+                        How the app behaves, and where things moved to.
+                    </ThemedText>
+
+                    {SECTIONS.map((section) => (
+                        <View key={section.title} style={styles.section}>
+                            <ThemedText
+                                type="subtitle"
+                                style={styles.sectionTitle}
                             >
-                                <ThemedText type="smallBold" style={styles.question}>
-                                    {entry.question}
-                                </ThemedText>
-                                {entry.answer.map((line) => (
+                                {section.title}
+                            </ThemedText>
+                            {section.entries.map((entry) => (
+                                <View
+                                    key={entry.question}
+                                    style={[
+                                        styles.card,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.border,
+                                        },
+                                    ]}
+                                >
                                     <ThemedText
-                                        key={line}
-                                        themeColor="mutedForeground"
-                                        style={styles.answer}
+                                        type="smallBold"
+                                        style={styles.question}
                                     >
-                                        {line}
+                                        {entry.question}
                                     </ThemedText>
-                                ))}
-                            </View>
-                        ))}
-                    </View>
-                ))}
+                                    {entry.answer.map((line) => (
+                                        <ThemedText
+                                            key={line}
+                                            themeColor="mutedForeground"
+                                            style={styles.answer}
+                                        >
+                                            {line}
+                                        </ThemedText>
+                                    ))}
+                                </View>
+                            ))}
+                        </View>
+                    ))}
 
-                <ThemedText
-                    type="code"
-                    themeColor="mutedForeground"
-                    style={styles.footer}
-                >
-                    Firepit · help
-                </ThemedText>
-            </ScrollView>
-        </SafeAreaView>
+                    <ThemedText
+                        type="code"
+                        themeColor="mutedForeground"
+                        style={styles.footer}
+                    >
+                        Firepit · help
+                    </ThemedText>
+                </ScrollView>
+            </SafeAreaView>
         </AuthRouteGuard>
     );
 }

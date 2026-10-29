@@ -10,24 +10,24 @@
  * existed counts as unread.
  */
 export function isChannelUnread(params: {
-  channelCreatedAt?: string;
-  lastMessageAt?: string | null;
-  lastReadAt?: string;
+    channelCreatedAt?: string;
+    lastMessageAt?: string | null;
+    lastReadAt?: string;
 }): boolean {
-  // No recent message means nothing to be unread about. Channels quiet enough to
-  // fall outside the activity window report no lastMessageAt.
-  if (!params.lastMessageAt) return false;
+    // No recent message means nothing to be unread about. Channels quiet enough to
+    // fall outside the activity window report no lastMessageAt.
+    if (!params.lastMessageAt) return false;
 
-  const since = params.lastReadAt ?? params.channelCreatedAt;
-  if (!since) return true;
+    const since = params.lastReadAt ?? params.channelCreatedAt;
+    if (!since) return true;
 
-  return params.lastMessageAt > since;
+    return params.lastMessageAt > since;
 }
 
 type UnreadCandidate = {
-  $createdAt?: string;
-  $id?: string;
-  lastMessageAt?: string | null;
+    $createdAt?: string;
+    $id?: string;
+    lastMessageAt?: string | null;
 };
 
 /**
@@ -35,21 +35,21 @@ type UnreadCandidate = {
  * shows a count of *channels*, not of messages.
  */
 export function countUnreadChannels(
-  channels: readonly UnreadCandidate[],
-  reads: Record<string, string>,
+    channels: readonly UnreadCandidate[],
+    reads: Record<string, string>,
 ): number {
-  let total = 0;
-  for (const channel of channels) {
-    if (!channel.$id) continue;
-    if (
-      isChannelUnread({
-        channelCreatedAt: channel.$createdAt,
-        lastMessageAt: channel.lastMessageAt,
-        lastReadAt: reads[channel.$id],
-      })
-    ) {
-      total += 1;
+    let total = 0;
+    for (const channel of channels) {
+        if (!channel.$id) continue;
+        if (
+            isChannelUnread({
+                channelCreatedAt: channel.$createdAt,
+                lastMessageAt: channel.lastMessageAt,
+                lastReadAt: reads[channel.$id],
+            })
+        ) {
+            total += 1;
+        }
     }
-  }
-  return total;
+    return total;
 }

@@ -1,13 +1,7 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
-import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
-} from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
@@ -36,10 +30,16 @@ function ActionChip({
         { backgroundColor: string; borderColor: string }
     > = {
         primary: { backgroundColor: theme.primary, borderColor: theme.primary },
-        secondary: { backgroundColor: theme.secondary, borderColor: theme.border },
+        secondary: {
+            backgroundColor: theme.secondary,
+            borderColor: theme.border,
+        },
         ghost: { backgroundColor: "transparent", borderColor: "transparent" },
     };
-    const labelColor: Record<"primary" | "secondary" | "ghost", "primaryForeground" | "foreground"> = {
+    const labelColor: Record<
+        "primary" | "secondary" | "ghost",
+        "primaryForeground" | "foreground"
+    > = {
         primary: "primaryForeground",
         secondary: "foreground",
         ghost: "foreground",
@@ -82,7 +82,10 @@ function useProfileSummary() {
 
     // Null when everything is healthy. Only a real problem earns a line of
     // text; "online" was just this same fact spelled out.
-    const problem = useMemo((): { text: string; tone: "warning" | "danger" } | null => {
+    const problem = useMemo((): {
+        text: string;
+        tone: "warning" | "danger";
+    } | null => {
         if (state === "needs-auth") {
             return { text: "Sign in to continue.", tone: "warning" };
         }
@@ -113,30 +116,30 @@ function ProfileMenu() {
 
     return (
         <>
-                <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Open profile menu"
-                    onPress={() => setIsOpen(true)}
-                    style={({ pressed }) => [
-                        styles.profileButton,
-                        {
-                            backgroundColor: theme.card,
-                            borderColor: theme.border,
-                            opacity: pressed ? 0.88 : 1,
-                        },
-                    ]}
-                >
-                    {currentUser?.avatarUrl ? (
-                        <Image
-                            source={{ uri: currentUser.avatarUrl }}
-                            style={styles.avatarImage}
-                        />
-                    ) : (
-                        <ThemedText type="smallBold">
-                            {username.slice(0, 1).toUpperCase()}
-                        </ThemedText>
-                    )}
-                </Pressable>
+            <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open profile menu"
+                onPress={() => setIsOpen(true)}
+                style={({ pressed }) => [
+                    styles.profileButton,
+                    {
+                        backgroundColor: theme.card,
+                        borderColor: theme.border,
+                        opacity: pressed ? 0.88 : 1,
+                    },
+                ]}
+            >
+                {currentUser?.avatarUrl ? (
+                    <Image
+                        source={{ uri: currentUser.avatarUrl }}
+                        style={styles.avatarImage}
+                    />
+                ) : (
+                    <ThemedText type="smallBold">
+                        {username.slice(0, 1).toUpperCase()}
+                    </ThemedText>
+                )}
+            </Pressable>
 
             <Modal
                 visible={isOpen}
@@ -161,18 +164,20 @@ function ProfileMenu() {
                             ]}
                         >
                             <View style={styles.menuHeader}>
-                            <View style={styles.avatarCircle}>
-                                {currentUser?.avatarUrl ? (
-                                    <Image
-                                        source={{ uri: currentUser.avatarUrl }}
-                                        style={styles.avatarImage}
-                                    />
-                                ) : (
-                                    <ThemedText type="smallBold">
-                                        {username.slice(0, 1).toUpperCase()}
-                                    </ThemedText>
-                                )}
-                            </View>
+                                <View style={styles.avatarCircle}>
+                                    {currentUser?.avatarUrl ? (
+                                        <Image
+                                            source={{
+                                                uri: currentUser.avatarUrl,
+                                            }}
+                                            style={styles.avatarImage}
+                                        />
+                                    ) : (
+                                        <ThemedText type="smallBold">
+                                            {username.slice(0, 1).toUpperCase()}
+                                        </ThemedText>
+                                    )}
+                                </View>
                                 <View style={styles.menuHeaderCopy}>
                                     <ThemedText type="smallBold">
                                         {username}
@@ -192,7 +197,9 @@ function ProfileMenu() {
                                     themeColor="mutedForeground"
                                     style={styles.metaText}
                                 >
-                                    {currentUser?.email ?? currentUser?.$id ?? "No email"}
+                                    {currentUser?.email ??
+                                        currentUser?.$id ??
+                                        "No email"}
                                 </ThemedText>
                             </View>
 
@@ -218,7 +225,9 @@ function ProfileMenu() {
 function useJoinedServers() {
     const { instanceUrl, accessToken, state } = useFirepitBootstrap();
     const [servers, setServers] = useState<(Server & { $id: string })[]>([]);
-    const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+    const [loadState, setLoadState] = useState<
+        "idle" | "loading" | "ready" | "error"
+    >("idle");
     const [loadError, setLoadError] = useState<string | null>(null);
 
     const refresh = useCallback(async () => {
@@ -300,7 +309,9 @@ export default function HomeTabScreen() {
                         </View>
 
                         {problem ? (
-                            <NoticeLine tone={problem.tone}>{problem.text}</NoticeLine>
+                            <NoticeLine tone={problem.tone}>
+                                {problem.text}
+                            </NoticeLine>
                         ) : null}
 
                         <View style={styles.actionsRow}>
@@ -312,7 +323,9 @@ export default function HomeTabScreen() {
                                 <ActionChip
                                     label="Create server"
                                     tone="ghost"
-                                    onPress={() => router.push("/create-server")}
+                                    onPress={() =>
+                                        router.push("/create-server")
+                                    }
                                 />
                             ) : null}
                             <ActionChip
@@ -361,7 +374,8 @@ export default function HomeTabScreen() {
                                         }
                                         style={({ pressed }) => [
                                             styles.serverRow,
-                                            index < servers.length - 1 && styles.serverRowBorder,
+                                            index < servers.length - 1 &&
+                                                styles.serverRowBorder,
                                             {
                                                 opacity: pressed ? 0.92 : 1,
                                             },
@@ -374,7 +388,9 @@ export default function HomeTabScreen() {
                                             </ThemedText>
                                             <ThemedText
                                                 themeColor="mutedForeground"
-                                                style={styles.serverRowDescription}
+                                                style={
+                                                    styles.serverRowDescription
+                                                }
                                                 numberOfLines={1}
                                             >
                                                 {server.description ??
