@@ -31,7 +31,10 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 
 function resultContextLabel(result: SearchMessageResult) {
     if (result.type === "channel") {
-        return [result.serverId, result.channelId].filter(Boolean).join(" / ") || "channel";
+        return (
+            [result.serverId, result.channelId].filter(Boolean).join(" / ") ||
+            "channel"
+        );
     }
 
     return result.conversationId ?? "conversation";
@@ -54,7 +57,9 @@ export default function SearchScreen() {
         return m ? [m[1], m[0]] : [null, null];
     }, [query]);
 
-    const [authorCandidates, setAuthorCandidates] = useState<MentionableUser[]>([]);
+    const [authorCandidates, setAuthorCandidates] = useState<MentionableUser[]>(
+        [],
+    );
     useEffect(() => {
         if (!signedIn || fromPartial === null || !instanceUrl || !accessToken) {
             setAuthorCandidates([]);
@@ -65,7 +70,10 @@ export default function SearchScreen() {
             try {
                 const res = await fetch(
                     `${instanceUrl}/api/users/search?q=${encodeURIComponent(fromPartial)}&limit=10`,
-                    { signal: controller.signal, headers: authHeaders(accessToken) },
+                    {
+                        signal: controller.signal,
+                        headers: authHeaders(accessToken),
+                    },
                 );
                 if (!res.ok) return;
                 const data = await res.json();
@@ -86,7 +94,10 @@ export default function SearchScreen() {
     const handleAuthorSelect = useCallback(
         (item: MentionableItem | null) => {
             if (!item || item.type !== "user" || !fromMatch) return;
-            setQuery(query.slice(0, query.length - fromMatch.length) + `from:"${(item.displayName ?? "").replace(/"/g, "")}"`);
+            setQuery(
+                query.slice(0, query.length - fromMatch.length) +
+                    `from:"${(item.displayName ?? "").replace(/"/g, "")}"`,
+            );
         },
         [fromMatch, query],
     );
@@ -109,7 +120,11 @@ export default function SearchScreen() {
             setError(null);
 
             try {
-                const response = await searchMessages(instanceUrl, accessToken, trimmed);
+                const response = await searchMessages(
+                    instanceUrl,
+                    accessToken,
+                    trimmed,
+                );
                 setResults(response.results ?? []);
                 setLoadState("ready");
             } catch (searchError) {
@@ -157,7 +172,9 @@ export default function SearchScreen() {
         <AuthRouteGuard>
             <FlatList
                 data={results}
-                keyExtractor={(item, index) => item.message.$id ?? `${item.type}-${index}`}
+                keyExtractor={(item, index) =>
+                    item.message.$id ?? `${item.type}-${index}`
+                }
                 ListHeaderComponent={
                     <SafeAreaView style={styles.safeArea}>
                         <ThemedView style={styles.shell}>
@@ -165,28 +182,39 @@ export default function SearchScreen() {
                                 <ThemedText type="code" themeColor="accent">
                                     Search
                                 </ThemedText>
-                                <ThemedText type="title">Message search</ThemedText>
-                                <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                    Search messages and jump straight into the right channel or conversation.
+                                <ThemedText type="title">
+                                    Message search
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    Search messages and jump straight into the
+                                    right channel or conversation.
                                 </ThemedText>
                                 {fromPartial !== null &&
-                                authorCandidates.length > 0 && (
-                                    <MentionAutocomplete
-                                        users={authorCandidates}
-                                        roles={[]}
-                                        onSelect={handleAuthorSelect}
-                                    />
-                                )}
+                                    authorCandidates.length > 0 && (
+                                        <MentionAutocomplete
+                                            users={authorCandidates}
+                                            roles={[]}
+                                            onSelect={handleAuthorSelect}
+                                        />
+                                    )}
                                 <TextInput
                                     editable={signedIn}
                                     placeholder="Search messages, e.g. from:alex or has:image"
                                     placeholderTextColor={theme.mutedForeground}
                                     value={query}
                                     onChangeText={setQuery}
-                                    onSubmitEditing={() => void runSearch(query)}
+                                    onSubmitEditing={() =>
+                                        void runSearch(query)
+                                    }
                                     style={[
                                         styles.input,
-                                        { borderColor: theme.border, color: theme.foreground },
+                                        {
+                                            borderColor: theme.border,
+                                            color: theme.foreground,
+                                        },
                                     ]}
                                 />
                                 <Pressable
@@ -200,14 +228,24 @@ export default function SearchScreen() {
                                         },
                                     ]}
                                 >
-                                    <ThemedText type="smallBold" themeColor="primaryForeground">
-                                        {loadState === "loading" ? "Searching…" : "Search"}
+                                    <ThemedText
+                                        type="smallBold"
+                                        themeColor="primaryForeground"
+                                    >
+                                        {loadState === "loading"
+                                            ? "Searching…"
+                                            : "Search"}
                                     </ThemedText>
                                 </Pressable>
-                                {error ? <ThemedText themeColor="destructive">{error}</ThemedText> : null}
+                                {error ? (
+                                    <ThemedText themeColor="destructive">
+                                        {error}
+                                    </ThemedText>
+                                ) : null}
                                 {loadState === "ready" ? (
                                     <ThemedText themeColor="mutedForeground">
-                                        {results.length} result{results.length === 1 ? "" : "s"}
+                                        {results.length} result
+                                        {results.length === 1 ? "" : "s"}
                                     </ThemedText>
                                 ) : null}
                             </View>
@@ -223,7 +261,12 @@ export default function SearchScreen() {
                         <SafeAreaView style={styles.safeArea}>
                             <ThemedView style={styles.shell}>
                                 <EmptyState
-                                    icon={<Search size={20} color={theme.mutedForeground} />}
+                                    icon={
+                                        <Search
+                                            size={20}
+                                            color={theme.mutedForeground}
+                                        />
+                                    }
                                     title="Search messages"
                                     description="Enter at least two characters to search across your servers and conversations."
                                 />
@@ -276,7 +319,9 @@ function SearchResultCard({
                 <MessageWithMentions text={message.text ?? ""} />
                 <View style={styles.resultFooter}>
                     <ThemedText type="code" themeColor="mutedForeground">
-                        {result.type === "channel" ? "Open channel context" : "Open conversation context"}
+                        {result.type === "channel"
+                            ? "Open channel context"
+                            : "Open conversation context"}
                     </ThemedText>
                     {message.$createdAt ? (
                         <ThemedText type="code" themeColor="mutedForeground">

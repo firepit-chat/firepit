@@ -65,9 +65,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
         const href = buildChatMessageHref(destination, { entry: "unread" });
         router.push(href as Route);
     };
-    const [selectedFilter, setSelectedFilter] = useState<InboxScope | "all" | "mentions">(
-        "all",
-    );
+    const [selectedFilter, setSelectedFilter] = useState<
+        InboxScope | "all" | "mentions"
+    >("all");
 
     const filteredItems = useMemo(() => {
         if (selectedFilter === "direct") {
@@ -77,7 +77,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
         }
 
         if (selectedFilter === "server") {
-            return inboxApi.items.filter((item) => item.contextKind === "channel");
+            return inboxApi.items.filter(
+                (item) => item.contextKind === "channel",
+            );
         }
 
         if (selectedFilter === "mentions") {
@@ -113,23 +115,32 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                         </div>
                         <div className="space-y-4">
                             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-                                Notifications, mentions, and DM alerts in one place.
+                                Notifications, mentions, and DM alerts in one
+                                place.
                             </h1>
                             <p className="max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
-                                Review recent activity, clear unread items by scope, and tune how Firepit notifies you when people mention you or reply in DMs.
+                                Review recent activity, clear unread items by
+                                scope, and tune how Firepit notifies you when
+                                people mention you or reply in DMs.
                             </p>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
                             <Button asChild className="rounded-lg">
-                                <Link href={"/chat" as Route}>Back to chat</Link>
+                                <Link href={"/chat" as Route}>
+                                    Back to chat
+                                </Link>
                             </Button>
                             <Button
                                 asChild
                                 className="rounded-lg border-border/70"
                                 variant="outline"
                             >
-                                <Link href={"/settings#notification-preferences" as Route}>
+                                <Link
+                                    href={
+                                        "/settings#notification-preferences" as Route
+                                    }
+                                >
                                     Notification settings
                                 </Link>
                             </Button>
@@ -169,7 +180,8 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             Quick actions
                         </div>
                         <p className="text-sm leading-6 text-muted-foreground">
-                            Mark items read in bulk, then jump into a notification source with one click.
+                            Mark items read in bulk, then jump into a
+                            notification source with one click.
                         </p>
                         <InboxToolbar
                             bulkLoading={inboxApi.bulkLoading}
@@ -189,8 +201,8 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             Channels with new messages
                         </h2>
                         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                            Channels you have not caught up on yet. Opening one marks
-                            it read.
+                            Channels you have not caught up on yet. Opening one
+                            marks it read.
                         </p>
                     </div>
 
@@ -275,7 +287,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                     aria-pressed={active}
                                     className="rounded-lg"
                                     key={filter.value}
-                                    onClick={() => setSelectedFilter(filter.value)}
+                                    onClick={() =>
+                                        setSelectedFilter(filter.value)
+                                    }
                                     size="sm"
                                     type="button"
                                     variant={active ? "default" : "outline"}
@@ -284,7 +298,9 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                     {filter.label}
                                     <Badge
                                         className="ml-2 h-5 min-w-5 rounded-full px-1.5 text-[10px] leading-none"
-                                        variant={active ? "secondary" : "outline"}
+                                        variant={
+                                            active ? "secondary" : "outline"
+                                        }
                                     >
                                         {count}
                                     </Badge>
@@ -294,7 +310,7 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                     </div>
 
                     <div className="mt-6 space-y-3">
-                            {inboxApi.loading ? (
+                        {inboxApi.loading ? (
                             <div className="space-y-3">
                                 {["s1", "s2", "s3", "s4"].map((id) => (
                                     <div
@@ -307,30 +323,34 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                     </div>
                                 ))}
                             </div>
-                                ) : filteredItems.length === 0 ? (
+                        ) : filteredItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 p-10 text-center">
                                 <Bell className="mb-3 h-8 w-8 text-muted-foreground" />
                                 <p className="text-sm font-medium text-foreground">
                                     No notifications for this filter
                                 </p>
                                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                                    Try a different filter or adjust your notification settings.
+                                    Try a different filter or adjust your
+                                    notification settings.
                                 </p>
                             </div>
-                            ) : (
-                                filteredItems.map((item) => (
-                                    <button
-                                        className="flex w-full items-start gap-3 rounded-md border border-border/60 bg-background/60 p-3 text-left transition-colors hover:bg-background/80"
-                                        key={item.id}
-                                        onClick={() => navigateToItem(item)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" || e.key === " ") {
-                                                e.preventDefault();
-                                                navigateToItem(item);
-                                            }
-                                        }}
-                                        type="button"
-                                    >
+                        ) : (
+                            filteredItems.map((item) => (
+                                <button
+                                    className="flex w-full items-start gap-3 rounded-md border border-border/60 bg-background/60 p-3 text-left transition-colors hover:bg-background/80"
+                                    key={item.id}
+                                    onClick={() => navigateToItem(item)}
+                                    onKeyDown={(e) => {
+                                        if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                        ) {
+                                            e.preventDefault();
+                                            navigateToItem(item);
+                                        }
+                                    }}
+                                    type="button"
+                                >
                                     <Avatar
                                         alt={item.authorLabel}
                                         fallback={item.authorLabel}
@@ -343,20 +363,29 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                                                 {item.authorLabel}
                                             </p>
                                             <span className="text-xs text-muted-foreground">
-                                                {new Date(item.latestActivityAt).toLocaleDateString(undefined, {
-                                                    month: "short",
-                                                    day: "numeric",
-                                                })}
+                                                {new Date(
+                                                    item.latestActivityAt,
+                                                ).toLocaleDateString(
+                                                    undefined,
+                                                    {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                    },
+                                                )}
                                             </span>
                                         </div>
                                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                                            <span>{getItemFilterLabel(item)}</span>
+                                            <span>
+                                                {getItemFilterLabel(item)}
+                                            </span>
                                             <span>
                                                 {item.contextKind === "channel"
                                                     ? "Channel"
                                                     : "Direct message"}
                                             </span>
-                                            {item.muted ? <span>Muted</span> : null}
+                                            {item.muted ? (
+                                                <span>Muted</span>
+                                            ) : null}
                                         </div>
                                         <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
                                             {item.previewText}
@@ -378,7 +407,8 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             Notification preferences
                         </h2>
                         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                            Control global notification levels, per-context overrides, quiet hours, and browser delivery.
+                            Control global notification levels, per-context
+                            overrides, quiet hours, and browser delivery.
                         </p>
                     </div>
                     <NotificationSettings />

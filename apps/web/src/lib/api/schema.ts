@@ -2039,7 +2039,8 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            server: components["schemas"]["ServerMinimal"] | null;
+                            server:
+                                components["schemas"]["ServerMinimal"] | null;
                         };
                     };
                 };
@@ -2348,7 +2349,9 @@ export interface paths {
                                 /** @description How far to inset the avatar inside the frame, as a percentage. Each frame is drawn for its own inset, so a client without the catalogue needs this to avoid the avatar overlapping the frame art. */
                                 avatarFrameInsetPercent?: number | null;
                                 /** @description The member's highest-ranked role, or null when they hold no roles. */
-                                role: null | components["schemas"]["MemberPrimaryRole"];
+                                role:
+                                    | null
+                                    | components["schemas"]["MemberPrimaryRole"];
                             }[];
                             /** @description True when the listing hit its document cap. */
                             truncated?: boolean;
@@ -4228,9 +4231,11 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusDocument"] | {
-                            [key: string]: unknown;
-                        };
+                        "application/json":
+                            | components["schemas"]["StatusDocument"]
+                            | {
+                                  [key: string]: unknown;
+                              };
                     };
                 };
             };
@@ -4688,7 +4693,13 @@ export interface paths {
                              * @example images
                              * @enum {string}
                              */
-                            category?: "documents" | "images" | "videos" | "audio" | "archives" | "code";
+                            category?:
+                                | "documents"
+                                | "images"
+                                | "videos"
+                                | "audio"
+                                | "archives"
+                                | "code";
                         };
                     };
                 };
@@ -5635,15 +5646,17 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": {
-                        itemIds: string[];
-                    } | {
-                        /** @enum {string} */
-                        action: "mark-all-read";
-                        /** @enum {string} */
-                        contextKind?: "channel" | "conversation";
-                        contextId?: string;
-                    };
+                    "application/json":
+                        | {
+                              itemIds: string[];
+                          }
+                        | {
+                              /** @enum {string} */
+                              action: "mark-all-read";
+                              /** @enum {string} */
+                              contextKind?: "channel" | "conversation";
+                              contextId?: string;
+                          };
                 };
             };
             responses: {
@@ -5653,20 +5666,22 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": {
-                            ok?: boolean;
-                            /** Format: date-time */
-                            readAt?: string;
-                            updatedCount?: number;
-                            truncated?: boolean;
-                            truncatedCount?: number;
-                        } | {
-                            ok?: boolean;
-                            /** Format: date-time */
-                            readAt?: string;
-                            updatedMentionCount?: number;
-                            updatedThreadContextCount?: number;
-                        };
+                        "application/json":
+                            | {
+                                  ok?: boolean;
+                                  /** Format: date-time */
+                                  readAt?: string;
+                                  updatedCount?: number;
+                                  truncated?: boolean;
+                                  truncatedCount?: number;
+                              }
+                            | {
+                                  ok?: boolean;
+                                  /** Format: date-time */
+                                  readAt?: string;
+                                  updatedMentionCount?: number;
+                                  updatedThreadContextCount?: number;
+                              };
                     };
                 };
                 /** @description Invalid request body */
@@ -6086,10 +6101,12 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RoleAssignment"][] | {
-                            assignments: components["schemas"]["RoleAssignment"][];
-                            truncated: boolean;
-                        };
+                        "application/json":
+                            | components["schemas"]["RoleAssignment"][]
+                            | {
+                                  assignments: components["schemas"]["RoleAssignment"][];
+                                  truncated: boolean;
+                              };
                     };
                 };
             };
@@ -7274,9 +7291,11 @@ export interface components {
         Error: {
             error: string;
             /** @description Optional structured error context */
-            details?: string | {
-                [key: string]: unknown;
-            };
+            details?:
+                | string
+                | {
+                      [key: string]: unknown;
+                  };
         };
         Success: {
             /** @default true */
@@ -7633,7 +7652,15 @@ export interface components {
          * @description A single permission that can be granted or denied.
          * @enum {string}
          */
-        Permission: "readMessages" | "sendMessages" | "manageMessages" | "manageChannels" | "manageRoles" | "manageServer" | "mentionEveryone" | "administrator";
+        Permission:
+            | "readMessages"
+            | "sendMessages"
+            | "manageMessages"
+            | "manageChannels"
+            | "manageRoles"
+            | "manageServer"
+            | "mentionEveryone"
+            | "administrator";
         /** @description A per-channel permission override. Exactly one of roleId or userId is set; the other is stored as an empty string, which is why both properties are always present. A row with a roleId applies to every member of that role, and a row with a userId applies to that user alone. */
         ChannelPermissionOverride: {
             $id?: string;
@@ -7746,7 +7773,13 @@ export interface components {
             title?: string;
             body?: string;
             /** @enum {string} */
-            status?: "draft" | "scheduled" | "dispatching" | "sent" | "failed" | "archived";
+            status?:
+                | "draft"
+                | "scheduled"
+                | "dispatching"
+                | "sent"
+                | "failed"
+                | "archived";
             /** @enum {string} */
             priority?: "normal" | "urgent";
             scheduledFor?: string | null;

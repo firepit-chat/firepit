@@ -1,20 +1,20 @@
 import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
-  DEFAULT_THEME_ACCENT,
-  DEFAULT_THEME_PALETTE,
-  isThemeAccent,
-  isThemePalette,
-  type ThemeAccent,
-  type ThemePalette,
+    DEFAULT_THEME_ACCENT,
+    DEFAULT_THEME_PALETTE,
+    isThemeAccent,
+    isThemePalette,
+    type ThemeAccent,
+    type ThemePalette,
 } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 
@@ -35,24 +35,24 @@ const ACCENT_KEY = "@firepit_theme_accent";
  * upgrade matters more than landing on Catppuccin by default.
  */
 function paletteForColorScheme(scheme: string | null | undefined) {
-  return scheme === "dark" ? "mocha" : DEFAULT_THEME_PALETTE;
+    return scheme === "dark" ? "mocha" : DEFAULT_THEME_PALETTE;
 }
 
 type ThemePreferenceContextValue = {
-  palette: ThemePalette;
-  accent: ThemeAccent;
-  setPalette: (next: ThemePalette) => void;
-  setAccent: (next: ThemeAccent) => void;
-  /** False until the stored preference has been read back from storage. */
-  hydrated: boolean;
+    palette: ThemePalette;
+    accent: ThemeAccent;
+    setPalette: (next: ThemePalette) => void;
+    setAccent: (next: ThemeAccent) => void;
+    /** False until the stored preference has been read back from storage. */
+    hydrated: boolean;
 };
 
 const ThemePreferenceContext = createContext<ThemePreferenceContextValue>({
-  palette: DEFAULT_THEME_PALETTE,
-  accent: DEFAULT_THEME_ACCENT,
-  setPalette: () => {},
-  setAccent: () => {},
-  hydrated: false,
+    palette: DEFAULT_THEME_PALETTE,
+    accent: DEFAULT_THEME_ACCENT,
+    setPalette: () => {},
+    setAccent: () => {},
+    hydrated: false,
 });
 
 /**
@@ -64,61 +64,62 @@ const ThemePreferenceContext = createContext<ThemePreferenceContextValue>({
  * value in place rather than reverting the user's choice.
  */
 export function ThemePreferenceProvider({
-  children,
+    children,
 }: {
-  children: React.ReactNode;
+    children: React.ReactNode;
 }) {
-  const systemScheme = useColorScheme();
-  const [palette, setPaletteState] = useState<ThemePalette>(() =>
-    paletteForColorScheme(systemScheme),
-  );
-  const [accent, setAccentState] = useState<ThemeAccent>(DEFAULT_THEME_ACCENT);
-  const [hydrated, setHydrated] = useState(false);
+    const systemScheme = useColorScheme();
+    const [palette, setPaletteState] = useState<ThemePalette>(() =>
+        paletteForColorScheme(systemScheme),
+    );
+    const [accent, setAccentState] =
+        useState<ThemeAccent>(DEFAULT_THEME_ACCENT);
+    const [hydrated, setHydrated] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const [savedPalette, savedAccent] = await Promise.all([
-          AsyncStorage.getItem(PALETTE_KEY),
-          AsyncStorage.getItem(ACCENT_KEY),
-        ]);
-        if (cancelled) return;
-        if (isThemePalette(savedPalette)) setPaletteState(savedPalette);
-        if (isThemeAccent(savedAccent)) setAccentState(savedAccent);
-      } catch {
-        // fall back to the defaults
-      } finally {
-        if (!cancelled) setHydrated(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const [savedPalette, savedAccent] = await Promise.all([
+                    AsyncStorage.getItem(PALETTE_KEY),
+                    AsyncStorage.getItem(ACCENT_KEY),
+                ]);
+                if (cancelled) return;
+                if (isThemePalette(savedPalette)) setPaletteState(savedPalette);
+                if (isThemeAccent(savedAccent)) setAccentState(savedAccent);
+            } catch {
+                // fall back to the defaults
+            } finally {
+                if (!cancelled) setHydrated(true);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
-  const setPalette = useCallback((next: ThemePalette) => {
-    setPaletteState(next);
-    void AsyncStorage.setItem(PALETTE_KEY, next).catch(() => {});
-  }, []);
+    const setPalette = useCallback((next: ThemePalette) => {
+        setPaletteState(next);
+        void AsyncStorage.setItem(PALETTE_KEY, next).catch(() => {});
+    }, []);
 
-  const setAccent = useCallback((next: ThemeAccent) => {
-    setAccentState(next);
-    void AsyncStorage.setItem(ACCENT_KEY, next).catch(() => {});
-  }, []);
+    const setAccent = useCallback((next: ThemeAccent) => {
+        setAccentState(next);
+        void AsyncStorage.setItem(ACCENT_KEY, next).catch(() => {});
+    }, []);
 
-  const value = useMemo(
-    () => ({ palette, accent, setPalette, setAccent, hydrated }),
-    [palette, accent, setPalette, setAccent, hydrated],
-  );
+    const value = useMemo(
+        () => ({ palette, accent, setPalette, setAccent, hydrated }),
+        [palette, accent, setPalette, setAccent, hydrated],
+    );
 
-  return (
-    <ThemePreferenceContext.Provider value={value}>
-      {children}
-    </ThemePreferenceContext.Provider>
-  );
+    return (
+        <ThemePreferenceContext.Provider value={value}>
+            {children}
+        </ThemePreferenceContext.Provider>
+    );
 }
 
 export function useThemePreference() {
-  return useContext(ThemePreferenceContext);
+    return useContext(ThemePreferenceContext);
 }

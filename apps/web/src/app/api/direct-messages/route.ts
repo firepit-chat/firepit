@@ -11,10 +11,12 @@ import {
     getFriendshipByPair,
     getBlockStatus,
 } from "@/lib/appwrite-friendships";
+import { getNotificationSettings } from "@/lib/notification-settings";
 import {
-    getNotificationSettings,
-} from "@/lib/notification-settings";
-import { getAvatarUrl, getUserProfile, getUserProfilesBatch } from "@/lib/appwrite-profiles";
+    getAvatarUrl,
+    getUserProfile,
+    getUserProfilesBatch,
+} from "@/lib/appwrite-profiles";
 import { readDmEncryptionEnabled } from "@/lib/dm-encryption-preference";
 import { listThreadReadsByContext } from "@/lib/thread-read-store";
 import { isThreadUnread } from "@/lib/thread-read-states";
@@ -30,7 +32,10 @@ import {
     MAX_MESSAGE_LENGTH,
     MESSAGE_TOO_LONG_ERROR,
 } from "@/lib/message-constraints";
-import { upsertMentionInboxItems, upsertMessageInboxItems } from "@/lib/inbox-items";
+import {
+    upsertMentionInboxItems,
+    upsertMessageInboxItems,
+} from "@/lib/inbox-items";
 import { resolveMessageImageUrl } from "@/lib/message-image-url";
 import { apiCache } from "@/lib/cache-utils";
 import {
@@ -49,7 +54,10 @@ import {
     parsePollOptions,
     serializePollOptions,
 } from "@/lib/polls";
-import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
+import {
+    ensureAllowedRequestOrigin,
+    getAllowedOrigin,
+} from "@/lib/request-origin";
 
 const env = getEnvConfig();
 const DATABASE_ID = env.databaseId;
@@ -66,8 +74,7 @@ if (SYSTEM_SENDER_USER_ID === null && process.env.NODE_ENV !== "test") {
         "SYSTEM_SENDER_USER_ID is not configured. System announcement threads will be read-only for all users.",
         {
             envVar: "SYSTEM_SENDER_USER_ID",
-            impact:
-                "Replies to system announcement threads are disabled unless this is set to the system sender user id.",
+            impact: "Replies to system announcement threads are disabled unless this is set to the system sender user id.",
         },
     );
 }
@@ -269,8 +276,6 @@ async function createAttachments(
     return createdIds;
 }
 
-
-
 // Helper to create JSON responses with CORS headers
 function jsonResponse(data: unknown, init?: ResponseInit, request?: Request) {
     const headers = new Headers(init?.headers);
@@ -339,11 +344,15 @@ export async function GET(request: NextRequest) {
             const response = await dedupeDirectMessageCache(
                 `dm:conversations:${session.$id}`,
                 () =>
-                    databases.listDocuments(DATABASE_ID, CONVERSATIONS_COLLECTION, [
-                        Query.contains("participants", session.$id),
-                        Query.orderDesc("lastMessageAt"),
-                        Query.limit(100),
-                    ]),
+                    databases.listDocuments(
+                        DATABASE_ID,
+                        CONVERSATIONS_COLLECTION,
+                        [
+                            Query.contains("participants", session.$id),
+                            Query.orderDesc("lastMessageAt"),
+                            Query.limit(100),
+                        ],
+                    ),
                 DIRECT_MESSAGES_CACHE_TTL_MS,
             );
 
@@ -368,14 +377,11 @@ export async function GET(request: NextRequest) {
                     (Array.isArray(doc.participants) &&
                         doc.participants.length > 2),
                 name: (doc as Record<string, unknown>).name as
-                    | string
-                    | undefined,
+                    string | undefined,
                 avatarUrl: (doc as Record<string, unknown>).avatarUrl as
-                    | string
-                    | undefined,
+                    string | undefined,
                 createdBy: (doc as Record<string, unknown>).createdBy as
-                    | string
-                    | undefined,
+                    string | undefined,
                 isSystemAnnouncementThread: Boolean(
                     (doc as Record<string, unknown>).isSystemAnnouncementThread,
                 ),
@@ -405,30 +411,37 @@ export async function GET(request: NextRequest) {
             const pageSize = 500;
             const maxThreadParentPages = 20;
 
-            const [readStatesResult, threadParentsResult, relationshipResult, profilesResult] =
-                await Promise.allSettled([
-                    listThreadReadsByContext({
-                        contextIds: conversationIds,
-                        contextType: "conversation",
-                        userId: session.$id,
-                    }),
-                    conversations.length > 0
-                        ? listPages({
-                              databases,
-                              databaseId: DATABASE_ID,
-                              collectionId: DIRECT_MESSAGES_COLLECTION,
-                              baseQueries: [
-                                  Query.equal("conversationId", conversationIds),
-                                  Query.greaterThan("threadMessageCount", 0),
-                              ],
-                              pageSize,
-                              maxPages: maxThreadParentPages,
-                              warningContext: "direct-messages-thread-parents",
-                          })
-                        : Promise.resolve({ documents: [] as Array<Record<string, unknown>>, truncated: false }),
-                    getRelationshipMap(session.$id, oneToOneOtherUserIds),
-                    getUserProfilesBatch(oneToOneOtherUserIds),
-                ]);
+            const [
+                readStatesResult,
+                threadParentsResult,
+                relationshipResult,
+                profilesResult,
+            ] = await Promise.allSettled([
+                listThreadReadsByContext({
+                    contextIds: conversationIds,
+                    contextType: "conversation",
+                    userId: session.$id,
+                }),
+                conversations.length > 0
+                    ? listPages({
+                          databases,
+                          databaseId: DATABASE_ID,
+                          collectionId: DIRECT_MESSAGES_COLLECTION,
+                          baseQueries: [
+                              Query.equal("conversationId", conversationIds),
+                              Query.greaterThan("threadMessageCount", 0),
+                          ],
+                          pageSize,
+                          maxPages: maxThreadParentPages,
+                          warningContext: "direct-messages-thread-parents",
+                      })
+                    : Promise.resolve({
+                          documents: [] as Array<Record<string, unknown>>,
+                          truncated: false,
+                      }),
+                getRelationshipMap(session.$id, oneToOneOtherUserIds),
+                getUserProfilesBatch(oneToOneOtherUserIds),
+            ]);
 
             if (readStatesResult.status === "fulfilled") {
                 readStatesByConversationId = readStatesResult.value;
@@ -443,13 +456,19 @@ export async function GET(request: NextRequest) {
                 });
             }
 
-            if (conversations.length > 0 && readStatesResult.status === "fulfilled") {
+            if (
+                conversations.length > 0 &&
+                readStatesResult.status === "fulfilled"
+            ) {
                 try {
                     const threadParentsById = new Map<
                         string,
                         Record<string, unknown>
                     >();
-                    let threadParentPages: { documents: Array<Record<string, unknown>>; truncated: boolean };
+                    let threadParentPages: {
+                        documents: Array<Record<string, unknown>>;
+                        truncated: boolean;
+                    };
                     if (threadParentsResult.status === "fulfilled") {
                         threadParentPages = threadParentsResult.value;
                     } else {
@@ -465,7 +484,10 @@ export async function GET(request: NextRequest) {
                     }
 
                     for (const document of threadParentPages.documents) {
-                        const threadParent = document as Record<string, unknown>;
+                        const threadParent = document as Record<
+                            string,
+                            unknown
+                        >;
                         const parentMessageId =
                             typeof threadParent.$id === "string"
                                 ? threadParent.$id
@@ -536,7 +558,10 @@ export async function GET(request: NextRequest) {
                 } catch (error) {
                     unreadThreadCountsTruncated = true;
                     logger.error("Failed to aggregate unread thread counts", {
-                        error: error instanceof Error ? error.message : String(error),
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                         userId: session.$id,
                     });
                 }
@@ -551,12 +576,15 @@ export async function GET(request: NextRequest) {
                     ? profilesResult.value
                     : new Map();
 
-            const profileMap = new Map<string, {
-                userId: string;
-                displayName?: string;
-                avatarUrl?: string;
-                pronouns?: string;
-            }>();
+            const profileMap = new Map<
+                string,
+                {
+                    userId: string;
+                    displayName?: string;
+                    avatarUrl?: string;
+                    pronouns?: string;
+                }
+            >();
             for (const [uid, profile] of profilesBatch) {
                 profileMap.set(uid, {
                     userId: uid,
@@ -616,7 +644,7 @@ export async function GET(request: NextRequest) {
                     ? !relationship.canSendDirectMessage
                     : false;
                 const otherUser = otherUserId
-                    ? profileMap.get(otherUserId) ?? { userId: otherUserId }
+                    ? (profileMap.get(otherUserId) ?? { userId: otherUserId })
                     : undefined;
 
                 return {
@@ -649,7 +677,10 @@ export async function GET(request: NextRequest) {
                 userId: session.$id,
             });
 
-            return jsonResponse({ conversations: enrichedConversations }, request);
+            return jsonResponse(
+                { conversations: enrichedConversations },
+                request,
+            );
         }
 
         // Get or create a conversation between two users
@@ -661,14 +692,16 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "userId1 and userId2 are required" },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             if (!CONVERSATIONS_COLLECTION) {
                 return jsonResponse(
                     { error: "Conversations not configured" },
                     { status: 500 },
-                 request);
+                    request,
+                );
             }
 
             // Sort user IDs to ensure consistent ordering
@@ -678,14 +711,16 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "You can only access your own direct messages" },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             if (includesSystemSenderParticipant(participants)) {
                 return jsonResponse(
                     { error: SYSTEM_ANNOUNCEMENT_READ_ONLY_REASON },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             const targetUserId = participants.find((id) => id !== session.$id);
@@ -693,7 +728,8 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "A target user is required" },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             const { databases } = getServerClient();
@@ -783,12 +819,23 @@ export async function GET(request: NextRequest) {
                 }
 
                 if (oneToOne) {
-                    const [relationship, encryptionState, existingProfile] = await Promise.all([
-                        getRelationshipStatus(session.$id, targetUserId),
-                        getDmEncryptionStateForPair(session.$id, targetUserId),
-                        getUserProfile(targetUserId).catch(() => null),
-                    ]);
-                    let otherUserProfile: { userId: string; displayName?: string; avatarUrl?: string; pronouns?: string } | undefined;
+                    const [relationship, encryptionState, existingProfile] =
+                        await Promise.all([
+                            getRelationshipStatus(session.$id, targetUserId),
+                            getDmEncryptionStateForPair(
+                                session.$id,
+                                targetUserId,
+                            ),
+                            getUserProfile(targetUserId).catch(() => null),
+                        ]);
+                    let otherUserProfile:
+                        | {
+                              userId: string;
+                              displayName?: string;
+                              avatarUrl?: string;
+                              pronouns?: string;
+                          }
+                        | undefined;
                     if (existingProfile) {
                         otherUserProfile = {
                             userId: targetUserId,
@@ -799,41 +846,45 @@ export async function GET(request: NextRequest) {
                             pronouns: existingProfile.pronouns,
                         };
                     }
-                    return jsonResponse({
-                        conversation: {
-                            $id: oneToOne.$id,
-                            participants: oneToOne.participants,
-                            lastMessageAt: oneToOne.lastMessageAt,
-                            $createdAt: oneToOne.$createdAt,
-                            isGroup: Boolean(
-                                (oneToOne as Record<string, unknown>).isGroup,
-                            ),
-                            name: (oneToOne as Record<string, unknown>).name as
-                                | string
-                                | undefined,
-                            avatarUrl: (oneToOne as Record<string, unknown>)
-                                .avatarUrl as string | undefined,
-                            createdBy: (oneToOne as Record<string, unknown>)
-                                .createdBy as string | undefined,
-                            participantCount: Array.isArray(
-                                oneToOne.participants,
-                            )
-                                ? (oneToOne.participants as unknown[]).length
-                                : undefined,
-                            readOnly: !relationship.canSendDirectMessage,
-                            readOnlyReason: getReadOnlyReason(relationship),
-                            relationship,
-                            otherUser: otherUserProfile,
-                            dmEncryptionSelfEnabled:
-                                encryptionState.dmEncryptionSelfEnabled,
-                            dmEncryptionPeerEnabled:
-                                encryptionState.dmEncryptionPeerEnabled,
-                            dmEncryptionMutualEnabled:
-                                encryptionState.dmEncryptionMutualEnabled,
-                            dmEncryptionPeerPublicKey:
-                                encryptionState.dmEncryptionPeerPublicKey,
+                    return jsonResponse(
+                        {
+                            conversation: {
+                                $id: oneToOne.$id,
+                                participants: oneToOne.participants,
+                                lastMessageAt: oneToOne.lastMessageAt,
+                                $createdAt: oneToOne.$createdAt,
+                                isGroup: Boolean(
+                                    (oneToOne as Record<string, unknown>)
+                                        .isGroup,
+                                ),
+                                name: (oneToOne as Record<string, unknown>)
+                                    .name as string | undefined,
+                                avatarUrl: (oneToOne as Record<string, unknown>)
+                                    .avatarUrl as string | undefined,
+                                createdBy: (oneToOne as Record<string, unknown>)
+                                    .createdBy as string | undefined,
+                                participantCount: Array.isArray(
+                                    oneToOne.participants,
+                                )
+                                    ? (oneToOne.participants as unknown[])
+                                          .length
+                                    : undefined,
+                                readOnly: !relationship.canSendDirectMessage,
+                                readOnlyReason: getReadOnlyReason(relationship),
+                                relationship,
+                                otherUser: otherUserProfile,
+                                dmEncryptionSelfEnabled:
+                                    encryptionState.dmEncryptionSelfEnabled,
+                                dmEncryptionPeerEnabled:
+                                    encryptionState.dmEncryptionPeerEnabled,
+                                dmEncryptionMutualEnabled:
+                                    encryptionState.dmEncryptionMutualEnabled,
+                                dmEncryptionPeerPublicKey:
+                                    encryptionState.dmEncryptionPeerPublicKey,
+                            },
                         },
-                    }, request);
+                        request,
+                    );
                 }
 
                 if (conversationLookupTruncated) {
@@ -842,7 +893,8 @@ export async function GET(request: NextRequest) {
                             error: "Unable to safely determine whether a direct message already exists. Please try again.",
                         },
                         { status: 409 },
-                     request);
+                        request,
+                    );
                 }
             } catch (error) {
                 logger.error(
@@ -861,7 +913,8 @@ export async function GET(request: NextRequest) {
                         error: "Failed to verify existing direct message conversation",
                     },
                     { status: 500 },
-                 request);
+                    request,
+                );
             }
 
             const [relationship, encryptionState] = await Promise.all([
@@ -877,7 +930,8 @@ export async function GET(request: NextRequest) {
                         relationship,
                     },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             // Create new conversation
@@ -905,7 +959,14 @@ export async function GET(request: NextRequest) {
 
             // Populate otherUser for the newly created 1:1 conversation
             const otherUserId = participants.find((id) => id !== session.$id);
-            let otherUser: { userId: string; displayName?: string; avatarUrl?: string; pronouns?: string } | undefined;
+            let otherUser:
+                | {
+                      userId: string;
+                      displayName?: string;
+                      avatarUrl?: string;
+                      pronouns?: string;
+                  }
+                | undefined;
             if (otherUserId) {
                 try {
                     const profile = await getUserProfile(otherUserId);
@@ -924,27 +985,30 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            return jsonResponse({
-                conversation: {
-                    $id: newConv.$id,
-                    participants: newConv.participants,
-                    lastMessageAt: newConv.lastMessageAt,
-                    $createdAt: newConv.$createdAt,
-                    isGroup: false,
-                    participantCount: participants.length,
-                    readOnly: false,
-                    relationship,
-                    otherUser,
-                    dmEncryptionSelfEnabled:
-                        encryptionState.dmEncryptionSelfEnabled,
-                    dmEncryptionPeerEnabled:
-                        encryptionState.dmEncryptionPeerEnabled,
-                    dmEncryptionMutualEnabled:
-                        encryptionState.dmEncryptionMutualEnabled,
-                    dmEncryptionPeerPublicKey:
-                        encryptionState.dmEncryptionPeerPublicKey,
+            return jsonResponse(
+                {
+                    conversation: {
+                        $id: newConv.$id,
+                        participants: newConv.participants,
+                        lastMessageAt: newConv.lastMessageAt,
+                        $createdAt: newConv.$createdAt,
+                        isGroup: false,
+                        participantCount: participants.length,
+                        readOnly: false,
+                        relationship,
+                        otherUser,
+                        dmEncryptionSelfEnabled:
+                            encryptionState.dmEncryptionSelfEnabled,
+                        dmEncryptionPeerEnabled:
+                            encryptionState.dmEncryptionPeerEnabled,
+                        dmEncryptionMutualEnabled:
+                            encryptionState.dmEncryptionMutualEnabled,
+                        dmEncryptionPeerPublicKey:
+                            encryptionState.dmEncryptionPeerPublicKey,
+                    },
                 },
-            }, request);
+                request,
+            );
         }
 
         // Fetch a single conversation by ID with otherUser populated
@@ -955,7 +1019,8 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "conversationId is required" },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             const { databases } = getServerClient();
@@ -971,7 +1036,8 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "Conversation not found" },
                     { status: 404 },
-                 request);
+                    request,
+                );
             }
 
             const participants = Array.isArray(conversation.participants)
@@ -982,16 +1048,17 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "Forbidden" },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             const isGroupConversation =
-                Boolean(
-                    (conversation as Record<string, unknown>).isGroup,
-                ) || participants.length > 2;
+                Boolean((conversation as Record<string, unknown>).isGroup) ||
+                participants.length > 2;
 
             const isSystemAnnouncementThread = Boolean(
-                (conversation as Record<string, unknown>).isSystemAnnouncementThread,
+                (conversation as Record<string, unknown>)
+                    .isSystemAnnouncementThread,
             );
 
             let readOnly = false;
@@ -1024,7 +1091,14 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            let otherUser: { userId: string; displayName?: string; avatarUrl?: string; pronouns?: string } | undefined;
+            let otherUser:
+                | {
+                      userId: string;
+                      displayName?: string;
+                      avatarUrl?: string;
+                      pronouns?: string;
+                  }
+                | undefined;
 
             if (!isGroupConversation) {
                 const otherUserId = participants.find(
@@ -1049,16 +1123,19 @@ export async function GET(request: NextRequest) {
                 }
             }
 
-            return jsonResponse({
-                conversation: {
-                    ...conversation,
-                    isGroup: isGroupConversation,
-                    participantCount: participants.length,
-                    otherUser,
-                    readOnly,
-                    readOnlyReason,
+            return jsonResponse(
+                {
+                    conversation: {
+                        ...conversation,
+                        isGroup: isGroupConversation,
+                        participantCount: participants.length,
+                        otherUser,
+                        readOnly,
+                        readOnlyReason,
+                    },
                 },
-            }, request);
+                request,
+            );
         }
 
         // List messages in a conversation
@@ -1071,7 +1148,8 @@ export async function GET(request: NextRequest) {
                 return jsonResponse(
                     { error: "conversationId is required" },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             if (!DIRECT_MESSAGES_COLLECTION) {
@@ -1106,8 +1184,8 @@ export async function GET(request: NextRequest) {
                 encryptedText: doc.encryptedText as string | undefined,
                 encryptionNonce: doc.encryptionNonce as string | undefined,
                 encryptionVersion: doc.encryptionVersion as string | undefined,
-                encryptionSenderPublicKey: doc
-                    .encryptionSenderPublicKey as string | undefined,
+                encryptionSenderPublicKey: doc.encryptionSenderPublicKey as
+                    string | undefined,
                 imageFileId: doc.imageFileId as string | undefined,
                 imageUrl: resolveMessageImageUrl({
                     imageFileId: doc.imageFileId,
@@ -1119,7 +1197,8 @@ export async function GET(request: NextRequest) {
                 removedBy: doc.removedBy as string | undefined,
                 replyToId: doc.replyToId as string | undefined,
                 threadId: doc.threadId as string | undefined,
-                threadMessageCount: doc.threadMessageCount as number | undefined,
+                threadMessageCount: doc.threadMessageCount as
+                    number | undefined,
                 mentions: Array.isArray(doc.mentions)
                     ? (doc.mentions as string[])
                     : undefined,
@@ -1157,14 +1236,17 @@ export async function GET(request: NextRequest) {
                         readOnlyReason = SYSTEM_ANNOUNCEMENT_READ_ONLY_REASON;
                     }
 
-                    const participants = Array.isArray(conversation.participants)
+                    const participants = Array.isArray(
+                        conversation.participants,
+                    )
                         ? (conversation.participants as string[])
                         : [];
                     if (!participants.includes(session.$id)) {
                         return jsonResponse(
                             { error: "Forbidden" },
                             { status: 403 },
-                         request);
+                            request,
+                        );
                     }
 
                     const isGroupConversation =
@@ -1193,14 +1275,19 @@ export async function GET(request: NextRequest) {
 
                             const isFriend = friendship?.status === "accepted";
                             const outgoingRequest =
-                                friendship?.status === "pending" && friendship.requesterId === session.$id;
+                                friendship?.status === "pending" &&
+                                friendship.requesterId === session.$id;
                             const incomingRequest =
-                                friendship?.status === "pending" && friendship.recipientId === session.$id;
-                            const directMessagePrivacy = peerNotificationSettings?.directMessagePrivacy ?? "everyone";
+                                friendship?.status === "pending" &&
+                                friendship.recipientId === session.$id;
+                            const directMessagePrivacy =
+                                peerNotificationSettings?.directMessagePrivacy ??
+                                "everyone";
                             const canSendDirectMessage =
                                 !blockStatus.blockedByMe &&
                                 !blockStatus.blockedMe &&
-                                (directMessagePrivacy === "everyone" || isFriend);
+                                (directMessagePrivacy === "everyone" ||
+                                    isFriend);
 
                             relationship = {
                                 userId: otherUserId,
@@ -1213,18 +1300,27 @@ export async function GET(request: NextRequest) {
                                 directMessagePrivacy,
                                 canSendDirectMessage,
                                 canReceiveFriendRequest:
-                                    !isFriend && !outgoingRequest && !incomingRequest &&
-                                    !blockStatus.blockedByMe && !blockStatus.blockedMe,
+                                    !isFriend &&
+                                    !outgoingRequest &&
+                                    !incomingRequest &&
+                                    !blockStatus.blockedByMe &&
+                                    !blockStatus.blockedMe,
                             };
 
-                            dmEncryptionSelfEnabled = Boolean(selfNotificationSettings?.dmEncryptionEnabled);
-                            dmEncryptionPeerEnabled = Boolean(peerNotificationSettings?.dmEncryptionEnabled);
+                            dmEncryptionSelfEnabled = Boolean(
+                                selfNotificationSettings?.dmEncryptionEnabled,
+                            );
+                            dmEncryptionPeerEnabled = Boolean(
+                                peerNotificationSettings?.dmEncryptionEnabled,
+                            );
                             dmEncryptionPeerPublicKey =
-                                typeof peerProfile?.dmEncryptionPublicKey === "string"
+                                typeof peerProfile?.dmEncryptionPublicKey ===
+                                "string"
                                     ? peerProfile.dmEncryptionPublicKey
                                     : undefined;
                             dmEncryptionMutualEnabled =
-                                dmEncryptionSelfEnabled && dmEncryptionPeerEnabled;
+                                dmEncryptionSelfEnabled &&
+                                dmEncryptionPeerEnabled;
 
                             readOnly = !relationship.canSendDirectMessage;
                             readOnlyReason = getReadOnlyReason(relationship);
@@ -1250,23 +1346,28 @@ export async function GET(request: NextRequest) {
             }
 
             const last = items.at(-1);
-            return jsonResponse({
-                items,
-                nextCursor: items.length === limit && last ? last.$id : null,
-                readOnly,
-                readOnlyReason,
-                relationship,
-                dmEncryptionMutualEnabled,
-                dmEncryptionPeerEnabled,
-                dmEncryptionPeerPublicKey,
-                dmEncryptionSelfEnabled,
-            }, request);
+            return jsonResponse(
+                {
+                    items,
+                    nextCursor:
+                        items.length === limit && last ? last.$id : null,
+                    readOnly,
+                    readOnlyReason,
+                    relationship,
+                    dmEncryptionMutualEnabled,
+                    dmEncryptionPeerEnabled,
+                    dmEncryptionPeerPublicKey,
+                    dmEncryptionSelfEnabled,
+                },
+                request,
+            );
         }
 
         return jsonResponse(
             { error: "Invalid type parameter" },
             { status: 400 },
-         request);
+            request,
+        );
     } catch (error) {
         recordError(error instanceof Error ? error : new Error(String(error)), {
             context: "GET /api/direct-messages",
@@ -1286,7 +1387,8 @@ export async function GET(request: NextRequest) {
                         : "Internal server error",
             },
             { status: 500 },
-         request);
+            request,
+        );
     }
 }
 
@@ -1300,7 +1402,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         const session = await getServerSession();
         if (!session?.$id) {
             logger.warn("Unauthorized DM send attempt");
@@ -1334,7 +1435,8 @@ export async function POST(request: NextRequest) {
                 return jsonResponse(
                     { error: "Conversations not configured" },
                     { status: 500 },
-                 request);
+                    request,
+                );
             }
 
             const participantIds = Array.isArray(body.participants)
@@ -1349,7 +1451,8 @@ export async function POST(request: NextRequest) {
                 return jsonResponse(
                     { error: SYSTEM_ANNOUNCEMENT_READ_ONLY_REASON },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             if (participantIds.length < 3) {
@@ -1358,7 +1461,8 @@ export async function POST(request: NextRequest) {
                         error: "Group conversations require at least 3 participants",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             const relationshipMap = await getRelationshipMap(
@@ -1385,7 +1489,8 @@ export async function POST(request: NextRequest) {
                         unavailableParticipants,
                     },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
 
             const sortedParticipants = [...participantIds].sort();
@@ -1424,16 +1529,15 @@ export async function POST(request: NextRequest) {
                         isGroup: true,
                         name: newConversation.name as string | undefined,
                         avatarUrl: newConversation.avatarUrl as
-                            | string
-                            | undefined,
+                            string | undefined,
                         createdBy: newConversation.createdBy as
-                            | string
-                            | undefined,
+                            string | undefined,
                         participantCount: sortedParticipants.length,
                     },
                 },
                 { status: 201 },
-             request);
+                request,
+            );
         }
 
         const {
@@ -1453,14 +1557,14 @@ export async function POST(request: NextRequest) {
             encryptionSenderPublicKey,
         } = body;
 
-        const normalizedAttachmentsResult = normalizeFileAttachmentsInput(
-            attachments,
-        );
+        const normalizedAttachmentsResult =
+            normalizeFileAttachmentsInput(attachments);
         if (!normalizedAttachmentsResult.ok) {
             return jsonResponse(
                 { error: normalizedAttachmentsResult.error },
                 { status: 400 },
-             request);
+                request,
+            );
         }
         const normalizedAttachments = normalizedAttachmentsResult.attachments;
 
@@ -1511,7 +1615,8 @@ export async function POST(request: NextRequest) {
             return jsonResponse(
                 { error: "Missing required fields" },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (text && text.length > MAX_MESSAGE_LENGTH) {
@@ -1521,7 +1626,8 @@ export async function POST(request: NextRequest) {
                     maxLength: MAX_MESSAGE_LENGTH,
                 },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (
@@ -1533,7 +1639,8 @@ export async function POST(request: NextRequest) {
             return jsonResponse(
                 { error: "Encrypted message metadata is incomplete" },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (isEncrypted === true && !hasEncryptedText) {
@@ -1542,7 +1649,8 @@ export async function POST(request: NextRequest) {
                     error: "Encrypted messages must include encryptedText and encryption metadata",
                 },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         // Validate sender is the authenticated user — never trust client-provided senderId downstream
@@ -1550,14 +1658,16 @@ export async function POST(request: NextRequest) {
             return jsonResponse(
                 { error: "Cannot send message as another user" },
                 { status: 403 },
-             request);
+                request,
+            );
         }
 
         if (!DIRECT_MESSAGES_COLLECTION || !CONVERSATIONS_COLLECTION) {
             return jsonResponse(
                 { error: "Direct messages not configured" },
                 { status: 500 },
-             request);
+                request,
+            );
         }
 
         const { databases } = getServerClient();
@@ -1598,12 +1708,14 @@ export async function POST(request: NextRequest) {
         }
 
         if (
-            isSystemAnnouncementThread || includesSystemSenderParticipant(participants)
+            isSystemAnnouncementThread ||
+            includesSystemSenderParticipant(participants)
         ) {
             return jsonResponse(
                 { error: SYSTEM_ANNOUNCEMENT_READ_ONLY_REASON },
                 { status: 403 },
-             request);
+                request,
+            );
         }
 
         const targetReceiverId = isGroupConversation
@@ -1620,7 +1732,8 @@ export async function POST(request: NextRequest) {
             return jsonResponse(
                 { error: "receiverId is required for direct messages" },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (!isGroupConversation && targetReceiverId) {
@@ -1637,7 +1750,8 @@ export async function POST(request: NextRequest) {
                         relationship,
                     },
                     { status: 403 },
-                 request);
+                    request,
+                );
             }
         }
 
@@ -1647,7 +1761,9 @@ export async function POST(request: NextRequest) {
             !hasEncryptedText;
         const hasImageContent = Boolean(imageFileId) || Boolean(imageUrl);
         const hasAnyContent =
-            hasPlaintextText || hasImageContent || normalizedAttachments.length > 0;
+            hasPlaintextText ||
+            hasImageContent ||
+            normalizedAttachments.length > 0;
 
         // Hoist shared fetches: both the plaintext-guard (hasAnyContent) and the
         // encrypted-text validation need these four values.  Run them once when
@@ -1657,55 +1773,54 @@ export async function POST(request: NextRequest) {
         let senderProfile: Awaited<ReturnType<typeof getUserProfile>> = null;
         let receiverProfile: Awaited<ReturnType<typeof getUserProfile>> = null;
 
-        if (!isGroupConversation && targetReceiverId && (hasAnyContent || hasEncryptedText)) {
+        if (
+            !isGroupConversation &&
+            targetReceiverId &&
+            (hasAnyContent || hasEncryptedText)
+        ) {
             // Profiles carry the encryption preference now; the notification
             // settings read happens only for accounts that predate the column.
-            [senderProfile, receiverProfile] =
-                await Promise.all([
-                    getUserProfile(senderId).catch((error) => {
-                        logger.warn(
-                            "Failed to load sender profile for DM encryption",
-                            {
-                                conversationId,
-                                error:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
-                                senderId,
-                                targetReceiverId,
-                            },
-                        );
-                        return null;
-                    }),
-                    getUserProfile(targetReceiverId).catch((error) => {
-                        logger.warn(
-                            "Failed to load receiver profile for DM encryption",
-                            {
-                                conversationId,
-                                error:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
-                                senderId,
-                                targetReceiverId,
-                            },
-                        );
-                        return null;
-                    }),
-                ]);
+            [senderProfile, receiverProfile] = await Promise.all([
+                getUserProfile(senderId).catch((error) => {
+                    logger.warn(
+                        "Failed to load sender profile for DM encryption",
+                        {
+                            conversationId,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                            senderId,
+                            targetReceiverId,
+                        },
+                    );
+                    return null;
+                }),
+                getUserProfile(targetReceiverId).catch((error) => {
+                    logger.warn(
+                        "Failed to load receiver profile for DM encryption",
+                        {
+                            conversationId,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                            senderId,
+                            targetReceiverId,
+                        },
+                    );
+                    return null;
+                }),
+            ]);
 
             [senderEncryptionEnabled, receiverEncryptionEnabled] =
                 await Promise.all([
                     readDmEncryptionEnabled(senderId, senderProfile),
-                    readDmEncryptionEnabled(
-                        targetReceiverId,
-                        receiverProfile,
-                    ),
+                    readDmEncryptionEnabled(targetReceiverId, receiverProfile),
                 ]);
         }
 
         if (!isGroupConversation && targetReceiverId && hasAnyContent) {
-
             const senderProfilePublicKey =
                 typeof senderProfile?.dmEncryptionPublicKey === "string"
                     ? senderProfile.dmEncryptionPublicKey.trim()
@@ -1721,14 +1836,18 @@ export async function POST(request: NextRequest) {
                 senderProfilePublicKey.length > 0 &&
                 receiverProfilePublicKey.length > 0;
 
-            if (requiresEncryptedText && hasPlaintextText && !hasEncryptedText) {
+            if (
+                requiresEncryptedText &&
+                hasPlaintextText &&
+                !hasEncryptedText
+            ) {
                 return jsonResponse(
                     {
-                        error:
-                            "Encrypted text is required for this conversation because DM encryption is enabled for both participants",
+                        error: "Encrypted text is required for this conversation because DM encryption is enabled for both participants",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
         }
 
@@ -1736,24 +1855,21 @@ export async function POST(request: NextRequest) {
             if (isGroupConversation || !targetReceiverId) {
                 return jsonResponse(
                     {
-                        error:
-                            "Encrypted messages are only supported for one-to-one DMs",
+                        error: "Encrypted messages are only supported for one-to-one DMs",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
-            if (
-                !senderEncryptionEnabled ||
-                !receiverEncryptionEnabled
-            ) {
+            if (!senderEncryptionEnabled || !receiverEncryptionEnabled) {
                 return jsonResponse(
                     {
-                        error:
-                            "Both participants must enable DM encryption before sending encrypted messages",
+                        error: "Both participants must enable DM encryption before sending encrypted messages",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             const senderProfilePublicKey =
@@ -1767,11 +1883,11 @@ export async function POST(request: NextRequest) {
             ) {
                 return jsonResponse(
                     {
-                        error:
-                            "encryptionSenderPublicKey must match the sender profile public key",
+                        error: "encryptionSenderPublicKey must match the sender profile public key",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
 
             const receiverProfilePublicKey =
@@ -1782,11 +1898,11 @@ export async function POST(request: NextRequest) {
             if (!receiverProfilePublicKey) {
                 return jsonResponse(
                     {
-                        error:
-                            "Recipient must have a published dmEncryptionPublicKey before accepting encrypted messages",
+                        error: "Recipient must have a published dmEncryptionPublicKey before accepting encrypted messages",
                     },
                     { status: 400 },
-                 request);
+                    request,
+                );
             }
         }
 
@@ -1799,7 +1915,7 @@ export async function POST(request: NextRequest) {
         const messageData: Record<string, unknown> = {
             conversationId,
             senderId,
-            text: parsedPoll ? "" : hasEncryptedText ? "" : (text || ""),
+            text: parsedPoll ? "" : hasEncryptedText ? "" : text || "",
         };
 
         if (hasEncryptedText) {
@@ -1929,7 +2045,9 @@ export async function POST(request: NextRequest) {
                 const attachmentErrorWithIds = attachmentError as Error & {
                     createdIds?: string[];
                 };
-                const createdIds = Array.isArray(attachmentErrorWithIds.createdIds)
+                const createdIds = Array.isArray(
+                    attachmentErrorWithIds.createdIds,
+                )
                     ? attachmentErrorWithIds.createdIds
                     : [];
 
@@ -1941,13 +2059,16 @@ export async function POST(request: NextRequest) {
                             createdId,
                         );
                     } catch (cleanupError) {
-                        logger.warn("Failed to roll back DM attachment after attachment error", {
-                            attachmentId: createdId,
-                            error:
-                                cleanupError instanceof Error
-                                    ? cleanupError.message
-                                    : String(cleanupError),
-                        });
+                        logger.warn(
+                            "Failed to roll back DM attachment after attachment error",
+                            {
+                                attachmentId: createdId,
+                                error:
+                                    cleanupError instanceof Error
+                                        ? cleanupError.message
+                                        : String(cleanupError),
+                            },
+                        );
                     }
                 }
 
@@ -1959,13 +2080,16 @@ export async function POST(request: NextRequest) {
                         String(message.$id),
                     );
                 } catch (rollbackError) {
-                    logger.warn("Failed to roll back DM after attachment error", {
-                        messageId: String(message.$id),
-                        error:
-                            rollbackError instanceof Error
-                                ? rollbackError.message
-                                : String(rollbackError),
-                    });
+                    logger.warn(
+                        "Failed to roll back DM after attachment error",
+                        {
+                            messageId: String(message.$id),
+                            error:
+                                rollbackError instanceof Error
+                                    ? rollbackError.message
+                                    : String(rollbackError),
+                        },
+                    );
                 }
 
                 throw attachmentError;
@@ -1986,8 +2110,7 @@ export async function POST(request: NextRequest) {
                     parentMessageId:
                         replyToId ??
                         ((message as Record<string, unknown>).replyToId as
-                            | string
-                            | undefined),
+                            string | undefined),
                     previewText: text || "",
                 });
             } catch (mentionError) {
@@ -2049,16 +2172,25 @@ export async function POST(request: NextRequest) {
         // For one-on-one DMs, the recipient is the participant who isn't the sender
         const pushTargetId = isGroupConversation
             ? undefined
-            : (body.receiverId ?? participants.find((id) => id !== senderId) ?? receiverId);
+            : (body.receiverId ??
+              participants.find((id) => id !== senderId) ??
+              receiverId);
         if (pushTargetId && pushTargetId !== senderId) {
             // Fetch sender display name for the notification title
-            const senderProfile = await getUserProfile(senderId).catch(() => null);
+            const senderProfile = await getUserProfile(senderId).catch(
+                () => null,
+            );
             const senderName = senderProfile?.displayName || "New message";
-            void dispatchPushNotification(pushTargetId, senderName, text || "Sent you a message", {
-                type: "dm",
-                conversationId,
-                messageId: String(message.$id),
-            }).catch((err) => logger.warn("Push dispatch failed:", err));
+            void dispatchPushNotification(
+                pushTargetId,
+                senderName,
+                text || "Sent you a message",
+                {
+                    type: "dm",
+                    conversationId,
+                    messageId: String(message.$id),
+                },
+            ).catch((err) => logger.warn("Push dispatch failed:", err));
         }
 
         // Track DM sent event
@@ -2141,7 +2273,8 @@ export async function POST(request: NextRequest) {
                         : "Internal server error",
             },
             { status: 500 },
-         request);
+            request,
+        );
     }
 }
 
@@ -2167,14 +2300,19 @@ export async function PATCH(request: NextRequest) {
             return jsonResponse(
                 { error: "Message ID is required" },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         const body = (await request.json()) as { text: string };
         const { text } = body;
 
         if (!text?.trim()) {
-            return jsonResponse({ error: "Text is required" }, { status: 400 }, request);
+            return jsonResponse(
+                { error: "Text is required" },
+                { status: 400 },
+                request,
+            );
         }
 
         if (text.length > MAX_MESSAGE_LENGTH) {
@@ -2184,14 +2322,16 @@ export async function PATCH(request: NextRequest) {
                     maxLength: MAX_MESSAGE_LENGTH,
                 },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (!DIRECT_MESSAGES_COLLECTION) {
             return jsonResponse(
                 { error: "Direct messages not configured" },
                 { status: 500 },
-             request);
+                request,
+            );
         }
 
         const { databases } = getServerClient();
@@ -2208,17 +2348,18 @@ export async function PATCH(request: NextRequest) {
             return jsonResponse(
                 { error: "You can only edit your own messages" },
                 { status: 403 },
-             request);
+                request,
+            );
         }
 
         if ((message as Record<string, unknown>).isEncrypted) {
             return jsonResponse(
                 {
-                    error:
-                        "Encrypted direct messages cannot be edited after send",
+                    error: "Encrypted direct messages cannot be edited after send",
                 },
                 { status: 409 },
-             request);
+                request,
+            );
         }
 
         const updated = await databases.updateDocument(
@@ -2239,17 +2380,20 @@ export async function PATCH(request: NextRequest) {
             totalQueryTimeMs: Date.now() - startTime,
         });
 
-        return jsonResponse({
-            message: {
-                $id: updated.$id,
-                conversationId: updated.conversationId,
-                senderId: updated.senderId,
-                receiverId: updated.receiverId,
-                text: updated.text,
-                $createdAt: updated.$createdAt,
-                editedAt: updated.editedAt,
+        return jsonResponse(
+            {
+                message: {
+                    $id: updated.$id,
+                    conversationId: updated.conversationId,
+                    senderId: updated.senderId,
+                    receiverId: updated.receiverId,
+                    text: updated.text,
+                    $createdAt: updated.$createdAt,
+                    editedAt: updated.editedAt,
+                },
             },
-        }, request);
+            request,
+        );
     } catch (error) {
         logger.error("PATCH /api/direct-messages error", {
             error: error instanceof Error ? error.message : String(error),
@@ -2262,7 +2406,8 @@ export async function PATCH(request: NextRequest) {
                         : "Internal server error",
             },
             { status: 500 },
-         request);
+            request,
+        );
     }
 }
 
@@ -2286,14 +2431,16 @@ export async function DELETE(request: NextRequest) {
             return jsonResponse(
                 { error: "Message ID is required" },
                 { status: 400 },
-             request);
+                request,
+            );
         }
 
         if (!DIRECT_MESSAGES_COLLECTION) {
             return jsonResponse(
                 { error: "Direct messages not configured" },
                 { status: 500 },
-             request);
+                request,
+            );
         }
 
         const { databases } = getServerClient();
@@ -2310,7 +2457,8 @@ export async function DELETE(request: NextRequest) {
             return jsonResponse(
                 { error: "You can only delete your own messages" },
                 { status: 403 },
-             request);
+                request,
+            );
         }
 
         await databases.updateDocument(
@@ -2344,6 +2492,7 @@ export async function DELETE(request: NextRequest) {
                         : "Internal server error",
             },
             { status: 500 },
-         request);
+            request,
+        );
     }
 }

@@ -175,9 +175,7 @@ export function useInbox(userId: string | null) {
                     inboxChannel,
                     (response) => {
                         const payload = response.payload as
-                            | Record<string, unknown>
-                            | null
-                            | undefined;
+                            Record<string, unknown> | null | undefined;
                         if (
                             payload &&
                             payload.userId !== undefined &&
@@ -194,7 +192,10 @@ export function useInbox(userId: string | null) {
                                 });
                             } catch (error) {
                                 logger.warn("Failed to refresh inbox query", {
-                                    error: error instanceof Error ? error.message : String(error),
+                                    error:
+                                        error instanceof Error
+                                            ? error.message
+                                            : String(error),
                                 });
                             }
                         })();
@@ -216,25 +217,40 @@ export function useInbox(userId: string | null) {
                     closeSubscriptionSafely(subscription).catch((error) => {
                         logger.warn(
                             "Failed to close inbox realtime subscription",
-                            { error: error instanceof Error ? error.message : String(error) },
+                            {
+                                error:
+                                    error instanceof Error
+                                        ? error.message
+                                        : String(error),
+                            },
                         );
                     });
                 };
             } catch (error) {
                 if (subscription) {
-                    await closeSubscriptionSafely(subscription).catch((closeError) => {
-                        logger.warn(
-                            "Failed to close inbox realtime subscription after subscribe error",
-                            { error: closeError instanceof Error ? closeError.message : String(closeError) },
-                        );
-                    });
+                    await closeSubscriptionSafely(subscription).catch(
+                        (closeError) => {
+                            logger.warn(
+                                "Failed to close inbox realtime subscription after subscribe error",
+                                {
+                                    error:
+                                        closeError instanceof Error
+                                            ? closeError.message
+                                            : String(closeError),
+                                },
+                            );
+                        },
+                    );
                 }
 
                 if (isTransientRealtimeSubscribeError(error)) {
                     logger.warn(
                         "Inbox realtime subscription interrupted during connection setup",
                         {
-                            error: error instanceof Error ? error.message : String(error),
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
                             inboxChannelKey,
                             userId,
                         },
@@ -273,13 +289,16 @@ export function useInbox(userId: string | null) {
     ]);
 
     const contextSummaries = useMemo(() => {
-        const grouped = data.items.reduce((acc: Map<string, InboxItem[]>, item) => {
-            const key = createContextKey(item);
-            const existing = acc.get(key) ?? [];
-            existing.push(item);
-            acc.set(key, existing);
-            return acc;
-        }, new Map<string, InboxItem[]>());
+        const grouped = data.items.reduce(
+            (acc: Map<string, InboxItem[]>, item) => {
+                const key = createContextKey(item);
+                const existing = acc.get(key) ?? [];
+                existing.push(item);
+                acc.set(key, existing);
+                return acc;
+            },
+            new Map<string, InboxItem[]>(),
+        );
 
         return Array.from(grouped.values()).map((items) => {
             const sortedAscending = sortByActivityAsc(items);

@@ -141,9 +141,9 @@ describe("request origin", () => {
                 url: "https://app.example.com/api/session",
                 headers: { origin: "https://app.example.com" },
             });
-            expect(
-                isSameOrigin(request, "https://app.example.com/"),
-            ).toBe(true);
+            expect(isSameOrigin(request, "https://app.example.com/")).toBe(
+                true,
+            );
         });
     });
 });

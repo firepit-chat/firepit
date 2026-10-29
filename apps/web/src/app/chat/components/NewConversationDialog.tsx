@@ -201,36 +201,41 @@ export function NewConversationDialog({
         (isGroup && groupName.trim().length === 0);
 
     // Search for users as user types
-    const searchUsers = useCallback(async (query: string) => {
-        setSearching(true);
-        setError(null);
+    const searchUsers = useCallback(
+        async (query: string) => {
+            setSearching(true);
+            setError(null);
 
-        try {
-            const response = await fetch(
-                `/api/users/search?q=${encodeURIComponent(query)}`,
-            );
+            try {
+                const response = await fetch(
+                    `/api/users/search?q=${encodeURIComponent(query)}`,
+                );
 
-            if (!response.ok) {
-                throw new Error("Failed to search users");
+                if (!response.ok) {
+                    throw new Error("Failed to search users");
+                }
+
+                const data = await response.json();
+
+                // Filter out current user from results
+                const filteredUsers = data.users.filter(
+                    (user: UserSearchResult) => user.userId !== currentUserId,
+                );
+
+                setSearchResults(filteredUsers);
+            } catch (err) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to search users",
+                );
+                setSearchResults([]);
+            } finally {
+                setSearching(false);
             }
-
-            const data = await response.json();
-
-            // Filter out current user from results
-            const filteredUsers = data.users.filter(
-                (user: UserSearchResult) => user.userId !== currentUserId,
-            );
-
-            setSearchResults(filteredUsers);
-        } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Failed to search users",
-            );
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
-    }, [currentUserId]);
+        },
+        [currentUserId],
+    );
 
     useEffect(() => {
         if (!open) {

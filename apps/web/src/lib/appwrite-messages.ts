@@ -126,7 +126,8 @@ async function enrichMessagesWithAttachments(
                 continue;
             }
 
-            const messageAttachments = attachmentsByMessageId.get(messageId) ?? [];
+            const messageAttachments =
+                attachmentsByMessageId.get(messageId) ?? [];
             messageAttachments.push(attachment);
             attachmentsByMessageId.set(messageId, messageAttachments);
         }

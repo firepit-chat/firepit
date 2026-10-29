@@ -15,15 +15,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    fetchAdminAuditLogs,
-    type AdminAuditLogEntry,
-} from "@/lib/firepit";
+import { fetchAdminAuditLogs, type AdminAuditLogEntry } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function actionTone(action?: string): "neutral" | "success" | "warning" | "danger" {
+function actionTone(
+    action?: string,
+): "neutral" | "success" | "warning" | "danger" {
     if (!action) return "neutral";
     const a = action.toLowerCase();
     if (a.includes("ban") && !a.includes("unban")) return "danger";
@@ -44,11 +43,9 @@ function formatTimestamp(timestamp?: string) {
 
 // Hoisted: an inline renderItem lands in the list cell's props and defeats
 // its PureComponent, re-rendering every visible row on any parent render.
-const renderInstanceAuditEntry = ({
-    item,
-}: {
-    item: AdminAuditLogEntry;
-}) => <InstanceAuditEntryCard entry={item} />;
+const renderInstanceAuditEntry = ({ item }: { item: AdminAuditLogEntry }) => (
+    <InstanceAuditEntryCard entry={item} />
+);
 
 export default function InstanceAuditLogScreen() {
     const theme = useTheme();
@@ -114,7 +111,10 @@ export default function InstanceAuditLogScreen() {
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Instance audit log
@@ -122,7 +122,10 @@ export default function InstanceAuditLogScreen() {
                             <ThemedText type="title">
                                 Instance-wide events
                             </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
                                 Every privileged action across all servers, in
                                 chronological order.
                             </ThemedText>
@@ -157,13 +160,18 @@ export default function InstanceAuditLogScreen() {
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold">Refresh</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Refresh
+                                </ThemedText>
                             </Pressable>
                         </View>
 
                         {loadError ? (
                             <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText themeColor="destructive">
                                     {loadError}
@@ -196,7 +204,7 @@ export default function InstanceAuditLogScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                            style={[
+                                    style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -229,11 +237,7 @@ export default function InstanceAuditLogScreen() {
     );
 }
 
-function InstanceAuditEntryCard({
-    entry,
-}: {
-    entry: AdminAuditLogEntry;
-}) {
+function InstanceAuditEntryCard({ entry }: { entry: AdminAuditLogEntry }) {
     const theme = useTheme();
     const tone = actionTone(entry.action);
 
@@ -243,10 +247,7 @@ function InstanceAuditEntryCard({
                 style={[styles.entryCard, { borderColor: theme.border }]}
             >
                 <View style={styles.entryHeader}>
-                    <StatusPill
-                        label={entry.action ?? "unknown"}
-                        tone={tone}
-                    />
+                    <StatusPill label={entry.action ?? "unknown"} tone={tone} />
                     <ThemedText type="code" themeColor="mutedForeground">
                         {formatTimestamp(entry.timestamp)}
                     </ThemedText>

@@ -78,7 +78,10 @@ async function listAllServerDocuments(serverId: string, collectionId: string) {
         maxDocs: MAX_DOCS,
     });
 
-    return { documents: documents as Array<Record<string, unknown>>, truncated };
+    return {
+        documents: documents as Array<Record<string, unknown>>,
+        truncated,
+    };
 }
 
 /**
@@ -116,10 +119,7 @@ export async function listServerMembers(
     const membershipUserIds = memberships.map((membership) =>
         String(membership.userId),
     );
-    const memberIdChunks = chunkValues(
-        membershipUserIds,
-        QUERY_ARRAY_LIMIT,
-    );
+    const memberIdChunks = chunkValues(membershipUserIds, QUERY_ARRAY_LIMIT);
 
     const [moderationChunkPages, profilePages] = await Promise.all([
         Promise.all(
@@ -173,15 +173,16 @@ export async function listServerMembers(
 
     const roleMap = new Map<string, string[]>();
     for (const assignment of roleAssignments) {
-        roleMap.set(String(assignment.userId), (assignment.roleIds as string[]) || []);
+        roleMap.set(
+            String(assignment.userId),
+            (assignment.roleIds as string[]) || [],
+        );
     }
 
     const profilesByUserId = new Map(
-        (
-            profilePages.flatMap(
-                (page) => page.documents as Array<Record<string, unknown>>,
-            )
-        ).map((profile) => [String(profile.userId), profile]),
+        profilePages
+            .flatMap((page) => page.documents as Array<Record<string, unknown>>)
+            .map((profile) => [String(profile.userId), profile]),
     );
 
     // Frames are stored as a preset id. Resolve which ids actually have a
@@ -192,7 +193,9 @@ export async function listServerMembers(
         const preset = profile.avatarFramePreset;
         presetIdByUserId.set(
             userId,
-            typeof preset === "string" && preset.length > 0 ? preset : undefined,
+            typeof preset === "string" && preset.length > 0
+                ? preset
+                : undefined,
         );
     }
     const requestedFramePresetIds = [
@@ -242,9 +245,7 @@ export async function listServerMembers(
             continue;
         }
 
-        const frame = frameByPresetId.get(
-            presetIdByUserId.get(userId) ?? "",
-        );
+        const frame = frameByPresetId.get(presetIdByUserId.get(userId) ?? "");
         const roleIds = roleMap.get(userId) ?? [];
         // Pick the member's highest-ranked role, not the first one listed in
         // their assignment: roleIds order is not meaningful, `position` is.

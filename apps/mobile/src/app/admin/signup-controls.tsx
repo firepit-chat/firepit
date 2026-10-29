@@ -58,7 +58,9 @@ export default function SignupControlsScreen() {
     const { instanceUrl, accessToken } = useFirepitBootstrap();
     const [policy, setPolicy] = useState<SignupPolicy | null>(null);
     const [pending, setPending] = useState<PendingSignup[]>([]);
-    const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+    const [loadState, setLoadState] = useState<
+        "idle" | "loading" | "ready" | "error"
+    >("idle");
     const [loadError, setLoadError] = useState<string | null>(null);
     const [savingPolicy, setSavingPolicy] = useState(false);
     const [actingId, setActingId] = useState<string | null>(null);
@@ -75,7 +77,9 @@ export default function SignupControlsScreen() {
         } catch (error) {
             setLoadState("error");
             setLoadError(
-                error instanceof Error ? error.message : "Unable to load signup controls",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load signup controls",
             );
         }
     }, [accessToken, instanceUrl]);
@@ -90,7 +94,9 @@ export default function SignupControlsScreen() {
                 setPolicy(value);
             } catch (error) {
                 setLoadError(
-                    error instanceof Error ? error.message : "Unable to update signup policy",
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to update signup policy",
                 );
             } finally {
                 setSavingPolicy(false);
@@ -106,7 +112,9 @@ export default function SignupControlsScreen() {
             setLoadError(null);
             try {
                 await actOnSignup(instanceUrl, accessToken, userId, action);
-                setPending((prev) => prev.filter((entry) => entry.userId !== userId));
+                setPending((prev) =>
+                    prev.filter((entry) => entry.userId !== userId),
+                );
             } catch (error) {
                 setLoadError(
                     error instanceof Error
@@ -129,7 +137,10 @@ export default function SignupControlsScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     <ScrollView
                         style={{ width: "100%" }}
                         contentContainerStyle={styles.scrollContent}
@@ -142,28 +153,49 @@ export default function SignupControlsScreen() {
                                     onPress={() => router.back()}
                                     style={styles.headerButton}
                                 >
-                                    <ThemedText type="smallBold">Back</ThemedText>
+                                    <ThemedText type="smallBold">
+                                        Back
+                                    </ThemedText>
                                 </Pressable>
-                                <ThemedText type="smallBold">Signup controls</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Signup controls
+                                </ThemedText>
                                 <View style={styles.headerButton} />
                             </View>
 
                             <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
-                                <ThemedText type="smallBold">Signup policy</ThemedText>
-                                <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                    Control how new accounts are accepted on this instance.
+                                <ThemedText type="smallBold">
+                                    Signup policy
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    Control how new accounts are accepted on
+                                    this instance.
                                 </ThemedText>
                                 <View style={styles.policyRow}>
                                     {POLICY_OPTIONS.map((option) => {
-                                        const selected = policy === option.value;
+                                        const selected =
+                                            policy === option.value;
                                         return (
                                             <Pressable
                                                 key={option.value}
                                                 accessibilityRole="button"
-                                                disabled={savingPolicy || loadState !== "ready"}
-                                                onPress={() => void handlePolicyChange(option.value)}
+                                                disabled={
+                                                    savingPolicy ||
+                                                    loadState !== "ready"
+                                                }
+                                                onPress={() =>
+                                                    void handlePolicyChange(
+                                                        option.value,
+                                                    )
+                                                }
                                                 style={({ pressed }) => [
                                                     styles.policyOption,
                                                     {
@@ -179,18 +211,29 @@ export default function SignupControlsScreen() {
                                                             : pressed
                                                               ? theme.mutedForeground
                                                               : theme.border,
-                                                        borderWidth: selected || pressed ? 2 : 1,
-                                                        backgroundColor: selected
-                                                            ? theme.secondary
-                                                            : theme.card,
-                                                        opacity: pressed || savingPolicy ? 0.7 : 1,
+                                                        borderWidth:
+                                                            selected || pressed
+                                                                ? 2
+                                                                : 1,
+                                                        backgroundColor:
+                                                            selected
+                                                                ? theme.secondary
+                                                                : theme.card,
+                                                        opacity:
+                                                            pressed ||
+                                                            savingPolicy
+                                                                ? 0.7
+                                                                : 1,
                                                     },
                                                 ]}
                                             >
                                                 <ThemedText type="smallBold">
                                                     {option.label}
                                                 </ThemedText>
-                                                <ThemedText themeColor="mutedForeground" style={styles.policyDesc}>
+                                                <ThemedText
+                                                    themeColor="mutedForeground"
+                                                    style={styles.policyDesc}
+                                                >
                                                     {option.desc}
                                                 </ThemedText>
                                             </Pressable>
@@ -200,43 +243,74 @@ export default function SignupControlsScreen() {
                             </ThemedView>
 
                             <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText type="smallBold">
                                     Pending approvals
                                 </ThemedText>
-                                <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
                                     Accounts waiting to be let in.
                                 </ThemedText>
 
                                 {loadState === "loading" ? (
                                     <View style={styles.loadingRow}>
-                                        <ActivityIndicator color={theme.primary} />
+                                        <ActivityIndicator
+                                            color={theme.primary}
+                                        />
                                         <ThemedText themeColor="mutedForeground">
                                             Loading pending signups…
                                         </ThemedText>
                                     </View>
                                 ) : null}
 
-                                {loadState === "ready" && pending.length === 0 ? (
-                                    <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
+                                {loadState === "ready" &&
+                                pending.length === 0 ? (
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.emptyText}
+                                    >
                                         No pending signups.
                                     </ThemedText>
                                 ) : null}
 
                                 {pending.map((entry) => {
-                                    const isActing = actingId === `approve:${entry.userId}` || actingId === `reject:${entry.userId}`;
+                                    const isActing =
+                                        actingId ===
+                                            `approve:${entry.userId}` ||
+                                        actingId === `reject:${entry.userId}`;
                                     return (
-                                        <View key={entry.userId} style={styles.pendingRow}>
+                                        <View
+                                            key={entry.userId}
+                                            style={styles.pendingRow}
+                                        >
                                             <View style={styles.pendingCopy}>
-                                                <ThemedText type="smallBold" numberOfLines={1}>
-                                                    {entry.name || "Unnamed user"}
+                                                <ThemedText
+                                                    type="smallBold"
+                                                    numberOfLines={1}
+                                                >
+                                                    {entry.name ||
+                                                        "Unnamed user"}
                                                 </ThemedText>
-                                                <ThemedText themeColor="mutedForeground" style={styles.pendingMeta}>
+                                                <ThemedText
+                                                    themeColor="mutedForeground"
+                                                    style={styles.pendingMeta}
+                                                >
                                                     {entry.email}
                                                 </ThemedText>
-                                                <ThemedText themeColor="mutedForeground" style={styles.pendingMeta}>
-                                                    Requested {formatTime(entry.createdAt)}
+                                                <ThemedText
+                                                    themeColor="mutedForeground"
+                                                    style={styles.pendingMeta}
+                                                >
+                                                    Requested{" "}
+                                                    {formatTime(
+                                                        entry.createdAt,
+                                                    )}
                                                 </ThemedText>
                                             </View>
                                             <View style={styles.pendingActions}>
@@ -244,36 +318,61 @@ export default function SignupControlsScreen() {
                                                     accessibilityRole="button"
                                                     disabled={isActing}
                                                     onPress={() => {
-                                                        if (entry.userId) void handleAction(entry.userId, "approve");
+                                                        if (entry.userId)
+                                                            void handleAction(
+                                                                entry.userId,
+                                                                "approve",
+                                                            );
                                                     }}
                                                     style={({ pressed }) => ({
-                                                        backgroundColor: theme.secondary,
+                                                        backgroundColor:
+                                                            theme.secondary,
                                                         borderRadius: 999,
-                                                        paddingHorizontal: Spacing.two,
-                                                        paddingVertical: Spacing.one,
-                                                        opacity: pressed || isActing ? 0.6 : 1,
+                                                        paddingHorizontal:
+                                                            Spacing.two,
+                                                        paddingVertical:
+                                                            Spacing.one,
+                                                        opacity:
+                                                            pressed || isActing
+                                                                ? 0.6
+                                                                : 1,
                                                     })}
                                                 >
                                                     <ThemedText type="smallBold">
-                                                        {isActing ? "…" : "Approve"}
+                                                        {isActing
+                                                            ? "…"
+                                                            : "Approve"}
                                                     </ThemedText>
                                                 </Pressable>
                                                 <Pressable
                                                     accessibilityRole="button"
                                                     disabled={isActing}
                                                     onPress={() => {
-                                                        if (entry.userId) void handleAction(entry.userId, "reject");
+                                                        if (entry.userId)
+                                                            void handleAction(
+                                                                entry.userId,
+                                                                "reject",
+                                                            );
                                                     }}
                                                     style={({ pressed }) => ({
-                                                        borderColor: theme.border,
+                                                        borderColor:
+                                                            theme.border,
                                                         borderWidth: 1,
                                                         borderRadius: 999,
-                                                        paddingHorizontal: Spacing.two,
-                                                        paddingVertical: Spacing.one,
-                                                        opacity: pressed || isActing ? 0.6 : 1,
+                                                        paddingHorizontal:
+                                                            Spacing.two,
+                                                        paddingVertical:
+                                                            Spacing.one,
+                                                        opacity:
+                                                            pressed || isActing
+                                                                ? 0.6
+                                                                : 1,
                                                     })}
                                                 >
-                                                    <ThemedText type="smallBold" themeColor="destructive">
+                                                    <ThemedText
+                                                        type="smallBold"
+                                                        themeColor="destructive"
+                                                    >
                                                         Reject
                                                     </ThemedText>
                                                 </Pressable>
@@ -283,7 +382,10 @@ export default function SignupControlsScreen() {
                                 })}
 
                                 {loadError ? (
-                                    <ThemedText themeColor="destructive" style={styles.errorText}>
+                                    <ThemedText
+                                        themeColor="destructive"
+                                        style={styles.errorText}
+                                    >
                                         {loadError}
                                     </ThemedText>
                                 ) : null}

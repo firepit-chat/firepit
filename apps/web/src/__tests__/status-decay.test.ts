@@ -12,8 +12,7 @@ function statusAt(
     ageMs: number,
 ): string {
     const lastSeenAt = new Date(NOW - ageMs).toISOString();
-    return normalizeStatus({ lastSeenAt, ...overrides }, NOW).normalized
-        .status;
+    return normalizeStatus({ lastSeenAt, ...overrides }, NOW).normalized.status;
 }
 
 const FRESH = 0;
@@ -67,7 +66,10 @@ describe("status decay", () => {
 
     it("reports idle and stale separately", () => {
         const idle = normalizeStatus(
-            { status: "online", lastSeenAt: new Date(NOW - IDLE).toISOString() },
+            {
+                status: "online",
+                lastSeenAt: new Date(NOW - IDLE).toISOString(),
+            },
             NOW,
         );
         expect(idle.isIdle).toBe(true);

@@ -5,7 +5,10 @@ import { Users } from "lucide-react";
 
 import { Avatar } from "@/components/ui/avatar";
 import { StatusIndicator } from "@/components/status-indicator";
-import { useViewerMembers, type ViewerMember } from "@/hooks/use-viewer-members";
+import {
+    useViewerMembers,
+    type ViewerMember,
+} from "@/hooks/use-viewer-members";
 import { useStatusSubscription } from "@/app/chat/hooks/useStatusSubscription";
 import { partitionByPresence } from "@/lib/presence";
 import type { UserStatus } from "@/lib/types";
@@ -152,8 +155,9 @@ export function ChatMembersContent({
 
     const { online, offline } = useMemo(
         () =>
-            partitionByPresence(members, (member) =>
-                statuses.get(member.userId)?.status,
+            partitionByPresence(
+                members,
+                (member) => statuses.get(member.userId)?.status,
             ),
         [members, statuses],
     );

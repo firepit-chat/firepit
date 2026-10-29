@@ -486,7 +486,9 @@ export async function upsertThreadReads(params: {
             const merged = await mergeIntoExistingThreadReadDocument({
                 ...params,
                 concurrentDocuments: [
-                    mapThreadReadDocument(existingDocument as unknown as Record<string, unknown>),
+                    mapThreadReadDocument(
+                        existingDocument as unknown as Record<string, unknown>,
+                    ),
                 ],
                 incomingReads,
             });

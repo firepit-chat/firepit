@@ -4,8 +4,7 @@ import { Query, ID } from "node-appwrite";
 import { recordAudit } from "@/lib/appwrite-audit";
 import { getServerSession } from "@/lib/auth-server";
 import { getUserRoles } from "@/lib/appwrite-roles";
-import { logger,
-} from "@/lib/posthog-utils";
+import { logger } from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { listPages } from "@/lib/appwrite-pagination";

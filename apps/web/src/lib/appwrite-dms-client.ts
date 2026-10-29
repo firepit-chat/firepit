@@ -247,7 +247,10 @@ export async function createGroupConversation(
     });
 
     if (!response.ok) {
-        throw await readResponseError(response, "Failed to create conversation");
+        throw await readResponseError(
+            response,
+            "Failed to create conversation",
+        );
     }
 
     const data = await response.json();

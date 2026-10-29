@@ -49,7 +49,11 @@ function getMeta(log: AuditLogDocument) {
     if (typeof raw === "string") {
         try {
             const parsed = JSON.parse(raw) as unknown;
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            if (
+                parsed &&
+                typeof parsed === "object" &&
+                !Array.isArray(parsed)
+            ) {
                 return parsed as Record<string, unknown>;
             }
         } catch {
@@ -158,11 +162,9 @@ export async function fetchAuditLogs(params: {
         );
         const profileResults = await Promise.all(
             profileChunks.map((userIdChunk) =>
-                databases.listDocuments(
-                    databaseId,
-                    profilesCollectionId,
-                    [Query.equal("userId", userIdChunk)],
-                ),
+                databases.listDocuments(databaseId, profilesCollectionId, [
+                    Query.equal("userId", userIdChunk),
+                ]),
             ),
         );
 
@@ -181,12 +183,8 @@ export async function fetchAuditLogs(params: {
         const meta = getMeta(log);
         const moderatorId = getModeratorId(log);
         const targetUserId = getTargetUserId(log);
-        const moderatorProfile = moderatorId
-            ? profiles.get(moderatorId)
-            : null;
-        const targetProfile = targetUserId
-            ? profiles.get(targetUserId)
-            : null;
+        const moderatorProfile = moderatorId ? profiles.get(moderatorId) : null;
+        const targetProfile = targetUserId ? profiles.get(targetUserId) : null;
 
         return {
             $id: log.$id,

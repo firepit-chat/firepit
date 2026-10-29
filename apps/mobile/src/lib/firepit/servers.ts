@@ -219,7 +219,11 @@ export async function fetchServerCategories(
     });
 }
 
-export async function fetchServerRoles(baseUrl: string, token: string, serverId: string) {
+export async function fetchServerRoles(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
     return firepitRequest<RoleListResponse>({
         baseUrl,
         path: "/api/roles",
@@ -382,7 +386,11 @@ export async function resolveReport(
     });
 }
 
-export async function fetchServerStats(baseUrl: string, token: string, serverId: string) {
+export async function fetchServerStats(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
     return firepitRequest<ServerStatsResponse>({
         baseUrl,
         path: `/api/servers/${encodeURIComponent(serverId)}/stats`,

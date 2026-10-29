@@ -178,7 +178,9 @@ async function fetchEmojisFromServer(): Promise<CustomEmoji[]> {
 let warnedMissingEmojiBucket = false;
 
 function warnMissingEmojiBucket(): void {
-    if (warnedMissingEmojiBucket) {return;}
+    if (warnedMissingEmojiBucket) {
+        return;
+    }
     warnedMissingEmojiBucket = true;
     logger.warn(
         "NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID is not set; custom emoji realtime updates are disabled",
@@ -205,7 +207,8 @@ export function useCustomEmojis() {
 
         let cancelled = false;
         let unsubscribe: (() => void) | undefined;
-        const subscriptionRef: { current?: { close: () => Promise<void> } } = {};
+        const subscriptionRef: { current?: { close: () => Promise<void> } } =
+            {};
 
         // Dynamically import realtime pool to avoid SSR issues
         import("@/lib/realtime-pool")

@@ -216,8 +216,7 @@ export async function PATCH(request: Request) {
             if (!hasPublishedPublicKey) {
                 return NextResponse.json(
                     {
-                        error:
-                            "dmEncryptionEnabled requires a published dmEncryptionPublicKey",
+                        error: "dmEncryptionEnabled requires a published dmEncryptionPublicKey",
                     },
                     { status: 400 },
                 );
@@ -332,7 +331,8 @@ export async function PATCH(request: Request) {
         }
 
         // Build update data
-        const updateData: Record<string, unknown> = {};        if (body.globalNotifications !== undefined) {
+        const updateData: Record<string, unknown> = {};
+        if (body.globalNotifications !== undefined) {
             updateData.globalNotifications = body.globalNotifications;
         }
         if (body.directMessagePrivacy !== undefined) {

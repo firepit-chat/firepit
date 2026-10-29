@@ -54,7 +54,11 @@ export function AccentProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo(() => ({ accent, setAccent }), [accent, setAccent]);
 
-    return <AccentContext.Provider value={value}>{children}</AccentContext.Provider>;
+    return (
+        <AccentContext.Provider value={value}>
+            {children}
+        </AccentContext.Provider>
+    );
 }
 
 export function useAccent(): AccentContextValue {

@@ -3,14 +3,13 @@ import { connection, NextResponse } from "next/server";
 
 import { AuthError, requireAuth } from "@/lib/auth-server";
 import { getBuiltinStickerPacks } from "@/lib/gif-sticker";
-import {  trackApiCall } from "@/lib/posthog-utils";
+import { trackApiCall } from "@/lib/posthog-utils";
 
 export async function GET(request: NextRequest) {
     await connection();
     const startTime = Date.now();
 
     try {
-
         await requireAuth();
 
         const packFilter = request.nextUrl.searchParams.get("packId")?.trim();
@@ -20,19 +19,13 @@ export async function GET(request: NextRequest) {
             ? packs.filter((pack) => pack.id === packFilter)
             : packs;
 
-        trackApiCall(
-            "/api/stickers",
-            "GET",
-            200,
-            Date.now() - startTime,
-            {
-                packCount: filteredPacks.length,
-                itemCount: filteredPacks.reduce(
-                    (count, pack) => count + pack.items.length,
-                    0,
-                ),
-            },
-        );
+        trackApiCall("/api/stickers", "GET", 200, Date.now() - startTime, {
+            packCount: filteredPacks.length,
+            itemCount: filteredPacks.reduce(
+                (count, pack) => count + pack.items.length,
+                0,
+            ),
+        });
 
         return NextResponse.json({ packs: filteredPacks });
     } catch (error) {

@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
 import {
@@ -31,6 +31,11 @@ function isValidTimestamp(value: unknown): value is string {
 }
 
 export async function GET(request: Request) {
+    // Before the session lookup: with cacheComponents, `next build` prerenders
+    // this handler, the private-cache session lookup rejects at prerender time,
+    // and the surrounding try/catch would turn that into a 500. See
+    // src/__tests__/api-routes/static-get-prerender.test.ts.
+    await connection();
     try {
         const user = await getServerSession();
         if (!user?.$id) {

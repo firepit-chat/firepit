@@ -19,7 +19,12 @@ export default function AppTabs() {
             <NativeTabs.Trigger name="home">
                 <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    src={<NativeTabs.Trigger.VectorIcon family={Octicons} name="home" />}
+                    src={
+                        <NativeTabs.Trigger.VectorIcon
+                            family={Octicons}
+                            name="home"
+                        />
+                    }
                     renderingMode="template"
                 />
             </NativeTabs.Trigger>
@@ -27,7 +32,12 @@ export default function AppTabs() {
             <NativeTabs.Trigger name="inbox">
                 <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="mail-outline" />}
+                    src={
+                        <NativeTabs.Trigger.VectorIcon
+                            family={Ionicons}
+                            name="mail-outline"
+                        />
+                    }
                     renderingMode="template"
                 />
             </NativeTabs.Trigger>
@@ -35,7 +45,12 @@ export default function AppTabs() {
             <NativeTabs.Trigger name="chat">
                 <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="chatbubble-outline" />}
+                    src={
+                        <NativeTabs.Trigger.VectorIcon
+                            family={Ionicons}
+                            name="chatbubble-outline"
+                        />
+                    }
                     renderingMode="template"
                 />
             </NativeTabs.Trigger>
@@ -43,7 +58,12 @@ export default function AppTabs() {
             <NativeTabs.Trigger name="admin">
                 <NativeTabs.Trigger.Label>Admin</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    src={<NativeTabs.Trigger.VectorIcon family={Octicons} name="shield-lock" />}
+                    src={
+                        <NativeTabs.Trigger.VectorIcon
+                            family={Octicons}
+                            name="shield-lock"
+                        />
+                    }
                     renderingMode="template"
                 />
             </NativeTabs.Trigger>
@@ -51,7 +71,12 @@ export default function AppTabs() {
             <NativeTabs.Trigger name="settings">
                 <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
                 <NativeTabs.Trigger.Icon
-                    src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="settings-outline" />}
+                    src={
+                        <NativeTabs.Trigger.VectorIcon
+                            family={Ionicons}
+                            name="settings-outline"
+                        />
+                    }
                     renderingMode="template"
                 />
             </NativeTabs.Trigger>

@@ -70,8 +70,11 @@ export function getRequestOrigins(request: Request): string[] {
         ?.trim();
     const hostHeader = request.headers.get("host")?.trim();
 
-    const hosts = [forwardedHost, hostHeader, fromUrl ? new URL(fromUrl).host : ""]
-        .filter((value): value is string => Boolean(value));
+    const hosts = [
+        forwardedHost,
+        hostHeader,
+        fromUrl ? new URL(fromUrl).host : "",
+    ].filter((value): value is string => Boolean(value));
 
     // Schemes to try. `https` is included even when nothing says so: the
     // failure being fixed is a TLS-terminating proxy that forwards the public
@@ -83,8 +86,9 @@ export function getRequestOrigins(request: Request): string[] {
         fromUrl ? new URL(fromUrl).protocol.replace(/:$/, "") : "",
         "https",
         "http",
-    ].filter((value, index, all): value is string =>
-        Boolean(value) && all.indexOf(value) === index,
+    ].filter(
+        (value, index, all): value is string =>
+            Boolean(value) && all.indexOf(value) === index,
     );
 
     for (const scheme of schemes) {
@@ -116,9 +120,7 @@ export function isSameOrigin(request: Request, originHeader: string): boolean {
  * cannot be CSRF victims. This matches the behaviour the routes had before
  * this was centralised.
  */
-export function ensureAllowedRequestOrigin(
-    request?: Request,
-): string | null {
+export function ensureAllowedRequestOrigin(request?: Request): string | null {
     if (!request) {
         return null;
     }

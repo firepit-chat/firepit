@@ -14,11 +14,7 @@ import {
 import { getRelationshipMap } from "@/lib/appwrite-friendships";
 import type { Message, DirectMessage } from "@/lib/types";
 import { getAvatarUrl, resolveProfileUserId } from "@/lib/appwrite-profiles";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 
 type SearchResult = {
     type: "channel" | "dm";
@@ -104,7 +100,8 @@ async function getAccessibleChannelIds(
             // ponytail: caps the channel-message constraint at 100 channels
             // (Appwrite Query.equal array limit). If users can read more, OR
             // across paginated equality queries.
-            const remaining = MAX_ACCESSIBLE_CHANNELS - accessibleChannelIds.length;
+            const remaining =
+                MAX_ACCESSIBLE_CHANNELS - accessibleChannelIds.length;
             if (remaining <= 0) {
                 return accessibleChannelIds;
             }
@@ -221,7 +218,6 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -385,45 +381,48 @@ export async function GET(request: NextRequest) {
         // Run channel and DM searches in parallel
         const [channelResult, dmResult] = await Promise.all([
             canSearchChannels
-                ? databases.listDocuments(
-                      env.databaseId,
-                      env.collections.messages,
-                      messageQueries,
-                  ).catch((error) => {
-                      logger.error("Failed to search channel messages", {
-                          error:
-                              error instanceof Error
-                                  ? error.message
-                                  : String(error),
-                      });
-                      return null;
-                  })
+                ? databases
+                      .listDocuments(
+                          env.databaseId,
+                          env.collections.messages,
+                          messageQueries,
+                      )
+                      .catch((error) => {
+                          logger.error("Failed to search channel messages", {
+                              error:
+                                  error instanceof Error
+                                      ? error.message
+                                      : String(error),
+                          });
+                          return null;
+                      })
                 : Promise.resolve(null),
             dmQueries
-                ? databases.listDocuments(
-                      env.databaseId,
-                      env.collections.directMessages,
-                      dmQueries,
-                  ).catch((error) => {
-                      logger.error("Failed to search direct messages", {
-                          error:
-                              error instanceof Error ? error.message : String(error),
-                      });
-                      return null;
-                  })
+                ? databases
+                      .listDocuments(
+                          env.databaseId,
+                          env.collections.directMessages,
+                          dmQueries,
+                      )
+                      .catch((error) => {
+                          logger.error("Failed to search direct messages", {
+                              error:
+                                  error instanceof Error
+                                      ? error.message
+                                      : String(error),
+                          });
+                          return null;
+                      })
                 : Promise.resolve(null),
         ]);
 
         const searchElapsedMs = Date.now() - startTime;
 
         if (channelResult) {
-            trackApiCall(
-                "/api/search/messages",
-                "GET",
-                200,
-                searchElapsedMs,
-                { operation: "listDocuments", collection: "messages" },
-            );
+            trackApiCall("/api/search/messages", "GET", 200, searchElapsedMs, {
+                operation: "listDocuments",
+                collection: "messages",
+            });
 
             for (const doc of channelResult.documents) {
                 const message: Message = {
@@ -467,16 +466,10 @@ export async function GET(request: NextRequest) {
         }
 
         if (dmResult) {
-            trackApiCall(
-                "/api/search/messages",
-                "GET",
-                200,
-                searchElapsedMs,
-                {
-                    operation: "listDocuments",
-                    collection: "directMessages",
-                },
-            );
+            trackApiCall("/api/search/messages", "GET", 200, searchElapsedMs, {
+                operation: "listDocuments",
+                collection: "directMessages",
+            });
 
             for (const doc of dmResult.documents) {
                 const message: DirectMessage = {
@@ -486,9 +479,7 @@ export async function GET(request: NextRequest) {
                     receiverId: String(doc.receiverId),
                     text: String(doc.text),
                     $createdAt: String(doc.$createdAt ?? ""),
-                    editedAt: doc.editedAt
-                        ? String(doc.editedAt)
-                        : undefined,
+                    editedAt: doc.editedAt ? String(doc.editedAt) : undefined,
                     removedAt: doc.removedAt
                         ? String(doc.removedAt)
                         : undefined,
@@ -498,9 +489,7 @@ export async function GET(request: NextRequest) {
                     imageFileId: doc.imageFileId
                         ? String(doc.imageFileId)
                         : undefined,
-                    imageUrl: doc.imageUrl
-                        ? String(doc.imageUrl)
-                        : undefined,
+                    imageUrl: doc.imageUrl ? String(doc.imageUrl) : undefined,
                     replyToId: doc.replyToId
                         ? String(doc.replyToId)
                         : undefined,

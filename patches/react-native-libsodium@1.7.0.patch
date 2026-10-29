@@ -1,0 +1,120 @@
+diff --git a/cpp/react-native-libsodium.cpp b/cpp/react-native-libsodium.cpp
+index a97e74b23936377c8279bf99defe4389d8e0ff8e..87a73815aec686110a3d6841e49ec9e8c55c167c 100644
+--- a/cpp/react-native-libsodium.cpp
++++ b/cpp/react-native-libsodium.cpp
+@@ -195,6 +195,8 @@ namespace ReactNativeLibsodium
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_box_SECRETKEYBYTES", static_cast<int>(crypto_box_SECRETKEYBYTES));
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_box_NONCEBYTES", static_cast<int>(crypto_box_NONCEBYTES));
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_box_SEEDBYTES", static_cast<int>(crypto_box_SEEDBYTES));
++        jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_scalarmult_BYTES", static_cast<int>(crypto_scalarmult_BYTES));
++        jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_scalarmult_SCALARBYTES", static_cast<int>(crypto_scalarmult_SCALARBYTES));
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_aead_xchacha20poly1305_ietf_KEYBYTES", static_cast<int>(crypto_aead_xchacha20poly1305_ietf_KEYBYTES));
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_aead_xchacha20poly1305_ietf_NPUBBYTES", static_cast<int>(crypto_aead_xchacha20poly1305_ietf_NPUBBYTES));
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_kdf_KEYBYTES", static_cast<int>(crypto_kdf_KEYBYTES));
+@@ -503,6 +505,47 @@ namespace ReactNativeLibsodium
+ 
+         jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_box_seed_keypair", std::move(jsi_crypto_box_seed_keypair));
+ 
++        auto jsi_crypto_scalarmult = jsi::Function::createFromHostFunction(
++            jsiRuntime,
++            jsi::PropNameID::forUtf8(jsiRuntime, "jsi_crypto_scalarmult"),
++            2,
++            [](jsi::Runtime &runtime, const jsi::Value &thisValue, const jsi::Value *arguments, size_t count) -> jsi::Value
++            {
++                const std::string functionName = "crypto_scalarmult";
++
++                std::string nArgumentName = "n";
++                unsigned int nArgumentPosition = 0;
++                validateIsArrayBuffer(functionName, runtime, arguments[nArgumentPosition], nArgumentName, true);
++
++                std::string pArgumentName = "p";
++                unsigned int pArgumentPosition = 1;
++                validateIsArrayBuffer(functionName, runtime, arguments[pArgumentPosition], pArgumentName, true);
++
++                auto nArrayBuffer = arguments[nArgumentPosition].asObject(runtime).getArrayBuffer(runtime);
++                if (nArrayBuffer.length(runtime) != crypto_scalarmult_SCALARBYTES)
++                {
++                    throw jsi::JSError(runtime, "invalid scalar length");
++                }
++
++                auto pArrayBuffer = arguments[pArgumentPosition].asObject(runtime).getArrayBuffer(runtime);
++                if (pArrayBuffer.length(runtime) != crypto_scalarmult_BYTES)
++                {
++                    throw jsi::JSError(runtime, "invalid point length");
++                }
++
++                std::vector<uint8_t> sharedSecret(crypto_scalarmult_BYTES);
++                int result = crypto_scalarmult(
++                    sharedSecret.data(),
++                    nArrayBuffer.data(runtime),
++                    pArrayBuffer.data(runtime));
++
++                // Returns -1 when the point is not a valid curve25519 point.
++                throwOnBadResult(functionName, runtime, result);
++                return arrayBufferAsObject(runtime, sharedSecret);
++            });
++
++        jsiRuntime.global().setProperty(jsiRuntime, "jsi_crypto_scalarmult", std::move(jsi_crypto_scalarmult));
++
+         auto jsi_crypto_sign_keypair = jsi::Function::createFromHostFunction(
+             jsiRuntime,
+             jsi::PropNameID::forUtf8(jsiRuntime, "crypto_sign_keypair"),
+diff --git a/src/lib.native.ts b/src/lib.native.ts
+index bfa7ea8ba73ed71b544b5c6de90296e4b9055321..828abafaa50e00c90095c51fcd0134105ee15665 100644
+--- a/src/lib.native.ts
++++ b/src/lib.native.ts
+@@ -42,6 +42,8 @@ declare global {
+   var jsi_crypto_box_SECRETKEYBYTES: number;
+   var jsi_crypto_box_NONCEBYTES: number;
+   var jsi_crypto_box_SEEDBYTES: number;
++  var jsi_crypto_scalarmult_BYTES: number;
++  var jsi_crypto_scalarmult_SCALARBYTES: number;
+   var jsi_crypto_aead_xchacha20poly1305_ietf_KEYBYTES: number;
+   var jsi_crypto_aead_xchacha20poly1305_ietf_NPUBBYTES: number;
+   var jsi_crypto_kdf_KEYBYTES: number;
+@@ -96,6 +98,7 @@ declare global {
+     publicKey: ArrayBuffer;
+     secretKey: ArrayBuffer;
+   };
++  function jsi_crypto_scalarmult(n: ArrayBuffer, p: ArrayBuffer): ArrayBuffer;
+   function jsi_crypto_sign_keypair(): {
+     publicKey: ArrayBuffer;
+     secretKey: ArrayBuffer;
+@@ -204,6 +207,9 @@ export const crypto_box_PUBLICKEYBYTES = global.jsi_crypto_box_PUBLICKEYBYTES;
+ export const crypto_box_SECRETKEYBYTES = global.jsi_crypto_box_SECRETKEYBYTES;
+ export const crypto_box_NONCEBYTES = global.jsi_crypto_box_NONCEBYTES;
+ export const crypto_box_SEEDBYTES = global.jsi_crypto_box_SEEDBYTES;
++export const crypto_scalarmult_BYTES = global.jsi_crypto_scalarmult_BYTES;
++export const crypto_scalarmult_SCALARBYTES =
++  global.jsi_crypto_scalarmult_SCALARBYTES;
+ export const crypto_aead_xchacha20poly1305_ietf_KEYBYTES =
+   global.jsi_crypto_aead_xchacha20poly1305_ietf_KEYBYTES;
+ export const crypto_aead_xchacha20poly1305_ietf_NPUBBYTES =
+@@ -394,6 +400,27 @@ export function crypto_box_seed_keypair(
+   };
+ }
+ 
++export function crypto_scalarmult(
++  n: Uint8Array,
++  p: Uint8Array,
++  outputFormat?: Uint8ArrayOutputFormat | null
++): Uint8Array;
++export function crypto_scalarmult(
++  n: Uint8Array,
++  p: Uint8Array,
++  outputFormat: StringOutputFormat
++): string;
++export function crypto_scalarmult(
++  n: Uint8Array,
++  p: Uint8Array,
++  outputFormat: OutputFormat = 'uint8array'
++): unknown {
++  return convertToOutputFormat(
++    global.jsi_crypto_scalarmult(toArrayBuffer(n), toArrayBuffer(p)),
++    outputFormat
++  );
++}
++
+ export function crypto_sign_keypair(
+   outputFormat?: Uint8ArrayOutputFormat | null
+ ): KeyPair;

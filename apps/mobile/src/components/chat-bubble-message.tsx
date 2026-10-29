@@ -17,8 +17,8 @@ import {
     type FileAttachment,
 } from "@/components/file-attachment-display";
 import {
-  NO_CUSTOM_EMOJIS,
-  type CustomEmoji,
+    NO_CUSTOM_EMOJIS,
+    type CustomEmoji,
 } from "@/components/emoji-renderer";
 
 export type Reaction = {
@@ -80,6 +80,15 @@ export type ChatBubbleMessageProps = {
     onShowEmojiPicker?: () => void;
     onVotePoll?: (optionId: string) => void | Promise<void>;
     onClosePoll?: () => void | Promise<void>;
+    /**
+     * Not read by this component. The action callbacks above are built inline by
+     * the message screens and capture the current session token, so when that
+     * token rotates the memo has to re-render the bubble or it keeps handing the
+     * revoked token to the network layer. Compared here rather than comparing
+     * every callback, because the callbacks are fresh arrows on every parent
+     * render and comparing them would defeat the memo entirely.
+     */
+    authToken?: string | null;
 };
 
 const TIME_FORMAT = new Intl.DateTimeFormat([], {
@@ -146,6 +155,7 @@ function ChatBubbleMessageInner({
     onShowEmojiPicker,
     onVotePoll,
     onClosePoll,
+    authToken: _authToken,
 }: ChatBubbleMessageProps) {
     const theme = useTheme();
     const [showActions, setShowActions] = useState(false);
@@ -323,32 +333,15 @@ function ChatBubbleMessageInner({
                             {displayName}
                         </Text>
                         {authorPronouns ? (
-                            <Text
-                                style={[
-                                    styles.meta,
-                                    metaStyle,
-                                ]}
-                            >
+                            <Text style={[styles.meta, metaStyle]}>
                                 ({authorPronouns})
                             </Text>
                         ) : null}
                         {ts ? (
-                            <Text
-                                style={[
-                                    styles.meta,
-                                    metaStyle,
-                                ]}
-                            >
-                                {ts}
-                            </Text>
+                            <Text style={[styles.meta, metaStyle]}>{ts}</Text>
                         ) : null}
                         {editedAt ? (
-                            <Text
-                                style={[
-                                    styles.meta,
-                                    metaStyle,
-                                ]}
-                            >
+                            <Text style={[styles.meta, metaStyle]}>
                                 (edited)
                             </Text>
                         ) : null}
@@ -379,7 +372,12 @@ function ChatBubbleMessageInner({
                         <View
                             style={[
                                 styles.replyPreview,
-                                { backgroundColor: withAlpha(theme.muted, 0.27) },
+                                {
+                                    backgroundColor: withAlpha(
+                                        theme.muted,
+                                        0.27,
+                                    ),
+                                },
                             ]}
                         >
                             <Text
@@ -468,7 +466,9 @@ function ChatBubbleMessageInner({
                         count in its own row underneath, a message that had both
                         read as though the reactions had displaced it. */}
                     {(reactions && reactions.length > 0) ||
-                    (typeof threadReplyCount === "number" && threadReplyCount > 0 && onOpenThread) ? (
+                    (typeof threadReplyCount === "number" &&
+                        threadReplyCount > 0 &&
+                        onOpenThread) ? (
                         <View style={styles.reactionsRow}>
                             {reactions?.map((reaction) => (
                                 <ReactionButton
@@ -478,7 +478,9 @@ function ChatBubbleMessageInner({
                                     onToggle={handleToggleReaction}
                                 />
                             ))}
-                            {typeof threadReplyCount === "number" && threadReplyCount > 0 && onOpenThread ? (
+                            {typeof threadReplyCount === "number" &&
+                            threadReplyCount > 0 &&
+                            onOpenThread ? (
                                 <Pressable
                                     onPress={handleOpenThread}
                                     accessibilityRole="button"
@@ -488,7 +490,10 @@ function ChatBubbleMessageInner({
                                         { backgroundColor: theme.accentSoft },
                                     ]}
                                 >
-                                    <MessageSquare size={12} color={theme.primary} />
+                                    <MessageSquare
+                                        size={12}
+                                        color={theme.primary}
+                                    />
                                     <Text
                                         style={[
                                             styles.threadText,
@@ -499,7 +504,9 @@ function ChatBubbleMessageInner({
                                         ]}
                                     >
                                         {threadReplyCount}{" "}
-                                        {threadReplyCount === 1 ? "reply" : "replies"}
+                                        {threadReplyCount === 1
+                                            ? "reply"
+                                            : "replies"}
                                     </Text>
                                 </Pressable>
                             ) : null}
@@ -706,21 +713,21 @@ const styles = StyleSheet.create({
 });
 
 function sameReactions(
-  a: readonly Reaction[] | undefined,
-  b: readonly Reaction[] | undefined,
+    a: readonly Reaction[] | undefined,
+    b: readonly Reaction[] | undefined,
 ): boolean {
-  if (a === b) return true;
-  if (!a || !b || a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (
-      a[i].emoji !== b[i].emoji ||
-      a[i].count !== b[i].count ||
-      Boolean(a[i].reactedByMe) !== Boolean(b[i].reactedByMe)
-    ) {
-      return false;
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (
+            a[i].emoji !== b[i].emoji ||
+            a[i].count !== b[i].count ||
+            Boolean(a[i].reactedByMe) !== Boolean(b[i].reactedByMe)
+        ) {
+            return false;
+        }
     }
-  }
-  return true;
+    return true;
 }
 
 export const ChatBubbleMessage = React.memo(
@@ -771,6 +778,7 @@ export const ChatBubbleMessage = React.memo(
         // taps did nothing. Call sites pass this one from useCallback, so the
         // identity is stable and the memo still skips renders.
         if (prev.onOpenImageViewer !== next.onOpenImageViewer) return false;
+        if (prev.authToken !== next.authToken) return false;
         return true;
     },
 );

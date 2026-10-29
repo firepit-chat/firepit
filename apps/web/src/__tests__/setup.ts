@@ -77,7 +77,8 @@ if (process.env.VITEST || process.env.VITEST_WORKER_ID) {
             or: (...queries: string[]) => `or(${queries.join(",")})`,
             isNull: (field: string) => `isNull(${field})`,
             isNotNull: (field: string) => `isNotNull(${field})`,
-            search: (field: string, value: string) => `search(${field},${value})`,
+            search: (field: string, value: string) =>
+                `search(${field},${value})`,
             contains: (field: string, value: string | string[]) =>
                 `contains(${field},${JSON.stringify(Array.isArray(value) ? value : [value])})`,
         },
@@ -114,21 +115,21 @@ if (process.env.VITEST || process.env.VITEST_WORKER_ID) {
                 toString: () => "files",
             }),
         },
-            Realtime: vi.fn().mockImplementation(function () {
-                return {
-                    activeSubscriptions: new Map(),
-                    closeSocket: vi.fn().mockResolvedValue(undefined),
-                    reconnect: false,
-                    subscribe: vi.fn().mockResolvedValue({
-                        close: vi.fn().mockResolvedValue(undefined),
-                        // Support newer subscription lifecycle methods used by refactor
-                        update: vi.fn().mockResolvedValue(undefined),
-                        disconnect: vi.fn().mockResolvedValue(undefined),
-                    }),
+        Realtime: vi.fn().mockImplementation(function () {
+            return {
+                activeSubscriptions: new Map(),
+                closeSocket: vi.fn().mockResolvedValue(undefined),
+                reconnect: false,
+                subscribe: vi.fn().mockResolvedValue({
                     close: vi.fn().mockResolvedValue(undefined),
-                    unsubscribe: vi.fn().mockResolvedValue(undefined),
-                };
-            }),
+                    // Support newer subscription lifecycle methods used by refactor
+                    update: vi.fn().mockResolvedValue(undefined),
+                    disconnect: vi.fn().mockResolvedValue(undefined),
+                }),
+                close: vi.fn().mockResolvedValue(undefined),
+                unsubscribe: vi.fn().mockResolvedValue(undefined),
+            };
+        }),
     }));
 
     // Mock next/cache to keep cacheLife() a no-op in tests (no SWC transform
@@ -160,7 +161,9 @@ if (process.env.VITEST || process.env.VITEST_WORKER_ID) {
         Databases: vi.fn(),
         TablesDB: vi.fn(function () {
             return {
-                createTransaction: vi.fn().mockResolvedValue({ $id: "mock-tx-id" }),
+                createTransaction: vi
+                    .fn()
+                    .mockResolvedValue({ $id: "mock-tx-id" }),
                 getRow: vi
                     .fn()
                     .mockResolvedValue({ $id: "mock-row", status: "pending" }),
@@ -196,7 +199,8 @@ if (process.env.VITEST || process.env.VITEST_WORKER_ID) {
             or: (...queries: string[]) => `or(${queries.join(",")})`,
             isNull: (field: string) => `isNull(${field})`,
             isNotNull: (field: string) => `isNotNull(${field})`,
-            search: (field: string, value: string) => `search(${field},${value})`,
+            search: (field: string, value: string) =>
+                `search(${field},${value})`,
             contains: (field: string, value: string | string[]) =>
                 `contains(${field},${JSON.stringify(Array.isArray(value) ? value : [value])})`,
             greaterThanEqual: (field: string, value: string | number) =>

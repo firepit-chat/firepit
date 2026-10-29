@@ -28,7 +28,11 @@ function deviceLabel(session: SessionEntry): string {
     const parts = [
         session.device,
         session.deviceModel,
-        session.os ? (session.osVersion ? `${session.os} ${session.osVersion}` : session.os) : null,
+        session.os
+            ? session.osVersion
+                ? `${session.os} ${session.osVersion}`
+                : session.os
+            : null,
         session.client,
     ].filter((part): part is string => Boolean(part));
     return parts.length > 0 ? parts[0] : "Unknown device";
@@ -37,7 +41,11 @@ function deviceLabel(session: SessionEntry): string {
 function sessionSubLabel(session: SessionEntry): string {
     const parts = [
         session.client,
-        session.os ? (session.osVersion ? `${session.os} ${session.osVersion}` : session.os) : null,
+        session.os
+            ? session.osVersion
+                ? `${session.os} ${session.osVersion}`
+                : session.os
+            : null,
     ].filter(Boolean);
     return parts.join(" · ") || "Unknown client";
 }
@@ -54,7 +62,9 @@ export default function DevicesScreen() {
     const { instanceUrl, accessToken } = useFirepitBootstrap();
 
     const [sessions, setSessions] = useState<SessionEntry[]>([]);
-    const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+    const [loadState, setLoadState] = useState<
+        "idle" | "loading" | "ready" | "error"
+    >("idle");
     const [loadError, setLoadError] = useState<string | null>(null);
     const [revokingId, setRevokingId] = useState<string | null>(null);
 
@@ -69,7 +79,9 @@ export default function DevicesScreen() {
         } catch (error) {
             setLoadState("error");
             setLoadError(
-                error instanceof Error ? error.message : "Unable to load sessions",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load sessions",
             );
         }
     }, [accessToken, instanceUrl]);
@@ -85,7 +97,9 @@ export default function DevicesScreen() {
                 );
             } catch (error) {
                 alert(
-                    error instanceof Error ? error.message : "Failed to revoke session",
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to revoke session",
                 );
             } finally {
                 setRevokingId(null);
@@ -108,7 +122,9 @@ export default function DevicesScreen() {
                         try {
                             await revokeOtherSessions(instanceUrl, accessToken);
                             setSessions((prev) =>
-                                prev.filter((session) => session.current === true),
+                                prev.filter(
+                                    (session) => session.current === true,
+                                ),
                             );
                         } catch (error) {
                             alert(
@@ -129,12 +145,17 @@ export default function DevicesScreen() {
 
     useRetryOnReconnect(loadState === "error", loadSessions);
 
-    const currentCount = sessions.filter((session) => session.current !== true).length;
+    const currentCount = sessions.filter(
+        (session) => session.current !== true,
+    ).length;
 
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     <ScrollView
                         style={{ width: "100%" }}
                         contentContainerStyle={styles.scrollContent}
@@ -147,9 +168,13 @@ export default function DevicesScreen() {
                                     onPress={() => router.back()}
                                     style={styles.headerButton}
                                 >
-                                    <ThemedText type="smallBold">Back</ThemedText>
+                                    <ThemedText type="smallBold">
+                                        Back
+                                    </ThemedText>
                                 </Pressable>
-                                <ThemedText type="smallBold">Devices</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Devices
+                                </ThemedText>
                                 <View style={styles.headerButton} />
                             </View>
 
@@ -163,11 +188,16 @@ export default function DevicesScreen() {
 
                             <ThemedView
                                 type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 {loadState === "loading" ? (
                                     <View style={styles.loadingRow}>
-                                        <ActivityIndicator color={theme.primary} />
+                                        <ActivityIndicator
+                                            color={theme.primary}
+                                        />
                                         <ThemedText themeColor="mutedForeground">
                                             Loading sessions…
                                         </ThemedText>
@@ -175,56 +205,94 @@ export default function DevicesScreen() {
                                 ) : null}
 
                                 {loadError ? (
-                                    <ThemedText themeColor="destructive" style={styles.errorText}>
+                                    <ThemedText
+                                        themeColor="destructive"
+                                        style={styles.errorText}
+                                    >
                                         {loadError}
                                     </ThemedText>
                                 ) : null}
 
-                                {loadState === "ready" && sessions.length === 0 ? (
-                                    <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
+                                {loadState === "ready" &&
+                                sessions.length === 0 ? (
+                                    <ThemedText
+                                        themeColor="mutedForeground"
+                                        style={styles.emptyText}
+                                    >
                                         No sessions found.
                                     </ThemedText>
                                 ) : null}
 
                                 {sessions.map((session) => (
-                                    <View key={session.$id} style={styles.sessionRow}>
+                                    <View
+                                        key={session.$id}
+                                        style={styles.sessionRow}
+                                    >
                                         <View style={styles.sessionCopy}>
-                                            <View style={styles.sessionTitleRow}>
-                                                <ThemedText type="smallBold" numberOfLines={1}>
+                                            <View
+                                                style={styles.sessionTitleRow}
+                                            >
+                                                <ThemedText
+                                                    type="smallBold"
+                                                    numberOfLines={1}
+                                                >
                                                     {deviceLabel(session)}
                                                 </ThemedText>
                                                 {session.current === true ? (
-                                                    <ThemedText type="code" themeColor="accent">
+                                                    <ThemedText
+                                                        type="code"
+                                                        themeColor="accent"
+                                                    >
                                                         this device
                                                     </ThemedText>
                                                 ) : null}
                                             </View>
-                                            <ThemedText themeColor="mutedForeground" style={styles.sessionMeta}>
+                                            <ThemedText
+                                                themeColor="mutedForeground"
+                                                style={styles.sessionMeta}
+                                            >
                                                 {sessionSubLabel(session)}
                                             </ThemedText>
-                                            <ThemedText themeColor="mutedForeground" style={styles.sessionMeta}>
-                                                Expires {formatTime(session.expiresAt)}
+                                            <ThemedText
+                                                themeColor="mutedForeground"
+                                                style={styles.sessionMeta}
+                                            >
+                                                Expires{" "}
+                                                {formatTime(session.expiresAt)}
                                             </ThemedText>
                                         </View>
                                         {session.current === true ? null : (
                                             <Pressable
                                                 accessibilityRole="button"
-                                                disabled={revokingId === session.$id}
+                                                disabled={
+                                                    revokingId === session.$id
+                                                }
                                                 onPress={() => {
-                                                    if (session.$id) void handleRevoke(session.$id);
+                                                    if (session.$id)
+                                                        void handleRevoke(
+                                                            session.$id,
+                                                        );
                                                 }}
                                                 style={({ pressed }) => ({
                                                     borderColor: theme.border,
                                                     borderWidth: 1,
                                                     borderRadius: 999,
-                                                    paddingHorizontal: Spacing.three,
-                                                    paddingVertical: Spacing.one,
+                                                    paddingHorizontal:
+                                                        Spacing.three,
+                                                    paddingVertical:
+                                                        Spacing.one,
                                                     opacity:
-                                                        pressed || revokingId === session.$id ? 0.5 : 1,
+                                                        pressed ||
+                                                        revokingId ===
+                                                            session.$id
+                                                            ? 0.5
+                                                            : 1,
                                                 })}
                                             >
                                                 <ThemedText type="smallBold">
-                                                    {revokingId === session.$id ? "…" : "Revoke"}
+                                                    {revokingId === session.$id
+                                                        ? "…"
+                                                        : "Revoke"}
                                                 </ThemedText>
                                             </Pressable>
                                         )}

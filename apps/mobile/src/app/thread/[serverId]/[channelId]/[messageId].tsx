@@ -22,7 +22,11 @@ import {
     fetchChannelThreadMessages,
     type TimelineMessage,
 } from "@/lib/firepit";
-import { cacheThreadReplies, getCachedThreadReplies, markAsThreadReply } from "@/lib/cache/ThreadCache";
+import {
+    cacheThreadReplies,
+    getCachedThreadReplies,
+    markAsThreadReply,
+} from "@/lib/cache/ThreadCache";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -56,7 +60,8 @@ function formatTime(createdAt?: string) {
 
 export default function ThreadScreen() {
     const theme = useTheme();
-    const { serverId, channelId, messageId } = useLocalSearchParams<RouteParams>();
+    const { serverId, channelId, messageId } =
+        useLocalSearchParams<RouteParams>();
     const { instanceUrl, accessToken, state } = useFirepitBootstrap();
     const normalizedServerId = normalizeParam(serverId);
     const normalizedChannelId = normalizeParam(channelId);
@@ -65,7 +70,9 @@ export default function ThreadScreen() {
 
     const [loadState, setLoadState] = useState<LoadState>("idle");
     const [error, setError] = useState<string | null>(null);
-    const [parentMessage, setParentMessage] = useState<TimelineMessage | null>(null);
+    const [parentMessage, setParentMessage] = useState<TimelineMessage | null>(
+        null,
+    );
     const [replies, setReplies] = useState<TimelineMessage[]>([]);
     const [draft, setDraft] = useState("");
     const [sendState, setSendState] = useState<LoadState>("idle");
@@ -86,7 +93,8 @@ export default function ThreadScreen() {
 
         try {
             // Show cached replies instantly
-            const cachedReplies = await getCachedThreadReplies(normalizedMessageId);
+            const cachedReplies =
+                await getCachedThreadReplies(normalizedMessageId);
             if (cachedReplies.length > 0) {
                 setReplies(cachedReplies);
             }
@@ -97,10 +105,13 @@ export default function ThreadScreen() {
                 normalizedMessageId,
             );
             const nextParent =
-                (response.parentMessage as TimelineMessage | null | undefined) ??
+                (response.parentMessage as
+                    TimelineMessage | null | undefined) ??
                 (response.message as TimelineMessage | null | undefined) ??
                 null;
-            const nextReplies = (response.items ?? response.replies ?? []) as TimelineMessage[];
+            const nextReplies = (response.items ??
+                response.replies ??
+                []) as TimelineMessage[];
             setParentMessage(nextParent);
             setReplies(nextReplies);
             // Cache replies and mark them as thread replies for main list filtering
@@ -144,9 +155,14 @@ export default function ThreadScreen() {
         setSendError(null);
 
         try {
-            await createChannelThreadReply(instanceUrl, accessToken, normalizedMessageId, {
-                text,
-            });
+            await createChannelThreadReply(
+                instanceUrl,
+                accessToken,
+                normalizedMessageId,
+                {
+                    text,
+                },
+            );
             setDraft("");
             setSendState("ready");
             await loadThread();
@@ -158,25 +174,42 @@ export default function ThreadScreen() {
                     : "Unable to send reply",
             );
         }
-    }, [accessToken, draft, instanceUrl, loadThread, normalizedMessageId, sendState]);
+    }, [
+        accessToken,
+        draft,
+        instanceUrl,
+        loadThread,
+        normalizedMessageId,
+        sendState,
+    ]);
 
     return (
         <AuthRouteGuard>
             <ScrollView
-                style={[styles.scrollView, { backgroundColor: theme.background }]}
+                style={[
+                    styles.scrollView,
+                    { backgroundColor: theme.background },
+                ]}
                 contentContainerStyle={styles.scrollContent}
                 keyboardShouldPersistTaps="handled"
                 automaticallyAdjustKeyboardInsets
             >
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
                             <ThemedText type="code" themeColor="accent">
                                 Thread
                             </ThemedText>
                             <ThemedText type="title">{pageTitle}</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                View the parent message and reply directly in context.
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                View the parent message and reply directly in
+                                context.
                             </ThemedText>
                             {/* The reply count is worth a pill; the route
                                 parameters it used to sit beside are database
@@ -200,32 +233,66 @@ export default function ThreadScreen() {
                             </View>
                         </ThemedView>
 
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
                             <View style={styles.sectionHeaderRow}>
-                                <ThemedText type="smallBold">Navigation</ThemedText>
-                                <Pressable accessibilityRole="button" onPress={() => router.back()}>
-                                    <ThemedText type="smallBold">Back</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Navigation
+                                </ThemedText>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    onPress={() => router.back()}
+                                >
+                                    <ThemedText type="smallBold">
+                                        Back
+                                    </ThemedText>
                                 </Pressable>
                             </View>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Return to the original channel when you are done.
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                Return to the original channel when you are
+                                done.
                             </ThemedText>
                         </ThemedView>
 
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
-                            <ThemedText type="smallBold">Parent message</ThemedText>
-                            {loadState === "loading" ? <ActivityIndicator /> : null}
-                            {error ? <ThemedText themeColor="destructive">{error}</ThemedText> : null}
-                            {!normalizedMessageId ? (
-                                <ThemedText themeColor="mutedForeground">Missing message id.</ThemedText>
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
+                            <ThemedText type="smallBold">
+                                Parent message
+                            </ThemedText>
+                            {loadState === "loading" ? (
+                                <ActivityIndicator />
                             ) : null}
-                            {parentMessage ? <ThreadMessageCard message={parentMessage} /> : null}
+                            {error ? (
+                                <ThemedText themeColor="destructive">
+                                    {error}
+                                </ThemedText>
+                            ) : null}
+                            {!normalizedMessageId ? (
+                                <ThemedText themeColor="mutedForeground">
+                                    Missing message id.
+                                </ThemedText>
+                            ) : null}
+                            {parentMessage ? (
+                                <ThreadMessageCard message={parentMessage} />
+                            ) : null}
                         </ThemedView>
 
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
                             <ThemedText type="smallBold">Replies</ThemedText>
                             {replies.length === 0 && loadState === "ready" ? (
-                                <ThemedText themeColor="mutedForeground">No replies yet.</ThemedText>
+                                <ThemedText themeColor="mutedForeground">
+                                    No replies yet.
+                                </ThemedText>
                             ) : null}
                             <View style={styles.list}>
                                 {replies.map((reply) => (
@@ -237,7 +304,10 @@ export default function ThreadScreen() {
                             </View>
                         </ThemedView>
 
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
                             <ThemedText type="smallBold">Reply</ThemedText>
                             <TextInput
                                 editable={signedIn && sendState !== "loading"}
@@ -248,10 +318,17 @@ export default function ThreadScreen() {
                                 onChangeText={setDraft}
                                 style={[
                                     styles.input,
-                                    { borderColor: theme.border, color: theme.foreground },
+                                    {
+                                        borderColor: theme.border,
+                                        color: theme.foreground,
+                                    },
                                 ]}
                             />
-                            {sendError ? <ThemedText themeColor="destructive">{sendError}</ThemedText> : null}
+                            {sendError ? (
+                                <ThemedText themeColor="destructive">
+                                    {sendError}
+                                </ThemedText>
+                            ) : null}
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={sendReply}
@@ -263,8 +340,13 @@ export default function ThreadScreen() {
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold" themeColor="primaryForeground">
-                                    {sendState === "loading" ? "Sending…" : "Send reply"}
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="primaryForeground"
+                                >
+                                    {sendState === "loading"
+                                        ? "Sending…"
+                                        : "Send reply"}
                                 </ThemedText>
                             </Pressable>
                         </ThemedView>
@@ -301,8 +383,16 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
-            <ThemedText type="code" themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
+            <ThemedText
+                type="code"
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
+            >
                 {label}
             </ThemedText>
         </ThemedView>

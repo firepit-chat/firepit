@@ -73,7 +73,9 @@ describe("appwrite-messages advanced flows", () => {
         expect(Array.isArray(created?.permissions)).toBe(true);
         // Should include user read/write and team based roles (simplistic string contains check)
         const perms = Array.isArray(created?.permissions)
-            ? created.permissions.map((permission) => String(permission)).join(" ")
+            ? created.permissions
+                  .map((permission) => String(permission))
+                  .join(" ")
             : "";
         expect(perms).toContain("user:u1");
         expect(perms).toContain("read");

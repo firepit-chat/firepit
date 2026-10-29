@@ -16,7 +16,8 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 
 export default function InviteScreen() {
     const { inviteCode } = useLocalSearchParams<{ inviteCode?: string }>();
-    const { state, instanceUrl, accessToken, currentUser } = useFirepitBootstrap();
+    const { state, instanceUrl, accessToken, currentUser } =
+        useFirepitBootstrap();
     const theme = useTheme();
     const [loadState, setLoadState] = useState<LoadState>("idle");
     const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,10 @@ export default function InviteScreen() {
         setError(null);
 
         try {
-            const response = await fetchInvitePreview(instanceUrl, normalizedInviteCode);
+            const response = await fetchInvitePreview(
+                instanceUrl,
+                normalizedInviteCode,
+            );
             if (loadTokenRef.current !== token) return;
             setInvite(response.invite ?? null);
             setServerName(response.server?.name ?? null);
@@ -83,10 +87,16 @@ export default function InviteScreen() {
         try {
             setJoining(true);
             setError(null);
-            const response = await joinInvite(instanceUrl, accessToken, normalizedInviteCode);
+            const response = await joinInvite(
+                instanceUrl,
+                accessToken,
+                normalizedInviteCode,
+            );
             const nextServerId = response.serverId ?? serverId;
             if (!nextServerId) {
-                throw new Error("Invite was redeemed, but no server id was returned.");
+                throw new Error(
+                    "Invite was redeemed, but no server id was returned.",
+                );
             }
             router.replace("/chat");
         } catch (joinError) {
@@ -121,24 +131,35 @@ export default function InviteScreen() {
             />
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.shell}>
-                    <ThemedView type="card" style={[styles.heroCard, { borderColor: theme.border }]}>
+                    <ThemedView
+                        type="card"
+                        style={[styles.heroCard, { borderColor: theme.border }]}
+                    >
                         <ThemedText type="code" themeColor="accent">
                             Invite redemption
                         </ThemedText>
                         <ThemedText type="title" style={styles.title}>
                             Join a server from an invite link.
                         </ThemedText>
-                        <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                        <ThemedText
+                            themeColor="mutedForeground"
+                            style={styles.copy}
+                        >
                             This screen previews the invite first so you can see
-                            which server you are about to join, then confirms the
-                            join with your current session.
+                            which server you are about to join, then confirms
+                            the join with your current session.
                         </ThemedText>
                     </ThemedView>
 
-                    <ThemedView type="card" style={[styles.panel, { borderColor: theme.border }]}>
+                    <ThemedView
+                        type="card"
+                        style={[styles.panel, { borderColor: theme.border }]}
+                    >
                         {!normalizedInviteCode ? (
                             <View style={styles.stateStack}>
-                                <ThemedText type="smallBold">Missing invite code.</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Missing invite code.
+                                </ThemedText>
                                 <ThemedText themeColor="mutedForeground">
                                     Open this screen with an invite code in the
                                     route path.
@@ -146,19 +167,26 @@ export default function InviteScreen() {
                             </View>
                         ) : loadState === "loading" ? (
                             <View style={styles.stateStack}>
-                                <ThemedText type="smallBold">Loading invite…</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Loading invite…
+                                </ThemedText>
                                 <ThemedText themeColor="mutedForeground">
                                     Checking the invite target and expiry.
                                 </ThemedText>
                             </View>
                         ) : loadState === "error" ? (
                             <View style={styles.stateStack}>
-                                <ThemedText type="smallBold">Invite not found.</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Invite not found.
+                                </ThemedText>
                                 <ThemedText themeColor="mutedForeground">
                                     The invite preview could not be loaded.
                                 </ThemedText>
                                 {error ? (
-                                    <ThemedText themeColor="destructive" style={styles.metaText}>
+                                    <ThemedText
+                                        themeColor="destructive"
+                                        style={styles.metaText}
+                                    >
                                         {error}
                                     </ThemedText>
                                 ) : null}
@@ -180,8 +208,12 @@ export default function InviteScreen() {
                                         Invite code: {normalizedInviteCode}
                                     </ThemedText>
                                     <ThemedText themeColor="mutedForeground">
-                                        {invite?.temporary ? "Temporary invite" : "Standard invite"}
-                                        {invite?.expiresAt ? ` · Expires ${invite.expiresAt}` : ""}
+                                        {invite?.temporary
+                                            ? "Temporary invite"
+                                            : "Standard invite"}
+                                        {invite?.expiresAt
+                                            ? ` · Expires ${invite.expiresAt}`
+                                            : ""}
                                     </ThemedText>
                                     <ThemedText themeColor="mutedForeground">
                                         {typeof invite?.currentUses === "number"
@@ -196,18 +228,22 @@ export default function InviteScreen() {
                                             Sign in to redeem.
                                         </ThemedText>
                                         <ThemedText themeColor="mutedForeground">
-                                            You need an active session before the
-                                            invite can be joined.
+                                            You need an active session before
+                                            the invite can be joined.
                                         </ThemedText>
                                         <ActionButton
                                             label="Go to login"
                                             tone="secondary"
-                                            onPress={() => router.replace("/login")}
+                                            onPress={() =>
+                                                router.replace("/login")
+                                            }
                                         />
                                     </View>
                                 ) : (
                                     <ActionButton
-                                        label={joining ? "Joining…" : "Join server"}
+                                        label={
+                                            joining ? "Joining…" : "Join server"
+                                        }
                                         disabled={joining}
                                         onPress={() => {
                                             void handleJoin();
@@ -222,7 +258,10 @@ export default function InviteScreen() {
                                 />
 
                                 {error ? (
-                                    <ThemedText themeColor="destructive" style={styles.metaText}>
+                                    <ThemedText
+                                        themeColor="destructive"
+                                        style={styles.metaText}
+                                    >
                                         {error}
                                     </ThemedText>
                                 ) : null}

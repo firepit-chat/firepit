@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockRegisterLoggerProvider, mockRegisterProcessHandlers } =
-    vi.hoisted(() => ({
+const { mockRegisterLoggerProvider, mockRegisterProcessHandlers } = vi.hoisted(
+    () => ({
         mockRegisterLoggerProvider: vi.fn(),
         mockRegisterProcessHandlers: vi.fn(),
-    }));
+    }),
+);
 
 vi.mock("@/lib/posthog-utils", () => ({
     registerPostHogLoggerProvider: mockRegisterLoggerProvider,

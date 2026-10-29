@@ -64,7 +64,9 @@ export async function readDmEncryptionEnabled(
             : await getUserProfile(userId).catch((error) => {
                   logger.warn("Failed to load profile for DM encryption flag", {
                       error:
-                          error instanceof Error ? error.message : String(error),
+                          error instanceof Error
+                              ? error.message
+                              : String(error),
                       userId,
                   });
                   return null;

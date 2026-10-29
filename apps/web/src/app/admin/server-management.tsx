@@ -91,19 +91,17 @@ export function ServerManagement({
                 (server) => server.defaultOnSignup === true,
             );
             setSelectedDefaultSignupServerId(defaultSignupServer?.$id ?? "");
-            setSelectedServerId(
-                (previousSelectedServerId) => {
-                    const hasPreviousSelection =
-                        previousSelectedServerId.length > 0 &&
-                        result.servers.some(
-                            (server) => server.$id === previousSelectedServerId,
-                        );
+            setSelectedServerId((previousSelectedServerId) => {
+                const hasPreviousSelection =
+                    previousSelectedServerId.length > 0 &&
+                    result.servers.some(
+                        (server) => server.$id === previousSelectedServerId,
+                    );
 
-                    return hasPreviousSelection
-                        ? previousSelectedServerId
-                        : (result.servers[0]?.$id ?? "");
-                },
-            );
+                return hasPreviousSelection
+                    ? previousSelectedServerId
+                    : (result.servers[0]?.$id ?? "");
+            });
         } catch (error) {
             toast.error(
                 error instanceof Error
@@ -312,7 +310,10 @@ export function ServerManagement({
                             </Label>
                             <select
                                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:font-medium file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                                disabled={isLoadingServers || isSavingDefaultSignupServer}
+                                disabled={
+                                    isLoadingServers ||
+                                    isSavingDefaultSignupServer
+                                }
                                 id="default-signup-server"
                                 value={selectedDefaultSignupServerId}
                                 onChange={(event) =>
@@ -397,7 +398,9 @@ export function ServerManagement({
 
                             {/* Server List */}
                             <div className="space-y-2 border-t pt-4">
-                                <Label>Existing Servers ({servers.length})</Label>
+                                <Label>
+                                    Existing Servers ({servers.length})
+                                </Label>
                                 {isLoadingServers ? (
                                     <p className="text-muted-foreground text-sm">
                                         Loading...
@@ -469,9 +472,9 @@ export function ServerManagement({
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {isLoadingServers && servers.length === 0 && (
-                            <p className="text-muted-foreground text-sm">
-                                Loading servers...
-                            </p>
+                                <p className="text-muted-foreground text-sm">
+                                    Loading servers...
+                                </p>
                             )}
 
                             {servers.length > 0 ? (
@@ -505,121 +508,120 @@ export function ServerManagement({
                                         </select>
                                     </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="channel-name">
-                                        Channel Name
-                                    </Label>
-                                    <Input
-                                        disabled={
-                                            isCreatingChannel ||
-                                            !selectedServerId
-                                        }
-                                        id="channel-name"
-                                        placeholder="general"
-                                        value={channelName}
-                                        onChange={(e) =>
-                                            setChannelName(e.target.value)
-                                        }
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                void handleCreateChannel();
+                                    <div className="space-y-2">
+                                        <Label htmlFor="channel-name">
+                                            Channel Name
+                                        </Label>
+                                        <Input
+                                            disabled={
+                                                isCreatingChannel ||
+                                                !selectedServerId
                                             }
-                                        }}
-                                    />
-                                </div>
+                                            id="channel-name"
+                                            placeholder="general"
+                                            value={channelName}
+                                            onChange={(e) =>
+                                                setChannelName(e.target.value)
+                                            }
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    void handleCreateChannel();
+                                                }
+                                            }}
+                                        />
+                                    </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="channel-type">
-                                        Channel Type
-                                    </Label>
-                                    <select
-                                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:font-medium file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                    <div className="space-y-2">
+                                        <Label htmlFor="channel-type">
+                                            Channel Type
+                                        </Label>
+                                        <select
+                                            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:font-medium file:text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                            disabled={
+                                                isCreatingChannel ||
+                                                !selectedServerId
+                                            }
+                                            id="channel-type"
+                                            value={channelType}
+                                            onChange={(e) =>
+                                                setChannelType(
+                                                    e.target.value as
+                                                        "text" | "announcement",
+                                                )
+                                            }
+                                        >
+                                            <option value="text">Text</option>
+                                            <option value="announcement">
+                                                Announcement
+                                            </option>
+                                        </select>
+                                    </div>
+
+                                    <Button
+                                        className="w-full"
                                         disabled={
                                             isCreatingChannel ||
+                                            !channelName.trim() ||
                                             !selectedServerId
                                         }
-                                        id="channel-type"
-                                        value={channelType}
-                                        onChange={(e) =>
-                                            setChannelType(
-                                                e.target.value as
-                                                    | "text"
-                                                    | "announcement",
-                                            )
-                                        }
+                                        onClick={handleCreateChannel}
+                                        type="button"
                                     >
-                                        <option value="text">Text</option>
-                                        <option value="announcement">
-                                            Announcement
-                                        </option>
-                                    </select>
-                                </div>
+                                        {isCreatingChannel
+                                            ? "Creating..."
+                                            : "Create Channel"}
+                                    </Button>
 
-                                <Button
-                                    className="w-full"
-                                    disabled={
-                                        isCreatingChannel ||
-                                        !channelName.trim() ||
-                                        !selectedServerId
-                                    }
-                                    onClick={handleCreateChannel}
-                                    type="button"
-                                >
-                                    {isCreatingChannel
-                                        ? "Creating..."
-                                        : "Create Channel"}
-                                </Button>
-
-                                {/* Channel List */}
-                                <div className="space-y-2 border-t pt-4">
-                                    <Label>
-                                        Channels in Selected Server (
-                                        {channels.length})
-                                    </Label>
-                                    {isLoadingChannels ? (
-                                        <p className="text-muted-foreground text-sm">
-                                            Loading...
-                                        </p>
-                                    ) : channels.length > 0 ? (
-                                        <div className="max-h-48 space-y-1 overflow-y-auto rounded border bg-muted/50 p-2">
-                                            {channels.map((channel) => (
-                                                <div
-                                                    key={channel.$id}
-                                                    className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm"
-                                                >
-                                                    <span>
-                                                        # {channel.name}
-                                                    </span>
-                                                    <span className="rounded border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                                        {channel.type}
-                                                    </span>
-                                                    <Button
-                                                        aria-label={`Delete ${channel.name}`}
-                                                        size="sm"
-                                                        type="button"
-                                                        variant="ghost"
-                                                        onClick={() =>
-                                                            void handleDeleteChannel(
-                                                                channel.$id,
-                                                                channel.name,
-                                                            )
-                                                        }
+                                    {/* Channel List */}
+                                    <div className="space-y-2 border-t pt-4">
+                                        <Label>
+                                            Channels in Selected Server (
+                                            {channels.length})
+                                        </Label>
+                                        {isLoadingChannels ? (
+                                            <p className="text-muted-foreground text-sm">
+                                                Loading...
+                                            </p>
+                                        ) : channels.length > 0 ? (
+                                            <div className="max-h-48 space-y-1 overflow-y-auto rounded border bg-muted/50 p-2">
+                                                {channels.map((channel) => (
+                                                    <div
+                                                        key={channel.$id}
+                                                        className="flex items-center justify-between gap-2 rounded px-2 py-1 text-sm"
                                                     >
-                                                        ✕
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : selectedServerId ? (
-                                        <p className="text-muted-foreground text-sm">
-                                            No channels yet. Create one!
-                                        </p>
-                                    ) : (
-                                        <p className="text-muted-foreground text-sm">
-                                            Select a server to see channels.
-                                        </p>
-                                    )}
-                                </div>
+                                                        <span>
+                                                            # {channel.name}
+                                                        </span>
+                                                        <span className="rounded border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                                            {channel.type}
+                                                        </span>
+                                                        <Button
+                                                            aria-label={`Delete ${channel.name}`}
+                                                            size="sm"
+                                                            type="button"
+                                                            variant="ghost"
+                                                            onClick={() =>
+                                                                void handleDeleteChannel(
+                                                                    channel.$id,
+                                                                    channel.name,
+                                                                )
+                                                            }
+                                                        >
+                                                            ✕
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : selectedServerId ? (
+                                            <p className="text-muted-foreground text-sm">
+                                                No channels yet. Create one!
+                                            </p>
+                                        ) : (
+                                            <p className="text-muted-foreground text-sm">
+                                                Select a server to see channels.
+                                            </p>
+                                        )}
+                                    </div>
                                 </>
                             ) : (
                                 <p className="text-muted-foreground text-sm">

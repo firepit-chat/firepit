@@ -71,7 +71,9 @@ class SimpleCache {
             }
         }
 
-        prefixTokens.sort((left, right) => left.prefix.localeCompare(right.prefix));
+        prefixTokens.sort((left, right) =>
+            left.prefix.localeCompare(right.prefix),
+        );
 
         return {
             prefixTokens,
@@ -94,7 +96,11 @@ class SimpleCache {
             return false;
         }
 
-        for (let index = 0; index < requestSnapshot.prefixTokens.length; index += 1) {
+        for (
+            let index = 0;
+            index < requestSnapshot.prefixTokens.length;
+            index += 1
+        ) {
             const requestToken = requestSnapshot.prefixTokens[index];
             const latestToken = latestSnapshot.prefixTokens[index];
 
@@ -293,14 +299,15 @@ class SimpleCache {
             if (isExpired) {
                 // Check if request is already in flight
                 const pending = this.pendingRequests.get(key) as
-                    | Promise<T>
-                    | undefined;
+                    Promise<T> | undefined;
                 if (!pending) {
-                    const requestPrefixTokens = this.capturePrefixTokensForKey(key);
+                    const requestPrefixTokens =
+                        this.capturePrefixTokensForKey(key);
                     // Execute background refresh
                     const promise = fetcher()
                         .then((data) => {
-                            const currentPrefixTokens = this.capturePrefixTokensForKey(key);
+                            const currentPrefixTokens =
+                                this.capturePrefixTokensForKey(key);
                             if (
                                 this.isSnapshotCurrent(
                                     requestPrefixTokens,

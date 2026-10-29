@@ -22,8 +22,7 @@ function getRecoveryRedirectUrl(): string {
 function rateLimitResponse(retryAfter: number | undefined): NextResponse {
     return NextResponse.json(
         {
-            error:
-                "Too many password reset requests. Please try again in an hour.",
+            error: "Too many password reset requests. Please try again in an hour.",
         },
         {
             status: 429,
@@ -97,8 +96,7 @@ export async function POST(request: Request) {
                 "If an account exists for that email, a password reset link has been sent.",
         });
     } catch (error) {
-        const message =
-            error instanceof Error ? error.message : String(error);
+        const message = error instanceof Error ? error.message : String(error);
         if (/hostname|platform/i.test(message)) {
             logger.warn(
                 "Password recovery URL hostname is not a registered Appwrite platform. Register this host (e.g. localhost vs 127.0.0.1) under Appwrite console -> Project -> Overview -> Platforms.",

@@ -6,9 +6,9 @@
  */
 
 export type AutocompleteEmoji = {
-  shortcode: string;
-  unicode?: string;
-  customUrl?: string;
+    shortcode: string;
+    unicode?: string;
+    customUrl?: string;
 };
 
 // `Object.entries` on the standard-emoji table allocates a tuple per entry, and
@@ -17,51 +17,60 @@ export type AutocompleteEmoji = {
 // prepared pairs against the table object. Keyed by reference, so a different
 // table simply gets its own entry.
 const standardEmojiCache = new WeakMap<
-  Record<string, string>,
-  { shortcode: string; unicode: string; lower: string }[]
+    Record<string, string>,
+    { shortcode: string; unicode: string; lower: string }[]
 >();
 
 function preparedStandardEmojis(standardEmojis: Record<string, string>) {
-  const cached = standardEmojiCache.get(standardEmojis);
-  if (cached) return cached;
-  const prepared = Object.entries(standardEmojis).map(
-    ([shortcode, unicode]) => ({
-      shortcode,
-      unicode,
-      lower: shortcode.toLowerCase(),
-    }),
-  );
-  standardEmojiCache.set(standardEmojis, prepared);
-  return prepared;
+    const cached = standardEmojiCache.get(standardEmojis);
+    if (cached) return cached;
+    const prepared = Object.entries(standardEmojis).map(
+        ([shortcode, unicode]) => ({
+            shortcode,
+            unicode,
+            lower: shortcode.toLowerCase(),
+        }),
+    );
+    standardEmojiCache.set(standardEmojis, prepared);
+    return prepared;
 }
 
 export function filterEmojis(
-  query: string,
-  standardEmojis: Record<string, string>,
-  customEmojis: AutocompleteEmoji[],
+    query: string,
+    standardEmojis: Record<string, string>,
+    customEmojis: AutocompleteEmoji[],
 ): AutocompleteEmoji[] {
-  const q = query.toLowerCase().trim();
-  const standard = preparedStandardEmojis(standardEmojis);
+    const q = query.toLowerCase().trim();
+    const standard = preparedStandardEmojis(standardEmojis);
 
-  if (!q) {
-    return [
-      ...customEmojis.slice(0, 20),
-      ...standard.slice(0, 20).map(({ shortcode, unicode }) => ({ shortcode, unicode })),
-    ];
-  }
-
-  const custom: AutocompleteEmoji[] = customEmojis
-    .filter((e) => e.shortcode.toLowerCase().includes(q))
-    .slice(0, 10)
-    .map((e) => ({ shortcode: e.shortcode, unicode: e.unicode, customUrl: e.customUrl }));
-
-  const standardMatches: AutocompleteEmoji[] = [];
-  for (const entry of standard) {
-    if (standardMatches.length >= 10) break;
-    if (entry.lower.includes(q)) {
-      standardMatches.push({ shortcode: entry.shortcode, unicode: entry.unicode });
+    if (!q) {
+        return [
+            ...customEmojis.slice(0, 20),
+            ...standard
+                .slice(0, 20)
+                .map(({ shortcode, unicode }) => ({ shortcode, unicode })),
+        ];
     }
-  }
 
-  return [...custom, ...standardMatches];
+    const custom: AutocompleteEmoji[] = customEmojis
+        .filter((e) => e.shortcode.toLowerCase().includes(q))
+        .slice(0, 10)
+        .map((e) => ({
+            shortcode: e.shortcode,
+            unicode: e.unicode,
+            customUrl: e.customUrl,
+        }));
+
+    const standardMatches: AutocompleteEmoji[] = [];
+    for (const entry of standard) {
+        if (standardMatches.length >= 10) break;
+        if (entry.lower.includes(q)) {
+            standardMatches.push({
+                shortcode: entry.shortcode,
+                unicode: entry.unicode,
+            });
+        }
+    }
+
+    return [...custom, ...standardMatches];
 }

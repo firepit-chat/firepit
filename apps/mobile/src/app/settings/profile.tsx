@@ -31,9 +31,7 @@ export default function ProfileSettingsScreen() {
     const [displayName, setDisplayName] = useState(
         currentUser?.displayName ?? "",
     );
-    const [pronouns, setPronouns] = useState(
-        currentUser?.pronouns ?? "",
-    );
+    const [pronouns, setPronouns] = useState(currentUser?.pronouns ?? "");
     const [bio, setBio] = useState(currentUser?.bio ?? "");
     const [location, setLocation] = useState(currentUser?.location ?? "");
     const [website, setWebsite] = useState(currentUser?.website ?? "");
@@ -72,7 +70,16 @@ export default function ProfileSettingsScreen() {
         } finally {
             setSaving(false);
         }
-    }, [instanceUrl, accessToken, displayName, pronouns, bio, refresh]);
+    }, [
+        instanceUrl,
+        accessToken,
+        displayName,
+        pronouns,
+        bio,
+        location,
+        website,
+        refresh,
+    ]);
 
     const handlePickAvatar = useCallback(async () => {
         if (!instanceUrl || !accessToken) return;
@@ -98,11 +105,7 @@ export default function ProfileSettingsScreen() {
 
         setUploadingAvatar(true);
         try {
-            await uploadAvatar(
-                instanceUrl,
-                accessToken,
-                result.assets[0].uri,
-            );
+            await uploadAvatar(instanceUrl, accessToken, result.assets[0].uri);
             await refresh();
         } catch (error) {
             Alert.alert(
@@ -145,8 +148,7 @@ export default function ProfileSettingsScreen() {
         );
     }, [instanceUrl, accessToken, refresh]);
 
-    const disabled =
-        state !== "ready" || saving || uploadingAvatar;
+    const disabled = state !== "ready" || saving || uploadingAvatar;
 
     return (
         <View style={[styles.root, { backgroundColor: theme.background }]}>
@@ -164,7 +166,10 @@ export default function ProfileSettingsScreen() {
                     { backgroundColor: "rgba(78, 138, 134, 0.06)" },
                 ]}
             />
-            <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+            <SafeAreaView
+                style={styles.safeArea}
+                edges={["top", "left", "right"]}
+            >
                 <ScrollView
                     style={{ width: "100%" }}
                     contentContainerStyle={styles.scrollContent}
@@ -174,13 +179,21 @@ export default function ProfileSettingsScreen() {
                 >
                     <View style={styles.shell}>
                         {/* Header */}
-                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                        <View
+                            style={[
+                                styles.header,
+                                { borderBottomColor: theme.border },
+                            ]}
+                        >
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={() => router.back()}
                                 style={styles.headerButton}
                             >
-                                <ThemedText type="smallBold" themeColor="foreground">
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="foreground"
+                                >
                                     Cancel
                                 </ThemedText>
                             </Pressable>
@@ -268,7 +281,8 @@ export default function ProfileSettingsScreen() {
                                                 currentUser?.displayName ??
                                                 currentUser?.userName ??
                                                 "?"
-                                            ).charAt(0)
+                                            )
+                                                .charAt(0)
                                                 .toUpperCase()}
                                         </ThemedText>
                                     </View>
@@ -363,7 +377,9 @@ export default function ProfileSettingsScreen() {
                             </View>
 
                             <View style={styles.fieldGroup}>
-                                <ThemedText type="smallBold">Location</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Location
+                                </ThemedText>
                                 <TextInput
                                     value={location}
                                     onChangeText={setLocation}
@@ -383,7 +399,9 @@ export default function ProfileSettingsScreen() {
                             </View>
 
                             <View style={styles.fieldGroup}>
-                                <ThemedText type="smallBold">Website</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Website
+                                </ThemedText>
                                 <TextInput
                                     value={website}
                                     onChangeText={setWebsite}

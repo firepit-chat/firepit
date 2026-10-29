@@ -17,9 +17,8 @@ vi.mock("@/lib/posthog-utils", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-const { resolveDmEncryptionEnabled, readDmEncryptionEnabled } = await import(
-    "@/lib/dm-encryption-preference"
-);
+const { resolveDmEncryptionEnabled, readDmEncryptionEnabled } =
+    await import("@/lib/dm-encryption-preference");
 
 describe("resolveDmEncryptionEnabled precedence", () => {
     it("prefers the profile value", () => {

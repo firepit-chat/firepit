@@ -79,7 +79,9 @@ export default function RootLayout({
                     // Runs before paint to avoid an accent flash and to seed
                     // the theme from the OS preference. The payload is a static
                     // literal built from the name lists above.
-                    dangerouslySetInnerHTML={{ __html: PREFERENCES_BOOTSTRAP_SCRIPT }}
+                    dangerouslySetInnerHTML={{
+                        __html: PREFERENCES_BOOTSTRAP_SCRIPT,
+                    }}
                 />
                 <ResourceHints />
                 <ServiceWorkerRegistration />

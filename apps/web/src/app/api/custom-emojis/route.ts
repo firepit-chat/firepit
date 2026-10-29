@@ -3,8 +3,7 @@ import { Query } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import type { CustomEmoji } from "@/lib/types";
-import { logger,
-} from "@/lib/posthog-utils";
+import { logger } from "@/lib/posthog-utils";
 
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 

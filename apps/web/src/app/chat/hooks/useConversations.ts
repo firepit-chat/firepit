@@ -196,8 +196,7 @@ export function useConversations(
                             unknown
                         >;
                         const participants = payload.participants as
-                            | string[]
-                            | undefined;
+                            string[] | undefined;
 
                         if (!participants?.includes(userId)) {
                             return;

@@ -6,11 +6,13 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";
-import { logger,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { logger, returnForbidden } from "@/lib/posthog-utils";
 import type { DirectMessage, FileAttachment } from "@/lib/types";
-import { getAvatarUrl, getUserProfilesBatch, getAvatarFrameUrlForProfile } from "@/lib/appwrite-profiles";
+import {
+    getAvatarUrl,
+    getUserProfilesBatch,
+    getAvatarFrameUrlForProfile,
+} from "@/lib/appwrite-profiles";
 import {
     MAX_MESSAGE_LENGTH,
     MESSAGE_TOO_LONG_ERROR,
@@ -121,14 +123,19 @@ async function updateThreadMetadataWithRetries(params: {
             const refreshedParticipants = Array.isArray(
                 (updatedDoc as unknown as DirectMessage).threadParticipants,
             )
-                ? ((updatedDoc as unknown as DirectMessage).threadParticipants as string[]).filter(
+                ? (
+                      (updatedDoc as unknown as DirectMessage)
+                          .threadParticipants as string[]
+                  ).filter(
                       (participant): participant is string =>
                           typeof participant === "string",
                   )
                 : [];
             const refreshedCount =
-                typeof (updatedDoc as unknown as DirectMessage).threadMessageCount === "number"
-                    ? ((updatedDoc as unknown as DirectMessage).threadMessageCount as number)
+                typeof (updatedDoc as unknown as DirectMessage)
+                    .threadMessageCount === "number"
+                    ? ((updatedDoc as unknown as DirectMessage)
+                          .threadMessageCount as number)
                     : 0;
 
             if (
@@ -350,17 +357,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
         const [parentMessage, profilesBatch] = await Promise.all([
             parent.threadId
-                ? databases.getDocument(
-                      env.databaseId,
-                      env.collections.directMessages,
-                      actualThreadId,
-                  ).then((doc) => doc as unknown as DirectMessage)
+                ? databases
+                      .getDocument(
+                          env.databaseId,
+                          env.collections.directMessages,
+                          actualThreadId,
+                      )
+                      .then((doc) => doc as unknown as DirectMessage)
                 : Promise.resolve(parent),
             (async () => {
-                const allMessages = [
-                    parent,
-                    ...items,
-                ];
+                const allMessages = [parent, ...items];
                 const senderIds = Array.from(
                     new Set(
                         allMessages
@@ -387,15 +393,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 const avatarUrl = profile.avatarFileId
                     ? getAvatarUrl(profile.avatarFileId)
                     : undefined;
-                const avatarFrameUrl =
-                    await getAvatarFrameUrlForProfile({
-                        avatarFramePreset: profile.avatarFramePreset,
-                    });
+                const avatarFrameUrl = await getAvatarFrameUrlForProfile({
+                    avatarFramePreset: profile.avatarFramePreset,
+                });
                 return [senderId, { avatarUrl, avatarFrameUrl }] as const;
             }),
         );
 
-        for (const [senderId, { avatarUrl, avatarFrameUrl }] of avatarFrameUrls) {
+        for (const [
+            senderId,
+            { avatarUrl, avatarFrameUrl },
+        ] of avatarFrameUrls) {
             const profile = profilesBatch.get(senderId);
             if (!profile) {
                 continue;
@@ -408,9 +416,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             });
         }
 
-        const enrichMessage = (
-            message: DirectMessage,
-        ): DirectMessage => {
+        const enrichMessage = (message: DirectMessage): DirectMessage => {
             const profile = profileMap.get(message.senderId);
             if (!profile) {
                 return message;
@@ -470,9 +476,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
             attachments?: unknown;
         };
 
-        const normalizedAttachmentsResult = normalizeFileAttachmentsInput(
-            attachments,
-        );
+        const normalizedAttachmentsResult =
+            normalizeFileAttachmentsInput(attachments);
         if (!normalizedAttachmentsResult.ok) {
             return NextResponse.json(
                 { error: normalizedAttachmentsResult.error },
@@ -513,6 +518,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
             env.collections.directMessages,
             messageId,
         )) as unknown as DirectMessage;
+
+        // Thread replies carry no encryption metadata, so a reply to an
+        // encrypted message would be stored as plaintext in a conversation the
+        // user believes is end-to-end encrypted. Block it rather than leak.
+        if ((parent as Record<string, unknown>).isEncrypted) {
+            return NextResponse.json(
+                {
+                    error: "Thread replies are not supported on encrypted direct messages",
+                },
+                { status: 400 },
+            );
+        }
 
         const actualThreadId = parent.threadId ?? messageId;
 
@@ -569,7 +586,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         if (normalizedAttachments.length > 0) {
             try {
-                await createAttachments(String(created.$id), normalizedAttachments);
+                await createAttachments(
+                    String(created.$id),
+                    normalizedAttachments,
+                );
             } catch (attachmentError) {
                 try {
                     await databases.deleteDocument(

@@ -273,7 +273,11 @@ export function useMessages({
             try {
                 const initial = await enrichMessagesWithPolls(
                     await enrichMessagesWithProfiles(
-                        await listRecentMessages(pageSize, undefined, channelId),
+                        await listRecentMessages(
+                            pageSize,
+                            undefined,
+                            channelId,
+                        ),
                         userId,
                     ),
                 );
@@ -370,8 +374,7 @@ export function useMessages({
                             ? (p.threadParticipants as string[])
                             : undefined,
                         lastThreadReplyAt: p.lastThreadReplyAt as
-                            | string
-                            | undefined,
+                            string | undefined,
                         reactions: parseReactions(
                             p.reactions as string | undefined,
                         ),
@@ -389,8 +392,10 @@ export function useMessages({
                 async function applyCreate(base: Message) {
                     const activeChannelId = currentChannelIdRef.current;
                     // Enrich message with profile data before adding to state
-                    const profileEnriched =
-                        await enrichMessageWithProfile(base, userId);
+                    const profileEnriched = await enrichMessageWithProfile(
+                        base,
+                        userId,
+                    );
                     if (currentChannelIdRef.current !== activeChannelId) {
                         return;
                     }
@@ -428,8 +433,10 @@ export function useMessages({
                 async function applyUpdate(base: Message) {
                     const activeChannelId = currentChannelIdRef.current;
                     // Enrich message with profile data before updating state
-                    const profileEnriched =
-                        await enrichMessageWithProfile(base, userId);
+                    const profileEnriched = await enrichMessageWithProfile(
+                        base,
+                        userId,
+                    );
                     if (currentChannelIdRef.current !== activeChannelId) {
                         return;
                     }
@@ -550,62 +557,65 @@ export function useMessages({
 
     const updateTypingPresence = useCallback(
         async (state: boolean) => {
-        const effectiveChannelId = contextIdRef.current ?? channelIdRef.current;
-        if (!userIdRef.current) {
-            return;
-        }
-        if (!effectiveChannelId) {
-            return;
-        }
-        if (state && !typingPresenceIdRef.current) {
-            typingPresenceIdRef.current = userIdRef.current;
-        }
-
-        // Throttle: skip re-upsert if we're already typing and the
-        // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
-        // alive; we only need to refresh it periodically.
-        if (state && typingPresenceCreatedRef.current) {
-            const elapsed = Date.now() - lastTypingSentAt.current;
-            if (elapsed < TYPING_COOLDOWN_MS) {
+            const effectiveChannelId =
+                contextIdRef.current ?? channelIdRef.current;
+            if (!userIdRef.current) {
                 return;
             }
-        }
-
-        lastTypingSentAt.current = Date.now();
-
-        if (!state && !typingPresenceCreatedRef.current) {
-            return;
-        }
-
-        try {
-            if (state) {
-                const response = await fetch("/api/typing", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                        channelId: effectiveChannelId,
-                        userName: userName || undefined,
-                        expiresAt: new Date(Date.now() + 4000).toISOString(),
-                    }),
-                });
-                if (response.ok) {
-                    typingPresenceCreatedRef.current = true;
-                }
-            } else {
-                await fetch("/api/typing", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                    }),
-                });
-                typingPresenceCreatedRef.current = false;
-                typingPresenceIdRef.current = null;
+            if (!effectiveChannelId) {
+                return;
             }
-        } catch {
-            // ignore
-        }
+            if (state && !typingPresenceIdRef.current) {
+                typingPresenceIdRef.current = userIdRef.current;
+            }
+
+            // Throttle: skip re-upsert if we're already typing and the
+            // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
+            // alive; we only need to refresh it periodically.
+            if (state && typingPresenceCreatedRef.current) {
+                const elapsed = Date.now() - lastTypingSentAt.current;
+                if (elapsed < TYPING_COOLDOWN_MS) {
+                    return;
+                }
+            }
+
+            lastTypingSentAt.current = Date.now();
+
+            if (!state && !typingPresenceCreatedRef.current) {
+                return;
+            }
+
+            try {
+                if (state) {
+                    const response = await fetch("/api/typing", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                            channelId: effectiveChannelId,
+                            userName: userName || undefined,
+                            expiresAt: new Date(
+                                Date.now() + 4000,
+                            ).toISOString(),
+                        }),
+                    });
+                    if (response.ok) {
+                        typingPresenceCreatedRef.current = true;
+                    }
+                } else {
+                    await fetch("/api/typing", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                        }),
+                    });
+                    typingPresenceCreatedRef.current = false;
+                    typingPresenceIdRef.current = null;
+                }
+            } catch {
+                // ignore
+            }
         },
         [userName],
     );
@@ -657,9 +667,7 @@ export function useMessages({
 
                 const subscription = await realtime.subscribe(
                     presenceChannel,
-                    (
-                        event: RealtimeResponseEvent<Record<string, unknown>>,
-                    ) => {
+                    (event: RealtimeResponseEvent<Record<string, unknown>>) => {
                         if (cancelled) {
                             return;
                         }
@@ -668,15 +676,12 @@ export function useMessages({
                             unknown
                         >;
                         const metadata = payload.metadata as
-                            | Record<string, unknown>
-                            | undefined;
+                            Record<string, unknown> | undefined;
                         const eventChannelId = String(
                             metadata?.channelId ?? "",
                         );
                         const eventUserId = String(payload.userId ?? "");
-                        const eventUserName = String(
-                            metadata?.userName ?? "",
-                        );
+                        const eventUserName = String(metadata?.userName ?? "");
                         const eventUpdatedAt = String(
                             payload.$updatedAt ?? payload.updatedAt ?? "",
                         );
@@ -695,8 +700,7 @@ export function useMessages({
                         );
                         const isUpsert = event.events.some(
                             (e) =>
-                                e.endsWith(".upsert") ||
-                                e.endsWith(".update"),
+                                e.endsWith(".upsert") || e.endsWith(".update"),
                         );
 
                         setTypingUsers((prev) => {
@@ -850,7 +854,11 @@ export function useMessages({
             // Use larger page size for "load more" to reduce number of requests
             const older = await enrichMessagesWithPolls(
                 await enrichMessagesWithProfiles(
-                    await listRecentMessages(loadMoreSize, oldestCursor, channelId),
+                    await listRecentMessages(
+                        loadMoreSize,
+                        oldestCursor,
+                        channelId,
+                    ),
                     userId,
                 ),
             );
@@ -917,9 +925,7 @@ export function useMessages({
                 setText("");
                 setEditingMessageId(null);
             } catch (err) {
-                toast.error(
-                    err instanceof Error ? err.message : "Edit failed",
-                );
+                toast.error(err instanceof Error ? err.message : "Edit failed");
             }
         },
         [text],
@@ -1220,7 +1226,9 @@ export function useMessages({
                 );
                 replaceThreadPoll(messageId, rollbackPoll ?? null);
                 toast.error(
-                    err instanceof Error ? err.message : "Failed to close poll.",
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to close poll.",
                 );
             }
         },
@@ -1254,7 +1262,14 @@ export function useMessages({
                 }
             }
         },
-        [channelId, contextId, scheduleTypingStart, scheduleTypingStop, updateTypingPresence, userId],
+        [
+            channelId,
+            contextId,
+            scheduleTypingStart,
+            scheduleTypingStop,
+            updateTypingPresence,
+            userId,
+        ],
     );
 
     const send = useCallback(
@@ -1265,130 +1280,136 @@ export function useMessages({
             attachments?: unknown[],
             textOverride?: string,
         ) => {
-        e.preventDefault();
-        if (!userId) {
-            return;
-        }
-        if (!channelId) {
-            return;
-        }
-        const value =
-            typeof textOverride === "string" ? textOverride.trim() : text.trim();
-        if (value.length > MAX_MESSAGE_LENGTH) {
-            toast.error(MESSAGE_TOO_LONG_ERROR);
-            return;
-        }
-        if (
-            !value &&
-            !imageFileId &&
-            (!attachments || attachments.length === 0)
-        ) {
-            return;
-        }
-
-        // If editing, find the message and apply edit
-        if (editingMessageId) {
-            const targetMessage = messages.find(
-                (m) => m.$id === editingMessageId,
-            );
-            if (targetMessage) {
-                await applyEdit(targetMessage);
+            e.preventDefault();
+            if (!userId) {
+                return;
             }
-            return;
-        }
-
-        // Otherwise, send a new message
-        if (!canSend()) {
-            toast.error("You're sending messages too fast");
-            return;
-        }
-        try {
-            setSending(true);
-            setText("");
-            const replyToId = replyingToMessage?.$id;
-            setReplyingToMessage(null);
-
-            // Parse mentions from text.
-            // Combine autocompleted names with all display names from the
-            // current message list so manually-typed mentions with spaces
-            // (like "@avery <3") are stored correctly in the database.
-            const allKnownNames = [
-                ...new Set([
-                    ...mentionedNamesRef.current,
-                    ...messages
-                        .map((m) => m.displayName)
-                        .filter((n): n is string => Boolean(n)),
-                ]),
-            ];
-            const mentions =
-                allKnownNames.length > 0
-                    ? extractMentionsWithKnownNames(value, allKnownNames)
-                    : extractMentionedUsernames(value);
-
-            const response = await fetch("/api/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: value,
-                    channelId,
-                    serverId: serverId || undefined,
-                    imageFileId,
-                    imageUrl,
-                    attachments:
-                        attachments && attachments.length > 0
-                            ? attachments
-                            : undefined,
-                    replyToId,
-                    mentions: mentions.length > 0 ? mentions : undefined,
-                }),
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to send message");
+            if (!channelId) {
+                return;
+            }
+            const value =
+                typeof textOverride === "string"
+                    ? textOverride.trim()
+                    : text.trim();
+            if (value.length > MAX_MESSAGE_LENGTH) {
+                toast.error(MESSAGE_TOO_LONG_ERROR);
+                return;
+            }
+            if (
+                !value &&
+                !imageFileId &&
+                (!attachments || attachments.length === 0)
+            ) {
+                return;
             }
 
-            // Optimistically add the message to local state
-            const data = await response.json();
-            if (data.message) {
-                const baseMessage = data.message as Message;
-
-                // Enrich message with profile data and reply context
-                const profileEnriched =
-                    await enrichMessageWithProfile(baseMessage, userId);
-                if (!profileEnriched) {
-                    return;
-                }
-                const enriched = enrichMessageWithReplyContext(
-                    profileEnriched,
-                    messages,
+            // If editing, find the message and apply edit
+            if (editingMessageId) {
+                const targetMessage = messages.find(
+                    (m) => m.$id === editingMessageId,
                 );
-
-                // Add to messages array, ensuring no duplicates
-                setMessages((prev) => {
-                    if (prev.some((m) => m.$id === enriched.$id)) {
-                        return prev.map((message) =>
-                            message.$id === enriched.$id
-                                ? {
-                                      ...message,
-                                      ...enriched,
-                                      attachments:
-                                          enriched.attachments ??
-                                          message.attachments,
-                                  }
-                                : message,
-                        );
-                    }
-                    return [...prev, enriched].sort((a, b) =>
-                        a.$createdAt.localeCompare(b.$createdAt),
-                    );
-                });
+                if (targetMessage) {
+                    await applyEdit(targetMessage);
+                }
+                return;
             }
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to send");
-        } finally {
-            setSending(false);
-        }
+
+            // Otherwise, send a new message
+            if (!canSend()) {
+                toast.error("You're sending messages too fast");
+                return;
+            }
+            try {
+                setSending(true);
+                setText("");
+                const replyToId = replyingToMessage?.$id;
+                setReplyingToMessage(null);
+
+                // Parse mentions from text.
+                // Combine autocompleted names with all display names from the
+                // current message list so manually-typed mentions with spaces
+                // (like "@avery <3") are stored correctly in the database.
+                const allKnownNames = [
+                    ...new Set([
+                        ...mentionedNamesRef.current,
+                        ...messages
+                            .map((m) => m.displayName)
+                            .filter((n): n is string => Boolean(n)),
+                    ]),
+                ];
+                const mentions =
+                    allKnownNames.length > 0
+                        ? extractMentionsWithKnownNames(value, allKnownNames)
+                        : extractMentionedUsernames(value);
+
+                const response = await fetch("/api/messages", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        text: value,
+                        channelId,
+                        serverId: serverId || undefined,
+                        imageFileId,
+                        imageUrl,
+                        attachments:
+                            attachments && attachments.length > 0
+                                ? attachments
+                                : undefined,
+                        replyToId,
+                        mentions: mentions.length > 0 ? mentions : undefined,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Failed to send message");
+                }
+
+                // Optimistically add the message to local state
+                const data = await response.json();
+                if (data.message) {
+                    const baseMessage = data.message as Message;
+
+                    // Enrich message with profile data and reply context
+                    const profileEnriched = await enrichMessageWithProfile(
+                        baseMessage,
+                        userId,
+                    );
+                    if (!profileEnriched) {
+                        return;
+                    }
+                    const enriched = enrichMessageWithReplyContext(
+                        profileEnriched,
+                        messages,
+                    );
+
+                    // Add to messages array, ensuring no duplicates
+                    setMessages((prev) => {
+                        if (prev.some((m) => m.$id === enriched.$id)) {
+                            return prev.map((message) =>
+                                message.$id === enriched.$id
+                                    ? {
+                                          ...message,
+                                          ...enriched,
+                                          attachments:
+                                              enriched.attachments ??
+                                              message.attachments,
+                                      }
+                                    : message,
+                            );
+                        }
+                        return [...prev, enriched].sort((a, b) =>
+                            a.$createdAt.localeCompare(b.$createdAt),
+                        );
+                    });
+                }
+            } catch (err) {
+                toast.error(
+                    err instanceof Error ? err.message : "Failed to send",
+                );
+            } finally {
+                setSending(false);
+            }
         },
         [
             applyEdit,

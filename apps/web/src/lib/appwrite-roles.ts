@@ -286,7 +286,9 @@ async function fetchCustomTeamTags(
         }),
     );
 
-    return tagCandidates.filter((candidate): candidate is RoleTag => candidate !== null);
+    return tagCandidates.filter(
+        (candidate): candidate is RoleTag => candidate !== null,
+    );
 }
 
 /**

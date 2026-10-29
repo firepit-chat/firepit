@@ -291,7 +291,11 @@ function buildInboxCacheKey(params: {
 }
 
 function countConversationThreadUnread(
-    items: Array<{ contextKind: InboxContextKind; kind: InboxItemKind; unreadCount: number }>,
+    items: Array<{
+        contextKind: InboxContextKind;
+        kind: InboxItemKind;
+        unreadCount: number;
+    }>,
 ) {
     return items.reduce((total, item) => {
         if (item.kind !== "thread" || item.contextKind !== "conversation") {
@@ -327,7 +331,8 @@ function observeInboxDmUnreadConsistency(params: {
     }
 
     const comparison = compareInboxVsDmUnreadThreads({
-        inboxConversationThreadUnreadCount: countConversationThreadUnread(items),
+        inboxConversationThreadUnreadCount:
+            countConversationThreadUnread(items),
         userId,
     });
 
@@ -343,7 +348,8 @@ function observeInboxDmUnreadConsistency(params: {
     recordEvent("InboxDmUnreadConsistencyObserved", {
         conversationCount: comparison.dmSnapshot.conversationCount,
         delta: comparison.delta,
-        dmConversationUnreadThreadCount: comparison.dmSnapshot.totalUnreadThreadCount,
+        dmConversationUnreadThreadCount:
+            comparison.dmSnapshot.totalUnreadThreadCount,
         dmSnapshotTruncated: comparison.dmSnapshot.truncated,
         inboxConversationThreadUnreadCount:
             comparison.inboxConversationThreadUnreadCount,
@@ -507,9 +513,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => null)) as
-        | MarkAllReadBody
-        | MarkItemsReadBody
-        | null;
+        MarkAllReadBody | MarkItemsReadBody | null;
     const isObjectBody = typeof body === "object" && body !== null;
 
     if (isObjectBody && "action" in body && body.action === "mark-all-read") {

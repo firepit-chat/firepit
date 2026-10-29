@@ -116,7 +116,9 @@ export function AppThemePicker() {
                             />
                             <ThemedText
                                 type="small"
-                                themeColor={selected ? "foreground" : "mutedForeground"}
+                                themeColor={
+                                    selected ? "foreground" : "mutedForeground"
+                                }
                                 numberOfLines={1}
                             >
                                 {THEME_ACCENT_LABELS[name]}
@@ -153,7 +155,9 @@ function PreviewTokens() {
                 ] as const
             ).map(([label, value]) => (
                 <View key={label} style={styles.previewItem}>
-                    <View style={[styles.previewChip, { backgroundColor: value }]} />
+                    <View
+                        style={[styles.previewChip, { backgroundColor: value }]}
+                    />
                     <ThemedText type="small" themeColor="mutedForeground">
                         {label}
                     </ThemedText>

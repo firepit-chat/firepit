@@ -62,8 +62,7 @@ export async function GET(_request: Request, context: RouteContext) {
                 // clients without that registry render the frame anyway.
                 avatarFramePreset: member.avatarFramePreset ?? null,
                 avatarFrameUrl: member.avatarFrameUrl ?? null,
-                avatarFrameInsetPercent:
-                    member.avatarFrameInsetPercent ?? null,
+                avatarFrameInsetPercent: member.avatarFrameInsetPercent ?? null,
                 role: member.primaryRole,
             })),
             truncated,

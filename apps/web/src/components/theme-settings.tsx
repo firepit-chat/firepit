@@ -30,7 +30,9 @@ export function ThemeSettings() {
 
     // Before hydration the library has not resolved, so fall back rather than
     // rendering every swatch unchecked.
-    const currentTheme = isThemeName(resolvedTheme) ? resolvedTheme : DEFAULT_THEME;
+    const currentTheme = isThemeName(resolvedTheme)
+        ? resolvedTheme
+        : DEFAULT_THEME;
     const currentAccent = isAccentName(accent) ? accent : DEFAULT_ACCENT;
 
     return (
@@ -83,15 +85,22 @@ export function ThemeSettings() {
                                 >
                                     <span
                                         className="flex-1"
-                                        style={{ backgroundColor: "var(--background)" }}
+                                        style={{
+                                            backgroundColor:
+                                                "var(--background)",
+                                        }}
                                     />
                                     <span
                                         className="flex-1"
-                                        style={{ backgroundColor: "var(--primary)" }}
+                                        style={{
+                                            backgroundColor: "var(--primary)",
+                                        }}
                                     />
                                     <span
                                         className="flex-1"
-                                        style={{ backgroundColor: "var(--accent)" }}
+                                        style={{
+                                            backgroundColor: "var(--accent)",
+                                        }}
                                     />
                                 </span>
                                 <span className="flex items-center justify-between gap-2 px-0.5 text-sm">
@@ -140,7 +149,9 @@ export function ThemeSettings() {
                                     data-accent={name}
                                     aria-hidden="true"
                                     className="h-5 w-5 shrink-0 rounded-full ring-1 ring-black/10"
-                                    style={{ backgroundColor: "var(--primary)" }}
+                                    style={{
+                                        backgroundColor: "var(--primary)",
+                                    }}
                                 />
                                 <span className="truncate">
                                     {ACCENT_LABELS[name]}

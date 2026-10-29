@@ -1108,7 +1108,8 @@ export function DirectMessageView({
                                                             )}
                                                         </div>
                                                     ) : null}
-                                                    {typeof message.threadMessageCount ===
+                                                    {!message.isEncrypted &&
+                                                    typeof message.threadMessageCount ===
                                                         "number" &&
                                                     message.threadMessageCount >
                                                         0 &&
@@ -1166,7 +1167,8 @@ export function DirectMessageView({
                                                             >
                                                                 <Reply className="h-4 w-4" />
                                                             </Button>
-                                                            {onOpenThread ? (
+                                                            {onOpenThread &&
+                                                            !message.isEncrypted ? (
                                                                 <Button
                                                                     aria-label="Start thread"
                                                                     onClick={() => {
@@ -1202,7 +1204,8 @@ export function DirectMessageView({
                                                                     />
                                                                 </Button>
                                                             ) : null}
-                                                            {isMine ? (
+                                                            {isMine &&
+                                                            !message.isEncrypted ? (
                                                                 <>
                                                                     <Button
                                                                         onClick={() =>

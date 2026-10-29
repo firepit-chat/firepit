@@ -107,7 +107,10 @@ export default function LoginScreen() {
                     <ThemedView style={styles.shell}>
                         <ThemedView
                             type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Firepit login
@@ -125,7 +128,10 @@ export default function LoginScreen() {
 
                         <ThemedView
                             type="card"
-                            style={[styles.panel, { borderColor: theme.border }]}
+                            style={[
+                                styles.panel,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="subtitle">Instance</ThemedText>
                             <ThemedText
@@ -177,7 +183,9 @@ export default function LoginScreen() {
 
                             <FirepitButton
                                 label={
-                                    state === "loading" ? "Signing in…" : "Sign in"
+                                    state === "loading"
+                                        ? "Signing in…"
+                                        : "Sign in"
                                 }
                                 disabled={
                                     state === "loading" ||
@@ -189,7 +197,9 @@ export default function LoginScreen() {
 
                             <Pressable
                                 accessibilityRole="button"
-                                onPress={() => router.push("/forgot-password" as never)}
+                                onPress={() =>
+                                    router.push("/forgot-password" as never)
+                                }
                                 style={({ pressed }) => ({
                                     alignSelf: "center",
                                     paddingVertical: Spacing.half,

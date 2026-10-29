@@ -40,12 +40,9 @@ function isValidIsoTimestamp(candidate: string): boolean {
     }
 
     const normalizedCandidate = normalizeIsoTimestamp(
-        candidate.replace(
-            FRACTIONAL_SECONDS_PATTERN,
-            (_, fraction: string) => {
-                return `.${fraction.padEnd(3, "0")}Z`;
-            },
-        ),
+        candidate.replace(FRACTIONAL_SECONDS_PATTERN, (_, fraction: string) => {
+            return `.${fraction.padEnd(3, "0")}Z`;
+        }),
     );
     const normalizedParsed = normalizeIsoTimestamp(
         new Date(parsed).toISOString(),

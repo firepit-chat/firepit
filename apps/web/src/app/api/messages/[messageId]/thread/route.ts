@@ -40,7 +40,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -74,11 +73,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
         }
 
         const [parentResult, response] = await Promise.all([
-            databases.getDocument(
-                env.databaseId,
-                env.collections.messages,
-                messageId,
-            ).catch(() => null),
+            databases
+                .getDocument(
+                    env.databaseId,
+                    env.collections.messages,
+                    messageId,
+                )
+                .catch(() => null),
             databases.listDocuments(
                 env.databaseId,
                 env.collections.messages,
@@ -150,7 +151,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -165,9 +165,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         const body = await request.json();
         const { text, imageFileId, imageUrl, attachments, mentions } = body;
 
-        const normalizedAttachmentsResult = normalizeFileAttachmentsInput(
-            attachments,
-        );
+        const normalizedAttachmentsResult =
+            normalizeFileAttachmentsInput(attachments);
         if (!normalizedAttachmentsResult.ok) {
             return NextResponse.json(
                 { error: normalizedAttachmentsResult.error },
@@ -176,11 +175,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
         const normalizedAttachments = normalizedAttachmentsResult.attachments;
 
-        if (
-            !text &&
-            !imageFileId &&
-            normalizedAttachments.length === 0
-        ) {
+        if (!text && !imageFileId && normalizedAttachments.length === 0) {
             return NextResponse.json(
                 { error: "text, imageFileId, or attachments required" },
                 { status: 400 },
@@ -319,10 +314,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 const replies = await databases.listDocuments(
                     env.databaseId,
                     env.collections.messages,
-                    [
-                        Query.equal("threadId", actualParentId),
-                        Query.limit(1),
-                    ],
+                    [Query.equal("threadId", actualParentId), Query.limit(1)],
                 );
                 nextCount = (replies.total ?? 0) + 1;
             } catch {

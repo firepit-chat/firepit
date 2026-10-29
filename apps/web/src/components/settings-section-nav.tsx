@@ -46,9 +46,7 @@ export function SettingsSectionNav({
     sections,
     variant = "sidebar",
 }: SettingsSectionNavProps) {
-    const [activeHref, setActiveHref] = useState(
-        sections[0]?.href ?? "#",
-    );
+    const [activeHref, setActiveHref] = useState(sections[0]?.href ?? "#");
 
     useEffect(() => {
         setActiveHref(getHashActiveHref(sections));

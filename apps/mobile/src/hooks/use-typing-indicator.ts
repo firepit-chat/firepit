@@ -56,9 +56,13 @@ export function useTypingIndicator(
                 if (elapsed < COOLDOWN_MS) return;
             }
 
-            lastTypingSentAt.current = Date.now();
-
+            // Nothing to send, so return before stamping the cooldown. Writing
+            // the timestamp first made clearing an empty draft swallow the next
+            // real typing start within COOLDOWN_MS, so the user's own typing
+            // indicator did not appear.
             if (!state && !typingPresenceCreatedRef.current) return;
+
+            lastTypingSentAt.current = Date.now();
 
             try {
                 if (state) {
@@ -98,13 +102,7 @@ export function useTypingIndicator(
                 // ignore
             }
         },
-        [
-            instanceUrl,
-            accessToken,
-            currentUserId,
-            contextId,
-            userName,
-        ],
+        [instanceUrl, accessToken, currentUserId, contextId, userName],
     );
 
     const scheduleTypingStop = useCallback(() => {
@@ -149,7 +147,11 @@ export function useTypingIndicator(
         async (userIds: string[]) => {
             if (!instanceUrl || !accessToken || userIds.length === 0) return;
             try {
-                const profiles = await getProfilesBatch(instanceUrl, accessToken, userIds);
+                const profiles = await getProfilesBatch(
+                    instanceUrl,
+                    accessToken,
+                    userIds,
+                );
                 setTypingUsers((prev) => {
                     let changed = false;
                     const next = { ...prev };
@@ -179,13 +181,16 @@ export function useTypingIndicator(
     // Realtime subscription for typing presence events via Appwrite Presences
     // (with AppState lifecycle to avoid "Realtime got disconnected" console.error spam)
     useEffect(() => {
-        if (!instanceUrl || !accessToken || !contextId || !currentUserId) return;
+        if (!instanceUrl || !accessToken || !contextId || !currentUserId)
+            return;
         let cancelled = false;
         // Generation guards against a stale subscribe resolving after a newer
         // subscribe started (e.g. background/foreground churn), which would
         // otherwise overwrite subHandle and leak the wrong subscription.
         let generation = 0;
-        let subHandle: { unsubscribe: () => Promise<void>; close: () => Promise<void> } | undefined;
+        let subHandle:
+            | { unsubscribe: () => Promise<void>; close: () => Promise<void> }
+            | undefined;
         let realtimeInstance: Realtime | undefined;
 
         const doSubscribe = () => {
@@ -201,18 +206,18 @@ export function useTypingIndicator(
 
                 realtimeInstance = new Realtime(client);
 
-                void realtimeInstance.subscribe(
-                    ["presences"],
-                    (response) => {
+                void realtimeInstance
+                    .subscribe(["presences"], (response) => {
                         if (cancelled) return;
 
                         const payload = response.payload;
                         if (!payload) return;
 
                         const metadata = payload.metadata as
-                            | Record<string, unknown>
-                            | undefined;
-                        const eventChannelId = String(metadata?.channelId ?? "");
+                            Record<string, unknown> | undefined;
+                        const eventChannelId = String(
+                            metadata?.channelId ?? "",
+                        );
                         const eventUserId = String(payload.userId ?? "");
                         const eventUserName = String(metadata?.userName ?? "");
                         const eventUpdatedAt = String(
@@ -258,16 +263,17 @@ export function useTypingIndicator(
                         if (needsEnrich) {
                             void enrichProfiles([eventUserId]);
                         }
-                    },
-                ).then((handle) => {
-                    if (cancelled || generation !== currentGeneration) {
-                        void handle.unsubscribe();
-                    } else {
-                        subHandle = handle;
-                    }
-                }).catch(() => {
-                    // realtime subscription is best-effort
-                });
+                    })
+                    .then((handle) => {
+                        if (cancelled || generation !== currentGeneration) {
+                            void handle.unsubscribe();
+                        } else {
+                            subHandle = handle;
+                        }
+                    })
+                    .catch(() => {
+                        // realtime subscription is best-effort
+                    });
             } catch {
                 // realtime subscription is best-effort
             }
@@ -305,7 +311,15 @@ export function useTypingIndicator(
             appStateSub.remove();
             doUnsubscribe();
         };
-    }, [instanceUrl, accessToken, contextId, currentUserId, enrichProfiles, projectId, appwriteEndpoint]);
+    }, [
+        instanceUrl,
+        accessToken,
+        contextId,
+        currentUserId,
+        enrichProfiles,
+        projectId,
+        appwriteEndpoint,
+    ]);
 
     // Stale typing cleanup interval - only runs while users are typing
     useEffect(() => {
@@ -330,6 +344,15 @@ export function useTypingIndicator(
         return () => clearInterval(interval);
     }, [typingUsers]);
 
+    // Read through a ref so the unmount cleanup can run exactly once. Depending on
+    // sendTypingPresence meant a token refresh mid-typing tore down the pending
+    // timers and sent a spurious "stop typing", so the indicator disappeared
+    // while the user was still typing.
+    const sendTypingPresenceRef = useRef(sendTypingPresence);
+    useEffect(() => {
+        sendTypingPresenceRef.current = sendTypingPresence;
+    }, [sendTypingPresence]);
+
     // Cleanup typing presence on unmount
     useEffect(() => {
         return () => {
@@ -338,10 +361,10 @@ export function useTypingIndicator(
             if (typingDebounceRef.current)
                 clearTimeout(typingDebounceRef.current);
             if (typingPresenceCreatedRef.current) {
-                void sendTypingPresence(false);
+                void sendTypingPresenceRef.current(false);
             }
         };
-    }, [sendTypingPresence]);
+    }, []);
 
     const otherTypingUsers = Object.values(typingUsers).filter(
         (u) => u.userId !== currentUserId,

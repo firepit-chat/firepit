@@ -230,8 +230,10 @@ export function ConversationList({
                                     // was present, which hid it entirely for
                                     // auto-set and not-yet-loaded statuses —
                                     // exactly the people you most want to spot.
-                                    status={(otherUser?.status ??
-                                        "offline") as PresenceStatus}
+                                    status={
+                                        (otherUser?.status ??
+                                            "offline") as PresenceStatus
+                                    }
                                 />
                             </div>
                         )}
@@ -526,14 +528,13 @@ export function ConversationList({
                                             friendConversation?.lastMessageAt;
                                         // Falls back to offline so a friend always
                                         // shows a dot, matching the DM rows.
-                                        const friendStatus = (
-                                            friendStatuses.get(
+                                        const friendStatus =
+                                            (friendStatuses.get(
                                                 entry.user.userId,
                                             )?.status ??
-                                            friendConversation?.otherUser
-                                                ?.status ??
-                                            "offline"
-                                        ) as PresenceStatus;
+                                                friendConversation?.otherUser
+                                                    ?.status ??
+                                                "offline") as PresenceStatus;
                                         const friendUnreadState =
                                             friendConversation
                                                 ? conversationUnreadStateById[
@@ -598,20 +599,22 @@ export function ConversationList({
                                                                     .avatarUrl
                                                             }
                                                         />
-                                                            <div className="absolute -bottom-0.5 -right-0.5">
-                                                                <StatusIndicator
-                                                                    size="sm"
-                                                                    status={
-                                                                        friendStatus
-                                                                    }
-                                                                />
-                                                            </div>
+                                                        <div className="absolute -bottom-0.5 -right-0.5">
+                                                            <StatusIndicator
+                                                                size="sm"
+                                                                status={
+                                                                    friendStatus
+                                                                }
+                                                            />
                                                         </div>
+                                                    </div>
                                                     <div className="min-w-0 flex-1">
                                                         <div className="flex min-w-0 items-center justify-between gap-2">
                                                             <div className="flex min-w-0 items-center gap-2">
                                                                 <p className="truncate text-sm font-medium">
-                                                                    {displayName}
+                                                                    {
+                                                                        displayName
+                                                                    }
                                                                 </p>
                                                                 {renderUnreadBadge(
                                                                     friendUnreadCount,
@@ -645,7 +648,9 @@ export function ConversationList({
                                                     friend date left of the DM
                                                     dates. */}
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
+                                                    <DropdownMenuTrigger
+                                                        asChild
+                                                    >
                                                         <Button
                                                             aria-label={`Options for ${displayName}`}
                                                             className="h-8 w-8 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
@@ -694,8 +699,7 @@ export function ConversationList({
                                                             }
                                                         >
                                                             <UserMinus className="mr-2 h-4 w-4" />
-                                                            Remove{" "}
-                                                            {displayName}{" "}
+                                                            Remove {displayName}{" "}
                                                             from friends
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>

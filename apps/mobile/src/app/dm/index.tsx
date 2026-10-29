@@ -1,12 +1,7 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
-import {
-    FlatList,
-    Pressable,
-    StyleSheet,
-    View,
-} from "react-native";
+import { FlatList, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 
@@ -15,9 +10,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    type DirectMessageConversation,
-} from "@/lib/firepit";
+import { type DirectMessageConversation } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { getConversations, enrichConversations } from "@/lib/server-cache";
 
@@ -79,15 +72,19 @@ function conversationSubtitle(conversation: DirectMessageConversation) {
 
 export default function DirectMessageListScreen() {
     const theme = useTheme();
-    const { instanceUrl, accessToken, currentUser, state } = useFirepitBootstrap();
+    const { instanceUrl, accessToken, currentUser, state } =
+        useFirepitBootstrap();
     const [loadState, setLoadState] = useState<LoadState>("idle");
     const [error, setError] = useState<string | null>(null);
-    const [conversations, setConversations] = useState<DirectMessageConversation[]>([]);
+    const [conversations, setConversations] = useState<
+        DirectMessageConversation[]
+    >([]);
 
     const signedIn = Boolean(state === "ready" && instanceUrl && accessToken);
     const requestBaseUrl = instanceUrl ?? "";
     const requestToken = accessToken ?? "";
-    const readyToFetch = signedIn && requestBaseUrl.length > 0 && requestToken.length > 0;
+    const readyToFetch =
+        signedIn && requestBaseUrl.length > 0 && requestToken.length > 0;
     const userPrimaryId = currentUser?.$id;
     const userFallbackId = currentUser?.userId;
 
@@ -101,7 +98,12 @@ export default function DirectMessageListScreen() {
         try {
             const raw = await getConversations(instanceUrl, accessToken);
             const currentUserId = userPrimaryId ?? userFallbackId ?? "";
-            const enriched = await enrichConversations(instanceUrl, accessToken, raw, currentUserId);
+            const enriched = await enrichConversations(
+                instanceUrl,
+                accessToken,
+                raw,
+                currentUserId,
+            );
             setConversations(enriched);
             setLoadState("ready");
         } catch (loadError) {
@@ -161,8 +163,8 @@ export default function DirectMessageListScreen() {
                                         themeColor="mutedForeground"
                                         style={styles.copy}
                                     >
-                                        Open a conversation to read and reply. Profile pages can
-                                        also start new DMs.
+                                        Open a conversation to read and reply.
+                                        Profile pages can also start new DMs.
                                     </ThemedText>
                                     <View style={styles.metaRow}>
                                         <StatusPill
@@ -204,11 +206,14 @@ export default function DirectMessageListScreen() {
                                         </ThemedText>
                                         <Pressable
                                             accessibilityRole="button"
-                                            onPress={() => void loadConversations()}
+                                            onPress={() =>
+                                                void loadConversations()
+                                            }
                                             style={({ pressed }) => [
                                                 styles.inlineButton,
                                                 {
-                                                    backgroundColor: theme.muted,
+                                                    backgroundColor:
+                                                        theme.muted,
                                                     borderColor: theme.border,
                                                     opacity: pressed ? 0.88 : 1,
                                                 },
@@ -251,7 +256,8 @@ export default function DirectMessageListScreen() {
                                         themeColor="mutedForeground"
                                         style={styles.copy}
                                     >
-                                        Open a profile page to start a new conversation.
+                                        Open a profile page to start a new
+                                        conversation.
                                     </ThemedText>
                                 </ThemedView>
                             ) : null
@@ -268,15 +274,22 @@ export default function DirectMessageListScreen() {
     );
 }
 
-const renderConversationItem = ({ item }: { item: DirectMessageConversation }) => (
-    <ConversationCard conversation={item} />
-);
+const renderConversationItem = ({
+    item,
+}: {
+    item: DirectMessageConversation;
+}) => <ConversationCard conversation={item} />;
 
-function ConversationCard({ conversation }: { conversation: DirectMessageConversation }) {
+function ConversationCard({
+    conversation,
+}: {
+    conversation: DirectMessageConversation;
+}) {
     const theme = useTheme();
     const title = conversationTitle(conversation);
     const subtitle = conversationSubtitle(conversation);
-    const avatarUrl = conversation.avatarUrl ?? conversation.otherUser?.avatarUrl ?? null;
+    const avatarUrl =
+        conversation.avatarUrl ?? conversation.otherUser?.avatarUrl ?? null;
     const avatarLetter = title.slice(0, 1).toUpperCase();
 
     return (
@@ -299,7 +312,10 @@ function ConversationCard({ conversation }: { conversation: DirectMessageConvers
             >
                 <View style={styles.avatarShell}>
                     {avatarUrl ? (
-                        <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+                        <Image
+                            source={{ uri: avatarUrl }}
+                            style={styles.avatar}
+                        />
                     ) : (
                         <ThemedText type="smallBold">{avatarLetter}</ThemedText>
                     )}
@@ -314,7 +330,10 @@ function ConversationCard({ conversation }: { conversation: DirectMessageConvers
                             {formatConversationTime(conversation.lastMessageAt)}
                         </ThemedText>
                     </View>
-                    <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                    <ThemedText
+                        themeColor="mutedForeground"
+                        style={styles.copy}
+                    >
                         {subtitle}
                     </ThemedText>
                     {conversation.otherUser?.displayName ? (
@@ -329,7 +348,9 @@ function ConversationCard({ conversation }: { conversation: DirectMessageConvers
                 <Pressable
                     accessibilityRole="button"
                     onPress={() =>
-                        router.push(`/user/${encodeURIComponent(conversation.otherUser!.userId)}` as never)
+                        router.push(
+                            `/user/${encodeURIComponent(conversation.otherUser!.userId)}` as never,
+                        )
                     }
                     style={({ pressed }) => [
                         styles.inlineButton,
@@ -357,10 +378,15 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
             <ThemedText
                 type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
             >
                 {label}
             </ThemedText>

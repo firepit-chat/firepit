@@ -32,9 +32,7 @@ export function EmptyState({
     return (
         <View style={styles.container}>
             {icon ? (
-                <View
-                    style={[styles.disc, { backgroundColor: theme.muted }]}
-                >
+                <View style={[styles.disc, { backgroundColor: theme.muted }]}>
                     {icon}
                 </View>
             ) : null}

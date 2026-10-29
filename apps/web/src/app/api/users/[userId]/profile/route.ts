@@ -6,8 +6,7 @@ import {
     getAvatarFrameForProfile,
 } from "@/lib/appwrite-profiles";
 import { getUserStatus } from "@/lib/appwrite-status";
-import { logger,
-} from "@/lib/posthog-utils";
+import { logger } from "@/lib/posthog-utils";
 
 export async function GET(
     _request: Request,

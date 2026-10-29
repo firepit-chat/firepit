@@ -265,15 +265,11 @@ async function getRolesByIds(
     const roleIdChunks = chunkValues(roleIds, QUERY_ARRAY_LIMIT);
     const rolePages = await Promise.all(
         roleIdChunks.map((roleIdChunk) =>
-            databases.listDocuments(
-                env.databaseId,
-                ROLES_COLLECTION_ID,
-                [
-                    Query.equal("serverId", serverId),
-                    Query.equal("$id", roleIdChunk),
-                    Query.limit(roleIdChunk.length),
-                ],
-            ),
+            databases.listDocuments(env.databaseId, ROLES_COLLECTION_ID, [
+                Query.equal("serverId", serverId),
+                Query.equal("$id", roleIdChunk),
+                Query.limit(roleIdChunk.length),
+            ]),
         ),
     );
 

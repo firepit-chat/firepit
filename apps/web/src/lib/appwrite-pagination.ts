@@ -141,7 +141,10 @@ export async function listPages(params: {
     const warningMultiplier = Math.max(1, Math.floor(highVolumeMultiplier));
 
     if (typeof maxPages === "number" && maxPages <= 0) {
-        return { documents: [] as Array<Record<string, unknown>>, truncated: false };
+        return {
+            documents: [] as Array<Record<string, unknown>>,
+            truncated: false,
+        };
     }
 
     const documents: Array<Record<string, unknown>> = [];
@@ -150,7 +153,8 @@ export async function listPages(params: {
         orderAsc?: (field: string) => string;
     };
 
-    const supportsCursorAfter = typeof queryWithPagination.cursorAfter === "function";
+    const supportsCursorAfter =
+        typeof queryWithPagination.cursorAfter === "function";
     const supportsOrderAsc = typeof queryWithPagination.orderAsc === "function";
     const orderAsc = supportsOrderAsc
         ? queryWithPagination.orderAsc.bind(Query)
@@ -165,12 +169,15 @@ export async function listPages(params: {
     let pageCount = 0;
 
     if (!supportsCursorAfter || !supportsOrderAsc) {
-        logger.warn("Pagination helpers unavailable; results may be truncated", {
-            context: warningContext,
-            pageSize,
-            hasCursorAfter: supportsCursorAfter,
-            hasOrderAsc: supportsOrderAsc,
-        });
+        logger.warn(
+            "Pagination helpers unavailable; results may be truncated",
+            {
+                context: warningContext,
+                pageSize,
+                hasCursorAfter: supportsCursorAfter,
+                hasOrderAsc: supportsOrderAsc,
+            },
+        );
     }
 
     let hasMore = true;
@@ -180,7 +187,9 @@ export async function listPages(params: {
             ...baseQueries,
             ...(orderAsc ? [orderAsc("$id")] : []),
             Query.limit(pageSize),
-            ...(cursorAfter && cursorAfterFn ? [cursorAfterFn(cursorAfter)] : []),
+            ...(cursorAfter && cursorAfterFn
+                ? [cursorAfterFn(cursorAfter)]
+                : []),
         ];
 
         const response = await callListDocuments(
@@ -190,7 +199,11 @@ export async function listPages(params: {
             queries,
         );
 
-        if (!warnedExceededPageSize && typeof response.total === "number" && response.total > pageSize * warningMultiplier) {
+        if (
+            !warnedExceededPageSize &&
+            typeof response.total === "number" &&
+            response.total > pageSize * warningMultiplier
+        ) {
             logger.warn("Query has unusually high volume", {
                 context: warningContext,
                 fetched: response.documents?.length ?? 0,
@@ -215,7 +228,10 @@ export async function listPages(params: {
         }
 
         const lastDocument = pageDocs.at(-1);
-        cursorAfter = lastDocument && typeof lastDocument.$id === "string" ? lastDocument.$id : null;
+        cursorAfter =
+            lastDocument && typeof lastDocument.$id === "string"
+                ? lastDocument.$id
+                : null;
 
         const pageFull = pageDocs.length >= pageSize && cursorAfter;
         if (!pageFull) {

@@ -168,10 +168,13 @@ describe("createServer fallback branches", () => {
                     if (opts.collectionId === "channels") {
                         listCalls += 1;
                         if (listCalls === 1) {
-                            const documents = Array.from({ length: 500 }, (_, index) => ({
-                                $id: `c${index + 1}`,
-                                serverId: "s1",
-                            }));
+                            const documents = Array.from(
+                                { length: 500 },
+                                (_, index) => ({
+                                    $id: `c${index + 1}`,
+                                    serverId: "s1",
+                                }),
+                            );
 
                             return Promise.resolve({
                                 documents,

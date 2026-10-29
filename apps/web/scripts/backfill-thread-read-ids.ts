@@ -48,7 +48,9 @@ async function main() {
     const databaseId = env.databaseId || "main";
     const collectionId = env.collections.threadReads || "thread_reads";
 
-    const client = new Client().setEndpoint(env.endpoint).setProject(env.project);
+    const client = new Client()
+        .setEndpoint(env.endpoint)
+        .setProject(env.project);
     if (
         typeof (client as unknown as { setKey?: (k: string) => void })
             .setKey === "function"
@@ -70,7 +72,11 @@ async function main() {
             queries.push(Query.cursorAfter(cursor));
         }
 
-        const page = await databases.listDocuments(databaseId, collectionId, queries);
+        const page = await databases.listDocuments(
+            databaseId,
+            collectionId,
+            queries,
+        );
         if (page.documents.length === 0) {
             break;
         }
@@ -110,9 +116,14 @@ async function main() {
                     existingReads: normalizeThreadReads(existing.reads),
                     incomingReads: normalizeThreadReads(document.reads),
                 });
-                await databases.updateDocument(databaseId, collectionId, derivedId, {
-                    reads: JSON.stringify(mergedReads),
-                });
+                await databases.updateDocument(
+                    databaseId,
+                    collectionId,
+                    derivedId,
+                    {
+                        reads: JSON.stringify(mergedReads),
+                    },
+                );
                 merged += 1;
             } catch (error) {
                 const candidate = error as { code?: number };
@@ -127,7 +138,9 @@ async function main() {
                     {
                         contextId,
                         contextType,
-                        reads: JSON.stringify(normalizeThreadReads(document.reads)),
+                        reads: JSON.stringify(
+                            normalizeThreadReads(document.reads),
+                        ),
                         userId,
                     },
                     document.$permissions,
@@ -135,7 +148,11 @@ async function main() {
                 migrated += 1;
             }
 
-            await databases.deleteDocument(databaseId, collectionId, document.$id);
+            await databases.deleteDocument(
+                databaseId,
+                collectionId,
+                document.$id,
+            );
         }
     }
 

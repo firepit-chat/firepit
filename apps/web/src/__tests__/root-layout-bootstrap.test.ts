@@ -11,9 +11,8 @@ async function runBootstrap(options: {
     prefersDark?: boolean;
     matchMediaAvailable?: boolean;
 }) {
-    const {
-        PREFERENCES_BOOTSTRAP_SCRIPT,
-    } = await import("@/lib/theme-bootstrap");
+    const { PREFERENCES_BOOTSTRAP_SCRIPT } =
+        await import("@/lib/theme-bootstrap");
 
     const cookieJar = new Map<string, string>(
         Object.entries(options.cookies ?? {}),
@@ -21,8 +20,7 @@ async function runBootstrap(options: {
 
     Object.defineProperty(document, "cookie", {
         configurable: true,
-        get: () =>
-            [...cookieJar].map(([k, v]) => `${k}=${v}`).join("; "),
+        get: () => [...cookieJar].map(([k, v]) => `${k}=${v}`).join("; "),
         set: (raw: string) => {
             const [pair] = raw.split(";");
             const index = pair.indexOf("=");
@@ -90,7 +88,9 @@ describe("pre-paint preferences bootstrap", () => {
     });
 
     it("keeps a stored accent and replaces an unknown one", async () => {
-        const kept = await runBootstrap({ cookies: { "firepit-accent": "teal" } });
+        const kept = await runBootstrap({
+            cookies: { "firepit-accent": "teal" },
+        });
         expect(kept.accent).toBe("teal");
 
         const replaced = await runBootstrap({

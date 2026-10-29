@@ -369,7 +369,10 @@ export default function Header({ onSearchClick }: HeaderProps) {
                     {isAuthenticated ? (
                         <NotificationsMenu userId={userData?.userId ?? null} />
                     ) : (
-                        <ThemeToggleMenu theme={menuTheme} setTheme={setTheme} />
+                        <ThemeToggleMenu
+                            theme={menuTheme}
+                            setTheme={setTheme}
+                        />
                     )}
                     {showContent ? (
                         isAuthenticated && userData ? (
@@ -412,9 +415,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                 }
                                                 fallback={displayName}
                                                 size="md"
-                                                src={
-                                                    headerProfile?.avatarUrl
-                                                }
+                                                src={headerProfile?.avatarUrl}
                                             />
                                             <span className="hidden min-w-0 flex-col items-start leading-tight sm:flex">
                                                 <span className="max-w-32 truncate text-sm font-medium text-foreground">
@@ -433,8 +434,8 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                 {displayName}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                Manage your presence and
-                                                account session
+                                                Manage your presence and account
+                                                session
                                             </p>
                                         </div>
 
@@ -500,9 +501,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                         )
                                                     }
                                                     placeholder="What's your status?"
-                                                    value={
-                                                        customStatusMessage
-                                                    }
+                                                    value={customStatusMessage}
                                                 />
                                                 <Button
                                                     className="w-full rounded-md"
@@ -523,8 +522,7 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                             </p>
                                         </div>
                                         {THEME_NAMES.map((nextTheme) => {
-                                            const Icon =
-                                                THEME_ICONS[nextTheme];
+                                            const Icon = THEME_ICONS[nextTheme];
                                             return (
                                                 <DropdownMenuItem
                                                     key={nextTheme}
@@ -536,7 +534,11 @@ export default function Header({ onSearchClick }: HeaderProps) {
                                                     <div className="flex w-full items-center justify-between gap-3">
                                                         <span className="inline-flex items-center gap-2">
                                                             <Icon className="h-4 w-4 text-primary" />
-                                                            {THEME_LABELS[nextTheme]}
+                                                            {
+                                                                THEME_LABELS[
+                                                                    nextTheme
+                                                                ]
+                                                            }
                                                         </span>
                                                         {menuTheme ===
                                                         nextTheme ? (

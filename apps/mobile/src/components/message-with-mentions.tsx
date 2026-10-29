@@ -9,9 +9,9 @@ import {
 } from "@firepit-chat/markdown-spoiler/react-native";
 import { findMentionSpans } from "@/lib/mention-utils";
 import {
-  EmojiRenderer,
-  NO_CUSTOM_EMOJIS,
-  type CustomEmoji,
+    EmojiRenderer,
+    NO_CUSTOM_EMOJIS,
+    type CustomEmoji,
 } from "@/components/emoji-renderer";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -55,10 +55,19 @@ type InlineRule = {
     render: (match: RegExpExecArray, key: string) => React.ReactNode;
 };
 
+/**
+ * Shared empty list for the `mentions` prop, same reasoning as
+ * `NO_CUSTOM_EMOJIS`: a destructuring default allocates a new array every
+ * render, and `mentions` is a `useMemo` dependency, so the whole markdown +
+ * mention + emoji parse re-ran for every message without mentions on every
+ * render. `Message.mentions` is optional, so this is the common case.
+ */
+const NO_MENTIONS: readonly string[] = Object.freeze([]);
+
 export function MessageWithMentions({
     text,
     customEmojis = NO_CUSTOM_EMOJIS,
-    mentions = [],
+    mentions = NO_MENTIONS,
     knownNames,
 }: MessageWithMentionsProps) {
     const colors = useTheme();

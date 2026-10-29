@@ -3,7 +3,7 @@
     "version": "2.1.0",
     "private": true,
     "type": "module",
-    "packageManager": "bun@1.4.2",
+    "packageManager": "bun@1.4.4",
     "workspaces": [
         "apps/web",
         "apps/mobile",
@@ -27,7 +27,7 @@
         "mobile:lint": "cd apps/mobile && bun run lint"
     },
     "devDependencies": {
-        "turbo": "^2.11.8"
+        "turbo": "^2.11.10"
     },
     "dependencies": {
         "@babel/preset-typescript": "^7.29.7",
@@ -38,6 +38,7 @@
     ],
     "patchedDependencies": {
         "metro-runtime@0.84.4": "patches/metro-runtime@0.84.4.patch",
-        "metro@0.84.4": "patches/metro@0.84.4.patch"
+        "metro@0.84.4": "patches/metro@0.84.4.patch",
+        "react-native-libsodium@1.7.0": "patches/react-native-libsodium@1.7.0.patch"
     }
 }

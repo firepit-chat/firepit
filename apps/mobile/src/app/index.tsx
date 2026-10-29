@@ -125,16 +125,23 @@ export default function HomeScreen() {
 
     if (state === "instance-unreachable" || state === "instance-error") {
         return (
-            <View style={[styles.screen, { backgroundColor: theme.background }]}>
+            <View
+                style={[styles.screen, { backgroundColor: theme.background }]}
+            >
                 <SafeAreaView style={styles.safeArea}>
                     <ScrollView contentContainerStyle={styles.scrollContent}>
                         <ThemedView style={styles.shell}>
                             <ThemedView
                                 type="card"
-                                style={[styles.heroCard, { borderColor: theme.border }]}
+                                style={[
+                                    styles.heroCard,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText type="code" themeColor="accent">
-                                    {state === "instance-unreachable" ? "Instance not found" : "Instance error"}
+                                    {state === "instance-unreachable"
+                                        ? "Instance not found"
+                                        : "Instance error"}
                                 </ThemedText>
                                 <ThemedText type="title" style={styles.title}>
                                     {state === "instance-unreachable"
@@ -145,9 +152,10 @@ export default function HomeScreen() {
                                     themeColor="mutedForeground"
                                     style={styles.description}
                                 >
-                                    {error ?? (state === "instance-unreachable"
-                                        ? "The URL does not appear to be a Firepit instance."
-                                        : "The server returned an error. Please try again later.")}
+                                    {error ??
+                                        (state === "instance-unreachable"
+                                            ? "The URL does not appear to be a Firepit instance."
+                                            : "The server returned an error. Please try again later.")}
                                 </ThemedText>
                             </ThemedView>
 
@@ -160,7 +168,12 @@ export default function HomeScreen() {
                                 </ThemedText>
                             ) : null}
 
-                            <View style={{ flexDirection: "row", gap: Spacing.two }}>
+                            <View
+                                style={{
+                                    flexDirection: "row",
+                                    gap: Spacing.two,
+                                }}
+                            >
                                 {state === "instance-error" ? (
                                     <FirepitButton
                                         label="Retry"
@@ -217,7 +230,10 @@ export default function HomeScreen() {
                     <ThemedView style={styles.shell}>
                         <ThemedView
                             type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Firepit mobile instance setup
@@ -241,7 +257,9 @@ export default function HomeScreen() {
                                     { borderColor: theme.border },
                                 ]}
                             >
-                                <ThemedText type="subtitle">Instance</ThemedText>
+                                <ThemedText type="subtitle">
+                                    Instance
+                                </ThemedText>
                                 <ThemedText
                                     themeColor="mutedForeground"
                                     style={styles.panelDescription}

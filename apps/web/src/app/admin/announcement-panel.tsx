@@ -253,8 +253,8 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                         </h2>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Compose, schedule, and send system announcements to every
-                        profiled user through read-only DM threads.
+                        Compose, schedule, and send system announcements to
+                        every profiled user through read-only DM threads.
                     </p>
                 </div>
                 <Button
@@ -266,7 +266,10 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                     type="button"
                     variant="outline"
                 >
-                    <SendHorizontal aria-hidden="true" className="mr-2 h-4 w-4" />
+                    <SendHorizontal
+                        aria-hidden="true"
+                        className="mr-2 h-4 w-4"
+                    />
                     {isDispatching ? "Dispatching..." : "Run Dispatcher"}
                 </Button>
             </div>
@@ -376,7 +379,10 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                     </h3>
 
                     <div className="flex items-center gap-2">
-                        <Label className="sr-only" htmlFor="announcement-status-filter">
+                        <Label
+                            className="sr-only"
+                            htmlFor="announcement-status-filter"
+                        >
                             Announcement status filter
                         </Label>
                         <select
@@ -384,7 +390,9 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                             id="announcement-status-filter"
                             value={filter}
                             onChange={(event) =>
-                                setFilter(event.target.value as AnnouncementFilter)
+                                setFilter(
+                                    event.target.value as AnnouncementFilter,
+                                )
                             }
                         >
                             <option value="all">All statuses</option>
@@ -403,7 +411,10 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                             type="button"
                             variant="ghost"
                         >
-                            <RefreshCw aria-hidden="true" className="mr-2 h-4 w-4" />
+                            <RefreshCw
+                                aria-hidden="true"
+                                className="mr-2 h-4 w-4"
+                            />
                             Refresh
                         </Button>
                     </div>
@@ -436,7 +447,8 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                             >
                                 <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                                     <h4 className="text-sm font-semibold text-foreground">
-                                        {announcement.title || "Untitled announcement"}
+                                        {announcement.title ||
+                                            "Untitled announcement"}
                                     </h4>
                                     <span
                                         className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusBadgeClass(
@@ -454,13 +466,16 @@ export function AnnouncementPanel({ userId }: AnnouncementPanelProps) {
                                 <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
                                     <p>Priority: {announcement.priority}</p>
                                     <p>
-                                        Scheduled: {formatDate(announcement.scheduledFor)}
+                                        Scheduled:{" "}
+                                        {formatDate(announcement.scheduledFor)}
                                     </p>
                                     <p>
-                                        Published: {formatDate(announcement.publishedAt)}
+                                        Published:{" "}
+                                        {formatDate(announcement.publishedAt)}
                                     </p>
                                     <p>
-                                        Last dispatch: {formatDate(
+                                        Last dispatch:{" "}
+                                        {formatDate(
                                             announcement.lastDispatchAt,
                                         )}
                                     </p>

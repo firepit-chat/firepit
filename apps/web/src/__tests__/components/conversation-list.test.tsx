@@ -128,7 +128,9 @@ describe("ConversationList", () => {
         // The dot carries a title of the status name. The friend row also
         // renders one now, so scope to the DM row under test.
         const row = screen.getByText("No Status Yet").closest("button");
-        expect(row?.parentElement?.querySelector('[title="Offline"]')).not.toBeNull();
+        expect(
+            row?.parentElement?.querySelector('[title="Offline"]'),
+        ).not.toBeNull();
     });
 
     // Friends render only in the friends section (the rows below exclude them),
@@ -200,9 +202,7 @@ describe("ConversationList", () => {
             .closest("div.group");
 
         // A single trailing button, matching a DM row.
-        expect(
-            friendRow?.querySelectorAll("button").length,
-        ).toBe(2);
+        expect(friendRow?.querySelectorAll("button").length).toBe(2);
     });
 
     // A row rendered the raw stored status word, so an automatic status read as
@@ -249,9 +249,7 @@ describe("ConversationList", () => {
             />,
         );
 
-        expect(
-            screen.getByText("Busy — 2.2 coming soon"),
-        ).toBeInTheDocument();
+        expect(screen.getByText("Busy — 2.2 coming soon")).toBeInTheDocument();
     });
 
     it("lets every ancestor between the name and the row shrink", () => {
@@ -277,10 +275,9 @@ describe("ConversationList", () => {
         while (node && depth < 8) {
             const className = node.className ?? "";
             if (/\bflex\b/.test(className)) {
-                expect(
-                    className,
-                    `missing min-w-0 on: ${className}`,
-                ).toContain("min-w-0");
+                expect(className, `missing min-w-0 on: ${className}`).toContain(
+                    "min-w-0",
+                );
             }
             node = node.parentElement;
             depth += 1;

@@ -51,9 +51,7 @@ function validateAllowDeny(
     return { allowArray, denyArray };
 }
 
-type AuthResult =
-    | { response: NextResponse }
-    | { serverId: string };
+type AuthResult = { response: NextResponse } | { serverId: string };
 
 async function requireManageChannelsAccessByServerId(
     serverId: string,
@@ -252,9 +250,8 @@ export async function PUT(request: NextRequest) {
             overrideId,
         );
         const channelId = String(existingOverride.channelId);
-        const authResult = await requireManageChannelsAccessByChannelId(
-            channelId,
-        );
+        const authResult =
+            await requireManageChannelsAccessByChannelId(channelId);
         if (isAuthError(authResult)) {
             return authResult.response;
         }
@@ -314,9 +311,8 @@ export async function DELETE(request: NextRequest) {
             overrideId,
         );
         const channelId = String(existingOverride.channelId);
-        const authResult = await requireManageChannelsAccessByChannelId(
-            channelId,
-        );
+        const authResult =
+            await requireManageChannelsAccessByChannelId(channelId);
         if (isAuthError(authResult)) {
             return authResult.response;
         }

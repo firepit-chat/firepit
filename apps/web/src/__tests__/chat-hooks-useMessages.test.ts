@@ -99,9 +99,7 @@ describe("useMessages", () => {
     describe("Message Loading", () => {
         it("should load messages when channelId is provided", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1, mockMessage2]);
 
             const { result } = renderHook(() =>
@@ -123,9 +121,7 @@ describe("useMessages", () => {
 
         it("should clear messages when channelId is null", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result, rerender } = renderHook(
@@ -152,9 +148,7 @@ describe("useMessages", () => {
         it("should handle load errors", async () => {
             const { toast } = await import("sonner");
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockRejectedValue(new Error("Load failed"));
 
             renderHook(() =>
@@ -181,11 +175,7 @@ describe("useMessages", () => {
                 reactions: [],
             };
 
-            (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
-            )
+            (appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>)
                 .mockResolvedValueOnce([mockMessage1])
                 .mockResolvedValueOnce([mockMessage3]);
 
@@ -225,11 +215,7 @@ describe("useMessages", () => {
 
             let resolveNextLoad: ((messages: Message[]) => void) | undefined;
 
-            (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
-            )
+            (appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>)
                 .mockResolvedValueOnce([mockMessage1])
                 .mockImplementationOnce(
                     () =>
@@ -276,9 +262,7 @@ describe("useMessages", () => {
             }));
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue(fullPage);
 
             const { result } = renderHook(() =>
@@ -296,9 +280,7 @@ describe("useMessages", () => {
 
         it("should set hasMore to false when less than full page is loaded", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -316,9 +298,7 @@ describe("useMessages", () => {
 
         it("should set loading to true when channel changes and false when complete", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockImplementation(
                 () =>
                     new Promise((resolve) =>
@@ -347,11 +327,7 @@ describe("useMessages", () => {
         });
 
         it("should keep previous messages visible and show loading when switching channels", async () => {
-            (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
-            )
+            (appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>)
                 .mockResolvedValueOnce([mockMessage1])
                 .mockImplementation(
                     () =>
@@ -396,9 +372,7 @@ describe("useMessages", () => {
     describe("Text State", () => {
         it("should update text state", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([]);
 
             const { result } = renderHook(() =>
@@ -422,9 +396,7 @@ describe("useMessages", () => {
     describe("Editing State", () => {
         it("should set editing message ID", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -449,9 +421,7 @@ describe("useMessages", () => {
 
         it("should clear editing message ID", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -489,9 +459,7 @@ describe("useMessages", () => {
             };
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([threadParent]);
             (
                 threadPinClient.listChannelThreadMessages as ReturnType<
@@ -526,9 +494,7 @@ describe("useMessages", () => {
 
         it("should set replying to message", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -552,9 +518,7 @@ describe("useMessages", () => {
 
         it("should clear replying to message", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -599,9 +563,7 @@ describe("useMessages", () => {
 
         it("should handle empty message list", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([]);
 
             const { result } = renderHook(() =>
@@ -621,9 +583,7 @@ describe("useMessages", () => {
     describe("Delete Messages", () => {
         it("removes a deleted message from local state immediately", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1, mockMessage2]);
 
             const fetchMock = vi.fn().mockResolvedValue({
@@ -663,9 +623,7 @@ describe("useMessages", () => {
 
         it("applies reaction updates optimistically", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([
                 {
                     ...mockMessage1,
@@ -674,8 +632,7 @@ describe("useMessages", () => {
             ]);
 
             let resolveToggle:
-                | ((value: { success: boolean }) => void)
-                | undefined;
+                ((value: { success: boolean }) => void) | undefined;
             (
                 reactionsClient.toggleReaction as ReturnType<typeof vi.fn>
             ).mockImplementation(
@@ -750,9 +707,7 @@ describe("useMessages", () => {
             };
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([
                 {
                     ...mockMessage1,
@@ -840,9 +795,7 @@ describe("useMessages", () => {
             };
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([
                 {
                     ...mockMessage1,
@@ -888,9 +841,7 @@ describe("useMessages", () => {
                         method: "POST",
                     },
                 );
-                expect(result.current.messages[0]?.poll?.status).toBe(
-                    "closed",
-                );
+                expect(result.current.messages[0]?.poll?.status).toBe("closed");
             } finally {
                 vi.unstubAllGlobals();
             }
@@ -900,9 +851,7 @@ describe("useMessages", () => {
     describe("Load Older Messages", () => {
         it("should not show load older button when hasMore is false", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -928,9 +877,7 @@ describe("useMessages", () => {
             }));
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue(fullPage);
 
             const { result } = renderHook(() =>
@@ -959,11 +906,7 @@ describe("useMessages", () => {
                 reactions: [],
             };
 
-            (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
-            )
+            (appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>)
                 .mockResolvedValueOnce([mockMessage1])
                 .mockResolvedValueOnce([olderMessage]);
 
@@ -993,9 +936,7 @@ describe("useMessages", () => {
 
         it("should not load older when channelId is null", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([]);
 
             const { result } = renderHook(() =>
@@ -1011,9 +952,7 @@ describe("useMessages", () => {
             });
 
             // Should not call getEnrichedMessages for load older
-            expect(
-                appwriteMessages.listRecentMessages,
-            ).not.toHaveBeenCalled();
+            expect(appwriteMessages.listRecentMessages).not.toHaveBeenCalled();
         });
     });
 
@@ -1021,9 +960,7 @@ describe("useMessages", () => {
         it("should handle non-Error load failure", async () => {
             const { toast } = await import("sonner");
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockRejectedValue("String error");
 
             renderHook(() =>
@@ -1043,9 +980,7 @@ describe("useMessages", () => {
 
         it("should handle null userId", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -1063,9 +998,7 @@ describe("useMessages", () => {
 
         it("should handle null userName", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -1088,9 +1021,7 @@ describe("useMessages", () => {
             };
 
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([messageNoReactions]);
 
             const { result } = renderHook(() =>
@@ -1108,9 +1039,7 @@ describe("useMessages", () => {
 
         it("should preserve oldestCursor from initial load", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1, mockMessage2]);
 
             const { result } = renderHook(() =>
@@ -1130,9 +1059,7 @@ describe("useMessages", () => {
     describe("Text Editing", () => {
         it("should clear text when editing is canceled", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>
@@ -1168,9 +1095,7 @@ describe("useMessages", () => {
 
         it("should set text to message text when starting edit", async () => {
             (
-                appwriteMessages.listRecentMessages as ReturnType<
-                    typeof vi.fn
-                >
+                appwriteMessages.listRecentMessages as ReturnType<typeof vi.fn>
             ).mockResolvedValue([mockMessage1]);
 
             const { result } = renderHook(() =>

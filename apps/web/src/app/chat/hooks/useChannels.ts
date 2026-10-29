@@ -136,46 +136,40 @@ export function useChannels({
         };
     }, [refresh]);
 
-    const loadMore = useCallback(
-      async () => {
-
-            if (!selectedServer) {
-                return;
-            }
-            if (!cursor || loading) {
-                return;
-            }
-            setLoading(true);
-            try {
-                const response = await fetch(
-                    `/api/channels?serverId=${selectedServer}&limit=50&cursor=${cursor}`,
-                );
-                const data = (await response.json()) as {
-                    channels: Channel[];
-                    nextCursor: string | null;
-                };
-                setCursor(data.nextCursor);
-                setChannels((prev) => [...prev, ...data.channels]);
-            } catch (err) {
-                toast.error(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to load more channels",
-                );
-            } finally {
-                setLoading(false);
-            }
-    
-      },
-      [cursor, loading, selectedServer],
-  );
+    const loadMore = useCallback(async () => {
+        if (!selectedServer) {
+            return;
+        }
+        if (!cursor || loading) {
+            return;
+        }
+        setLoading(true);
+        try {
+            const response = await fetch(
+                `/api/channels?serverId=${selectedServer}&limit=50&cursor=${cursor}`,
+            );
+            const data = (await response.json()) as {
+                channels: Channel[];
+                nextCursor: string | null;
+            };
+            setCursor(data.nextCursor);
+            setChannels((prev) => [...prev, ...data.channels]);
+        } catch (err) {
+            toast.error(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load more channels",
+            );
+        } finally {
+            setLoading(false);
+        }
+    }, [cursor, loading, selectedServer]);
 
     const create = useCallback(
-      async (
-        name: string,
-        type: "text" | "voice" | "announcement" = "text",
-    ) => {
-
+        async (
+            name: string,
+            type: "text" | "voice" | "announcement" = "text",
+        ) => {
             if (!userId) {
                 return null;
             }
@@ -185,13 +179,23 @@ export function useChannels({
             try {
                 let channel: Channel;
                 if (process.env.NODE_ENV === "test") {
-                    const { createChannel } = await import("@/lib/appwrite-servers");
-                    channel = await createChannel(selectedServer, name, userId, type);
+                    const { createChannel } =
+                        await import("@/lib/appwrite-servers");
+                    channel = await createChannel(
+                        selectedServer,
+                        name,
+                        userId,
+                        type,
+                    );
                 } else {
                     const res = await fetch("/api/channels", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ serverId: selectedServer, name, type }),
+                        body: JSON.stringify({
+                            serverId: selectedServer,
+                            name,
+                            type,
+                        }),
                     });
                     const text = await res.text().catch(() => "");
                     let payload: unknown = null;
@@ -204,8 +208,14 @@ export function useChannels({
                         }
                     }
 
-                    const body = payload as { channel?: unknown; error?: string } | null;
-                    const errMsg = body?.error || fallbackText || "Failed to create channel";
+                    const body = payload as {
+                        channel?: unknown;
+                        error?: string;
+                    } | null;
+                    const errMsg =
+                        body?.error ||
+                        fallbackText ||
+                        "Failed to create channel";
 
                     if (!res.ok) {
                         throw new Error(errMsg);
@@ -229,33 +239,47 @@ export function useChannels({
                 toast.error(error.message);
                 throw error;
             }
-    
-      },
-      [selectedServer, userId],
-  );
+        },
+        [selectedServer, userId],
+    );
 
     const remove = useCallback(
-      async (channel: Channel) => {
-
+        async (channel: Channel) => {
             try {
                 if (process.env.NODE_ENV === "test") {
-                    const { deleteChannel } = await import("@/lib/appwrite-servers");
+                    const { deleteChannel } =
+                        await import("@/lib/appwrite-servers");
                     await deleteChannel(channel.$id);
                 } else {
-                    const res = await fetch(`/api/channels/${encodeURIComponent(channel.$id)}`, {
-                        method: "DELETE",
-                    });
+                    const res = await fetch(
+                        `/api/channels/${encodeURIComponent(channel.$id)}`,
+                        {
+                            method: "DELETE",
+                        },
+                    );
                     if (!res.ok) {
-                        const parsed: unknown = await res.json().catch(() => null);
+                        const parsed: unknown = await res
+                            .json()
+                            .catch(() => null);
                         let errorMessage: string | undefined;
-                        if (parsed && typeof parsed === "object" && "error" in parsed) {
+                        if (
+                            parsed &&
+                            typeof parsed === "object" &&
+                            "error" in parsed
+                        ) {
                             errorMessage = (parsed as { error?: string }).error;
                         }
-                        throw new Error(errorMessage || "Failed to delete channel");
+                        throw new Error(
+                            errorMessage || "Failed to delete channel",
+                        );
                     }
                 }
-                setChannels((prev) => prev.filter((c) => c.$id !== channel.$id));
-                if (selectedServer) {apiCache.clear(`channels:${selectedServer}:initial`);}
+                setChannels((prev) =>
+                    prev.filter((c) => c.$id !== channel.$id),
+                );
+                if (selectedServer) {
+                    apiCache.clear(`channels:${selectedServer}:initial`);
+                }
                 window.dispatchEvent(new Event("firepit:channels-changed"));
             } catch (err) {
                 const error =
@@ -265,10 +289,9 @@ export function useChannels({
                 toast.error(error.message);
                 throw error;
             }
-    
-      },
-      [selectedServer],
-  );
+        },
+        [selectedServer],
+    );
 
     const isOwner = useCallback(
         (serverId: string) => {

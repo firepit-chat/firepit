@@ -19,9 +19,10 @@ import {
     trackApiCall,
     recordEvent,
 } from "@/lib/posthog-utils";
-import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
-
-
+import {
+    ensureAllowedRequestOrigin,
+    getAllowedOrigin,
+} from "@/lib/request-origin";
 
 // Helper to create JSON responses with CORS headers
 function jsonResponse(data: unknown, init?: ResponseInit, request?: Request) {

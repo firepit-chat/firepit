@@ -64,9 +64,13 @@ function decodePng(buffer: Buffer) {
         pos += 12 + length;
     }
 
-    if (bitDepth !== 8) {throw new Error(`unsupported bit depth ${bitDepth}`);}
+    if (bitDepth !== 8) {
+        throw new Error(`unsupported bit depth ${bitDepth}`);
+    }
     const channels = colorType === 6 ? 4 : colorType === 2 ? 3 : 0;
-    if (!channels) {throw new Error(`unsupported colour type ${colorType}`);}
+    if (!channels) {
+        throw new Error(`unsupported colour type ${colorType}`);
+    }
 
     const raw = inflateSync(Buffer.concat(idat));
     const stride = width * channels;
@@ -79,12 +83,21 @@ function decodePng(buffer: Buffer) {
         for (let x = 0; x < stride; x++) {
             const a = x >= channels ? out[y * stride + x - channels] : 0;
             const b = y > 0 ? out[(y - 1) * stride + x] : 0;
-            const c = x >= channels && y > 0 ? out[(y - 1) * stride + x - channels] : 0;
+            const c =
+                x >= channels && y > 0
+                    ? out[(y - 1) * stride + x - channels]
+                    : 0;
             let value = line[x];
             switch (filter) {
-                case 1: value += a; break;
-                case 2: value += b; break;
-                case 3: value += (a + b) >> 1; break;
+                case 1:
+                    value += a;
+                    break;
+                case 2:
+                    value += b;
+                    break;
+                case 3:
+                    value += (a + b) >> 1;
+                    break;
                 case 4: {
                     const p = a + b - c;
                     const pa = Math.abs(p - a);
@@ -93,16 +106,15 @@ function decodePng(buffer: Buffer) {
                     value += pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
                     break;
                 }
-                default: break;
+                default:
+                    break;
             }
             out[y * stride + x] = value & 0xff;
         }
     }
 
     const alphaAt = (x: number, y: number) =>
-        colorType === 6
-            ? out[y * stride + x * 4 + 3]
-            : 255; // no alpha channel: fully opaque
+        colorType === 6 ? out[y * stride + x * 4 + 3] : 255; // no alpha channel: fully opaque
     return { width, height, alphaAt };
 }
 
@@ -114,9 +126,13 @@ function measure(file: string, assetDir: string): Frame {
 
     const artTouchesEdge =
         Array.from({ length: width }, (__, x) => isArt(x, 0)).some(Boolean) ||
-        Array.from({ length: width }, (__, x) => isArt(x, height - 1)).some(Boolean) ||
+        Array.from({ length: width }, (__, x) => isArt(x, height - 1)).some(
+            Boolean,
+        ) ||
         Array.from({ length: height }, (__, y) => isArt(0, y)).some(Boolean) ||
-        Array.from({ length: height }, (__, y) => isArt(width - 1, y)).some(Boolean);
+        Array.from({ length: height }, (__, y) => isArt(width - 1, y)).some(
+            Boolean,
+        );
 
     const cx = width / 2;
     const cy = height / 2;
@@ -126,8 +142,12 @@ function measure(file: string, assetDir: string): Frame {
             const t = (2 * Math.PI * i) / steps;
             const x = Math.round(cx + r * Math.cos(t));
             const y = Math.round(cy + r * Math.sin(t));
-            if (x < 0 || y < 0 || x >= width || y >= height) {return false;}
-            if (isArt(x, y)) {return false;}
+            if (x < 0 || y < 0 || x >= width || y >= height) {
+                return false;
+            }
+            if (isArt(x, y)) {
+                return false;
+            }
         }
         return true;
     };
@@ -136,8 +156,11 @@ function measure(file: string, assetDir: string): Frame {
     let hi = Math.min(width, height) / 2;
     for (let i = 0; i < 40; i++) {
         const mid = (lo + hi) / 2;
-        if (fits(mid)) {lo = mid;}
-        else {hi = mid;}
+        if (fits(mid)) {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
     }
 
     const radius = lo;
@@ -169,13 +192,17 @@ console.log(
 );
 for (const f of frames) {
     const notes: string[] = [];
-    if (f.overlay) {notes.push("OVERLAY (art crosses centre)");}
-    if (f.artTouchesEdge) {notes.push("art touches canvas edge");}
+    if (f.overlay) {
+        notes.push("OVERLAY (art crosses centre)");
+    }
+    if (f.artTouchesEdge) {
+        notes.push("art touches canvas edge");
+    }
     console.log(
-        `${f.file.padEnd(28) +
+        `${
+            f.file.padEnd(28) +
             `${f.width}x${f.height}`.padStart(10) +
-            `${f.insetPercent.toFixed(1)}`.padStart(8) 
-            }  ${ 
-            notes.join(", ")}`,
+            `${f.insetPercent.toFixed(1)}`.padStart(8)
+        }  ${notes.join(", ")}`,
     );
 }

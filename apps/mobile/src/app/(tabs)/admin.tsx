@@ -1,7 +1,13 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+    ActivityIndicator,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
@@ -51,7 +57,11 @@ function AdminRow({
                 >
                     <ThemedText
                         type="smallBold"
-                        themeColor={actionTone === "primary" ? "primaryForeground" : "foreground"}
+                        themeColor={
+                            actionTone === "primary"
+                                ? "primaryForeground"
+                                : "foreground"
+                        }
                     >
                         {actionLabel}
                     </ThemedText>
@@ -69,10 +79,15 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
             <ThemedText
                 type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
             >
                 {label}
             </ThemedText>
@@ -101,7 +116,9 @@ function ServerCard({
                 },
             ]}
         >
-            <ThemedText type="smallBold">{server.name ?? "Unnamed server"}</ThemedText>
+            <ThemedText type="smallBold">
+                {server.name ?? "Unnamed server"}
+            </ThemedText>
             {server.memberCount != null && (
                 <ThemedText type="code" themeColor="mutedForeground">
                     {server.memberCount} members
@@ -113,13 +130,20 @@ function ServerCard({
 
 export default function AdminTabScreen() {
     const theme = useTheme();
-    const { currentUser, instanceUrl, accessToken, state } = useFirepitBootstrap();
-    const { serverId: paramServerId } = useLocalSearchParams<{ serverId?: string }>();
+    const { currentUser, instanceUrl, accessToken, state } =
+        useFirepitBootstrap();
+    const { serverId: paramServerId } = useLocalSearchParams<{
+        serverId?: string;
+    }>();
 
     const [servers, setServers] = useState<Server[]>([]);
-    const [loadState, setLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+    const [loadState, setLoadState] = useState<
+        "idle" | "loading" | "ready" | "error"
+    >("idle");
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+    const [selectedServerId, setSelectedServerId] = useState<string | null>(
+        null,
+    );
 
     const roles = currentUser?.roles as Record<string, unknown> | undefined;
     const isGlobalAdmin = roles?.isAdmin === true;
@@ -141,7 +165,9 @@ export default function AdminTabScreen() {
         } catch (error) {
             setLoadState("error");
             setLoadError(
-                error instanceof Error ? error.message : "Unable to load servers",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load servers",
             );
         }
     }, [accessToken, instanceUrl, state]);
@@ -178,12 +204,20 @@ export default function AdminTabScreen() {
                         <ThemedText type="code" themeColor="accent">
                             Firepit admin
                         </ThemedText>
-                        <ThemedText type="title">Administrative tools</ThemedText>
-                        <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                            Server management, moderation actions, and audit logs.
+                        <ThemedText type="title">
+                            Administrative tools
+                        </ThemedText>
+                        <ThemedText
+                            themeColor="mutedForeground"
+                            style={styles.copy}
+                        >
+                            Server management, moderation actions, and audit
+                            logs.
                         </ThemedText>
                         <View style={styles.pillRow}>
-                            {hasGlobalAccess ? <StatusPill label="instance" tone="warning" /> : null}
+                            {hasGlobalAccess ? (
+                                <StatusPill label="instance" tone="warning" />
+                            ) : null}
                         </View>
                     </View>
 
@@ -202,7 +236,9 @@ export default function AdminTabScreen() {
                             type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
-                            <ThemedText themeColor="destructive">{loadError}</ThemedText>
+                            <ThemedText themeColor="destructive">
+                                {loadError}
+                            </ThemedText>
                         </ThemedView>
                     ) : null}
 
@@ -211,14 +247,20 @@ export default function AdminTabScreen() {
                             type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
-                            <ThemedText type="smallBold">Your servers</ThemedText>
+                            <ThemedText type="smallBold">
+                                Your servers
+                            </ThemedText>
                             <View style={styles.serverGrid}>
                                 {servers.map((server) => (
                                     <ServerCard
                                         key={server.$id}
                                         server={server}
                                         selected={server.$id === serverId}
-                                        onSelect={() => setSelectedServerId(server.$id ?? null)}
+                                        onSelect={() =>
+                                            setSelectedServerId(
+                                                server.$id ?? null,
+                                            )
+                                        }
                                     />
                                 ))}
                             </View>
@@ -300,14 +342,18 @@ export default function AdminTabScreen() {
                             type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
-                            <ThemedText type="smallBold">Instance tools</ThemedText>
+                            <ThemedText type="smallBold">
+                                Instance tools
+                            </ThemedText>
                             <AdminRow
                                 title="Instance audit log"
                                 description="View every privileged action across all servers."
                                 actionLabel="Open audit log"
                                 actionTone="secondary"
                                 onAction={() =>
-                                    router.push("/admin/instance-audit-log" as never)
+                                    router.push(
+                                        "/admin/instance-audit-log" as never,
+                                    )
                                 }
                             />
                             <AdminRow
@@ -316,7 +362,9 @@ export default function AdminTabScreen() {
                                 actionLabel="Open reports"
                                 actionTone="secondary"
                                 onAction={() =>
-                                    router.push("/admin/instance-reports" as never)
+                                    router.push(
+                                        "/admin/instance-reports" as never,
+                                    )
                                 }
                             />
                             <AdminRow
@@ -325,7 +373,9 @@ export default function AdminTabScreen() {
                                 actionLabel="Open announcements"
                                 actionTone="ghost"
                                 onAction={() =>
-                                    router.push("/admin/instance-announcements" as never)
+                                    router.push(
+                                        "/admin/instance-announcements" as never,
+                                    )
                                 }
                             />
                             {isGlobalAdmin ? (
@@ -335,20 +385,30 @@ export default function AdminTabScreen() {
                                     actionLabel="Open controls"
                                     actionTone="secondary"
                                     onAction={() =>
-                                        router.push("/admin/signup-controls" as never)
+                                        router.push(
+                                            "/admin/signup-controls" as never,
+                                        )
                                     }
                                 />
                             ) : null}
                         </ThemedView>
                     ) : null}
 
-                    {!serverId && !hasGlobalAccess && loadState === "ready" && servers.length === 0 ? (
+                    {!serverId &&
+                    !hasGlobalAccess &&
+                    loadState === "ready" &&
+                    servers.length === 0 ? (
                         <View style={styles.row}>
                             <View style={styles.rowText}>
-                                <ThemedText type="smallBold">No servers found</ThemedText>
-                                <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                    You are not a member of any servers. Join or create a
-                                    server to access admin tools.
+                                <ThemedText type="smallBold">
+                                    No servers found
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    You are not a member of any servers. Join or
+                                    create a server to access admin tools.
                                 </ThemedText>
                             </View>
                         </View>

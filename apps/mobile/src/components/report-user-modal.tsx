@@ -88,162 +88,161 @@ export function ReportUserModal({
             animationType="slide"
             onRequestClose={handleClose}
         >
-        <KeyboardAvoidingView
-            style={styles.overlay}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-            <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Close report dialog"
-                style={StyleSheet.absoluteFill}
-                onPress={handleClose}
-            />
-            <View
-                style={[
-                    styles.container,
-                    {
-                        backgroundColor: theme.background,
-                        borderTopColor: theme.border,
-                    },
-                ]}
+            <KeyboardAvoidingView
+                style={styles.overlay}
+                behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <View style={styles.header}>
-                            <ThemedText type="title">
-                                Report {targetDisplayName}
-                            </ThemedText>
-                            <ThemedText
-                                themeColor="mutedForeground"
-                                style={styles.description}
-                            >
-                                Help us keep the community safe. Reports are
-                                reviewed by instance admins.
-                            </ThemedText>
-                        </View>
+                <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Close report dialog"
+                    style={StyleSheet.absoluteFill}
+                    onPress={handleClose}
+                />
+                <View
+                    style={[
+                        styles.container,
+                        {
+                            backgroundColor: theme.background,
+                            borderTopColor: theme.border,
+                        },
+                    ]}
+                >
+                    <View style={styles.header}>
+                        <ThemedText type="title">
+                            Report {targetDisplayName}
+                        </ThemedText>
+                        <ThemedText
+                            themeColor="mutedForeground"
+                            style={styles.description}
+                        >
+                            Help us keep the community safe. Reports are
+                            reviewed by instance admins.
+                        </ThemedText>
+                    </View>
 
-                        {result === "success" ? (
-                            <View style={styles.resultContainer}>
+                    {result === "success" ? (
+                        <View style={styles.resultContainer}>
+                            <ThemedText
+                                themeColor="foreground"
+                                style={styles.resultText}
+                            >
+                                {resultMessage}
+                            </ThemedText>
+                            <Pressable
+                                accessibilityRole="button"
+                                onPress={() => {
+                                    setResult("idle");
+                                    onClose();
+                                }}
+                                style={({ pressed }) => ({
+                                    backgroundColor: theme.primary,
+                                    borderRadius: 999,
+                                    paddingHorizontal: Spacing.three,
+                                    paddingVertical: Spacing.two,
+                                    opacity: pressed ? 0.85 : 1,
+                                    alignSelf: "center",
+                                })}
+                            >
                                 <ThemedText
-                                    themeColor="foreground"
-                                    style={styles.resultText}
+                                    type="smallBold"
+                                    themeColor="primaryForeground"
+                                >
+                                    Done
+                                </ThemedText>
+                            </Pressable>
+                        </View>
+                    ) : (
+                        <>
+                            <ThemedText type="smallBold" style={styles.label}>
+                                Why are you reporting this user?
+                            </ThemedText>
+                            <TextInput
+                                multiline
+                                placeholder="Describe what is inappropriate about this user's profile..."
+                                placeholderTextColor={theme.mutedForeground}
+                                value={justification}
+                                onChangeText={setJustification}
+                                maxLength={MAX_LENGTH}
+                                style={[
+                                    styles.textInput,
+                                    {
+                                        borderColor: theme.border,
+                                        color: theme.foreground,
+                                    },
+                                ]}
+                            />
+                            <ThemedText
+                                type="code"
+                                themeColor={
+                                    charCount > 0 && !isValid
+                                        ? "destructive"
+                                        : "mutedForeground"
+                                }
+                            >
+                                {charCount < MIN_LENGTH
+                                    ? `${MIN_LENGTH - charCount} more characters required`
+                                    : `${charCount}/${MAX_LENGTH}`}
+                            </ThemedText>
+
+                            {result === "error" ? (
+                                <ThemedText
+                                    themeColor="destructive"
+                                    type="code"
                                 >
                                     {resultMessage}
                                 </ThemedText>
+                            ) : null}
+
+                            <View style={styles.buttonRow}>
                                 <Pressable
                                     accessibilityRole="button"
-                                    onPress={() => {
-                                        setResult("idle");
-                                        onClose();
-                                    }}
+                                    disabled={submitting}
+                                    onPress={handleClose}
                                     style={({ pressed }) => ({
-                                        backgroundColor: theme.primary,
+                                        backgroundColor: theme.muted,
+                                        borderColor: theme.border,
+                                        borderWidth: 1,
                                         borderRadius: 999,
                                         paddingHorizontal: Spacing.three,
                                         paddingVertical: Spacing.two,
                                         opacity: pressed ? 0.85 : 1,
-                                        alignSelf: "center",
+                                    })}
+                                >
+                                    <ThemedText type="smallBold">
+                                        Cancel
+                                    </ThemedText>
+                                </Pressable>
+                                <Pressable
+                                    accessibilityRole="button"
+                                    disabled={!isValid || submitting}
+                                    onPress={handleSubmit}
+                                    style={({ pressed }) => ({
+                                        backgroundColor: theme.destructive,
+                                        borderRadius: 999,
+                                        paddingHorizontal: Spacing.three,
+                                        paddingVertical: Spacing.two,
+                                        opacity:
+                                            !isValid || submitting
+                                                ? 0.5
+                                                : pressed
+                                                  ? 0.85
+                                                  : 1,
                                     })}
                                 >
                                     <ThemedText
                                         type="smallBold"
-                                        themeColor="primaryForeground"
+                                        style={{
+                                            color: theme.destructiveForeground,
+                                        }}
                                     >
-                                        Done
+                                        {submitting
+                                            ? "Submitting…"
+                                            : "Submit Report"}
                                     </ThemedText>
                                 </Pressable>
                             </View>
-                        ) : (
-                            <>
-                                <ThemedText
-                                    type="smallBold"
-                                    style={styles.label}
-                                >
-                                    Why are you reporting this user?
-                                </ThemedText>
-                                <TextInput
-                                    multiline
-                                    placeholder="Describe what is inappropriate about this user's profile..."
-                                    placeholderTextColor={theme.mutedForeground}
-                                    value={justification}
-                                    onChangeText={setJustification}
-                                    maxLength={MAX_LENGTH}
-                                    style={[
-                                        styles.textInput,
-                                        {
-                                            borderColor: theme.border,
-                                            color: theme.foreground,
-                                        },
-                                    ]}
-                                />
-                                <ThemedText
-                                    type="code"
-                                    themeColor={
-                                        charCount > 0 && !isValid
-                                            ? "destructive"
-                                            : "mutedForeground"
-                                    }
-                                >
-                                    {charCount < MIN_LENGTH
-                                        ? `${MIN_LENGTH - charCount} more characters required`
-                                        : `${charCount}/${MAX_LENGTH}`}
-                                </ThemedText>
-
-                                {result === "error" ? (
-                                    <ThemedText
-                                        themeColor="destructive"
-                                        type="code"
-                                    >
-                                        {resultMessage}
-                                    </ThemedText>
-                                ) : null}
-
-                                <View style={styles.buttonRow}>
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        disabled={submitting}
-                                        onPress={handleClose}
-                                        style={({ pressed }) => ({
-                                            backgroundColor: theme.muted,
-                                            borderColor: theme.border,
-                                            borderWidth: 1,
-                                            borderRadius: 999,
-                                            paddingHorizontal: Spacing.three,
-                                            paddingVertical: Spacing.two,
-                                            opacity: pressed ? 0.85 : 1,
-                                        })}
-                                    >
-                                        <ThemedText type="smallBold">
-                                            Cancel
-                                        </ThemedText>
-                                    </Pressable>
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        disabled={!isValid || submitting}
-                                        onPress={handleSubmit}
-                                        style={({ pressed }) => ({
-                                            backgroundColor: theme.destructive,
-                                            borderRadius: 999,
-                                            paddingHorizontal: Spacing.three,
-                                            paddingVertical: Spacing.two,
-                                            opacity:
-                                                !isValid || submitting
-                                                    ? 0.5
-                                                    : pressed
-                                                      ? 0.85
-                                                      : 1,
-                                        })}
-                                    >
-                                        <ThemedText
-                                            type="smallBold"
-                                            style={{ color: theme.destructiveForeground }}
-                                        >
-                                            {submitting
-                                                ? "Submitting…"
-                                                : "Submit Report"}
-                                        </ThemedText>
-                                    </Pressable>
-                                </View>
-                            </>
-                        )}
+                        </>
+                    )}
                 </View>
             </KeyboardAvoidingView>
         </Modal>

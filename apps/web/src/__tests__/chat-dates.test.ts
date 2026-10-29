@@ -22,7 +22,9 @@ describe("chat-dates", () => {
 
         it("returns null for unparseable input", () => {
             expect(calendarDaysAgo("not a date", NOW)).toBeNull();
-            expect(calendarDaysAgo(undefined as unknown as string, NOW)).toBeNull();
+            expect(
+                calendarDaysAgo(undefined as unknown as string, NOW),
+            ).toBeNull();
         });
     });
 
@@ -36,7 +38,9 @@ describe("chat-dates", () => {
         // The rule the user asked for: yesterday by name, anything older by date,
         // and never a stale "Yesterday" once the day rolls over.
         it("shows Yesterday only for the day before", () => {
-            expect(formatListTimestamp(at(9, 2, 15, 30), NOW)).toBe("Yesterday");
+            expect(formatListTimestamp(at(9, 2, 15, 30), NOW)).toBe(
+                "Yesterday",
+            );
             expect(formatListTimestamp(at(8, 2, 15, 30), NOW)).not.toBe(
                 "Yesterday",
             );

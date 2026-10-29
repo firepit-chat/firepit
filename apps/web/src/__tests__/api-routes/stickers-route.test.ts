@@ -5,21 +5,20 @@ class MockAuthError extends Error {
     readonly code: "UNAUTHORIZED" | "FORBIDDEN";
 
     constructor(code: "UNAUTHORIZED" | "FORBIDDEN", message?: string) {
-        super(message ?? (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"));
+        super(
+            message ?? (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"),
+        );
         this.name = "AuthError";
         this.code = code;
     }
 }
 
-const {
-    mockGetBuiltinStickerPacks,
-    mockRequireAuth,
-    mockTrackApiCall,
-} = vi.hoisted(() => ({
-    mockGetBuiltinStickerPacks: vi.fn(),
-    mockRequireAuth: vi.fn(),
-    mockTrackApiCall: vi.fn(),
-}));
+const { mockGetBuiltinStickerPacks, mockRequireAuth, mockTrackApiCall } =
+    vi.hoisted(() => ({
+        mockGetBuiltinStickerPacks: vi.fn(),
+        mockRequireAuth: vi.fn(),
+        mockTrackApiCall: vi.fn(),
+    }));
 
 vi.mock("@/lib/auth-server", () => ({
     AuthError: MockAuthError,
@@ -31,8 +30,12 @@ vi.mock("@/lib/gif-sticker", () => ({
 }));
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     trackApiCall: mockTrackApiCall,
 }));
 

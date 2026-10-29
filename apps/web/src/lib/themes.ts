@@ -106,11 +106,17 @@ export const ACCENT_LABELS: Record<AccentName, string> = {
 };
 
 export function isThemeName(value: unknown): value is ThemeName {
-    return typeof value === "string" && (THEME_NAMES as readonly string[]).includes(value);
+    return (
+        typeof value === "string" &&
+        (THEME_NAMES as readonly string[]).includes(value)
+    );
 }
 
 export function isAccentName(value: unknown): value is AccentName {
-    return typeof value === "string" && (ACCENT_NAMES as readonly string[]).includes(value);
+    return (
+        typeof value === "string" &&
+        (ACCENT_NAMES as readonly string[]).includes(value)
+    );
 }
 
 export function isDarkTheme(value: unknown): boolean {

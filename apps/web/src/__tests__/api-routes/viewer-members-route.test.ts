@@ -1,11 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockListDocuments, mockGetServerSession, mockGetServerPermissionsForUser } =
-    vi.hoisted(() => ({
-        mockListDocuments: vi.fn(),
-        mockGetServerSession: vi.fn(),
-        mockGetServerPermissionsForUser: vi.fn(),
-    }));
+const {
+    mockListDocuments,
+    mockGetServerSession,
+    mockGetServerPermissionsForUser,
+} = vi.hoisted(() => ({
+    mockListDocuments: vi.fn(),
+    mockGetServerSession: vi.fn(),
+    mockGetServerPermissionsForUser: vi.fn(),
+}));
 
 vi.mock("node-appwrite", () => ({
     Query: {
@@ -18,10 +21,14 @@ vi.mock("node-appwrite", () => ({
 }));
 
 vi.mock("@/lib/appwrite-server", () => ({
-    getServerClient: vi.fn(() => ({ databases: { listDocuments: mockListDocuments } })),
+    getServerClient: vi.fn(() => ({
+        databases: { listDocuments: mockListDocuments },
+    })),
 }));
 
-vi.mock("@/lib/auth-server", () => ({ getServerSession: mockGetServerSession }));
+vi.mock("@/lib/auth-server", () => ({
+    getServerSession: mockGetServerSession,
+}));
 
 // Avatar frames are stored as a preset id and resolved against the storage
 // bucket. Mock both halves so the projection is deterministic and no admin
@@ -36,9 +43,10 @@ vi.mock("@/lib/appwrite-profiles", () => ({
     getExistingPredefinedAvatarFrameIds: vi.fn(
         async (ids: string[]) => new Set(ids),
     ),
-    getPredefinedAvatarFrameUrlByPresetId: vi.fn(
-        (id?: string) =>
-            id ? `http://localhost/v1/storage/buckets/frames/files/${id}/view` : undefined,
+    getPredefinedAvatarFrameUrlByPresetId: vi.fn((id?: string) =>
+        id
+            ? `http://localhost/v1/storage/buckets/frames/files/${id}/view`
+            : undefined,
     ),
 }));
 
@@ -63,9 +71,8 @@ vi.mock("@/lib/appwrite-core", () => ({
     })),
 }));
 
-const { GET } = await import(
-    "../../app/api/servers/[serverId]/viewer/members/route"
-);
+const { GET } =
+    await import("../../app/api/servers/[serverId]/viewer/members/route");
 
 const ROLES = [
     { $id: "role-owner", name: "Owner", color: "#ff0000", position: 100 },
