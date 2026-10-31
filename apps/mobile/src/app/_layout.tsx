@@ -1,8 +1,13 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider , router } from "expo-router";
 import { useCallback, useMemo } from "react";
-import { View, useColorScheme } from "react-native";
+import { View } from "react-native";
 
-import { Colors } from "@/constants/theme";
+import { isDarkPalette } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import {
+    ThemePreferenceProvider,
+    useThemePreference,
+} from "@/providers/theme-preference-context";
 import { FirepitProvider } from "@/providers/firepit-provider";
 import { UpdateProvider , useUpdate } from "@/providers/update-provider";
 import { CacheSettingsProvider } from "@/providers/cache-settings-context";
@@ -34,18 +39,18 @@ function UpdatePromptGate() {
   );
 }
 
-function TabLayout() {
-    const colorScheme = useColorScheme();
-    const themeName = colorScheme === "dark" ? "dark" : "light";
-    const palette = Colors[themeName];
+function TabLayoutContent() {
+    const palette = useTheme();
+    const { palette: paletteName } = useThemePreference();
     const { isConnected } = useNetworkStatus();
+    const dark = isDarkPalette(paletteName);
 
     const navigationTheme = useMemo(
         () => ({
-            ...(themeName === "dark" ? DarkTheme : DefaultTheme),
-            dark: themeName === "dark",
+            ...(dark ? DarkTheme : DefaultTheme),
+            dark,
             colors: {
-                ...(themeName === "dark" ? DarkTheme.colors : DefaultTheme.colors),
+                ...(dark ? DarkTheme.colors : DefaultTheme.colors),
                 background: palette.background,
                 card: palette.card,
                 text: palette.foreground,
@@ -54,7 +59,7 @@ function TabLayout() {
                 notification: palette.destructive,
             },
         }),
-        [palette, themeName],
+        [palette, dark],
     );
 
     return (
@@ -93,6 +98,16 @@ function TabLayout() {
             </OrientationGate>
             </AppErrorBoundary>
         </ThemeProvider>
+    );
+}
+
+function TabLayout() {
+    // Mounted above the content that reads the preference, so the first render
+    // already has the default palette rather than flashing unthemed.
+    return (
+        <ThemePreferenceProvider>
+            <TabLayoutContent />
+        </ThemePreferenceProvider>
     );
 }
 

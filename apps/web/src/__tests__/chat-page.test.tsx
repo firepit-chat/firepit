@@ -125,6 +125,19 @@ vi.mock("@/hooks/useCustomEmojis", () => ({
     }),
 }));
 
+// Reads a react-query preference, so it needs a QueryClientProvider the test
+// does not set up. The chat page only reads skipNsfwWarning from it.
+vi.mock("@/hooks/useDeveloperMode", () => ({
+    useDeveloperMode: () => ({
+        isEnabled: false,
+        navigationPreferences: {
+            skipNsfwWarning: false,
+            showFriendsInNavigation: false,
+        },
+        updateNavigationPreferences: vi.fn(),
+    }),
+}));
+
 vi.mock("@/components/chat-surface-panel", () => ({
     ChatSurfacePanel: ({
         composer,
