@@ -2,8 +2,14 @@ import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Query } from "node-appwrite";
 import type { Databases } from "node-appwrite";
+import { Effect, Result } from "effect";
+import type { Cause } from "effect";
 
 import { getServerClient } from "@/lib/appwrite-server";
+import {
+    appwriteQuery,
+    type AppwriteCallError,
+} from "@/lib/appwrite-effect";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import type { EnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
@@ -208,6 +214,38 @@ function parseFilters(query: string) {
     return filters;
 }
 
+function describeSearchFailure(
+    failure: AppwriteCallError | Cause.TimeoutError,
+): string {
+    if (failure._tag === "TimeoutError") {
+        return "timed out";
+    }
+
+    return failure.cause instanceof Error
+        ? failure.cause.message
+        : String(failure.cause);
+}
+
+function searchEffect<A>(
+    label: string,
+    run: () => Promise<A>,
+): Effect.Effect<A | null> {
+    return appwriteQuery(label, run).pipe(
+        Effect.result,
+        Effect.map((outcome) =>
+            Result.match(outcome, {
+                onFailure: (failure) => {
+                    logger.error(`Failed to search ${label}`, {
+                        error: describeSearchFailure(failure),
+                    });
+                    return null;
+                },
+                onSuccess: (value) => value,
+            }),
+        ),
+    );
+}
+
 /**
  * GET /api/search/messages
  * Search messages across channels and DMs with filters
@@ -378,43 +416,33 @@ export async function GET(request: NextRequest) {
         const canSearchChannels =
             requestedChannelId !== null || accessibleChannelIds.length > 0;
 
-        // Run channel and DM searches in parallel
-        const [channelResult, dmResult] = await Promise.all([
-            canSearchChannels
-                ? databases
-                      .listDocuments(
-                          env.databaseId,
-                          env.collections.messages,
-                          messageQueries,
-                      )
-                      .catch((error) => {
-                          logger.error("Failed to search channel messages", {
-                              error:
-                                  error instanceof Error
-                                      ? error.message
-                                      : String(error),
-                          });
-                          return null;
-                      })
-                : Promise.resolve(null),
-            dmQueries
-                ? databases
-                      .listDocuments(
-                          env.databaseId,
-                          env.collections.directMessages,
-                          dmQueries,
-                      )
-                      .catch((error) => {
-                          logger.error("Failed to search direct messages", {
-                              error:
-                                  error instanceof Error
-                                      ? error.message
-                                      : String(error),
-                          });
-                          return null;
-                      })
-                : Promise.resolve(null),
-        ]);
+        const dmSearchQueries = dmQueries;
+
+        const [channelResult, dmResult] = await Effect.runPromise(
+            Effect.all(
+                [
+                    canSearchChannels
+                        ? searchEffect("channel messages", () =>
+                              databases.listDocuments(
+                                  env.databaseId,
+                                  env.collections.messages,
+                                  messageQueries,
+                              ),
+                          )
+                        : Effect.succeed(null),
+                    dmSearchQueries
+                        ? searchEffect("direct messages", () =>
+                              databases.listDocuments(
+                                  env.databaseId,
+                                  env.collections.directMessages,
+                                  dmSearchQueries,
+                              ),
+                          )
+                        : Effect.succeed(null),
+                ],
+                { concurrency: 2 },
+            ),
+        );
 
         const searchElapsedMs = Date.now() - startTime;
 

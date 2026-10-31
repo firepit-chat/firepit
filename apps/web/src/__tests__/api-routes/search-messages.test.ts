@@ -234,6 +234,46 @@ describe("Message Search API Route", () => {
             expect(data.results[0].message.text).toBe("Private message");
         });
 
+        it("retries a transient Appwrite failure before returning results", async () => {
+            mockNoAccessibleChannels();
+            mockDatabases.listDocuments
+                .mockRejectedValueOnce(
+                    Object.assign(new Error("unavailable"), { code: 503 }),
+                )
+                .mockResolvedValueOnce({
+                    documents: [
+                        {
+                            $id: "dm-1",
+                            conversationId: "conv-1",
+                            senderId: "user-2",
+                            receiverId: "current-user-123",
+                            text: "Private message",
+                            $createdAt: "2024-01-01T11:00:00.000Z",
+                        },
+                    ],
+                })
+                .mockResolvedValueOnce({
+                    documents: [
+                        {
+                            userId: "user-2",
+                            displayName: "Bob",
+                            avatarFileId: "avatar-2",
+                        },
+                    ],
+                });
+
+            const request = new NextRequest(
+                "http://localhost/api/search/messages?q=private",
+            );
+
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.results).toHaveLength(1);
+            expect(mockDatabases.listDocuments).toHaveBeenCalledTimes(4);
+        });
+
         it("should filter by channel", async () => {
             mockDatabases.listDocuments
                 .mockResolvedValueOnce({

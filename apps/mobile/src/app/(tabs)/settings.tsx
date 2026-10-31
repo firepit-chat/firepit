@@ -452,6 +452,20 @@ export default function SettingsTabScreen() {
                             />
                         </View>
 
+                        {/* Security category */}
+                        <View style={styles.section}>
+                            <ThemedText type="smallBold">Security</ThemedText>
+                            <SettingsRow
+                                label="Encryption Key"
+                                description="Back up or restore your encrypted DM key"
+                                onPress={() =>
+                                    router.push(
+                                        "/settings/encryption-key" as never,
+                                    )
+                                }
+                            />
+                        </View>
+
                         {/* Connections category */}
                         <View style={styles.section}>
                             <ThemedText type="smallBold">

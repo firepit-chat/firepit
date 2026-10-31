@@ -33,12 +33,8 @@
         "@babel/preset-typescript": "^7.29.7",
         "@types/node": "^25.9.9"
     },
-    "trustedDependencies": [
-        "react-native-libsodium"
-    ],
     "patchedDependencies": {
         "metro-runtime@0.84.4": "patches/metro-runtime@0.84.4.patch",
-        "metro@0.84.4": "patches/metro@0.84.4.patch",
-        "react-native-libsodium@1.7.0": "patches/react-native-libsodium@1.7.0.patch"
+        "metro@0.84.4": "patches/metro@0.84.4.patch"
     }
 }

@@ -103,7 +103,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "expo-sqlite",
             "expo-status-bar",
             "expo-web-browser",
-            ["react-native-libsodium", {}],
             [
                 "expo-build-properties",
                 {

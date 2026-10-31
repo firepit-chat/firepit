@@ -41,6 +41,7 @@ import {
     trackSubscription,
 } from "@/lib/realtime-pool";
 import {
+    ENCRYPTED_MESSAGE_PLACEHOLDER,
     decryptMessageTextIfNeeded,
     encryptDmText,
     ensurePublishedDmEncryptionKey,
@@ -850,6 +851,21 @@ export function useDirectMessages({
         };
     }, [conversationId, decryptMessage, userId, initialPageSize]);
 
+    // Pinned messages arrive with an empty `text` when encrypted, so decrypt
+    // them before the pin list renders.
+    const listDecryptedPins = useCallback(
+        async (contextId: string) => {
+            const items = await listConversationPins(contextId);
+            return Promise.all(
+                items.map(async (item) => ({
+                    ...item,
+                    message: await decryptMessage(item.message),
+                })),
+            );
+        },
+        [decryptMessage],
+    );
+
     const {
         activeThreadParent,
         closeThread,
@@ -883,7 +899,7 @@ export function useDirectMessages({
         contextId: conversationId,
         currentUserId: userId,
         createThreadReply: createDMThreadReply,
-        listPins: listConversationPins,
+        listPins: listDecryptedPins,
         listThreadReads: listConversationThreadReads,
         listThreadMessages: listDMThreadMessages,
         messages,
@@ -893,6 +909,15 @@ export function useDirectMessages({
         setMessages,
         unpinMessage: unpinDMMessage,
     });
+
+    // The pin list is fetched on mount, before the peer key may have loaded, so
+    // refresh it once the key arrives to decrypt the user's own pinned messages.
+    useEffect(() => {
+        if (!dmEncryptionPeerPublicKey) {
+            return;
+        }
+        void Promise.resolve(refreshPins()).catch(() => undefined);
+    }, [dmEncryptionPeerPublicKey, refreshPins]);
 
     // Real-time subscription
     useEffect(() => {
@@ -975,6 +1000,17 @@ export function useDirectMessages({
                                     await decryptMessage(messageData);
                                 resolvedMessageId = resolvedMessage.$id;
 
+                                // A failed decrypt yields the placeholder; an
+                                // update (reaction, pin) must not replace text
+                                // that was already shown successfully.
+                                const resolvedText =
+                                    resolvedMessage.isEncrypted &&
+                                    (!resolvedMessage.text ||
+                                        resolvedMessage.text ===
+                                            ENCRYPTED_MESSAGE_PLACEHOLDER)
+                                        ? undefined
+                                        : resolvedMessage.text;
+
                                 // Handle different event types to avoid full reload
                                 if (events.some((e) => e.endsWith(".create"))) {
                                     lastMessageRealtimeEventAtRef.current =
@@ -994,6 +1030,9 @@ export function useDirectMessages({
                                                           {
                                                               ...message,
                                                               ...resolvedMessage,
+                                                              text:
+                                                                  resolvedText ??
+                                                                  message.text,
                                                               attachments:
                                                                   resolvedMessage.attachments ??
                                                                   message.attachments,
@@ -1049,6 +1088,9 @@ export function useDirectMessages({
                                                       {
                                                           ...m,
                                                           ...resolvedMessage,
+                                                          text:
+                                                              resolvedText ??
+                                                              m.text,
                                                           attachments:
                                                               resolvedMessage.attachments ??
                                                               m.attachments,
