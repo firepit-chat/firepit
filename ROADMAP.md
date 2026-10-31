@@ -60,55 +60,86 @@ provider abstraction with a per-instance setting rather than a hardcoded vendor.
 ## 2.2 — Interface and Identity
 
 The cheapest release on the plan and the one that carries the most
-foundational work. Four user-facing features plus three unblockers.
+foundational work. **Two user-facing features**, plus the foundation work that
+three deferred features depend on.
+
+Forum channels, OAuth, and the voice/video canary were scoped here originally
+and have been moved to 2.3. The reasons are recorded in
+`docs/ROADMAP_PLAN.md`; the short version is that research put 2.2 at 22–28 days
+as originally scoped, and the plan's own argument — that a canary sharing a
+release with other features cannot be reverted without reverting them — means
+the A/V lane should not ride along.
 
 **Ships**
 
-- **Custom themes.** Full theme system replacing light/dark-only: accent color,
-  and a set of four Catppuccin palettes (Latte, Frappé, Macchiato, Moz),
-  all defined in OKLCH to match the existing token set. Adopts
-  `@teispace/next-themes` for scoped sub-themes, which is what per-server
-  theming in 2.3 and the picker preview both depend on.
+- **Custom themes.** Full theme system replacing light/dark-only: a set of four
+  Catppuccin palettes (Latte, Frappé, Macchiato, Mocha) defined in OKLCH to
+  match the existing token set, plus a user-selectable accent. Adopts
+  `@teispace/next-themes` for cookie-authoritative storage, which removes the
+  launch flash, and for the scoped sub-themes that 2.3 per-server theming
+  depends on. Mobile ports the palettes manually — its 40-token theme system
+  has no library dependency and needs none.
 - **Role and member viewer.** A Discord-style member list on the right rail,
-  sorted by role rank then username, grouped by role, showing the highest
-  applicable role per member. The permissions model underneath this is already
-  live — this is the surface that exposes it.
-- **Forum channels.** Posts with a thread-per-post reply model, reusing the
-  existing `threadId`/`replyToId` structure.
-- **OAuth sign-in.** Google and other Appwrite-backed OAuth providers, plus
-  magic-link and passkey support on the same screen.
-
-**Canary**
-
-- **Voice and video calling, web only.** Behind `canary_voice_calls`. This
-  ships early and behind a flag on purpose: it is the highest-uncertainty
-  feature on the plan, and four releases of canary is the only way to surface
-  browser, ICE, and platform problems while there is still schedule room to
-  react. The canary runs in its own release lane so it can be reverted without
-  touching the four features above.
+  sorted by role rank then username, showing the highest applicable role per
+  member. The rail itself already exists. The permissions model underneath this
+  is already live — this is the surface that exposes it. Backed by a new
+  read-only members endpoint, because the existing one requires `manageRoles`
+  and would 403 for every non-admin.
 
 **Carried-over unblockers** (infrastructure, not user-facing)
 
+- Make the quality gate real: clear the remaining lint errors, and add
+  `typecheck` to CI covering both workspaces. It currently runs in no workflow
+  at all, and `build:web.yml` typechecks web only — mobile, where most of the
+  hand-copied API shapes live, is unguarded.
 - Provision the `channel_permission_overrides` collection. It is read at
-  runtime by five files and created by none, so a clean deploy has broken
-  channel permissions. Forum, voice, stage, and bots all inherit this.
-- Generate API types from `docs/openapi-doc.yml` and fail CI when the spec
-  drifts from the routes.
-- Settle the four federation schema decisions listed in the plan document, so
-  2.6 implements rather than decides.
+  runtime by six files and created by none, so a clean deploy has broken
+  channel permissions. Forum, voice, stage, and bots all inherit this. One of
+  the six already reads it correctly from the environment, so the fix is four
+  constant swaps plus the `ensureCollection` call.
+- Consolidate the channel-type union. `CHANNEL_TYPE_VALUES` has zero consumers
+  and `normalizeChannelType` exists in four hand-copied versions that have
+  already drifted. Pure deletion, and it is what makes 2.3's forum work safe.
+- Document the 37 missing API routes, fix the incorrect
+  `ChannelPermissionOverride` schema, generate types with `openapi-typescript`,
+  and fail CI when the spec drifts from the routes.
+- Settle the four federation schema decisions listed in the plan document and
+  reserve the columns, so 2.6 implements rather than decides.
 
-**Explicitly not in 2.2:** stage channels (they need stable voice first),
-mobile calling, any federation work.
+**Explicitly not in 2.2:** forum channels, OAuth, the voice/video canary, stage
+channels (they need stable voice first), mobile calling, any federation
+behaviour.
 
 ## 2.3 — Server Identity and Ecosystem Beta
 
+Absorbs everything deferred out of 2.2 — see that section for the corrected
+scoping on each.
+
 **Ships**
 
+- **Forum channels.** Posts with a thread-per-post reply model, reusing the
+  existing flattened `threadId` structure. Roughly 30 sites across 16 files
+  once the channel-type union is consolidated.
+- **OAuth sign-in.** Google and other Appwrite-backed providers, plus magic-link
+  and passkey support. Provider identities auto-link on a verified email match.
+  This is larger than it looks: the SDK no longer exposes a provider list, the
+  session handshake needs a new callback route, and mobile needs a deep-link
+  handoff that does not exist yet.
 - **Per-server profiles.** Per-server display name and avatar override on top of
   the global profile, with a server-specific nickname. The global profile
   remains canonical — this is what federation's profile endpoint reads.
 - **Theme scoping.** Per-server theme using the scoped sub-theme support landed
   in 2.2.
+
+**Canary (own release lane)**
+
+- **Voice and video calling, web only.** Behind `canary_voice_calls`, in its own
+  lane so it can be reverted without touching the features above. This is the
+  highest-uncertainty feature on the plan, and starting in 2.3 still leaves
+  three releases of soak before mobile calling is viable in 2.5. Note that
+  `voice` channels already exist at the type level — web deliberately hides
+  them today, with a test asserting the hiding — so this is un-hiding a
+  suppressed type plus the media layer, not adding a channel type.
 
 **Beta**
 
@@ -126,16 +157,17 @@ mobile calling, any federation work.
 
 **Ships**
 
-- **Voice channels.** First-class voice channel type, riding the stabilized
-  calling stack.
+- **Voice channels.** Un-hide the `voice` channel type, which already exists at
+  the schema and type level and is deliberately suppressed in the web UI today,
+  and wire it to the stabilized calling stack.
 - **PWA hardening.** Install reliability, offline behavior, update flow,
   desktop-class layout. Gated on fixing the plaintext-storage fallback in the
   mobile credential store, which a PWA hits directly.
 
 **Stabilization**
 
-- **Calling, web.** Promote from canary to supported based on 2.2–2.3 canary
-  data. Exit criteria in the plan document.
+- **Calling, web.** Promote from canary to supported based on 2.3 canary data.
+  Exit criteria in the plan document.
 
 **Explicitly not in 2.4:** stage channels. Building stage on an
 unstable voice stack guarantees rework, so it moves to 2.5.
@@ -146,8 +178,10 @@ unstable voice stack guarantees rework, so it moves to 2.5.
 
 - **SAML / OIDC / Active Directory.** Instance-admin configuration. Not a
   per-user feature — an instance admin enables the provider and users get a
-  button. Reuses the in-app browser handoff that already powers mobile
-  password reset.
+  button. Reuses the mobile in-app browser handoff built for OAuth in 2.3. That
+  handoff does not exist yet: `expo-linking` is currently unused and the
+  password-reset flow only shows "check your email", so 2.3 builds it from
+  scratch and 2.5 gets it for free.
 - **Stage channels.** Scheduled talks with a voice stage, now that voice is
   stable.
 - **Bots and webhooks, stable.** API and UX frozen enough to build against
@@ -158,8 +192,6 @@ unstable voice stack guarantees rework, so it moves to 2.5.
 - Mobile calling, entering beta now that web calling has soaked for two
   releases. The call transport interface moves to a shared package here rather
   than being copied into mobile.
-- Call provider interface extracted so an instance can select its media
-  backend.
 
 ## 2.6 — Federation v1.0
 

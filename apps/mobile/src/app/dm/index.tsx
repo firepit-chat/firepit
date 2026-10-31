@@ -88,6 +88,8 @@ export default function DirectMessageListScreen() {
     const requestBaseUrl = instanceUrl ?? "";
     const requestToken = accessToken ?? "";
     const readyToFetch = signedIn && requestBaseUrl.length > 0 && requestToken.length > 0;
+    const userPrimaryId = currentUser?.$id;
+    const userFallbackId = currentUser?.userId;
 
     const loadConversations = useCallback(async () => {
         if (!instanceUrl || !accessToken) {
@@ -98,7 +100,7 @@ export default function DirectMessageListScreen() {
         setError(null);
         try {
             const raw = await getConversations(instanceUrl, accessToken);
-            const currentUserId = currentUser?.$id ?? currentUser?.userId ?? "";
+            const currentUserId = userPrimaryId ?? userFallbackId ?? "";
             const enriched = await enrichConversations(instanceUrl, accessToken, raw, currentUserId);
             setConversations(enriched);
             setLoadState("ready");
@@ -111,7 +113,7 @@ export default function DirectMessageListScreen() {
                     : "Unable to load conversations",
             );
         }
-    }, [accessToken, instanceUrl, currentUser?.$id, currentUser?.userId]);
+    }, [accessToken, instanceUrl, userPrimaryId, userFallbackId]);
 
     const normalizedConversations = useMemo(
         () => conversations.filter(hasId),

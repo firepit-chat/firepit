@@ -3,7 +3,7 @@ import { TextInput } from "react-native";
 import type { TextInputProps } from "react-native";
 import { useTheme } from "@/hooks/use-theme";
 
-export const Input = forwardRef<TextInput, TextInputProps>((props, ref) => {
+export const Input = forwardRef<TextInput, TextInputProps>(function Input(props, ref) {
   const colors = useTheme();
 
   return (

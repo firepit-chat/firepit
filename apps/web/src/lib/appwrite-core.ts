@@ -175,11 +175,10 @@ const BUCKET_DEFS: Array<{
 ];
 
 function resolveId(publicVar: string, serverVar: string, defaultName: string): string {
-    return firstDefined(
-        process.env[publicVar],
-        process.env[serverVar],
-        defaultName,
-    )!;
+    return (
+        firstDefined(process.env[publicVar], process.env[serverVar], defaultName) ??
+        defaultName
+    );
 }
 
 /**
