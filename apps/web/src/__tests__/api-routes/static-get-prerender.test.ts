@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 
 // With cacheComponents, `next build` prerenders GET handlers in static route
 // segments. The private-cache session lookup rejects when that prerender ends,
-// and a try/catch in the handler turns the rejection into a 500. Calling
-// connection() first stops the prerender before any session lookup.
+// and reading nextUrl.searchParams throws a prerender bail-out. A try/catch in
+// the handler turns either one into a logged 500. Calling connection() first
+// stops the prerender before any of this work.
 const API_DIR = path.resolve(__dirname, "../../app/api");
 
 function findStaticRouteFiles(dir: string): string[] {
@@ -19,7 +20,7 @@ function findStaticRouteFiles(dir: string): string[] {
     });
 }
 
-const authenticatedGetRoutes = findStaticRouteFiles(API_DIR)
+const requestScopedGetRoutes = findStaticRouteFiles(API_DIR)
     .map((file) => ({
         route: path.relative(API_DIR, path.dirname(file)),
         source: readFileSync(file, "utf8"),
@@ -27,17 +28,23 @@ const authenticatedGetRoutes = findStaticRouteFiles(API_DIR)
     .filter(
         ({ source }) =>
             /export (async )?function GET\(/.test(source) &&
-            source.includes('from "@/lib/auth-server"'),
+            (source.includes('from "@/lib/auth-server"') ||
+                source.includes("nextUrl.searchParams")),
     );
 
-describe("static authenticated GET routes", () => {
+describe("static request-scoped GET routes", () => {
     it("finds the routes to check", () => {
-        expect(authenticatedGetRoutes.map(({ route }) => route)).toEqual(
-            expect.arrayContaining(["gifs/search", "memberships", "search/messages"]),
+        expect(requestScopedGetRoutes.map(({ route }) => route)).toEqual(
+            expect.arrayContaining([
+                "gifs/search",
+                "memberships",
+                "search/messages",
+                "servers/public",
+            ]),
         );
     });
 
-    it.each(authenticatedGetRoutes)(
+    it.each(requestScopedGetRoutes)(
         "/api/$route calls connection() before any other work",
         ({ source }) => {
             expect(source).toMatch(
