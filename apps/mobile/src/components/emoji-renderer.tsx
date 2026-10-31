@@ -9,9 +9,21 @@ export type CustomEmoji = {
   name: string;
 };
 
+/**
+ * Shared empty list for the `customEmojis` prop.
+ *
+ * A destructuring default (`customEmojis = []`) is re-evaluated on every render
+ * and allocates a *new* array each time. Wherever that array is a `useMemo`
+ * dependency — which it is in `EmojiRenderer`, `MessageWithMentions` and
+ * `ChatBubbleMessage` — the memo never hits and the whole emoji/markdown parse
+ * re-runs for every visible message on every render. Referencing one frozen
+ * module-level value keeps the identity stable when the prop is omitted.
+ */
+export const NO_CUSTOM_EMOJIS: readonly CustomEmoji[] = Object.freeze([]);
+
 type Props = {
   text: string;
-  customEmojis?: CustomEmoji[];
+  customEmojis?: readonly CustomEmoji[];
 };
 
 function CachedEmojiImage({ name, url }: { name: string; url: string }) {
@@ -379,7 +391,21 @@ export const STANDARD_EMOJI: Record<string, string> = {
 
 const EMOJI_TOKEN_PATTERN = /:([a-zA-Z0-9_+-]+):/g;
 
-export function EmojiRenderer({ text, customEmojis = [] }: Props) {
+// Indexed by lowercased name. The lookup below used to scan the whole custom
+// emoji list per token with two toLowerCase() allocations per comparison, which
+// is O(tokens x emojis) with a string allocation on every step.
+const byLowerName = (customEmojis: readonly CustomEmoji[]) => {
+  const map = new Map<string, CustomEmoji>();
+  for (const emoji of customEmojis) {
+    const key = emoji.name.toLowerCase();
+    if (!map.has(key)) map.set(key, emoji);
+  }
+  return map;
+};
+
+export function EmojiRenderer({ text, customEmojis = NO_CUSTOM_EMOJIS }: Props) {
+  const customByName = useMemo(() => byLowerName(customEmojis), [customEmojis]);
+
   const parts = useMemo(() => {
     const result: { type: "text" | "emoji" | "custom"; content: string; offset: number; url?: string; name?: string }[] = [];
     let lastIndex = 0;
@@ -393,7 +419,7 @@ export function EmojiRenderer({ text, customEmojis = [] }: Props) {
       }
 
       // Check custom emojis first
-      const custom = customEmojis.find((e) => e.name.toLowerCase() === emojiName.toLowerCase());
+      const custom = customByName.get(emojiName.toLowerCase());
       if (custom) {
         result.push({ type: "custom", content: fullMatch, offset: matchIndex, url: custom.url, name: custom.name });
       } else {
@@ -414,7 +440,7 @@ export function EmojiRenderer({ text, customEmojis = [] }: Props) {
     }
 
     return result;
-  }, [text, customEmojis]);
+  }, [text, customByName]);
 
   if (parts.length === 0) return null;
 

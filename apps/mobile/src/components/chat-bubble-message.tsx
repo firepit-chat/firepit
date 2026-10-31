@@ -15,7 +15,10 @@ import {
     FileAttachmentDisplay,
     type FileAttachment,
 } from "@/components/file-attachment-display";
-import type { CustomEmoji } from "@/components/emoji-renderer";
+import {
+  NO_CUSTOM_EMOJIS,
+  type CustomEmoji,
+} from "@/components/emoji-renderer";
 
 export type Reaction = {
     emoji: string;
@@ -49,7 +52,7 @@ export type ChatBubbleMessageProps = {
     attachments?: FileAttachment[];
     threadReplyCount?: number | null;
     mentions?: string[];
-    customEmojis?: CustomEmoji[];
+    customEmojis?: readonly CustomEmoji[];
     customEmojiUrls?: Record<string, string>;
     poll?: PollData | null;
     pollReadOnly?: boolean;
@@ -123,7 +126,7 @@ function ChatBubbleMessageInner({
     reactions,
     attachments,
     threadReplyCount,
-    customEmojis = [],
+    customEmojis = NO_CUSTOM_EMOJIS,
     customEmojiUrls: propCustomEmojiUrls,
     poll,
     pollReadOnly = false,
@@ -648,6 +651,24 @@ const styles = StyleSheet.create({
     },
 });
 
+function sameReactions(
+  a: readonly Reaction[] | undefined,
+  b: readonly Reaction[] | undefined,
+): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (
+      a[i].emoji !== b[i].emoji ||
+      a[i].count !== b[i].count ||
+      Boolean(a[i].reactedByMe) !== Boolean(b[i].reactedByMe)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export const ChatBubbleMessage = React.memo(
     ChatBubbleMessageInner,
     (prev, next) => {
@@ -672,7 +693,10 @@ export const ChatBubbleMessage = React.memo(
         if (prev.replyTo?.text !== next.replyTo?.text) return false;
         if (prev.replyTo?.authorLabel !== next.replyTo?.authorLabel)
             return false;
-        if (prev.reactions !== next.reactions) return false;
+        // Compare by value: the message screens build this array while mapping
+        // over messages, so an identity check was always false and this memo —
+        // the only one in the app — never actually skipped a render.
+        if (!sameReactions(prev.reactions, next.reactions)) return false;
         if (prev.attachments !== next.attachments) return false;
         if (prev.threadReplyCount !== next.threadReplyCount) return false;
         if (prev.mentions !== next.mentions) return false;

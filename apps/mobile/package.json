@@ -71,7 +71,7 @@
         "build:workspace-deps": "cd ../.. && bunx turbo run build --filter='@firepit-chat/*'",
         "build": "bun run scripts/build.ts",
         "build:dev": "bun run scripts/build-dev.ts",
-        "test": "bun run src/lib/update/version.test.ts && bun run src/lib/theme.test.ts && bun run src/lib/mention-utils.test.ts",
+        "test": "bun run src/lib/update/version.test.ts && bun run src/lib/theme.test.ts && bun run src/lib/mention-utils.test.ts && bun run src/lib/emoji-autocomplete-utils.test.ts",
         "knip": "knip"
     },
     "private": true

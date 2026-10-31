@@ -123,6 +123,11 @@ function getStatusColor(statuses: Record<string, DmUserStatus>, userId: string |
   return "mutedForeground";
 }
 
+const keyExtractor = (item: DirectMessage, index: number) =>
+  item.$id ?? `${item.conversationId}-${item.$createdAt}-${index}`;
+
+const VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 60 };
+
 export default function DirectMessageScreen() {
   const theme = useTheme();
   const { conversationId, messageId } = useLocalSearchParams<RouteParams>();
@@ -473,6 +478,19 @@ export default function DirectMessageScreen() {
     setLastReadAtState(newest);
     setUnreadCount(0);
   }, [normalizedConversationId, messages]);
+
+  // Messages have variable height, so getItemLayout is impossible here; without
+  // it VirtualizedList throws when asked to scroll to an index it has not
+  // measured. Jump-to-message is reachable from the inbox and from search.
+  const handleScrollToIndexFailed = useCallback(
+    (info: { averageItemLength: number; index: number }) => {
+      listRef.current?.scrollToOffset({
+        offset: info.averageItemLength * info.index,
+        animated: false,
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     markDmReadRef.current = markDmRead;
@@ -876,6 +894,18 @@ export default function DirectMessageScreen() {
     ],
   );
 
+  // Composer emoji shape. Was built inline in the JSX, so every parent render
+  // produced a new array, which invalidated ChatInput's emojiItems memo and
+  // re-ran a scan over the whole standard-emoji table.
+  const composerEmojis = useMemo(
+    () =>
+      mappedEmojis.map((ce) => ({
+        shortcode: ce.name,
+        customUrl: ce.url,
+      })),
+    [mappedEmojis],
+  );
+
   return (
     <AuthRouteGuard>
       <KeyboardAvoidingView
@@ -1038,11 +1068,15 @@ export default function DirectMessageScreen() {
               data={messages}
               inverted
               extraData={mappedEmojis}
-              keyExtractor={(item, index) =>
-                item.$id ?? `${item.conversationId}-${item.$createdAt}-${index}`
-              }
+              keyExtractor={keyExtractor}
               renderItem={renderItem}
-              viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+              // Messages have variable height (markdown, images, reactions), so
+              // getItemLayout is not possible here. Without it, jumping to an
+              // index past the measured range throws, so fall back to an
+              // estimated offset — jump-to-message is reachable from the inbox
+              // and from search results.
+              onScrollToIndexFailed={handleScrollToIndexFailed}
+              viewabilityConfig={VIEWABILITY_CONFIG}
               onViewableItemsChanged={({ viewableItems }) => {
                 if (viewableItems.length > 0 && viewableItems[0].index === 0) {
                   markDmReadRef.current?.();
@@ -1187,10 +1221,7 @@ export default function DirectMessageScreen() {
                 onAttachmentsChange={setComposerAttachments}
                 onSend={() => void sendMessage()}
                 sending={sendState === "loading"}
-                customEmojis={customEmojis?.map((ce) => ({
-                  shortcode: ce.name,
-                  customUrl: ce.url.startsWith("http") ? ce.url : `${instanceUrl}${ce.url}`,
-                }))}
+                customEmojis={composerEmojis}
                 onOpenPollCreate={() => setPollModalVisible(true)}
                 onOpenGifStickerPicker={() => setGifStickerPickerVisible(true)}
               />
