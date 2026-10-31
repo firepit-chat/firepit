@@ -78,9 +78,8 @@ const {
     getAdminMessageAuditContext,
 } = await import("../lib/appwrite-admin");
 const { recordAudit } = await import("../lib/appwrite-audit");
-const { getServerPermissionsForUser } = await import(
-    "../lib/server-channel-access"
-);
+const { getServerPermissionsForUser } =
+    await import("../lib/server-channel-access");
 const { requireAuth, checkUserRoles } = await import("../lib/auth-server");
 
 function setGlobalRoles(mod: boolean, admin: boolean) {

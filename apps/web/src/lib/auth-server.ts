@@ -13,7 +13,6 @@ type AuthErrorCode = "UNAUTHORIZED" | "FORBIDDEN";
  */
 export function debugAuth(...args: unknown[]): void {
     if (process.env.FIREPIT_DEBUG_AUTH === "true") {
-         
         console.log("[auth-debug]", ...args);
     }
 }
@@ -28,14 +27,15 @@ function maskToken(token: string): string {
 // so the origin of the header (app vs. external proxy/basic-auth) can be
 // identified from the username; both username and password are masked.
 export function describeAuthHeader(authHeader: string): string {
-    if (!authHeader) {return "(missing)";}
+    if (!authHeader) {
+        return "(missing)";
+    }
     const match = authHeader.trim().match(/^Basic\s+([A-Za-z0-9+/=]+)/i);
     if (match) {
         try {
             const decoded = Buffer.from(match[1], "base64").toString("utf8");
             const colon = decoded.indexOf(":");
-            const username =
-                colon >= 0 ? decoded.slice(0, colon) : decoded;
+            const username = colon >= 0 ? decoded.slice(0, colon) : decoded;
             return `Basic user="${maskToken(username)}", password="(redacted)"`;
         } catch {
             // fall through to masked raw value
@@ -45,7 +45,10 @@ export function describeAuthHeader(authHeader: string): string {
 }
 
 const SESSION_CACHE_TTL_MS = 30_000;
-const sessionCache = new Map<string, { data: SessionUser | null; ts: number }>();
+const sessionCache = new Map<
+    string,
+    { data: SessionUser | null; ts: number }
+>();
 
 function cacheKey(
     endpoint: string,
@@ -61,7 +64,9 @@ function cacheKey(
 
 function getCachedSession(key: string): SessionUser | null | undefined {
     const entry = sessionCache.get(key);
-    if (!entry) {return undefined;}
+    if (!entry) {
+        return undefined;
+    }
     if (Date.now() - entry.ts > SESSION_CACHE_TTL_MS) {
         sessionCache.delete(key);
         return undefined;
@@ -74,7 +79,9 @@ function setCachedSession(key: string, data: SessionUser | null): void {
     // LRU-ish: cap at 500 entries
     if (sessionCache.size > 500) {
         const oldest = sessionCache.keys().next().value;
-        if (oldest) {sessionCache.delete(oldest);}
+        if (oldest) {
+            sessionCache.delete(oldest);
+        }
     }
 }
 
@@ -134,7 +141,9 @@ async function getSessionForToken(
 ): Promise<SessionUser | null> {
     const key = cacheKey(endpoint, project, token, authMode);
     const cached = getCachedSession(key);
-    if (cached !== undefined) {return cached;}
+    if (cached !== undefined) {
+        return cached;
+    }
 
     try {
         const client = new Client().setEndpoint(endpoint).setProject(project);
@@ -251,7 +260,9 @@ async function getSessionFromHeader(
 
         const userAgent = headerStore.get("user-agent") ?? "unknown";
         const requestPath =
-            headerStore.get("x-firepit-path") ?? headerStore.get("x-invoke-path") ?? "?";
+            headerStore.get("x-firepit-path") ??
+            headerStore.get("x-invoke-path") ??
+            "?";
 
         let token: string | undefined;
         let tokenSource: string | null = null;
@@ -357,12 +368,18 @@ export async function getServerSession(): Promise<SessionUser | null> {
         systemSenderUserId,
     );
     if (headerSession) {
-        debugAuth(`resolved via Authorization header: userId=${headerSession.$id}`);
+        debugAuth(
+            `resolved via Authorization header: userId=${headerSession.$id}`,
+        );
         return headerSession;
     }
 
     // Fall back to session cookie (web browser flow)
-    const cookieSession = await getSessionFromCookie(endpoint, project, systemSenderUserId);
+    const cookieSession = await getSessionFromCookie(
+        endpoint,
+        project,
+        systemSenderUserId,
+    );
     if (cookieSession) {
         debugAuth(`resolved via session cookie: userId=${cookieSession.$id}`);
         return cookieSession;

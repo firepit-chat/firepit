@@ -108,7 +108,9 @@ describe("GET /api/servers", () => {
             success: true,
         });
 
-        const request = new NextRequest("http://localhost/api/servers?limit=25");
+        const request = new NextRequest(
+            "http://localhost/api/servers?limit=25",
+        );
         const response = await GET(request);
         const body = await response.json();
 
@@ -215,13 +217,10 @@ describe("GET /api/servers", () => {
             $id: `membership-${String(index + 1)}`,
             serverId: "server-1",
         }));
-        const secondMembershipPage = Array.from(
-            { length: 40 },
-            (_, index) => ({
-                $id: `membership-${String(index + 101)}`,
-                serverId: "server-1",
-            }),
-        );
+        const secondMembershipPage = Array.from({ length: 40 }, (_, index) => ({
+            $id: `membership-${String(index + 101)}`,
+            serverId: "server-1",
+        }));
 
         mockDatabases.listDocuments
             .mockResolvedValueOnce({
@@ -251,7 +250,9 @@ describe("GET /api/servers", () => {
             success: true,
         });
 
-        const request = new NextRequest("http://localhost/api/servers?limit=25");
+        const request = new NextRequest(
+            "http://localhost/api/servers?limit=25",
+        );
         const response = await GET(request);
 
         expect(response.status).toBe(200);
@@ -277,7 +278,9 @@ describe("GET /api/servers", () => {
 
     it("returns 500 on unexpected errors", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "user-1" });
-        mockDatabases.listDocuments.mockRejectedValue(new Error("Database down"));
+        mockDatabases.listDocuments.mockRejectedValue(
+            new Error("Database down"),
+        );
 
         const request = new NextRequest("http://localhost/api/servers");
         const response = await GET(request);

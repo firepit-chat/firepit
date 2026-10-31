@@ -22,7 +22,9 @@ const MAX_TEXT_FIELD_LENGTHS: Record<
 
 function normalizeWebsiteInput(value: string | null): string | null {
     const trimmed = value?.trim() ?? "";
-    if (!trimmed) {return null;}
+    if (!trimmed) {
+        return null;
+    }
 
     const candidate = URL_SCHEME_PATTERN.test(trimmed)
         ? trimmed
@@ -30,7 +32,9 @@ function normalizeWebsiteInput(value: string | null): string | null {
 
     try {
         const parsed = new URL(candidate);
-        if (!["http:", "https:"].includes(parsed.protocol)) {return null;}
+        if (!["http:", "https:"].includes(parsed.protocol)) {
+            return null;
+        }
         return parsed.toString();
     } catch {
         return null;
@@ -113,7 +117,11 @@ export async function PATCH(request: Request) {
             "profileBackgroundGradient",
         ] as const) {
             const value = body[field];
-            if (value !== undefined && typeof value !== "string" && value !== null) {
+            if (
+                value !== undefined &&
+                typeof value !== "string" &&
+                value !== null
+            ) {
                 return NextResponse.json(
                     { error: `${field} must be a string or null` },
                     { status: 400 },
@@ -124,8 +132,7 @@ export async function PATCH(request: Request) {
         if (body.profileBackgroundColor && body.profileBackgroundGradient) {
             return NextResponse.json(
                 {
-                    error:
-                        "Provide either profileBackgroundColor or profileBackgroundGradient, not both",
+                    error: "Provide either profileBackgroundColor or profileBackgroundGradient, not both",
                 },
                 { status: 400 },
             );
@@ -157,11 +164,13 @@ export async function PATCH(request: Request) {
             updateData.website = normalizedWebsite;
         }
         if (body.profileBackgroundColor !== undefined) {
-            updateData.profileBackgroundColor = body.profileBackgroundColor || null;
+            updateData.profileBackgroundColor =
+                body.profileBackgroundColor || null;
             updateData.profileBackgroundGradient = null;
         }
         if (body.profileBackgroundGradient !== undefined) {
-            updateData.profileBackgroundGradient = body.profileBackgroundGradient || null;
+            updateData.profileBackgroundGradient =
+                body.profileBackgroundGradient || null;
             updateData.profileBackgroundColor = null;
         }
 

@@ -72,16 +72,15 @@ async function getMessageCounts(
     // Query in batches of 100 to avoid Appwrite query limits
     for (let i = 0; i < conversationIds.length; i += 100) {
         const batch = conversationIds.slice(i, i + 100);
-        if (batch.length === 0) {continue;}
+        if (batch.length === 0) {
+            continue;
+        }
 
         try {
             const response = await databases.listDocuments(
                 databaseId,
                 directMessagesCollectionId,
-                [
-                    Query.equal("conversationId", batch),
-                    Query.limit(1),
-                ],
+                [Query.equal("conversationId", batch), Query.limit(1)],
             );
 
             // The above only returns 1 document total, not per conversation.
@@ -108,7 +107,9 @@ async function getMessageCounts(
                     ],
                 );
                 count += response.documents.length;
-                if (response.documents.length < 100) {break;}
+                if (response.documents.length < 100) {
+                    break;
+                }
                 offset += 100;
             }
             counts.set(convId, count);
@@ -143,17 +144,21 @@ async function deleteConversationAndMessages(
             ],
         );
 
-        if (messages.documents.length === 0) {break;}
+        if (messages.documents.length === 0) {
+            break;
+        }
 
         await Promise.all(
             messages.documents.map((msg) =>
-                databases.deleteDocument(
-                    databaseId,
-                    directMessagesCollectionId,
-                    msg.$id,
-                ).catch((err) => {
-                    warn(`Failed to delete message ${msg.$id}: ${err}`);
-                }),
+                databases
+                    .deleteDocument(
+                        databaseId,
+                        directMessagesCollectionId,
+                        msg.$id,
+                    )
+                    .catch((err) => {
+                        warn(`Failed to delete message ${msg.$id}: ${err}`);
+                    }),
             ),
         );
 
@@ -176,7 +181,9 @@ async function main() {
         : undefined;
 
     if (dryRun) {
-        info("Running in DRY-RUN mode (no deletions). Use --execute to actually delete.");
+        info(
+            "Running in DRY-RUN mode (no deletions). Use --execute to actually delete.",
+        );
     } else {
         info("Running in EXECUTE mode — duplicates will be deleted!");
     }
@@ -221,7 +228,9 @@ async function main() {
             [Query.limit(100), Query.offset(offset)],
         );
 
-        if (response.documents.length === 0) {break;}
+        if (response.documents.length === 0) {
+            break;
+        }
 
         for (const doc of response.documents) {
             const conv = doc as unknown as ConversationDoc;
@@ -239,8 +248,12 @@ async function main() {
 
     // Step 2: Filter to one-on-one conversations only (skip groups)
     const oneToOne = allConversations.filter((conv) => {
-        if (conv.isGroup) {return false;}
-        if (!Array.isArray(conv.participants)) {return false;}
+        if (conv.isGroup) {
+            return false;
+        }
+        if (!Array.isArray(conv.participants)) {
+            return false;
+        }
         return conv.participants.length === 2;
     });
 
@@ -277,7 +290,9 @@ async function main() {
         }
     }
 
-    info(`Found ${duplicatePairs.length} participant pairs with duplicate conversations.`);
+    info(
+        `Found ${duplicatePairs.length} participant pairs with duplicate conversations.`,
+    );
 
     if (duplicatePairs.length === 0) {
         info("No duplicates found. Nothing to do.");
@@ -290,7 +305,9 @@ async function main() {
         p.conversations.map((c) => c.$id),
     );
 
-    info(`Counting messages across ${allDuplicateIds.length} duplicate conversations...`);
+    info(
+        `Counting messages across ${allDuplicateIds.length} duplicate conversations...`,
+    );
     const messageCounts = await getMessageCounts(
         databases,
         databaseId,
@@ -305,10 +322,7 @@ async function main() {
         const { participants, conversations } = pair;
 
         // If user filter is set, skip pairs that don't include the user
-        if (
-            userIdFilter &&
-            !participants.includes(userIdFilter)
-        ) {
+        if (userIdFilter && !participants.includes(userIdFilter)) {
             continue;
         }
 
@@ -316,7 +330,9 @@ async function main() {
         const sorted = [...conversations].sort((a, b) => {
             const countA = messageCounts.get(a.$id) ?? 0;
             const countB = messageCounts.get(b.$id) ?? 0;
-            if (countB !== countA) {return countB - countA;} // most messages first
+            if (countB !== countA) {
+                return countB - countA;
+            } // most messages first
             return a.$createdAt.localeCompare(b.$createdAt); // oldest first
         });
 

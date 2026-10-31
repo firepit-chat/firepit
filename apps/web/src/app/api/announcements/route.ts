@@ -89,7 +89,10 @@ function parsePriority(rawPriority: unknown): AnnouncementPriority | null {
 
 function authErrorResponse(error: AuthError): NextResponse {
     const status = error.code === "UNAUTHORIZED" ? 401 : 403;
-    return NextResponse.json({ success: false, error: error.message }, { status });
+    return NextResponse.json(
+        { success: false, error: error.message },
+        { status },
+    );
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
@@ -200,8 +203,7 @@ export async function POST(request: Request): Promise<NextResponse> {
             return NextResponse.json(
                 {
                     success: false,
-                    error:
-                        "mode must be one of draft, schedule, or send_now",
+                    error: "mode must be one of draft, schedule, or send_now",
                 },
                 { status: 400 },
             );

@@ -329,8 +329,7 @@ export async function deleteAccount(
         });
         return {
             success: false,
-            error:
-                "Account deletion failed. Try again or contact your administrator.",
+            error: "Account deletion failed. Try again or contact your administrator.",
         };
     } finally {
         await cleanupTempSession(verified.users, user.$id);

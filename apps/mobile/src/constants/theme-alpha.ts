@@ -10,14 +10,14 @@
  * exported from `./theme` alongside the tokens that use it.
  */
 export function withAlpha(color: string, alpha: number): string {
-  const clamped = Math.min(1, Math.max(0, alpha));
-  const pair = Math.round(clamped * 255)
-    .toString(16)
-    .padStart(2, "0")
-    .toUpperCase();
-  // Already 8-digit (e.g. accentSoft), so only the alpha pair is replaced.
-  if (/^#[0-9A-Fa-f]{8}$/.test(color)) {
-    return color.slice(0, 7) + pair;
-  }
-  return color + pair;
+    const clamped = Math.min(1, Math.max(0, alpha));
+    const pair = Math.round(clamped * 255)
+        .toString(16)
+        .padStart(2, "0")
+        .toUpperCase();
+    // Already 8-digit (e.g. accentSoft), so only the alpha pair is replaced.
+    if (/^#[0-9A-Fa-f]{8}$/.test(color)) {
+        return color.slice(0, 7) + pair;
+    }
+    return color + pair;
 }

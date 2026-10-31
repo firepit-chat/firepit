@@ -658,9 +658,7 @@ describe("ChatPage", () => {
 
         render(<ChatPage />);
 
-        await waitFor(() =>
-            expect(mockReplace).toHaveBeenCalledWith("/chat"),
-        );
+        await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/chat"));
     });
 
     it("clears a deep-linked channel that the loaded list does not contain", async () => {

@@ -30,10 +30,15 @@ function StatusPill({
     tone: "neutral" | "success" | "warning" | "danger";
 }) {
     return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
+        <ThemedView
+            type={tone === "neutral" ? "muted" : tone}
+            style={styles.pill}
+        >
             <ThemedText
                 type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
+                themeColor={
+                    tone === "neutral" ? "mutedForeground" : "foreground"
+                }
             >
                 {label}
             </ThemedText>
@@ -50,7 +55,9 @@ export default function NotificationSettingsScreen() {
         notificationPreferences ?? DEFAULT_NOTIFICATION_PREFERENCES,
     );
     const [saved, setSaved] = useState(false);
-    const [testStatus, setTestStatus] = useState<null | "sent" | "denied">(null);
+    const [testStatus, setTestStatus] = useState<null | "sent" | "denied">(
+        null,
+    );
     const [permissionGranted, setPermissionGranted] = useState(false);
 
     useEffect(() => {
@@ -69,16 +76,13 @@ export default function NotificationSettingsScreen() {
         };
     }, []);
 
-    const update = useCallback(
-        (partial: Partial<NotificationPreferences>) => {
-            setPrefs((prev) => {
-                const next = { ...prev, ...partial };
-                return next;
-            });
-            setSaved(false);
-        },
-        [],
-    );
+    const update = useCallback((partial: Partial<NotificationPreferences>) => {
+        setPrefs((prev) => {
+            const next = { ...prev, ...partial };
+            return next;
+        });
+        setSaved(false);
+    }, []);
 
     const handleSave = useCallback(async () => {
         await saveNotificationPreferences(prefs);
@@ -118,230 +122,245 @@ export default function NotificationSettingsScreen() {
 
     return (
         <ScrollView
-                style={[styles.scrollView, { backgroundColor: theme.background }]}
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                automaticallyAdjustKeyboardInsets
-            >
-                <SafeAreaView style={styles.safeArea}>
-                    <ThemedView style={styles.shell}>
-                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={() => router.back()}
-                                style={styles.headerButton}
+            style={[styles.scrollView, { backgroundColor: theme.background }]}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+        >
+            <SafeAreaView style={styles.safeArea}>
+                <ThemedView style={styles.shell}>
+                    <View
+                        style={[
+                            styles.header,
+                            { borderBottomColor: theme.border },
+                        ]}
+                    >
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => router.back()}
+                            style={styles.headerButton}
+                        >
+                            <ThemedText
+                                type="smallBold"
+                                themeColor="foreground"
                             >
-                                <ThemedText type="smallBold" themeColor="foreground">
-                                    Back
-                                </ThemedText>
-                            </Pressable>
-                            <View style={styles.headerButton} />
-                        </View>
-                        <ThemedView
-                            type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="code" themeColor="accent">
-                                Notification settings
+                                Back
                             </ThemedText>
-                            <ThemedText type="title">
-                                Push notifications
-                            </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Configure when and how you receive push notifications.
-                                Changes are saved to this device.
-                            </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill
-                                    label={
-                                        permissionGranted ? "enabled" : "disabled"
-                                    }
-                                    tone={permissionGranted ? "success" : "warning"}
-                                />
-                                {saved ? (
-                                    <StatusPill label="saved" tone="success" />
-                                ) : null}
-                            </View>
-                        </ThemedView>
-
-                        {/* Master toggle */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
+                        </Pressable>
+                        <View style={styles.headerButton} />
+                    </View>
+                    <ThemedView
+                        type="card"
+                        style={[styles.heroCard, { borderColor: theme.border }]}
+                    >
+                        <ThemedText type="code" themeColor="accent">
+                            Notification settings
+                        </ThemedText>
+                        <ThemedText type="title">Push notifications</ThemedText>
+                        <ThemedText
+                            themeColor="mutedForeground"
+                            style={styles.copy}
                         >
-                            <ThemedText type="smallBold">General</ThemedText>
-                            <ToggleRow
-                                label="Enable push notifications"
-                                description="Receive notifications on this device"
-                                value={prefs.enabled}
-                                onValueChange={(v) => update({ enabled: v })}
-                            />
-                        </ThemedView>
-
-                        {/* Test notification */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Test</ThemedText>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={() => void handleTestNotification()}
-                                style={({ pressed }) => [
-                                    styles.testButton,
-                                    {
-                                        backgroundColor: theme.accent,
-                                        opacity: pressed ? 0.88 : 1,
-                                    },
-                                ]}
-                            >
-                                <ThemedText
-                                    type="smallBold"
-                                    themeColor="foreground"
-                                >
-                                    Send test notification
-                                </ThemedText>
-                            </Pressable>
-                            {testStatus === "sent" ? (
-                                <ThemedText themeColor="foreground">
-                                    Notification sent! Check your notification tray.
-                                </ThemedText>
-                            ) : null}
-                            {testStatus === "denied" ? (
-                                <ThemedText themeColor="destructive">
-                                    Permission denied. Enable notifications in
-                                    system settings.
-                                </ThemedText>
-                            ) : null}
-                        </ThemedView>
-
-                        {/* Notification types */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Notification types</ThemedText>
-                            <ToggleRow
-                                label="Direct messages"
-                                description="Notify for new DMs"
-                                value={prefs.dmNotifications}
-                                onValueChange={(v) =>
-                                    update({ dmNotifications: v })
+                            Configure when and how you receive push
+                            notifications. Changes are saved to this device.
+                        </ThemedText>
+                        <View style={styles.pillRow}>
+                            <StatusPill
+                                label={
+                                    permissionGranted ? "enabled" : "disabled"
                                 }
-                                disabled={!enabled}
+                                tone={permissionGranted ? "success" : "warning"}
                             />
-                            <ToggleRow
-                                label="Mentions"
-                                description="Notify when you are mentioned"
-                                value={prefs.mentionNotifications}
-                                onValueChange={(v) =>
-                                    update({ mentionNotifications: v })
-                                }
-                                disabled={!enabled}
-                            />
-                        </ThemedView>
-
-                        {/* Quiet hours */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Quiet hours</ThemedText>
-                            <ToggleRow
-                                label="Enable quiet hours"
-                                description="Pause notifications during set hours"
-                                value={prefs.quietHoursEnabled}
-                                onValueChange={(v) =>
-                                    update({ quietHoursEnabled: v })
-                                }
-                                disabled={!enabled}
-                            />
-                            {enabled && prefs.quietHoursEnabled ? (
-                                <View style={styles.timeRow}>
-                                    <View style={styles.timeField}>
-                                        <ThemedText
-                                            type="code"
-                                            themeColor="mutedForeground"
-                                        >
-                                            Start
-                                        </ThemedText>
-                                        <TextInput
-                                            placeholder="22:00"
-                                            placeholderTextColor={theme.mutedForeground}
-                                            value={prefs.quietHoursStart}
-                                            onChangeText={(v) =>
-                                                update({ quietHoursStart: v })
-                                            }
-                                            style={[
-                                                styles.timeInput,
-                                                {
-                                                    backgroundColor: theme.card,
-                                                    borderColor: theme.input,
-                                                    color: theme.foreground,
-                                                },
-                                            ]}
-                                        />
-                                    </View>
-                                    <View style={styles.timeField}>
-                                        <ThemedText
-                                            type="code"
-                                            themeColor="mutedForeground"
-                                        >
-                                            End
-                                        </ThemedText>
-                                        <TextInput
-                                            placeholder="08:00"
-                                            placeholderTextColor={theme.mutedForeground}
-                                            value={prefs.quietHoursEnd}
-                                            onChangeText={(v) =>
-                                                update({ quietHoursEnd: v })
-                                            }
-                                            style={[
-                                                styles.timeInput,
-                                                {
-                                                    backgroundColor: theme.card,
-                                                    borderColor: theme.input,
-                                                    color: theme.foreground,
-                                                },
-                                            ]}
-                                        />
-                                    </View>
-                                </View>
-                            ) : null}
-                        </ThemedView>
-
-                        {/* Save */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={() => void handleSave()}
-                                style={({ pressed }) => [
-                                    styles.saveButton,
-                                    {
-                                        backgroundColor: theme.primary,
-                                        opacity: pressed ? 0.88 : 1,
-                                    },
-                                ]}
-                            >
-                                <ThemedText
-                                    type="smallBold"
-                                    themeColor="primaryForeground"
-                                >
-                                    Save preferences
-                                </ThemedText>
-                            </Pressable>
                             {saved ? (
-                                <ThemedText themeColor="foreground">
-                                    Preferences saved successfully.
-                                </ThemedText>
+                                <StatusPill label="saved" tone="success" />
                             ) : null}
-                        </ThemedView>
+                        </View>
                     </ThemedView>
-                </SafeAreaView>
-            </ScrollView>
+
+                    {/* Master toggle */}
+                    <ThemedView
+                        type="card"
+                        style={[styles.card, { borderColor: theme.border }]}
+                    >
+                        <ThemedText type="smallBold">General</ThemedText>
+                        <ToggleRow
+                            label="Enable push notifications"
+                            description="Receive notifications on this device"
+                            value={prefs.enabled}
+                            onValueChange={(v) => update({ enabled: v })}
+                        />
+                    </ThemedView>
+
+                    {/* Test notification */}
+                    <ThemedView
+                        type="card"
+                        style={[styles.card, { borderColor: theme.border }]}
+                    >
+                        <ThemedText type="smallBold">Test</ThemedText>
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => void handleTestNotification()}
+                            style={({ pressed }) => [
+                                styles.testButton,
+                                {
+                                    backgroundColor: theme.accent,
+                                    opacity: pressed ? 0.88 : 1,
+                                },
+                            ]}
+                        >
+                            <ThemedText
+                                type="smallBold"
+                                themeColor="foreground"
+                            >
+                                Send test notification
+                            </ThemedText>
+                        </Pressable>
+                        {testStatus === "sent" ? (
+                            <ThemedText themeColor="foreground">
+                                Notification sent! Check your notification tray.
+                            </ThemedText>
+                        ) : null}
+                        {testStatus === "denied" ? (
+                            <ThemedText themeColor="destructive">
+                                Permission denied. Enable notifications in
+                                system settings.
+                            </ThemedText>
+                        ) : null}
+                    </ThemedView>
+
+                    {/* Notification types */}
+                    <ThemedView
+                        type="card"
+                        style={[styles.card, { borderColor: theme.border }]}
+                    >
+                        <ThemedText type="smallBold">
+                            Notification types
+                        </ThemedText>
+                        <ToggleRow
+                            label="Direct messages"
+                            description="Notify for new DMs"
+                            value={prefs.dmNotifications}
+                            onValueChange={(v) =>
+                                update({ dmNotifications: v })
+                            }
+                            disabled={!enabled}
+                        />
+                        <ToggleRow
+                            label="Mentions"
+                            description="Notify when you are mentioned"
+                            value={prefs.mentionNotifications}
+                            onValueChange={(v) =>
+                                update({ mentionNotifications: v })
+                            }
+                            disabled={!enabled}
+                        />
+                    </ThemedView>
+
+                    {/* Quiet hours */}
+                    <ThemedView
+                        type="card"
+                        style={[styles.card, { borderColor: theme.border }]}
+                    >
+                        <ThemedText type="smallBold">Quiet hours</ThemedText>
+                        <ToggleRow
+                            label="Enable quiet hours"
+                            description="Pause notifications during set hours"
+                            value={prefs.quietHoursEnabled}
+                            onValueChange={(v) =>
+                                update({ quietHoursEnabled: v })
+                            }
+                            disabled={!enabled}
+                        />
+                        {enabled && prefs.quietHoursEnabled ? (
+                            <View style={styles.timeRow}>
+                                <View style={styles.timeField}>
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
+                                        Start
+                                    </ThemedText>
+                                    <TextInput
+                                        placeholder="22:00"
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
+                                        value={prefs.quietHoursStart}
+                                        onChangeText={(v) =>
+                                            update({ quietHoursStart: v })
+                                        }
+                                        style={[
+                                            styles.timeInput,
+                                            {
+                                                backgroundColor: theme.card,
+                                                borderColor: theme.input,
+                                                color: theme.foreground,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                                <View style={styles.timeField}>
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                    >
+                                        End
+                                    </ThemedText>
+                                    <TextInput
+                                        placeholder="08:00"
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
+                                        value={prefs.quietHoursEnd}
+                                        onChangeText={(v) =>
+                                            update({ quietHoursEnd: v })
+                                        }
+                                        style={[
+                                            styles.timeInput,
+                                            {
+                                                backgroundColor: theme.card,
+                                                borderColor: theme.input,
+                                                color: theme.foreground,
+                                            },
+                                        ]}
+                                    />
+                                </View>
+                            </View>
+                        ) : null}
+                    </ThemedView>
+
+                    {/* Save */}
+                    <ThemedView
+                        type="card"
+                        style={[styles.card, { borderColor: theme.border }]}
+                    >
+                        <Pressable
+                            accessibilityRole="button"
+                            onPress={() => void handleSave()}
+                            style={({ pressed }) => [
+                                styles.saveButton,
+                                {
+                                    backgroundColor: theme.primary,
+                                    opacity: pressed ? 0.88 : 1,
+                                },
+                            ]}
+                        >
+                            <ThemedText
+                                type="smallBold"
+                                themeColor="primaryForeground"
+                            >
+                                Save preferences
+                            </ThemedText>
+                        </Pressable>
+                        {saved ? (
+                            <ThemedText themeColor="foreground">
+                                Preferences saved successfully.
+                            </ThemedText>
+                        ) : null}
+                    </ThemedView>
+                </ThemedView>
+            </SafeAreaView>
+        </ScrollView>
     );
 }
 
@@ -377,7 +396,9 @@ function ToggleRow({
                 onValueChange={onValueChange}
                 disabled={disabled}
                 trackColor={{ false: theme.border, true: theme.primary }}
-                thumbColor={value ? theme.primaryForeground : theme.mutedForeground}
+                thumbColor={
+                    value ? theme.primaryForeground : theme.mutedForeground
+                }
             />
         </View>
     );

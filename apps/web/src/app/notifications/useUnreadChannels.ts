@@ -108,8 +108,7 @@ export function useUnreadChannels(
         })),
     });
 
-    const loading =
-        enabled && channelsQueries.some((query) => query.isPending);
+    const loading = enabled && channelsQueries.some((query) => query.isPending);
 
     return {
         loading,

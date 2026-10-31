@@ -60,9 +60,7 @@ export async function GET(request: NextRequest) {
 
     const contextId = searchParams.get("contextId")?.trim() || undefined;
 
-    const parsedContextKind = parseContextKind(
-        searchParams.get("contextKind"),
-    );
+    const parsedContextKind = parseContextKind(searchParams.get("contextKind"));
     if (!parsedContextKind.valid) {
         return NextResponse.json(
             { error: "contextKind must be one of channel,conversation" },

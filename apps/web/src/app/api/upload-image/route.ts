@@ -12,8 +12,10 @@ import {
     trackApiCall,
     recordEvent,
 } from "@/lib/posthog-utils";
-import { ensureAllowedRequestOrigin, getAllowedOrigin } from "@/lib/request-origin";
-
+import {
+    ensureAllowedRequestOrigin,
+    getAllowedOrigin,
+} from "@/lib/request-origin";
 
 const APPWRITE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const ALLOWED_IMAGE_TYPES = [
@@ -23,7 +25,6 @@ const ALLOWED_IMAGE_TYPES = [
     "image/webp",
 ] as const;
 const ALLOWED_IMAGE_TYPE_SET = new Set<string>(ALLOWED_IMAGE_TYPES);
-
 
 function canUserDeleteImage(
     permissions: unknown,

@@ -18,9 +18,15 @@ function androidBuild() {
     const counterPath = "scripts/build-counter.json";
     let currentCode = 1;
     try {
-      currentCode = JSON.parse(readFileSync(counterPath, "utf-8")).versionCode + 1;
-    } catch { currentCode = 1; }
-    writeFileSync(counterPath, JSON.stringify({ versionCode: currentCode }) + "\n");
+        currentCode =
+            JSON.parse(readFileSync(counterPath, "utf-8")).versionCode + 1;
+    } catch {
+        currentCode = 1;
+    }
+    writeFileSync(
+        counterPath,
+        JSON.stringify({ versionCode: currentCode }) + "\n",
+    );
     const gradlePath = "android/app/build.gradle";
     let gradle = readFileSync(gradlePath, "utf-8");
     gradle = gradle.replace(/versionCode \d+/, `versionCode ${currentCode}`);

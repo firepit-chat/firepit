@@ -115,9 +115,7 @@ export async function GET(request: NextRequest) {
 
         const accessibleCategories = categories.documents.filter((category) => {
             const allowedRoleIds = category.allowedRoleIds as
-                | string[]
-                | null
-                | undefined;
+                string[] | null | undefined;
             if (!allowedRoleIds || allowedRoleIds.length === 0) {
                 return true;
             }

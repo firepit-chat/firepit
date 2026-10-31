@@ -24,10 +24,7 @@ export function invalidateChannelsServerCaches(serverId: string): void {
     apiCache.clearPrefix(`api:channels:list:${serverId}:`);
     apiCache.clearPrefix(`api:channels:overrides:${serverId}:`);
     apiCache.clearPrefix(`api:channels:roles:${serverId}:`);
-    invalidateServerAccessCacheForServer(
-        getEnvConfig().databaseId,
-        serverId,
-    );
+    invalidateServerAccessCacheForServer(getEnvConfig().databaseId, serverId);
 }
 
 export function invalidateChannelsUserCaches(params: {

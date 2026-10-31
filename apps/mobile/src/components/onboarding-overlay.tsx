@@ -38,7 +38,12 @@ type SlideIconName = keyof typeof SLIDE_ICONS;
  * from the Home tab, which stopped being true when channel browsing moved
  * into the Chat tab.
  */
-const SLIDES: { icon: SlideIconName; title: string; subtitle: string; body: string }[] = [
+const SLIDES: {
+    icon: SlideIconName;
+    title: string;
+    subtitle: string;
+    body: string;
+}[] = [
     {
         icon: "flame",
         title: "Welcome to Firepit",
@@ -104,12 +109,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
     }, [isLastSlide, currentIndex, screenWidth, onComplete]);
 
     return (
-        <View
-            style={[
-                styles.root,
-                { backgroundColor: theme.background },
-            ]}
-        >
+        <View style={[styles.root, { backgroundColor: theme.background }]}>
             {/* Skip button */}
             {!isLastSlide ? (
                 <Pressable
@@ -117,10 +117,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
                     onPress={onComplete}
                     style={styles.skip}
                 >
-                    <ThemedText
-                        type="smallBold"
-                        themeColor="mutedForeground"
-                    >
+                    <ThemedText type="smallBold" themeColor="mutedForeground">
                         Skip
                     </ThemedText>
                 </Pressable>
@@ -143,17 +140,11 @@ export function OnboardingOverlay({ onComplete }: Props) {
                     >
                         <ThemedView
                             type="card"
-                            style={[
-                                styles.card,
-                                { borderColor: theme.border },
-                            ]}
+                            style={[styles.card, { borderColor: theme.border }]}
                         >
                             {/* Step number, paired with an icon so the slides
                                 read as a sequence rather than a wall of text. */}
-                            <ThemedView
-                                type="muted"
-                                style={styles.stepBadge}
-                            >
+                            <ThemedView type="muted" style={styles.stepBadge}>
                                 <SlideIcon name={slide.icon} />
                                 <ThemedText
                                     type="code"
@@ -163,10 +154,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
                                 </ThemedText>
                             </ThemedView>
 
-                            <ThemedText
-                                type="title"
-                                style={styles.slideTitle}
-                            >
+                            <ThemedText type="title" style={styles.slideTitle}>
                                 {slide.title}
                             </ThemedText>
 
@@ -190,10 +178,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
 
             {/* Bottom controls */}
             <View
-                style={[
-                    styles.bottom,
-                    { backgroundColor: theme.background },
-                ]}
+                style={[styles.bottom, { backgroundColor: theme.background }]}
             >
                 {/* Dot indicators */}
                 <View style={styles.dots}>
@@ -207,8 +192,7 @@ export function OnboardingOverlay({ onComplete }: Props) {
                                         index === currentIndex
                                             ? theme.primary
                                             : theme.mutedForeground,
-                                    opacity:
-                                        index === currentIndex ? 1 : 0.3,
+                                    opacity: index === currentIndex ? 1 : 0.3,
                                 },
                             ]}
                         />

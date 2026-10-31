@@ -24,7 +24,11 @@ import {
     fetchDMThreadMessages,
     type TimelineMessage,
 } from "@/lib/firepit";
-import { cacheThreadReplies, getCachedThreadReplies, markAsThreadReply } from "@/lib/cache/ThreadCache";
+import {
+    cacheThreadReplies,
+    getCachedThreadReplies,
+    markAsThreadReply,
+} from "@/lib/cache/ThreadCache";
 import { getProfilesBatch } from "@/lib/profile-cache";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { ArrowLeft } from "lucide-react-native";
@@ -44,7 +48,8 @@ function normalizeParam(value?: string | string[]) {
 export default function DMThreadScreen() {
     const theme = useTheme();
     const { conversationId, messageId } = useLocalSearchParams<RouteParams>();
-    const { instanceUrl, accessToken, state, customEmojis, currentUser } = useFirepitBootstrap();
+    const { instanceUrl, accessToken, state, customEmojis, currentUser } =
+        useFirepitBootstrap();
     const normalizedConversationId = normalizeParam(conversationId);
     const normalizedMessageId = normalizeParam(messageId);
     const signedIn = Boolean(state === "ready" && instanceUrl && accessToken);
@@ -52,7 +57,9 @@ export default function DMThreadScreen() {
 
     const [loadState, setLoadState] = useState<LoadState>("idle");
     const [error, setError] = useState<string | null>(null);
-    const [parentMessage, setParentMessage] = useState<TimelineMessage | null>(null);
+    const [parentMessage, setParentMessage] = useState<TimelineMessage | null>(
+        null,
+    );
     const [replies, setReplies] = useState<TimelineMessage[]>([]);
     const [draft, setDraft] = useState("");
     const [sendState, setSendState] = useState<LoadState>("idle");
@@ -66,9 +73,14 @@ export default function DMThreadScreen() {
 
         try {
             // Show cached replies instantly
-            const cachedReplies = await getCachedThreadReplies(normalizedMessageId);
+            const cachedReplies =
+                await getCachedThreadReplies(normalizedMessageId);
             if (cachedReplies.length > 0) {
-                setReplies(cachedReplies);
+                // The cache hands back what was written (oldest-first, the order
+                // it was fetched in). This list is `inverted`, so it needs
+                // newest-first at index 0 — same reversal the live path below
+                // applies. Without it the cached thread renders upside down.
+                setReplies([...cachedReplies].reverse());
             }
 
             const response = await fetchDMThreadMessages(
@@ -77,10 +89,13 @@ export default function DMThreadScreen() {
                 normalizedMessageId,
             );
             const nextParent =
-                (response.parentMessage as TimelineMessage | null | undefined) ??
+                (response.parentMessage as
+                    TimelineMessage | null | undefined) ??
                 (response.message as TimelineMessage | null | undefined) ??
                 null;
-            const nextReplies = (response.replies ?? response.items ?? []) as TimelineMessage[];
+            const nextReplies = (response.replies ??
+                response.items ??
+                []) as TimelineMessage[];
 
             // Enrich with sender display names and avatars
             const senderIds = new Set<string>();
@@ -90,14 +105,19 @@ export default function DMThreadScreen() {
             }
             if (senderIds.size > 0) {
                 try {
-                    const map = await getProfilesBatch(instanceUrl, accessToken, Array.from(senderIds));
+                    const map = await getProfilesBatch(
+                        instanceUrl,
+                        accessToken,
+                        Array.from(senderIds),
+                    );
                     const enrich = (msg: TimelineMessage): TimelineMessage => {
                         const profile = map[msg.senderId ?? ""];
                         if (!profile) return msg;
                         return {
                             ...msg,
                             userName: profile.displayName ?? msg.userName,
-                            authorAvatarUrl: profile.avatarUrl ?? msg.authorAvatarUrl,
+                            authorAvatarUrl:
+                                profile.avatarUrl ?? msg.authorAvatarUrl,
                         };
                     };
                     setParentMessage(nextParent ? enrich(nextParent) : null);
@@ -105,7 +125,10 @@ export default function DMThreadScreen() {
                     // API returns oldest-first; the list is inverted.
                     setReplies([...enrichedReplies].reverse());
                     // Cache replies and mark them as thread replies for main list filtering
-                    void cacheThreadReplies(normalizedMessageId, enrichedReplies);
+                    void cacheThreadReplies(
+                        normalizedMessageId,
+                        enrichedReplies,
+                    );
                     for (const r of enrichedReplies) {
                         if (r.$id) void markAsThreadReply(r.$id);
                     }
@@ -156,9 +179,14 @@ export default function DMThreadScreen() {
         setSendError(null);
 
         try {
-            await createDMThreadReply(instanceUrl, accessToken, normalizedMessageId, {
-                text,
-            });
+            await createDMThreadReply(
+                instanceUrl,
+                accessToken,
+                normalizedMessageId,
+                {
+                    text,
+                },
+            );
             setDraft("");
             setSendState("ready");
             await loadThread();
@@ -170,9 +198,20 @@ export default function DMThreadScreen() {
                     : "Unable to send reply",
             );
         }
-    }, [accessToken, draft, instanceUrl, loadThread, normalizedMessageId, sendState]);
+    }, [
+        accessToken,
+        draft,
+        instanceUrl,
+        loadThread,
+        normalizedMessageId,
+        sendState,
+    ]);
 
-    const allMessages = parentMessage ? [parentMessage, ...replies] : replies;
+    // `replies` is newest-first and the list is `inverted`, so the last index
+    // renders at the visual top. The parent goes there so it sits above the
+    // thread it belongs to; putting it first pinned it to the bottom, below
+    // every reply.
+    const allMessages = parentMessage ? [...replies, parentMessage] : replies;
 
     // Hoisted out of renderItem: building it per cell meant a fresh array for
     // every visible reply on every render, which defeated ChatBubbleMessage's
@@ -181,18 +220,21 @@ export default function DMThreadScreen() {
         () =>
             customEmojis?.map((ce) => ({
                 ...ce,
-                url: ce.url.startsWith("http") ? ce.url : `${instanceUrl}${ce.url}`,
+                url: ce.url.startsWith("http")
+                    ? ce.url
+                    : `${instanceUrl}${ce.url}`,
             })) ?? [],
         [customEmojis, instanceUrl],
     );
 
     const renderItem = useCallback(
         ({ item, index }: { item: TimelineMessage; index: number }) => {
-            const isParent = index === 0 && item.$id === parentMessage?.$id;
+            // Matched by id rather than by index: the parent is the only row carrying
+            // this id, and an index check would read `allMessages.length` from
+            // a renderItem closure that does not depend on `replies`.
+            const isParent = item.$id === parentMessage?.$id;
             return (
-                <View style={[
-                    isParent ? styles.parentMessage : undefined,
-                ]}>
+                <View style={[isParent ? styles.parentMessage : undefined]}>
                     {isParent && (
                         <View style={styles.parentLabel}>
                             <ThemedText
@@ -231,7 +273,7 @@ export default function DMThreadScreen() {
                         createdAt={item.$createdAt}
                         isMine={Boolean(
                             currentUserId &&
-                                (item.senderId ?? item.userId) === currentUserId,
+                            (item.senderId ?? item.userId) === currentUserId,
                         )}
                         customEmojis={mappedEmojis}
                     />
@@ -246,26 +288,48 @@ export default function DMThreadScreen() {
             <KeyboardAvoidingView
                 style={[styles.root, { backgroundColor: theme.background }]}
                 behavior={Platform.OS === "ios" ? "padding" : "height"}
-                keyboardVerticalOffset={Platform.OS === "ios" ? BottomTabInset + 50 : 0}
+                keyboardVerticalOffset={
+                    Platform.OS === "ios" ? BottomTabInset + 50 : 0
+                }
             >
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     {/* Header */}
-                    <View style={[styles.header, { borderBottomColor: theme.border }]}>
+                    <View
+                        style={[
+                            styles.header,
+                            { borderBottomColor: theme.border },
+                        ]}
+                    >
                         <View style={styles.headerLeft}>
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={() => router.back()}
                                 style={styles.backButton}
                             >
-                                <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.one }}>
-                  <ArrowLeft size={18} color={theme.foreground} />
-                  <ThemedText type="smallBold">Back</ThemedText>
-                </View>
+                                <View
+                                    style={{
+                                        flexDirection: "row",
+                                        alignItems: "center",
+                                        gap: Spacing.one,
+                                    }}
+                                >
+                                    <ArrowLeft
+                                        size={18}
+                                        color={theme.foreground}
+                                    />
+                                    <ThemedText type="smallBold">
+                                        Back
+                                    </ThemedText>
+                                </View>
                             </Pressable>
                         </View>
                         <View style={styles.headerCenter}>
                             <ThemedText type="smallBold" numberOfLines={1}>
-                                Thread &middot; {replies.length} {replies.length === 1 ? "reply" : "replies"}
+                                Thread &middot; {replies.length}{" "}
+                                {replies.length === 1 ? "reply" : "replies"}
                             </ThemedText>
                         </View>
                         <View style={styles.headerRight} />
@@ -279,7 +343,10 @@ export default function DMThreadScreen() {
                             </View>
                         ) : null}
                         {error ? (
-                            <ThemedText themeColor="destructive" style={styles.errorText}>
+                            <ThemedText
+                                themeColor="destructive"
+                                style={styles.errorText}
+                            >
                                 {error}
                             </ThemedText>
                         ) : null}
@@ -304,11 +371,17 @@ export default function DMThreadScreen() {
                     <View
                         style={[
                             styles.composer,
-                            { borderTopColor: theme.border, backgroundColor: theme.background },
+                            {
+                                borderTopColor: theme.border,
+                                backgroundColor: theme.background,
+                            },
                         ]}
                     >
                         {sendError ? (
-                            <ThemedText themeColor="destructive" style={styles.sendError}>
+                            <ThemedText
+                                themeColor="destructive"
+                                style={styles.sendError}
+                            >
                                 {sendError}
                             </ThemedText>
                         ) : null}
@@ -322,22 +395,31 @@ export default function DMThreadScreen() {
                                 onChangeText={setDraft}
                                 style={[
                                     styles.input,
-                                    { borderColor: theme.border, color: theme.foreground },
+                                    {
+                                        borderColor: theme.border,
+                                        color: theme.foreground,
+                                    },
                                 ]}
                             />
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={sendReply}
-                                disabled={!draft.trim() || sendState === "loading"}
+                                disabled={
+                                    !draft.trim() || sendState === "loading"
+                                }
                                 style={({ pressed }) => [
                                     styles.sendButton,
                                     {
                                         backgroundColor: theme.primary,
-                                        opacity: pressed || !draft.trim() ? 0.6 : 1,
+                                        opacity:
+                                            pressed || !draft.trim() ? 0.6 : 1,
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold" themeColor="primaryForeground">
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="primaryForeground"
+                                >
                                     {sendState === "loading" ? "…" : "Send"}
                                 </ThemedText>
                             </Pressable>

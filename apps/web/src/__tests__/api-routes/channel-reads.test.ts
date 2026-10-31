@@ -131,10 +131,18 @@ describe("/api/channel-reads", () => {
     // so unread badges silently stopped working. Verbatim from the messages
     // collection on the live project.
     it.each([
-        ["offset form", "2025-10-16T13:32:34.133+00:00", "2025-10-16T13:32:34.133Z"],
+        [
+            "offset form",
+            "2025-10-16T13:32:34.133+00:00",
+            "2025-10-16T13:32:34.133Z",
+        ],
         ["Z form", "2025-10-16T13:33:19.895Z", "2025-10-16T13:33:19.895Z"],
         ["no fraction", "2025-10-16T13:33:19Z", "2025-10-16T13:33:19.000Z"],
-        ["non-UTC offset", "2025-10-16T08:32:34.133-05:00", "2025-10-16T13:32:34.133Z"],
+        [
+            "non-UTC offset",
+            "2025-10-16T08:32:34.133-05:00",
+            "2025-10-16T13:32:34.133Z",
+        ],
     ])("accepts and normalizes Appwrite's %s", async (_label, sent, stored) => {
         mockUpsertChannelRead.mockResolvedValue({ c1: stored });
 

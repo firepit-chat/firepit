@@ -1,7 +1,14 @@
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useCallback, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from "react-native";
+import {
+    Alert,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -15,26 +22,88 @@ import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { updateProfile, uploadProfileBackground } from "@/lib/firepit/profiles";
 
 const PRESET_COLORS = [
-    "#1a1a2e", "#16213e", "#0f3460", "#533483",
-    "#e94560", "#2d3436", "#636e72", "#d63031",
-    "#e17055", "#fdcb6e", "#00b894", "#0984e3",
-    "#6c5ce7", "#a29bfe", "#fd79a8", "#81ecec",
+    "#1a1a2e",
+    "#16213e",
+    "#0f3460",
+    "#533483",
+    "#e94560",
+    "#2d3436",
+    "#636e72",
+    "#d63031",
+    "#e17055",
+    "#fdcb6e",
+    "#00b894",
+    "#0984e3",
+    "#6c5ce7",
+    "#a29bfe",
+    "#fd79a8",
+    "#81ecec",
 ];
 
-const PRESET_GRADIENTS: { name: string; cssValue: string; colors: string[] }[] = [
-    { name: "Blessed Calm", cssValue: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", colors: ["#667eea", "#764ba2"] },
-    { name: "Sunrise", cssValue: "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)", colors: ["#ff6b6b", "#feca57"] },
-    { name: "Deep Space", cssValue: "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)", colors: ["#0f0c29", "#302b63", "#24243e"] },
-    { name: "Coral Dream", cssValue: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)", colors: ["#ff9a9e", "#fecfef"] },
-    { name: "Forest Mist", cssValue: "linear-gradient(135deg, #66785f 0%, #91ac8f 100%)", colors: ["#66785f", "#91ac8f"] },
-    { name: "Midnight City", cssValue: "linear-gradient(135deg, #232526 0%, #414345 100%)", colors: ["#232526", "#414345"] },
-    { name: "Royal Passion", cssValue: "linear-gradient(135deg, #c31432 0%, #240b36 100%)", colors: ["#c31432", "#240b36"] },
-    { name: "Ocean Haze", cssValue: "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)", colors: ["#2c3e50", "#4ca1af"] },
-    { name: "Firewatch", cssValue: "linear-gradient(135deg, #c94b4b 0%, #4b134f 100%)", colors: ["#c94b4b", "#4b134f"] },
-    { name: "Cosmic Fusion", cssValue: "linear-gradient(135deg, #ff00cc 0%, #333399 100%)", colors: ["#ff00cc", "#333399"] },
-    { name: "Frost", cssValue: "linear-gradient(135deg, #c9d6ff 0%, #e2e2e2 100%)", colors: ["#c9d6ff", "#e2e2e2"] },
-    { name: "Moss", cssValue: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)", colors: ["#134e5e", "#71b280"] },
-];
+const PRESET_GRADIENTS: { name: string; cssValue: string; colors: string[] }[] =
+    [
+        {
+            name: "Blessed Calm",
+            cssValue: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            colors: ["#667eea", "#764ba2"],
+        },
+        {
+            name: "Sunrise",
+            cssValue: "linear-gradient(135deg, #ff6b6b 0%, #feca57 100%)",
+            colors: ["#ff6b6b", "#feca57"],
+        },
+        {
+            name: "Deep Space",
+            cssValue:
+                "linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)",
+            colors: ["#0f0c29", "#302b63", "#24243e"],
+        },
+        {
+            name: "Coral Dream",
+            cssValue: "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+            colors: ["#ff9a9e", "#fecfef"],
+        },
+        {
+            name: "Forest Mist",
+            cssValue: "linear-gradient(135deg, #66785f 0%, #91ac8f 100%)",
+            colors: ["#66785f", "#91ac8f"],
+        },
+        {
+            name: "Midnight City",
+            cssValue: "linear-gradient(135deg, #232526 0%, #414345 100%)",
+            colors: ["#232526", "#414345"],
+        },
+        {
+            name: "Royal Passion",
+            cssValue: "linear-gradient(135deg, #c31432 0%, #240b36 100%)",
+            colors: ["#c31432", "#240b36"],
+        },
+        {
+            name: "Ocean Haze",
+            cssValue: "linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%)",
+            colors: ["#2c3e50", "#4ca1af"],
+        },
+        {
+            name: "Firewatch",
+            cssValue: "linear-gradient(135deg, #c94b4b 0%, #4b134f 100%)",
+            colors: ["#c94b4b", "#4b134f"],
+        },
+        {
+            name: "Cosmic Fusion",
+            cssValue: "linear-gradient(135deg, #ff00cc 0%, #333399 100%)",
+            colors: ["#ff00cc", "#333399"],
+        },
+        {
+            name: "Frost",
+            cssValue: "linear-gradient(135deg, #c9d6ff 0%, #e2e2e2 100%)",
+            colors: ["#c9d6ff", "#e2e2e2"],
+        },
+        {
+            name: "Moss",
+            cssValue: "linear-gradient(135deg, #134e5e 0%, #71b280 100%)",
+            colors: ["#134e5e", "#71b280"],
+        },
+    ];
 
 export default function AppearanceSettingsScreen() {
     const theme = useTheme();
@@ -51,7 +120,8 @@ export default function AppearanceSettingsScreen() {
     const handlePickImage = useCallback(async () => {
         if (!instanceUrl || !accessToken) return;
 
-        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const permission =
+            await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!permission.granted) {
             Alert.alert(
                 "Permission required",
@@ -79,50 +149,62 @@ export default function AppearanceSettingsScreen() {
         } catch (error) {
             Alert.alert(
                 "Upload failed",
-                error instanceof Error ? error.message : "Unable to upload background image",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to upload background image",
             );
         } finally {
             setUploading(false);
         }
     }, [instanceUrl, accessToken, refresh]);
 
-    const handleSelectColor = useCallback(async (color: string) => {
-        if (!instanceUrl || !accessToken) return;
-        setSaving(true);
-        try {
-            await updateProfile(instanceUrl, accessToken, {
-                profileBackgroundColor: color,
-                profileBackgroundGradient: null,
-            });
-            await refresh();
-        } catch (error) {
-            Alert.alert(
-                "Failed to update",
-                error instanceof Error ? error.message : "Unable to update background",
-            );
-        } finally {
-            setSaving(false);
-        }
-    }, [instanceUrl, accessToken, refresh]);
+    const handleSelectColor = useCallback(
+        async (color: string) => {
+            if (!instanceUrl || !accessToken) return;
+            setSaving(true);
+            try {
+                await updateProfile(instanceUrl, accessToken, {
+                    profileBackgroundColor: color,
+                    profileBackgroundGradient: null,
+                });
+                await refresh();
+            } catch (error) {
+                Alert.alert(
+                    "Failed to update",
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to update background",
+                );
+            } finally {
+                setSaving(false);
+            }
+        },
+        [instanceUrl, accessToken, refresh],
+    );
 
-    const handleSelectGradient = useCallback(async (cssValue: string) => {
-        if (!instanceUrl || !accessToken) return;
-        setSaving(true);
-        try {
-            await updateProfile(instanceUrl, accessToken, {
-                profileBackgroundGradient: cssValue,
-                profileBackgroundColor: null,
-            });
-            await refresh();
-        } catch (error) {
-            Alert.alert(
-                "Failed to update",
-                error instanceof Error ? error.message : "Unable to update background",
-            );
-        } finally {
-            setSaving(false);
-        }
-    }, [instanceUrl, accessToken, refresh]);
+    const handleSelectGradient = useCallback(
+        async (cssValue: string) => {
+            if (!instanceUrl || !accessToken) return;
+            setSaving(true);
+            try {
+                await updateProfile(instanceUrl, accessToken, {
+                    profileBackgroundGradient: cssValue,
+                    profileBackgroundColor: null,
+                });
+                await refresh();
+            } catch (error) {
+                Alert.alert(
+                    "Failed to update",
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to update background",
+                );
+            } finally {
+                setSaving(false);
+            }
+        },
+        [instanceUrl, accessToken, refresh],
+    );
 
     const handleClear = useCallback(async () => {
         if (!instanceUrl || !accessToken) return;
@@ -136,7 +218,9 @@ export default function AppearanceSettingsScreen() {
         } catch (error) {
             Alert.alert(
                 "Failed to clear",
-                error instanceof Error ? error.message : "Unable to clear background",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to clear background",
             );
         } finally {
             setSaving(false);
@@ -148,192 +232,276 @@ export default function AppearanceSettingsScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-            <View
-                pointerEvents="none"
-                style={[styles.backdropOrbTop, { backgroundColor: "rgba(217, 121, 43, 0.08)" }]}
-            />
-            <View
-                pointerEvents="none"
-                style={[styles.backdropOrbBottom, { backgroundColor: "rgba(78, 138, 134, 0.06)" }]}
-            />
-            <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-                <ScrollView
-                    style={{ width: "100%" }}
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
+                <View
+                    pointerEvents="none"
+                    style={[
+                        styles.backdropOrbTop,
+                        { backgroundColor: "rgba(217, 121, 43, 0.08)" },
+                    ]}
+                />
+                <View
+                    pointerEvents="none"
+                    style={[
+                        styles.backdropOrbBottom,
+                        { backgroundColor: "rgba(78, 138, 134, 0.06)" },
+                    ]}
+                />
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
                 >
-                    <View style={styles.shell}>
-                        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-                            <Pressable
-                                accessibilityRole="button"
-                                onPress={() => router.back()}
-                                style={styles.headerButton}
-                            >
-                                <ThemedText type="smallBold" themeColor="foreground">
-                                    Back
-                                </ThemedText>
-                            </Pressable>
-                            <ThemedText type="smallBold">
-                                Appearance
-                            </ThemedText>
-                            <View style={styles.headerButton} />
-                        </View>
-
-                        {/* App theme picker: palettes then accent. Placed after
-                            the header so the screen still introduces itself
-                            before presenting controls. */}
-                        <AppThemePicker />
-
-                        {/* Current background preview */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Profile Background</ThemedText>
+                    <ScrollView
+                        style={{ width: "100%" }}
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={styles.shell}>
                             <View
                                 style={[
-                                    styles.previewBox,
-                                    {
-                                        backgroundColor: currentColor ?? theme.muted,
-                                        borderColor: theme.border,
-                                    },
+                                    styles.header,
+                                    { borderBottomColor: theme.border },
                                 ]}
                             >
-                                {currentImageUrl ? (
-                                    <Image
-                                        source={{ uri: currentImageUrl }}
-                                        style={StyleSheet.absoluteFill}
-                                        resizeMode="cover"
-                                    />
-                                ) : null}
-                            </View>
-                            <View style={styles.previewActions}>
                                 <Pressable
                                     accessibilityRole="button"
-                                    onPress={handlePickImage}
-                                    disabled={uploading || saving}
-                                    style={({ pressed }) => ({
-                                        opacity: uploading || saving ? 0.5 : pressed ? 0.8 : 1,
-                                    })}
+                                    onPress={() => router.back()}
+                                    style={styles.headerButton}
                                 >
-                                    <ThemedText type="code" themeColor="accent">
-                                        {uploading ? "Uploading..." : "Upload image"}
+                                    <ThemedText
+                                        type="smallBold"
+                                        themeColor="foreground"
+                                    >
+                                        Back
                                     </ThemedText>
                                 </Pressable>
-                                {hasBackground ? (
+                                <ThemedText type="smallBold">
+                                    Appearance
+                                </ThemedText>
+                                <View style={styles.headerButton} />
+                            </View>
+
+                            {/* App theme picker: palettes then accent. Placed after
+                            the header so the screen still introduces itself
+                            before presenting controls. */}
+                            <AppThemePicker />
+
+                            {/* Current background preview */}
+                            <ThemedView
+                                type="card"
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="smallBold">
+                                    Profile Background
+                                </ThemedText>
+                                <View
+                                    style={[
+                                        styles.previewBox,
+                                        {
+                                            backgroundColor:
+                                                currentColor ?? theme.muted,
+                                            borderColor: theme.border,
+                                        },
+                                    ]}
+                                >
+                                    {currentImageUrl ? (
+                                        <Image
+                                            source={{ uri: currentImageUrl }}
+                                            style={StyleSheet.absoluteFill}
+                                            resizeMode="cover"
+                                        />
+                                    ) : null}
+                                </View>
+                                <View style={styles.previewActions}>
                                     <Pressable
                                         accessibilityRole="button"
-                                        onPress={handleClear}
-                                        disabled={saving || uploading}
+                                        onPress={handlePickImage}
+                                        disabled={uploading || saving}
                                         style={({ pressed }) => ({
-                                            opacity: saving || uploading ? 0.5 : pressed ? 0.8 : 1,
+                                            opacity:
+                                                uploading || saving
+                                                    ? 0.5
+                                                    : pressed
+                                                      ? 0.8
+                                                      : 1,
                                         })}
                                     >
-                                        <ThemedText type="code" themeColor="destructive">
-                                            Clear
-                                        </ThemedText>
-                                    </Pressable>
-                                ) : null}
-                            </View>
-                        </ThemedView>
-
-                        {/* Solid colors */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Solid Colors</ThemedText>
-                            <View style={styles.colorGrid}>
-                                {PRESET_COLORS.map((color) => (
-                                    <Pressable
-                                        key={color}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={color}
-                                        onPress={() => handleSelectColor(color)}
-                                        disabled={saving || uploading}
-                                        style={({ pressed }) => [
-                                            styles.colorSwatch,
-                                            {
-                                                backgroundColor: color,
-                                                borderColor: currentColor === color
-                                                    ? theme.foreground
-                                                    : "transparent",
-                                                opacity: saving || uploading ? 0.6 : pressed ? 0.8 : 1,
-                                            },
-                                        ]}
-                                    >
-                                        {currentColor === color ? (
-                                            <ThemedText
-                                                style={{
-                                                    fontSize: 14,
-                                                    color: "#FFFFFF",
-                                                    fontWeight: "700",
-                                                }}
-                                            >
-                                                ✓
-                                            </ThemedText>
-                                        ) : null}
-                                    </Pressable>
-                                ))}
-                            </View>
-                        </ThemedView>
-
-                        {/* Gradients */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Gradients</ThemedText>
-                            <View style={styles.gradientGrid}>
-                                {PRESET_GRADIENTS.map((gradient) => (
-                                    <Pressable
-                                        key={gradient.name}
-                                        accessibilityRole="button"
-                                        accessibilityLabel={gradient.name}
-                                        onPress={() => handleSelectGradient(gradient.cssValue)}
-                                        disabled={saving || uploading}
-                                        style={({ pressed }) => [
-                                            styles.gradientSwatch,
-                                            {
-                                                borderColor: currentGradient === gradient.cssValue
-                                                    ? theme.foreground
-                                                    : theme.border,
-                                                opacity: saving || uploading ? 0.6 : pressed ? 0.8 : 1,
-                                            },
-                                        ]}
-                                    >
-                                        <LinearGradient
-                                            colors={gradient.colors as [string, string, ...string[]]}
-                                            style={styles.gradientPreview}
-                                        />
                                         <ThemedText
                                             type="code"
-                                            style={{ fontSize: 10 }}
-                                            numberOfLines={1}
+                                            themeColor="accent"
                                         >
-                                            {gradient.name}
+                                            {uploading
+                                                ? "Uploading..."
+                                                : "Upload image"}
                                         </ThemedText>
                                     </Pressable>
-                                ))}
-                            </View>
-                        </ThemedView>
+                                    {hasBackground ? (
+                                        <Pressable
+                                            accessibilityRole="button"
+                                            onPress={handleClear}
+                                            disabled={saving || uploading}
+                                            style={({ pressed }) => ({
+                                                opacity:
+                                                    saving || uploading
+                                                        ? 0.5
+                                                        : pressed
+                                                          ? 0.8
+                                                          : 1,
+                                            })}
+                                        >
+                                            <ThemedText
+                                                type="code"
+                                                themeColor="destructive"
+                                            >
+                                                Clear
+                                            </ThemedText>
+                                        </Pressable>
+                                    ) : null}
+                                </View>
+                            </ThemedView>
 
-                        {/* Avatar frames info */}
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Avatar Frame</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                {currentFrame
-                                    ? `Current frame: ${currentFrame}`
-                                    : "No frame selected. Avatar frames can be set from the web settings."}
-                            </ThemedText>
-                        </ThemedView>
-                    </View>
-                </ScrollView>
-            </SafeAreaView>
-        </View>
+                            {/* Solid colors */}
+                            <ThemedView
+                                type="card"
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="smallBold">
+                                    Solid Colors
+                                </ThemedText>
+                                <View style={styles.colorGrid}>
+                                    {PRESET_COLORS.map((color) => (
+                                        <Pressable
+                                            key={color}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={color}
+                                            onPress={() =>
+                                                handleSelectColor(color)
+                                            }
+                                            disabled={saving || uploading}
+                                            style={({ pressed }) => [
+                                                styles.colorSwatch,
+                                                {
+                                                    backgroundColor: color,
+                                                    borderColor:
+                                                        currentColor === color
+                                                            ? theme.foreground
+                                                            : "transparent",
+                                                    opacity:
+                                                        saving || uploading
+                                                            ? 0.6
+                                                            : pressed
+                                                              ? 0.8
+                                                              : 1,
+                                                },
+                                            ]}
+                                        >
+                                            {currentColor === color ? (
+                                                <ThemedText
+                                                    style={{
+                                                        fontSize: 14,
+                                                        color: "#FFFFFF",
+                                                        fontWeight: "700",
+                                                    }}
+                                                >
+                                                    ✓
+                                                </ThemedText>
+                                            ) : null}
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </ThemedView>
+
+                            {/* Gradients */}
+                            <ThemedView
+                                type="card"
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="smallBold">
+                                    Gradients
+                                </ThemedText>
+                                <View style={styles.gradientGrid}>
+                                    {PRESET_GRADIENTS.map((gradient) => (
+                                        <Pressable
+                                            key={gradient.name}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={gradient.name}
+                                            onPress={() =>
+                                                handleSelectGradient(
+                                                    gradient.cssValue,
+                                                )
+                                            }
+                                            disabled={saving || uploading}
+                                            style={({ pressed }) => [
+                                                styles.gradientSwatch,
+                                                {
+                                                    borderColor:
+                                                        currentGradient ===
+                                                        gradient.cssValue
+                                                            ? theme.foreground
+                                                            : theme.border,
+                                                    opacity:
+                                                        saving || uploading
+                                                            ? 0.6
+                                                            : pressed
+                                                              ? 0.8
+                                                              : 1,
+                                                },
+                                            ]}
+                                        >
+                                            <LinearGradient
+                                                colors={
+                                                    gradient.colors as [
+                                                        string,
+                                                        string,
+                                                        ...string[],
+                                                    ]
+                                                }
+                                                style={styles.gradientPreview}
+                                            />
+                                            <ThemedText
+                                                type="code"
+                                                style={{ fontSize: 10 }}
+                                                numberOfLines={1}
+                                            >
+                                                {gradient.name}
+                                            </ThemedText>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            </ThemedView>
+
+                            {/* Avatar frames info */}
+                            <ThemedView
+                                type="card"
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="smallBold">
+                                    Avatar Frame
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    {currentFrame
+                                        ? `Current frame: ${currentFrame}`
+                                        : "No frame selected. Avatar frames can be set from the web settings."}
+                                </ThemedText>
+                            </ThemedView>
+                        </View>
+                    </ScrollView>
+                </SafeAreaView>
+            </View>
         </AuthRouteGuard>
     );
 }

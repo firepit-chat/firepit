@@ -13,7 +13,8 @@ import { apiCache } from "./cache-utils";
 const env = getEnvConfig();
 const DATABASE_ID = env.databaseId;
 const INVITES_COLLECTION_ID = env.collections.invites || "invites";
-const INVITE_USAGE_COLLECTION_ID = env.collections.inviteUsage || "invite_usage";
+const INVITE_USAGE_COLLECTION_ID =
+    env.collections.inviteUsage || "invite_usage";
 const MEMBERSHIPS_COLLECTION_ID = env.collections.memberships || "memberships";
 const SERVERS_COLLECTION_ID = env.collections.servers;
 const ROLE_MEMBER = "member";
@@ -163,109 +164,108 @@ async function reconcileOrphanedInviteUsageSlots(options?: {
         userIdsByServerId.set(serverId, serverUserIds);
     }
 
-        const existingMembershipKeys = new Set<string>();
-        const failedMembershipKeys = new Set<string>();
-        const membershipFetchTasks: Promise<void>[] = [];
+    const existingMembershipKeys = new Set<string>();
+    const failedMembershipKeys = new Set<string>();
+    const membershipFetchTasks: Promise<void>[] = [];
 
-        for (const [serverId, userIdsSet] of userIdsByServerId) {
-            const userIds = [...userIdsSet];
+    for (const [serverId, userIdsSet] of userIdsByServerId) {
+        const userIds = [...userIdsSet];
 
-            for (let index = 0; index < userIds.length; index += 100) {
-                const userIdChunk = userIds.slice(index, index + 100);
-                const task = databases
-                    .listDocuments(DATABASE_ID, MEMBERSHIPS_COLLECTION_ID, [
-                        Query.equal("serverId", serverId),
-                        Query.equal("userId", userIdChunk),
-                        Query.limit(100),
-                    ])
-                    .then((membershipPage) => {
-                        for (const membershipDocument of membershipPage.documents) {
-                            const membershipRecord =
-                                membershipDocument as Record<string, unknown>;
-                            const membershipUserId = membershipRecord.userId;
-                            const membershipServerId =
-                                membershipRecord.serverId;
+        for (let index = 0; index < userIds.length; index += 100) {
+            const userIdChunk = userIds.slice(index, index + 100);
+            const task = databases
+                .listDocuments(DATABASE_ID, MEMBERSHIPS_COLLECTION_ID, [
+                    Query.equal("serverId", serverId),
+                    Query.equal("userId", userIdChunk),
+                    Query.limit(100),
+                ])
+                .then((membershipPage) => {
+                    for (const membershipDocument of membershipPage.documents) {
+                        const membershipRecord = membershipDocument as Record<
+                            string,
+                            unknown
+                        >;
+                        const membershipUserId = membershipRecord.userId;
+                        const membershipServerId = membershipRecord.serverId;
 
-                            if (
-                                typeof membershipUserId === "string" &&
-                                typeof membershipServerId === "string"
-                            ) {
-                                existingMembershipKeys.add(
-                                    `${membershipServerId}:${membershipUserId}`,
-                                );
-                            }
-                        }
-                    })
-                    .catch((error) => {
-                        for (const failedUserId of userIdChunk) {
-                            failedMembershipKeys.add(
-                                `${serverId}:${failedUserId}`,
+                        if (
+                            typeof membershipUserId === "string" &&
+                            typeof membershipServerId === "string"
+                        ) {
+                            existingMembershipKeys.add(
+                                `${membershipServerId}:${membershipUserId}`,
                             );
                         }
+                    }
+                })
+                .catch((error) => {
+                    for (const failedUserId of userIdChunk) {
+                        failedMembershipKeys.add(`${serverId}:${failedUserId}`);
+                    }
 
-                        logger.error(
-                            "Failed to query memberships during invite usage reconciliation",
-                            {
-                                serverId,
-                                error:
-                                    error instanceof Error
-                                        ? error.message
-                                        : String(error),
-                            },
-                        );
-                    });
+                    logger.error(
+                        "Failed to query memberships during invite usage reconciliation",
+                        {
+                            serverId,
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    );
+                });
 
-                membershipFetchTasks.push(task);
-            }
+            membershipFetchTasks.push(task);
         }
+    }
 
-        await Promise.all(membershipFetchTasks);
+    await Promise.all(membershipFetchTasks);
 
-        const orphanUsageIds = validUsageEntries
-            .filter((entry) => {
-                const membershipKey = `${entry.serverId}:${entry.userId}`;
-                if (
-                    existingMembershipKeys.has(membershipKey) ||
-                    failedMembershipKeys.has(membershipKey)
-                ) {
-                    return false;
-                }
+    const orphanUsageIds = validUsageEntries
+        .filter((entry) => {
+            const membershipKey = `${entry.serverId}:${entry.userId}`;
+            if (
+                existingMembershipKeys.has(membershipKey) ||
+                failedMembershipKeys.has(membershipKey)
+            ) {
+                return false;
+            }
 
-                // Skip recently created slots whose membership may still be
-                // in flight.
-                const createdAt = Date.parse(entry.createdAt);
-                return (
-                    !Number.isNaN(createdAt) &&
-                    Date.now() - createdAt >= INVITE_USAGE_ORPHAN_MIN_AGE_MS
-                );
-            })
-            .map((entry) => entry.usageId);
+            // Skip recently created slots whose membership may still be
+            // in flight.
+            const createdAt = Date.parse(entry.createdAt);
+            return (
+                !Number.isNaN(createdAt) &&
+                Date.now() - createdAt >= INVITE_USAGE_ORPHAN_MIN_AGE_MS
+            );
+        })
+        .map((entry) => entry.usageId);
 
-        const deleteResults = await Promise.allSettled(
-            orphanUsageIds.map((usageId) =>
-                databases.deleteDocument(
-                    DATABASE_ID,
-                    INVITE_USAGE_COLLECTION_ID,
-                    usageId,
-                ),
+    const deleteResults = await Promise.allSettled(
+        orphanUsageIds.map((usageId) =>
+            databases.deleteDocument(
+                DATABASE_ID,
+                INVITE_USAGE_COLLECTION_ID,
+                usageId,
             ),
-        );
+        ),
+    );
 
-        for (const [index, result] of deleteResults.entries()) {
-            if (result.status === "fulfilled") {
-                removed += 1;
-                continue;
-            }
-
-            flagged += 1;
-            logger.error("Failed to delete orphaned invite usage document", {
-                usageId: orphanUsageIds[index],
-                error:
-                    result.reason instanceof Error
-                        ? result.reason.message
-                        : String(result.reason),
-            });
+    for (const [index, result] of deleteResults.entries()) {
+        if (result.status === "fulfilled") {
+            removed += 1;
+            continue;
         }
+
+        flagged += 1;
+        logger.error("Failed to delete orphaned invite usage document", {
+            usageId: orphanUsageIds[index],
+            error:
+                result.reason instanceof Error
+                    ? result.reason.message
+                    : String(result.reason),
+        });
+    }
 
     return {
         scanned,
@@ -369,9 +369,8 @@ export async function getInviteByCode(
     code: string,
 ): Promise<ServerInvite | null> {
     try {
-        const result = await dedupeInviteCache(
-            inviteByCodeCacheKey(code),
-            () => fetchInviteByCodeFromDb(code),
+        const result = await dedupeInviteCache(inviteByCodeCacheKey(code), () =>
+            fetchInviteByCodeFromDb(code),
         );
 
         return result;
@@ -650,10 +649,8 @@ export async function redeemInvite(
                 INVITES_COLLECTION_ID,
                 [Query.equal("code", code), Query.limit(1)],
             );
-            const latestInvite =
-                latestInviteResult.documents.at(0) as
-                    | ServerInvite
-                    | undefined;
+            const latestInvite = latestInviteResult.documents.at(0) as
+                ServerInvite | undefined;
             const latestCurrentUses =
                 typeof latestInvite?.currentUses === "number"
                     ? latestInvite.currentUses
@@ -730,10 +727,14 @@ export async function revokeInvite(inviteId: string): Promise<boolean> {
                 inviteId,
             )) as unknown as Record<string, unknown>;
         } catch (error) {
-            logger.warn("Failed to preload invite before deletion; proceeding", {
-                error: error instanceof Error ? error.message : String(error),
-                inviteId,
-            });
+            logger.warn(
+                "Failed to preload invite before deletion; proceeding",
+                {
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                    inviteId,
+                },
+            );
             // If the document cannot be loaded, continue to attempt deletion.
         }
 
@@ -744,8 +745,10 @@ export async function revokeInvite(inviteId: string): Promise<boolean> {
         );
 
         // Evict related cache keys so revoked invites are not served from cache
-        const code = typeof inviteDoc?.code === "string" ? inviteDoc.code : null;
-        const serverId = typeof inviteDoc?.serverId === "string" ? inviteDoc.serverId : null;
+        const code =
+            typeof inviteDoc?.code === "string" ? inviteDoc.code : null;
+        const serverId =
+            typeof inviteDoc?.serverId === "string" ? inviteDoc.serverId : null;
 
         if (code) {
             apiCache.clear(inviteByCodeCacheKey(code));

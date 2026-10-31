@@ -15,6 +15,7 @@ import { Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import { muteServer } from "@/lib/firepit/messages";
+import { captureError } from "@/lib/sentry";
 
 type ServerMenuSheetProps = {
     visible: boolean;
@@ -49,8 +50,13 @@ export function ServerMenuSheet({
     canManageServer,
 }: ServerMenuSheetProps) {
     const theme = useTheme();
-    const { instanceUrl, accessToken } = useFirepitBootstrap();
-    const [muted, setMuted] = useState(false);
+    const { instanceUrl, accessToken, mutes, setMutedOverride } =
+        useFirepitBootstrap();
+    // Server mute state comes from the provider rather than a local boolean.
+    // It used to start false and never be read, so a server muted earlier — or
+    // on another device — showed "Mute server" and the first tap was a silent
+    // no-op that needed a second tap to actually unmute.
+    const muted = mutes.servers.has(serverId);
     const [busy, setBusy] = useState(false);
 
     const go = useCallback(
@@ -65,14 +71,24 @@ export function ServerMenuSheet({
         if (!instanceUrl || !accessToken || busy) return;
         setBusy(true);
         try {
-            await muteServer(instanceUrl, accessToken, serverId, !muted);
-            setMuted((prev) => !prev);
+            const res = await muteServer(
+                instanceUrl,
+                accessToken,
+                serverId,
+                !muted,
+            );
+            setMutedOverride("servers", serverId, Boolean(res.muted));
         } catch (error) {
-            console.error("[server-menu:muteServer]", error);
+            captureError(
+                error instanceof Error ? error : new Error(String(error)),
+                {
+                    handler: "serverMenu:muteServer",
+                },
+            );
         } finally {
             setBusy(false);
         }
-    }, [accessToken, busy, instanceUrl, muted, serverId]);
+    }, [accessToken, busy, instanceUrl, muted, serverId, setMutedOverride]);
 
     const openMembers = useCallback(() => {
         onClose();
@@ -99,8 +115,7 @@ export function ServerMenuSheet({
                       key: "channels",
                       label: "Manage channels",
                       icon: <Hash size={16} color={theme.foreground} />,
-                      onPress: () =>
-                          go(`/server/${serverId}/channels`),
+                      onPress: () => go(`/server/${serverId}/channels`),
                   },
                   {
                       key: "roles",

@@ -40,33 +40,36 @@ export function useViewerMembers(serverId: string | null | undefined) {
     // selected server is never presented as the current one.
     const [loadedServerId, setLoadedServerId] = useState<string | null>(null);
 
-    const load = useCallback(async (signal: AbortSignal) => {
-        if (!serverId) {
-            setMembers([]);
-            setLoadedServerId(null);
-            return;
-        }
-        try {
-            const response = await fetch(
-                `/api/servers/${serverId}/viewer/members`,
-                { signal },
-            );
-            if (!response.ok) {
+    const load = useCallback(
+        async (signal: AbortSignal) => {
+            if (!serverId) {
                 setMembers([]);
-                setLoadedServerId(serverId);
+                setLoadedServerId(null);
                 return;
             }
-            const data = (await response.json()) as ViewerMembersResponse;
-            setMembers(Array.isArray(data.members) ? data.members : []);
-            setTruncated(Boolean(data.truncated));
-            setLoadedServerId(serverId);
-        } catch (error) {
-            if ((error as Error)?.name !== "AbortError") {
-                setMembers([]);
+            try {
+                const response = await fetch(
+                    `/api/servers/${serverId}/viewer/members`,
+                    { signal },
+                );
+                if (!response.ok) {
+                    setMembers([]);
+                    setLoadedServerId(serverId);
+                    return;
+                }
+                const data = (await response.json()) as ViewerMembersResponse;
+                setMembers(Array.isArray(data.members) ? data.members : []);
+                setTruncated(Boolean(data.truncated));
                 setLoadedServerId(serverId);
+            } catch (error) {
+                if ((error as Error)?.name !== "AbortError") {
+                    setMembers([]);
+                    setLoadedServerId(serverId);
+                }
             }
-        }
-    }, [serverId]);
+        },
+        [serverId],
+    );
 
     useEffect(() => {
         const controller = new AbortController();

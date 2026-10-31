@@ -83,9 +83,7 @@ const keyExtractor = (item: DayRow<Message>, index: number) =>
  * Realtime payloads carry the same document shape as the list endpoint, except
  * `reactions` may arrive as a JSON string.
  */
-function normalizeRealtimeMessage(
-    payload: Record<string, unknown>,
-): Message {
+function normalizeRealtimeMessage(payload: Record<string, unknown>): Message {
     const raw = payload.reactions;
     let reactions: Message["reactions"];
     if (typeof raw === "string") {
@@ -138,12 +136,12 @@ export default function ServerMessageScreen() {
     const [replyingTo, setReplyingTo] = useState<Message | null>(null);
     const [editingMessage, setEditingMessage] = useState<Message | null>(null);
     const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
-  // Stable identity: ChatBubbleMessage is memoized and compares this prop, so a
-  // fresh arrow on every render would defeat the memo on every row.
-  const openImageViewer = useCallback(
-    (url: string) => setViewerImageUrl(url),
-    [],
-  );
+    // Stable identity: ChatBubbleMessage is memoized and compares this prop, so a
+    // fresh arrow on every render would defeat the memo on every row.
+    const openImageViewer = useCallback(
+        (url: string) => setViewerImageUrl(url),
+        [],
+    );
     const [composerAttachments, setComposerAttachments] =
         useState<ComposerAttachmentState>({ image: null, files: [] });
     const [profileSheetUser, setProfileSheetUser] = useState<{
@@ -331,7 +329,9 @@ export default function ServerMessageScreen() {
                                         .avatarFrameInsetPercent === "number"
                                 ) {
                                     msg.avatarFrameInsetPercent =
-                                        profileMap[senderId].avatarFrameInsetPercent;
+                                        profileMap[
+                                            senderId
+                                        ].avatarFrameInsetPercent;
                                 }
                             }
                         }
@@ -581,17 +581,20 @@ export default function ServerMessageScreen() {
                     ),
                 ),
             ]);
-            const { message: createdMessage } =
-                await createChannelMessage(instanceUrl, accessToken, {
-                channelId: selectedChannel.$id,
-                serverId: normalizedServerId,
-                text: text || undefined,
-                mentions,
-                imageFileId: imageUpload?.fileId,
-                imageUrl: imageUpload?.fileUrl,
-                attachments: [...(fileUploads ?? []), ...remoteAttachments],
-                replyToId: replyingTo?.$id,
-            });
+            const { message: createdMessage } = await createChannelMessage(
+                instanceUrl,
+                accessToken,
+                {
+                    channelId: selectedChannel.$id,
+                    serverId: normalizedServerId,
+                    text: text || undefined,
+                    mentions,
+                    imageFileId: imageUpload?.fileId,
+                    imageUrl: imageUpload?.fileUrl,
+                    attachments: [...(fileUploads ?? []), ...remoteAttachments],
+                    replyToId: replyingTo?.$id,
+                },
+            );
             setMessageDraft("");
             setReplyingTo(null);
             setComposerAttachments({ image: null, files: [] });
@@ -608,9 +611,7 @@ export default function ServerMessageScreen() {
             if (cancelledRef.current) return;
             await loadMessages(selectedChannel.$id);
         } catch (error) {
-            setMessages((prev) =>
-                prev.filter((m) => m.$id !== optimisticId),
-            );
+            setMessages((prev) => prev.filter((m) => m.$id !== optimisticId));
             setMessageSendState("error");
             setMessageError(
                 error instanceof Error
@@ -714,7 +715,9 @@ export default function ServerMessageScreen() {
                     return next;
                 }
                 const isNewMessage = Boolean(
-                    incoming.text || incoming.imageUrl || incoming.attachments?.length,
+                    incoming.text ||
+                    incoming.imageUrl ||
+                    incoming.attachments?.length,
                 );
                 // A reaction/edit on a message outside the loaded window. There
                 // is nothing to patch, and refetching the list for it is what
@@ -870,12 +873,18 @@ export default function ServerMessageScreen() {
      * because the FlatList is inverted — see insertDayDividers.
      */
     const messageRows = useMemo(
-      () => insertDayDividers(messages, (m, i) => `m:${m.$id ?? i}`),
-      [messages],
+        () => insertDayDividers(messages, (m, i) => `m:${m.$id ?? i}`),
+        [messages],
     );
 
     const renderItem = useCallback(
-        ({ item: row, index: idx }: { item: DayRow<Message>; index: number }) => {
+        ({
+            item: row,
+            index: idx,
+        }: {
+            item: DayRow<Message>;
+            index: number;
+        }) => {
             if (row.kind === "divider") {
                 return (
                     <View style={styles.dayDivider}>
@@ -966,8 +975,10 @@ export default function ServerMessageScreen() {
                     isMine={isMine}
                     currentUserId={currentUserId ?? undefined}
                     canManageMessages={
-                        channelPermissions?.manageMessages ?? false
+                        Boolean(channelPermissions?.manageMessages) ||
+                        message.userId === currentUserId
                     }
+                    authToken={accessToken}
                     imageUrl={imageUrl}
                     replyTo={
                         replyToMsg
@@ -997,66 +1008,61 @@ export default function ServerMessageScreen() {
                         // Apply locally first. Waiting on the round-trip made
                         // reactions feel several seconds behind the tap.
                         setMessages((prev) =>
-                                prev.map((m) => {
-                                    if (
-                                        m.$id !== msgId ||
-                                        !Array.isArray(m.reactions)
-                                    )
-                                        return m;
-                                    const existing = m.reactions.find(
-                                        (r) => r.emoji === emoji,
-                                    );
-                                    if (isAdding) {
-                                        if (existing) {
-                                            return {
-                                                ...m,
-                                                reactions: m.reactions.map(
-                                                    (r) =>
-                                                        r.emoji === emoji
-                                                            ? {
-                                                                  ...r,
-                                                                  count:
-                                                                      r.count +
-                                                                      1,
-                                                                  reactedByMe: true,
-                                                              }
-                                                            : r,
-                                                ),
-                                            };
-                                        }
+                            prev.map((m) => {
+                                if (
+                                    m.$id !== msgId ||
+                                    !Array.isArray(m.reactions)
+                                )
+                                    return m;
+                                const existing = m.reactions.find(
+                                    (r) => r.emoji === emoji,
+                                );
+                                if (isAdding) {
+                                    if (existing) {
                                         return {
                                             ...m,
-                                            reactions: [
-                                                ...m.reactions,
-                                                {
-                                                    emoji,
-                                                    userIds: [
-                                                        currentUserId ?? "",
-                                                    ],
-                                                    count: 1,
-                                                    reactedByMe: true,
-                                                },
-                                            ],
+                                            reactions: m.reactions.map((r) =>
+                                                r.emoji === emoji
+                                                    ? {
+                                                          ...r,
+                                                          count: r.count + 1,
+                                                          reactedByMe: true,
+                                                      }
+                                                    : r,
+                                            ),
                                         };
                                     }
-                                    if (!existing) return m;
-                                    const updated = m.reactions
-                                        .map((r) =>
-                                            r.emoji === emoji
-                                                ? {
-                                                      ...r,
-                                                      count: Math.max(
-                                                          0,
-                                                          r.count - 1,
-                                                      ),
-                                                      reactedByMe: false,
-                                                  }
-                                                : r,
-                                        )
-                                        .filter((r) => r.count > 0);
-                                    return { ...m, reactions: updated };
-                                }),
-                            )
+                                    return {
+                                        ...m,
+                                        reactions: [
+                                            ...m.reactions,
+                                            {
+                                                emoji,
+                                                userIds: [currentUserId ?? ""],
+                                                count: 1,
+                                                reactedByMe: true,
+                                            },
+                                        ],
+                                    };
+                                }
+                                if (!existing) return m;
+                                const updated = m.reactions
+                                    .map((r) =>
+                                        r.emoji === emoji
+                                            ? {
+                                                  ...r,
+                                                  count: Math.max(
+                                                      0,
+                                                      r.count - 1,
+                                                  ),
+                                                  reactedByMe: false,
+                                              }
+                                            : r,
+                                    )
+                                    .filter((r) => r.count > 0);
+                                return { ...m, reactions: updated };
+                            }),
+                        );
                         try {
                             await toggleReaction(
                                 String(msgId),
@@ -1219,8 +1225,18 @@ export default function ServerMessageScreen() {
                             accessibilityLabel="Back to chat"
                             onPress={() => {
                                 // The chat tab is the channel browser now that
-                                // the dedicated server page is gone.
-                                router.replace("/chat");
+                                // the dedicated server page is gone. Pop when
+                                // there is history to pop to — `replace` pushed
+                                // a second chat entry on top, so the hardware
+                                // back button then landed on a duplicate — and
+                                // fall back to replace for a cold deep link
+                                // from a notification, where back would do
+                                // nothing.
+                                if (router.canGoBack()) {
+                                    router.back();
+                                } else {
+                                    router.replace("/chat");
+                                }
                             }}
                             style={styles.backButton}
                         >
@@ -1385,8 +1401,7 @@ export default function ServerMessageScreen() {
                                             if (!parentId) return;
                                             setMessages((prev) => {
                                                 const parent = prev.find(
-                                                    (m) =>
-                                                        m.$id === parentId,
+                                                    (m) => m.$id === parentId,
                                                 );
                                                 if (
                                                     !parent ||

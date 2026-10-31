@@ -98,13 +98,21 @@ function chunkValues<T>(values: T[], size: number) {
 
 const PROFILE_CACHE_TTL_MS = 30_000;
 const PROFILE_CACHE_MAX = 500;
-const profileCache = new Map<string, { data: UserProfile | null; ts: number }>();
+const profileCache = new Map<
+    string,
+    { data: UserProfile | null; ts: number }
+>();
 
 function evictProfileCache(): void {
-    if (profileCache.size <= PROFILE_CACHE_MAX) {return;}
+    if (profileCache.size <= PROFILE_CACHE_MAX) {
+        return;
+    }
     const now = Date.now();
     for (const [key, entry] of profileCache) {
-        if (now - entry.ts > PROFILE_CACHE_TTL_MS || profileCache.size > PROFILE_CACHE_MAX) {
+        if (
+            now - entry.ts > PROFILE_CACHE_TTL_MS ||
+            profileCache.size > PROFILE_CACHE_MAX
+        ) {
             profileCache.delete(key);
         }
     }
@@ -154,7 +162,9 @@ export async function getUserProfile(
 export async function getUserProfilesBatch(
     userIds: string[],
 ): Promise<Map<string, UserProfile>> {
-    if (userIds.length === 0) {return new Map();}
+    if (userIds.length === 0) {
+        return new Map();
+    }
 
     evictProfileCache();
     const now = Date.now();
@@ -164,13 +174,17 @@ export async function getUserProfilesBatch(
     for (const uid of userIds) {
         const cached = profileCache.get(uid);
         if (cached && now - cached.ts < PROFILE_CACHE_TTL_MS) {
-            if (cached.data) {result.set(uid, cached.data);}
+            if (cached.data) {
+                result.set(uid, cached.data);
+            }
         } else {
             uncached.push(uid);
         }
     }
 
-    if (uncached.length === 0) {return result;}
+    if (uncached.length === 0) {
+        return result;
+    }
 
     const { databases } = getAdminClient();
     const env = getEnvConfig();
@@ -243,8 +257,7 @@ export async function resolveProfileUserId(identifier: string) {
         }
 
         const profile = profiles.documents[0] as unknown as
-            | UserProfile
-            | undefined;
+            UserProfile | undefined;
         return profile?.userId;
     } catch {
         return undefined;

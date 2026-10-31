@@ -286,6 +286,7 @@ export function ChatSurfaceMessageItem({
                     )}
 
                 {!message.threadId &&
+                    !message.isEncrypted &&
                     typeof message.threadReplyCount === "number" &&
                     message.threadReplyCount > 0 &&
                     onOpenThread && (
@@ -376,7 +377,7 @@ export function ChatSurfaceMessageItem({
                                 />
                             </Button>
                         )}
-                        {mine && (
+                        {mine && !message.isEncrypted && (
                             <>
                                 <Button
                                     aria-label="Edit message"

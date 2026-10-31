@@ -3,7 +3,10 @@ import { ID, Permission, Query, Role } from "node-appwrite";
 import { getAdminClient } from "./appwrite-admin";
 import { getEnvConfig } from "./appwrite-core";
 import { listPages, chunkValues } from "./appwrite-pagination";
-import { getNotificationSettings, getNotificationSettingsBatch } from "./notification-settings";
+import {
+    getNotificationSettings,
+    getNotificationSettingsBatch,
+} from "./notification-settings";
 import type { BlockedUser, Friendship, RelationshipStatus } from "./types";
 
 const env = getEnvConfig();
@@ -246,8 +249,7 @@ export async function getFriendshipByPair(
     );
 
     const document = response.documents[0] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
     return document ? toFriendship(document) : null;
 }
 
@@ -271,8 +273,7 @@ async function getBlockRecord(userId: string, blockedUserId: string) {
     );
 
     const document = response.documents[0] as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
     return document ? toBlockedUser(document) : null;
 }
 
@@ -347,7 +348,8 @@ export async function getRelationshipStatus(
         friendship?.status === "pending" && friendship.requesterId === userId;
     const incomingRequest =
         friendship?.status === "pending" && friendship.recipientId === userId;
-    const directMessagePrivacy = notificationSettings?.directMessagePrivacy ?? "everyone";
+    const directMessagePrivacy =
+        notificationSettings?.directMessagePrivacy ?? "everyone";
     const canSendDirectMessage =
         !blockStatus.blockedByMe &&
         !blockStatus.blockedMe &&
@@ -748,10 +750,14 @@ export async function getRelationshipMap(
                 batches.map((batch) =>
                     readRelationshipData<RelationshipDocumentList>(
                         () =>
-                            databases.listDocuments(DATABASE_ID, FRIENDSHIPS_COLLECTION_ID, [
-                                Query.equal("pairKey", batch),
-                                Query.limit(BATCH_LIMIT),
-                            ]) as Promise<RelationshipDocumentList>,
+                            databases.listDocuments(
+                                DATABASE_ID,
+                                FRIENDSHIPS_COLLECTION_ID,
+                                [
+                                    Query.equal("pairKey", batch),
+                                    Query.limit(BATCH_LIMIT),
+                                ],
+                            ) as Promise<RelationshipDocumentList>,
                         { documents: [] },
                     ),
                 ),
@@ -767,7 +773,10 @@ export async function getRelationshipMap(
         (async () => {
             const docs: Array<Record<string, unknown>> = [];
             try {
-                for (const chunk of chunkValues(Array.from(targetSet), BATCH_LIMIT)) {
+                for (const chunk of chunkValues(
+                    Array.from(targetSet),
+                    BATCH_LIMIT,
+                )) {
                     const { documents } = await listPages({
                         databases,
                         databaseId: DATABASE_ID,
@@ -820,38 +829,49 @@ export async function getRelationshipMap(
     }
 
     // Assemble results
-    const entries: [string, RelationshipStatus][] = uniqueUserIds.map((otherUserId) => {
-        const { pairKey } = normalizeUserPair(userId, otherUserId);
-        const friendship = friendshipsByPairKey.get(pairKey) ?? null;
-        const blockedByMe = blocksIBlocked.has(otherUserId);
-        const blockedMe = blocksThatBlockedMe.has(otherUserId);
-        const directMessagePrivacy = dmPrivacyByUser.get(otherUserId) ?? "everyone";
+    const entries: [string, RelationshipStatus][] = uniqueUserIds.map(
+        (otherUserId) => {
+            const { pairKey } = normalizeUserPair(userId, otherUserId);
+            const friendship = friendshipsByPairKey.get(pairKey) ?? null;
+            const blockedByMe = blocksIBlocked.has(otherUserId);
+            const blockedMe = blocksThatBlockedMe.has(otherUserId);
+            const directMessagePrivacy =
+                dmPrivacyByUser.get(otherUserId) ?? "everyone";
 
-        const isFriend = friendship?.status === "accepted";
-        const outgoingRequest =
-            friendship?.status === "pending" && friendship.requesterId === userId;
-        const incomingRequest =
-            friendship?.status === "pending" && friendship.recipientId === userId;
-        const canSendDirectMessage =
-            !blockedByMe && !blockedMe &&
-            (directMessagePrivacy === "everyone" || isFriend);
+            const isFriend = friendship?.status === "accepted";
+            const outgoingRequest =
+                friendship?.status === "pending" &&
+                friendship.requesterId === userId;
+            const incomingRequest =
+                friendship?.status === "pending" &&
+                friendship.recipientId === userId;
+            const canSendDirectMessage =
+                !blockedByMe &&
+                !blockedMe &&
+                (directMessagePrivacy === "everyone" || isFriend);
 
-        return [otherUserId, {
-            userId: otherUserId,
-            friendshipStatus: friendship?.status,
-            isFriend,
-            outgoingRequest,
-            incomingRequest,
-            blockedByMe,
-            blockedMe,
-            directMessagePrivacy,
-            canSendDirectMessage,
-            canReceiveFriendRequest:
-                !isFriend && !outgoingRequest && !incomingRequest &&
-                !blockedByMe && !blockedMe,
-        }];
-    });
+            return [
+                otherUserId,
+                {
+                    userId: otherUserId,
+                    friendshipStatus: friendship?.status,
+                    isFriend,
+                    outgoingRequest,
+                    incomingRequest,
+                    blockedByMe,
+                    blockedMe,
+                    directMessagePrivacy,
+                    canSendDirectMessage,
+                    canReceiveFriendRequest:
+                        !isFriend &&
+                        !outgoingRequest &&
+                        !incomingRequest &&
+                        !blockedByMe &&
+                        !blockedMe,
+                },
+            ];
+        },
+    );
 
     return new Map(entries);
 }
-

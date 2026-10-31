@@ -17,9 +17,7 @@ import {
     normalizeServerFileId,
 } from "@/lib/server-metadata";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
-import { logger,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { logger, returnForbidden } from "@/lib/posthog-utils";
 
 const MAX_SERVER_NAME_LENGTH = 100;
 const MAX_SERVER_DESCRIPTION_LENGTH = 500;
@@ -103,7 +101,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const [access, memberCount] = await Promise.all([
         isPublic
             ? Promise.resolve(null)
-            : getServerPermissionsForUser(databases, env, serverId, session.$id),
+            : getServerPermissionsForUser(
+                  databases,
+                  env,
+                  serverId,
+                  session.$id,
+              ),
         getActualMemberCount(databases, serverId),
     ]);
 

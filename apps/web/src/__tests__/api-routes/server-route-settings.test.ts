@@ -182,8 +182,14 @@ describe("PATCH /api/servers/[serverId]", () => {
                 isPublic: false,
             }),
         );
-        expect(mockDeleteFile).toHaveBeenCalledWith("images-bucket", "old-icon");
-        expect(mockDeleteFile).toHaveBeenCalledWith("images-bucket", "old-banner");
+        expect(mockDeleteFile).toHaveBeenCalledWith(
+            "images-bucket",
+            "old-icon",
+        );
+        expect(mockDeleteFile).toHaveBeenCalledWith(
+            "images-bucket",
+            "old-banner",
+        );
         expect(mockRecordAudit).toHaveBeenCalledWith(
             "server_settings_updated",
             "server-1",

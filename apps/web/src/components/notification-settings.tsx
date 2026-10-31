@@ -54,9 +54,7 @@ interface NotificationSettingsProps {
 }
 
 type OverrideScopeKey =
-    | "serverOverrides"
-    | "channelOverrides"
-    | "conversationOverrides";
+    "serverOverrides" | "channelOverrides" | "conversationOverrides";
 
 interface OverrideSectionConfig {
     key: OverrideScopeKey;
@@ -174,10 +172,7 @@ function writeLocalDmEncryptionPreference(value: boolean): void {
         return;
     }
 
-    window.localStorage.setItem(
-        DM_ENCRYPTION_LOCAL_STORAGE_KEY,
-        String(value),
-    );
+    window.localStorage.setItem(DM_ENCRYPTION_LOCAL_STORAGE_KEY, String(value));
 }
 
 function formatNotificationLevel(level: NotificationLevel): string {
@@ -393,7 +388,7 @@ export function NotificationSettings({
             const dmEncryptionEnabledNext =
                 typeof serverDmEncryptionEnabled === "boolean"
                     ? serverDmEncryptionEnabled
-                    : readLocalDmEncryptionPreference() ?? false;
+                    : (readLocalDmEncryptionPreference() ?? false);
 
             setDmEncryptionEnabled(dmEncryptionEnabledNext);
             writeLocalDmEncryptionPreference(dmEncryptionEnabledNext);
@@ -1011,7 +1006,9 @@ export function NotificationSettings({
                                                                         status.tone,
                                                                     )}`}
                                                                 >
-                                                                    {status.label}
+                                                                    {
+                                                                        status.label
+                                                                    }
                                                                 </span>
                                                                 <p className="text-right text-xs text-muted-foreground">
                                                                     {formatNotificationLevel(

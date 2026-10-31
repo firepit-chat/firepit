@@ -10,11 +10,7 @@ import {
     getPredefinedAvatarFrameUrlByPresetId,
 } from "@/lib/appwrite-profiles";
 import { getPresetFrameById, presetFrameStyle } from "@/lib/preset-frames";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { normalizeStatus } from "@/lib/status-normalization";
@@ -48,7 +44,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         const session = await getServerSession();
         if (!session?.$id) {
             return NextResponse.json(
@@ -294,14 +289,17 @@ export async function POST(request: NextRequest) {
             duration: Date.now() - startTime,
         });
 
-        return NextResponse.json({
-            profiles: profilesMap,
-            visibleUserIds,
-        }, {
-            headers: {
-                'Cache-Control': 'private, max-age=10',
+        return NextResponse.json(
+            {
+                profiles: profilesMap,
+                visibleUserIds,
             },
-        });
+            {
+                headers: {
+                    "Cache-Control": "private, max-age=10",
+                },
+            },
+        );
     } catch (error) {
         recordError(error instanceof Error ? error : new Error(String(error)), {
             context: "POST /api/profiles/batch",

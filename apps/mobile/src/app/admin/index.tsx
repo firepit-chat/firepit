@@ -1,12 +1,7 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
-import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
@@ -16,10 +11,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    fetchServerStats,
-    type ServerStatsResponse,
-} from "@/lib/firepit";
+import { fetchServerStats, type ServerStatsResponse } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -38,7 +30,11 @@ export default function AdminDashboardScreen() {
         setLoadState("loading");
         setLoadError(null);
         try {
-            const res = await fetchServerStats(instanceUrl, accessToken, serverId);
+            const res = await fetchServerStats(
+                instanceUrl,
+                accessToken,
+                serverId,
+            );
             setStats(res);
             setLoadState("ready");
         } catch (error) {
@@ -63,130 +59,155 @@ export default function AdminDashboardScreen() {
                     contentContainerStyle={styles.scrollContent}
                 >
                     <SafeAreaView style={styles.safeArea}>
-                    <ThemedView style={styles.shell}>
-                        <ThemedView
-                            style={[styles.heroCard, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="code" themeColor="accent">
-                                Admin dashboard
-                            </ThemedText>
-                            <ThemedText type="title">Server overview</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Quick stats and shortcuts for server administration.
-                            </ThemedText>
-                            {loadState === "error" ? (
-                                <NoticeLine tone="danger">
-                                    Could not load server statistics. Pull down to
-                                    retry.
-                                </NoticeLine>
-                            ) : null}
-                        </ThemedView>
-
-                        {/* Navigation */}
-                        <ThemedView
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Tools</ThemedText>
-                            <View style={styles.toolGrid}>
-                                {serverId ? (
-                                    <>
-                                        <ActionButton
-                                            label="Moderation"
-                                            tone="secondary"
-                                            onPress={() =>
-                                                router.push(
-                                                    `/admin/reports?serverId=${encodeURIComponent(serverId)}` as never,
-                                                )
-                                            }
-                                        />
-                                        <ActionButton
-                                            label="Audit log"
-                                            tone="ghost"
-                                            onPress={() =>
-                                                router.push(
-                                                    `/admin/audit-log?serverId=${encodeURIComponent(serverId)}` as never,
-                                                )
-                                            }
-                                        />
-                                    </>
+                        <ThemedView style={styles.shell}>
+                            <ThemedView
+                                style={[
+                                    styles.heroCard,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="code" themeColor="accent">
+                                    Admin dashboard
+                                </ThemedText>
+                                <ThemedText type="title">
+                                    Server overview
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    Quick stats and shortcuts for server
+                                    administration.
+                                </ThemedText>
+                                {loadState === "error" ? (
+                                    <NoticeLine tone="danger">
+                                        Could not load server statistics. Pull
+                                        down to retry.
+                                    </NoticeLine>
                                 ) : null}
-                                <ActionButton
-                                    label="Back"
-                                    tone="ghost"
-                                    onPress={() => router.back()}
-                                />
-                            </View>
-                        </ThemedView>
-
-                        {/* Stats */}
-                        {!serverId ? (
-                            <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
-                            >
-                                <ThemedText themeColor="mutedForeground">
-                                    No server selected. Navigate to an admin page from within a server to view its statistics.
-                                </ThemedText>
                             </ThemedView>
-                        ) : null}
 
-                        {loadState === "loading" ? (
-                            <View style={styles.loadingRow}>
-                                <ActivityIndicator color={theme.primary} />
-                                <ThemedText themeColor="mutedForeground">
-                                    Loading stats…
-                                </ThemedText>
-                            </View>
-                        ) : null}
-
-                        {loadError ? (
+                            {/* Navigation */}
                             <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
-                                <ThemedText themeColor="destructive">
-                                    {loadError}
-                                </ThemedText>
-                            </ThemedView>
-                        ) : null}
-
-                        {stats && loadState === "ready" ? (
-                            <ThemedView
-                                    style={[styles.card, { borderColor: theme.border }]}
-                            >
-                                <ThemedText type="smallBold">Server statistics</ThemedText>
-                                <View style={styles.statGrid}>
-                                    <StatItem
-                                        label="Members"
-                                        value={stats.totalMembers}
-                                    />
-                                    <StatItem
-                                        label="Channels"
-                                        value={stats.totalChannels}
-                                    />
-                                    <StatItem
-                                        label="Messages"
-                                        value={stats.totalMessages}
-                                    />
-                                    <StatItem
-                                        label="Recent messages"
-                                        value={stats.recentMessages}
-                                    />
-                                    <StatItem
-                                        label="Banned users"
-                                        value={stats.bannedUsers}
-                                        tone="danger"
-                                    />
-                                    <StatItem
-                                        label="Muted users"
-                                        value={stats.mutedUsers}
-                                        tone="warning"
+                                <ThemedText type="smallBold">Tools</ThemedText>
+                                <View style={styles.toolGrid}>
+                                    {serverId ? (
+                                        <>
+                                            <ActionButton
+                                                label="Moderation"
+                                                tone="secondary"
+                                                onPress={() =>
+                                                    router.push(
+                                                        `/admin/reports?serverId=${encodeURIComponent(serverId)}` as never,
+                                                    )
+                                                }
+                                            />
+                                            <ActionButton
+                                                label="Audit log"
+                                                tone="ghost"
+                                                onPress={() =>
+                                                    router.push(
+                                                        `/admin/audit-log?serverId=${encodeURIComponent(serverId)}` as never,
+                                                    )
+                                                }
+                                            />
+                                        </>
+                                    ) : null}
+                                    <ActionButton
+                                        label="Back"
+                                        tone="ghost"
+                                        onPress={() => router.back()}
                                     />
                                 </View>
                             </ThemedView>
-                        ) : null}
-                    </ThemedView>
-                </SafeAreaView>
-            </ScrollView>
-        </View>
+
+                            {/* Stats */}
+                            {!serverId ? (
+                                <ThemedView
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
+                                    <ThemedText themeColor="mutedForeground">
+                                        No server selected. Navigate to an admin
+                                        page from within a server to view its
+                                        statistics.
+                                    </ThemedText>
+                                </ThemedView>
+                            ) : null}
+
+                            {loadState === "loading" ? (
+                                <View style={styles.loadingRow}>
+                                    <ActivityIndicator color={theme.primary} />
+                                    <ThemedText themeColor="mutedForeground">
+                                        Loading stats…
+                                    </ThemedText>
+                                </View>
+                            ) : null}
+
+                            {loadError ? (
+                                <ThemedView
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
+                                    <ThemedText themeColor="destructive">
+                                        {loadError}
+                                    </ThemedText>
+                                </ThemedView>
+                            ) : null}
+
+                            {stats && loadState === "ready" ? (
+                                <ThemedView
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
+                                    <ThemedText type="smallBold">
+                                        Server statistics
+                                    </ThemedText>
+                                    <View style={styles.statGrid}>
+                                        <StatItem
+                                            label="Members"
+                                            value={stats.totalMembers}
+                                        />
+                                        <StatItem
+                                            label="Channels"
+                                            value={stats.totalChannels}
+                                        />
+                                        <StatItem
+                                            label="Messages"
+                                            value={stats.totalMessages}
+                                        />
+                                        <StatItem
+                                            label="Recent messages"
+                                            value={stats.recentMessages}
+                                        />
+                                        <StatItem
+                                            label="Banned users"
+                                            value={stats.bannedUsers}
+                                            tone="danger"
+                                        />
+                                        <StatItem
+                                            label="Muted users"
+                                            value={stats.mutedUsers}
+                                            tone="warning"
+                                        />
+                                    </View>
+                                </ThemedView>
+                            ) : null}
+                        </ThemedView>
+                    </SafeAreaView>
+                </ScrollView>
+            </View>
         </AuthRouteGuard>
     );
 }

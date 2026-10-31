@@ -36,7 +36,9 @@ describe("initPostHogClient", () => {
         vi.clearAllMocks();
         __resetPostHogClientForTests();
         // happy-dom provides `window`; the init guard requires it.
-        (global as { window?: { posthog?: unknown } }).window = { posthog: undefined };
+        (global as { window?: { posthog?: unknown } }).window = {
+            posthog: undefined,
+        };
         process.env = { ...originalEnv };
         process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN = "phc_test_token";
         process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com/";
@@ -54,7 +56,9 @@ describe("initPostHogClient", () => {
 
     it("captures anonymous events by default, so the pre-auth funnel is recorded", async () => {
         await initPostHogClient();
-        expect(mockInit.mock.calls[0][1].opt_out_capturing_by_default).toBe(false);
+        expect(mockInit.mock.calls[0][1].opt_out_capturing_by_default).toBe(
+            false,
+        );
     });
 
     it("exposes window.posthog so client-logger can reach it", async () => {

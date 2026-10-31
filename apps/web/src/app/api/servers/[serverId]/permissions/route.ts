@@ -8,7 +8,8 @@ import { listPages, chunkValues } from "@/lib/appwrite-pagination";
 import { getEffectivePermissions } from "@/lib/permissions";
 import type { ChannelPermissionOverride } from "@/lib/types";
 import { normalizeChannelType } from "@/lib/types";
-import { logger,
+import {
+    logger,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
@@ -180,7 +181,10 @@ export async function GET(
             ...userOverrideDocuments,
             ...roleOverrideDocuments,
         ];
-        const applicableOverridesById = new Map<string, ChannelPermissionOverride>();
+        const applicableOverridesById = new Map<
+            string,
+            ChannelPermissionOverride
+        >();
         for (const document of applicableOverrideDocuments) {
             const mappedOverride = mapOverride(
                 document as Record<string, unknown>,
@@ -188,7 +192,9 @@ export async function GET(
             );
             applicableOverridesById.set(mappedOverride.$id, mappedOverride);
         }
-        const applicableOverrides = Array.from(applicableOverridesById.values());
+        const applicableOverrides = Array.from(
+            applicableOverridesById.values(),
+        );
 
         const effectivePerms = getEffectivePermissions(
             serverAccess.roles,

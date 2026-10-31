@@ -48,7 +48,10 @@ function decodeAlpha(buffer: Buffer) {
         for (let x = 0; x < stride; x++) {
             const a = x >= channels ? out[y * stride + x - channels] : 0;
             const b = y > 0 ? out[(y - 1) * stride + x] : 0;
-            const c = x >= channels && y > 0 ? out[(y - 1) * stride + x - channels] : 0;
+            const c =
+                x >= channels && y > 0
+                    ? out[(y - 1) * stride + x - channels]
+                    : 0;
             let v = line[x];
             if (filter === 1) v += a;
             else if (filter === 2) v += b;
@@ -109,10 +112,22 @@ function measuredHoleInsetPercent(assetFile: string): number {
  * frames have no centred opening at all.
  */
 const OVERRIDES: Record<string, { insetPercent: number; reason: string }> = {
-    "seasonal-spring-2025": { insetPercent: 24, reason: "covers the 135px centre disc" },
-    "seasonal-spring-2026": { insetPercent: 25, reason: "covers the 126px centre disc" },
-    "seasonal-fall-2025": { insetPercent: 0, reason: "overlay: art crosses the centre" },
-    "seasonal-winter-2025": { insetPercent: 0, reason: "overlay: art crosses the centre" },
+    "seasonal-spring-2025": {
+        insetPercent: 24,
+        reason: "covers the 135px centre disc",
+    },
+    "seasonal-spring-2026": {
+        insetPercent: 25,
+        reason: "covers the 126px centre disc",
+    },
+    "seasonal-fall-2025": {
+        insetPercent: 0,
+        reason: "overlay: art crosses the centre",
+    },
+    "seasonal-winter-2025": {
+        insetPercent: 0,
+        reason: "overlay: art crosses the centre",
+    },
 };
 
 describe("preset frame insets match the artwork", () => {
@@ -121,7 +136,14 @@ describe("preset frame insets match the artwork", () => {
     it("has an asset for every preset frame", () => {
         for (const frame of frames) {
             expect(
-                () => readFileSync(join(process.cwd(), "assets", `${frame.storageFileId}.png`)),
+                () =>
+                    readFileSync(
+                        join(
+                            process.cwd(),
+                            "assets",
+                            `${frame.storageFileId}.png`,
+                        ),
+                    ),
                 `${frame.id} has no asset in assets/`,
             ).not.toThrow();
         }
@@ -140,7 +162,9 @@ describe("preset frame insets match the artwork", () => {
             }
 
             // Allow a point of rounding; anything larger is a real mismatch.
-            const measured = measuredHoleInsetPercent(`${frame.storageFileId}.png`);
+            const measured = measuredHoleInsetPercent(
+                `${frame.storageFileId}.png`,
+            );
             expect(
                 Math.abs(shipped - measured),
                 `${frame.id} ships inset ${shipped}% but the artwork measures ${measured.toFixed(1)}%. ` +

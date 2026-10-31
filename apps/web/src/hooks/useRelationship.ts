@@ -84,9 +84,7 @@ export function useRelationship(targetUserId: string | null) {
                 };
 
                 if (!response.ok) {
-                    throw new Error(
-                        data.error || "Relationship action failed",
-                    );
+                    throw new Error(data.error || "Relationship action failed");
                 }
 
                 await refetch();

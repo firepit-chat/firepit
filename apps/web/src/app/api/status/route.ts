@@ -84,7 +84,6 @@ export async function POST(request: Request) {
     const startTime = Date.now();
 
     try {
-
         const session = await getServerSession();
         if (!session?.$id) {
             return returnUnauthorized();

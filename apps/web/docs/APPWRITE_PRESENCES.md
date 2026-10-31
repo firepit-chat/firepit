@@ -312,7 +312,7 @@ This gives you a clean signal for "user just came online", "user changed status"
 - `presences.<ID>`
 - `Channel.presence('<PRESENCE_ID>')`
 - Any upsert, update, or delete event on a specific presence record.
-  {% /table %}
+    {% /table %}
 
 You can also append `.upsert()`, `.update()`, or `.delete()` to `Channel.presence('<PRESENCE_ID>')` to narrow the stream to a single event type, identical to how channel filters work on every other resource.
 

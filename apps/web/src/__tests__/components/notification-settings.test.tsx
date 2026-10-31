@@ -268,8 +268,7 @@ describe("NotificationSettings", () => {
             expect(patchCall).toBeDefined();
 
             const payload = JSON.parse(
-                ((patchCall?.[1] as { body?: string }).body as string) ||
-                    "{}",
+                ((patchCall?.[1] as { body?: string }).body as string) || "{}",
             ) as { dmEncryptionEnabled?: boolean };
 
             expect(payload.dmEncryptionEnabled).toBe(true);

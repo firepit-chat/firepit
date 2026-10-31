@@ -136,7 +136,11 @@ export async function getUsersStatuses(
         // status documents don't crowd out the rest of the chunk.
         const STATUS_CHUNK_SIZE = 50;
 
-        for (let index = 0; index < uniqueUserIds.length; index += STATUS_CHUNK_SIZE) {
+        for (
+            let index = 0;
+            index < uniqueUserIds.length;
+            index += STATUS_CHUNK_SIZE
+        ) {
             chunks.push(uniqueUserIds.slice(index, index + STATUS_CHUNK_SIZE));
         }
 

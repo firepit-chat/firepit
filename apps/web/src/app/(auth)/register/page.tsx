@@ -72,11 +72,11 @@ function RegisterFormContent() {
                             ? "Verification required. Check your inbox for a verification link."
                             : "Your account is pending approval. You'll be able to sign in once an administrator approves it.");
                     toast.success(requiredMessage);
-                    router.push(`/login?redirect=${encodeURIComponent(destination)}`);
-                } else {
-                    toast.error(
-                        result.error || "An unexpected error occurred",
+                    router.push(
+                        `/login?redirect=${encodeURIComponent(destination)}`,
                     );
+                } else {
+                    toast.error(result.error || "An unexpected error occurred");
                 }
             }
         } catch (err) {

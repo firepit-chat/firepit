@@ -84,7 +84,9 @@ export function ModerationSidebar({
                     defaultValue={selectedServerId}
                     id="serverId"
                     name="serverId"
-                    onChange={(event) => event.currentTarget.form?.requestSubmit()}
+                    onChange={(event) =>
+                        event.currentTarget.form?.requestSubmit()
+                    }
                 >
                     {servers.map((server) => (
                         <option key={server.$id} value={server.$id}>
@@ -109,9 +111,7 @@ export function ModerationSidebar({
                                         selectedServerId,
                                         channel.$id,
                                     )}
-                                    selected={
-                                        channel.$id === selectedChannelId
-                                    }
+                                    selected={channel.$id === selectedChannelId}
                                 />
                             ))}
                         </ul>

@@ -6,14 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAuthState, mockUseAuth } = vi.hoisted(() => ({
     mockAuthState: {
-        userData: null as
-            | {
-                  userId: string;
-                  name: string;
-                  email: string;
-                  roles: { isAdmin: boolean; isModerator: boolean };
-              }
-            | null,
+        userData: null as {
+            userId: string;
+            name: string;
+            email: string;
+            roles: { isAdmin: boolean; isModerator: boolean };
+        } | null,
     },
     mockUseAuth: vi.fn(),
 }));

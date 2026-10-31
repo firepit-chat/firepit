@@ -52,7 +52,11 @@ vi.mock("@/lib/thread-read-store", () => ({
         items: T[];
         worker: (item: T) => Promise<void>;
     }) => {
-        for (let index = 0; index < params.items.length; index += params.batchSize) {
+        for (
+            let index = 0;
+            index < params.items.length;
+            index += params.batchSize
+        ) {
             await Promise.all(
                 params.items
                     .slice(index, index + params.batchSize)

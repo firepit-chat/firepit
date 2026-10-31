@@ -17,7 +17,12 @@ type ActionButtonProps = {
     disabled?: boolean;
 };
 
-function ActionPill({ label, onPress, tone = "primary", disabled }: ActionButtonProps) {
+function ActionPill({
+    label,
+    onPress,
+    tone = "primary",
+    disabled,
+}: ActionButtonProps) {
     const theme = useTheme();
     const bg = {
         primary: theme.primary,
@@ -68,10 +73,14 @@ function statusFor(relationship: RelationshipStatus): {
     label: string;
     tone: StatusTone;
 } | null {
-    if (relationship.blockedMe) return { label: "Blocked you", tone: "destructive" };
-    if (relationship.blockedByMe) return { label: "Blocked", tone: "destructive" };
-    if (relationship.incomingRequest) return { label: "Incoming request", tone: "warning" };
-    if (relationship.outgoingRequest) return { label: "Request sent", tone: "neutral" };
+    if (relationship.blockedMe)
+        return { label: "Blocked you", tone: "destructive" };
+    if (relationship.blockedByMe)
+        return { label: "Blocked", tone: "destructive" };
+    if (relationship.incomingRequest)
+        return { label: "Incoming request", tone: "warning" };
+    if (relationship.outgoingRequest)
+        return { label: "Request sent", tone: "neutral" };
     if (relationship.isFriend) return { label: "Friends", tone: "success" };
     return null;
 }
@@ -141,10 +150,7 @@ export function RelationshipActions({
                         rather than competing with the relationship state. */}
                     {relationship.directMessagePrivacy === "friends" &&
                     !relationship.isFriend ? (
-                        <ThemedText
-                            type="code"
-                            themeColor="mutedForeground"
-                        >
+                        <ThemedText type="code" themeColor="mutedForeground">
                             Friends-only DMs
                         </ThemedText>
                     ) : null}

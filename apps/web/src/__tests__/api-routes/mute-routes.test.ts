@@ -5,226 +5,270 @@ import { POST as postChannelMute } from "../../app/api/channels/[channelId]/mute
 import { POST as postConversationMute } from "../../app/api/conversations/[conversationId]/mute/route";
 
 const {
-  mockSession,
-  mockMuteServer,
-  mockUnmuteServer,
-  mockMuteChannel,
-  mockUnmuteChannel,
-  mockMuteConversation,
-  mockUnmuteConversation,
-  mockGetServerPermissionsForUser,
-  mockGetDocument,
+    mockSession,
+    mockMuteServer,
+    mockUnmuteServer,
+    mockMuteChannel,
+    mockUnmuteChannel,
+    mockMuteConversation,
+    mockUnmuteConversation,
+    mockGetServerPermissionsForUser,
+    mockGetDocument,
 } = vi.hoisted(() => ({
-  mockSession: vi.fn(),
-  mockMuteServer: vi.fn(),
-  mockUnmuteServer: vi.fn(),
-  mockMuteChannel: vi.fn(),
-  mockUnmuteChannel: vi.fn(),
-  mockMuteConversation: vi.fn(),
-  mockUnmuteConversation: vi.fn(),
-  mockGetServerPermissionsForUser: vi.fn(),
-  mockGetDocument: vi.fn(),
+    mockSession: vi.fn(),
+    mockMuteServer: vi.fn(),
+    mockUnmuteServer: vi.fn(),
+    mockMuteChannel: vi.fn(),
+    mockUnmuteChannel: vi.fn(),
+    mockMuteConversation: vi.fn(),
+    mockUnmuteConversation: vi.fn(),
+    mockGetServerPermissionsForUser: vi.fn(),
+    mockGetDocument: vi.fn(),
 }));
 
 vi.mock("@/lib/auth-server", () => ({ getServerSession: mockSession }));
 
 vi.mock("@/lib/server-channel-access", () => ({
-  getServerPermissionsForUser: mockGetServerPermissionsForUser,
+    getServerPermissionsForUser: mockGetServerPermissionsForUser,
 }));
 
 vi.mock("@/lib/appwrite-server", () => ({
-  getServerClient: vi.fn(() => ({
-    databases: { getDocument: mockGetDocument },
-  })),
+    getServerClient: vi.fn(() => ({
+        databases: { getDocument: mockGetDocument },
+    })),
 }));
 
 vi.mock("@/lib/appwrite-core", () => ({
-  getEnvConfig: vi.fn(() => ({
-    databaseId: "test-db",
-    collections: {
-      channels: "channels-collection",
-      conversations: "conversations-collection",
-    },
-  })),
+    getEnvConfig: vi.fn(() => ({
+        databaseId: "test-db",
+        collections: {
+            channels: "channels-collection",
+            conversations: "conversations-collection",
+        },
+    })),
 }));
 
 vi.mock("@/lib/notification-settings", () => ({
-  muteServer: mockMuteServer,
-  unmuteServer: mockUnmuteServer,
-  muteChannel: mockMuteChannel,
-  unmuteChannel: mockUnmuteChannel,
-  muteConversation: mockMuteConversation,
-  unmuteConversation: mockUnmuteConversation,
-  isMuteExpired: (mutedUntil?: string) =>
-    mutedUntil ? Date.parse(mutedUntil) <= Date.now() : false,
+    muteServer: mockMuteServer,
+    unmuteServer: mockUnmuteServer,
+    muteChannel: mockMuteChannel,
+    unmuteChannel: mockUnmuteChannel,
+    muteConversation: mockMuteConversation,
+    unmuteConversation: mockUnmuteConversation,
+    isMuteExpired: (mutedUntil?: string) =>
+        mutedUntil ? Date.parse(mutedUntil) <= Date.now() : false,
 }));
 
 describe("Mute routes", () => {
-  beforeEach(() => {
-    mockSession.mockReset();
-    mockMuteServer.mockReset();
-    mockUnmuteServer.mockReset();
-    mockMuteChannel.mockReset();
-    mockUnmuteChannel.mockReset();
-    mockMuteConversation.mockReset();
-    mockUnmuteConversation.mockReset();
-    mockGetServerPermissionsForUser.mockReset();
-    mockGetServerPermissionsForUser.mockResolvedValue({
-      isMember: true,
-      isServerOwner: false,
-      permissions: {},
-    });
-    mockGetDocument.mockReset();
-  });
-
-  it("returns 401 when unauthenticated for server mute", async () => {
-    mockSession.mockResolvedValue(null);
-
-    const request = new NextRequest("http://localhost/api/servers/server-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: true }),
+    beforeEach(() => {
+        mockSession.mockReset();
+        mockMuteServer.mockReset();
+        mockUnmuteServer.mockReset();
+        mockMuteChannel.mockReset();
+        mockUnmuteChannel.mockReset();
+        mockMuteConversation.mockReset();
+        mockUnmuteConversation.mockReset();
+        mockGetServerPermissionsForUser.mockReset();
+        mockGetServerPermissionsForUser.mockResolvedValue({
+            isMember: true,
+            isServerOwner: false,
+            permissions: {},
+        });
+        mockGetDocument.mockReset();
     });
 
-    const response = await postServerMute(request, {
-      params: Promise.resolve({ serverId: "server-1" }),
+    it("returns 401 when unauthenticated for server mute", async () => {
+        mockSession.mockResolvedValue(null);
+
+        const request = new NextRequest(
+            "http://localhost/api/servers/server-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({ muted: true }),
+            },
+        );
+
+        const response = await postServerMute(request, {
+            params: Promise.resolve({ serverId: "server-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(401);
+        expect(data.error).toBe("Authentication required");
     });
 
-    const data = await response.json();
-    expect(response.status).toBe(401);
-    expect(data.error).toBe("Authentication required");
-  });
+    it("returns 403 when not a member of the server", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockGetServerPermissionsForUser.mockResolvedValue({
+            isMember: false,
+            isServerOwner: false,
+            permissions: {},
+        });
 
-  it("returns 403 when not a member of the server", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
-    mockGetServerPermissionsForUser.mockResolvedValue({
-      isMember: false,
-      isServerOwner: false,
-      permissions: {},
+        const request = new NextRequest(
+            "http://localhost/api/servers/server-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({ muted: true }),
+            },
+        );
+
+        const response = await postServerMute(request, {
+            params: Promise.resolve({ serverId: "server-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(403);
+        expect(mockMuteServer).not.toHaveBeenCalled();
     });
 
-    const request = new NextRequest("http://localhost/api/servers/server-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: true }),
+    it("validates duration for server mute", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+
+        const request = new NextRequest(
+            "http://localhost/api/servers/server-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({ muted: true, duration: "2h" }),
+            },
+        );
+
+        const response = await postServerMute(request, {
+            params: Promise.resolve({ serverId: "server-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(400);
+        expect(data.error).toContain("Invalid duration");
+        expect(mockMuteServer).not.toHaveBeenCalled();
     });
 
-    const response = await postServerMute(request, {
-      params: Promise.resolve({ serverId: "server-1" }),
+    it("mutes a server when payload is valid", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockMuteServer.mockResolvedValue({
+            serverOverrides: {
+                "server-1": {
+                    mutedUntil: new Date(Date.now() + 3600000).toISOString(),
+                    level: "mentions",
+                },
+            },
+        });
+
+        const request = new NextRequest(
+            "http://localhost/api/servers/server-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    muted: true,
+                    duration: "1h",
+                    level: "mentions",
+                }),
+            },
+        );
+
+        const response = await postServerMute(request, {
+            params: Promise.resolve({ serverId: "server-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(200);
+        expect(mockMuteServer).toHaveBeenCalledWith(
+            "user-1",
+            "server-1",
+            "1h",
+            "mentions",
+        );
+        expect(data.muted).toBe(true);
+        expect(data.level).toBe("mentions");
     });
 
-    const data = await response.json();
-    expect(response.status).toBe(403);
-    expect(mockMuteServer).not.toHaveBeenCalled();
-  });
+    it("unmutes a server when muted is false", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockUnmuteServer.mockResolvedValue({ serverOverrides: {} });
 
-  it("validates duration for server mute", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
+        const request = new NextRequest(
+            "http://localhost/api/servers/server-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({ muted: false }),
+            },
+        );
 
-    const request = new NextRequest("http://localhost/api/servers/server-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: true, duration: "2h" }),
+        const response = await postServerMute(request, {
+            params: Promise.resolve({ serverId: "server-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(200);
+        expect(mockUnmuteServer).toHaveBeenCalledWith("user-1", "server-1");
+        expect(data.muted).toBe(false);
     });
 
-    const response = await postServerMute(request, {
-      params: Promise.resolve({ serverId: "server-1" }),
+    it("mutes a channel", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockGetDocument.mockResolvedValue({
+            $id: "channel-1",
+            serverId: "server-1",
+        });
+        mockMuteChannel.mockResolvedValue({
+            channelOverrides: {
+                "channel-1": { mutedUntil: "soon", level: "nothing" },
+            },
+        });
+
+        const request = new NextRequest(
+            "http://localhost/api/channels/channel-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    muted: true,
+                    duration: "forever",
+                    level: "nothing",
+                }),
+            },
+        );
+
+        const response = await postChannelMute(request, {
+            params: Promise.resolve({ channelId: "channel-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(200);
+        expect(mockMuteChannel).toHaveBeenCalledWith(
+            "user-1",
+            "channel-1",
+            "forever",
+            "nothing",
+        );
+        expect(data.mutedUntil).toBe("soon");
     });
 
-    const data = await response.json();
-    expect(response.status).toBe(400);
-    expect(data.error).toContain("Invalid duration");
-    expect(mockMuteServer).not.toHaveBeenCalled();
-  });
+    it("unmutes a conversation", async () => {
+        mockSession.mockResolvedValue({ $id: "user-1" });
+        mockGetDocument.mockResolvedValue({
+            $id: "convo-1",
+            participants: ["user-1", "user-2"],
+        });
+        mockUnmuteConversation.mockResolvedValue({ conversationOverrides: {} });
 
-  it("mutes a server when payload is valid", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
-    mockMuteServer.mockResolvedValue({
-      serverOverrides: {
-        "server-1": {
-          mutedUntil: new Date(Date.now() + 3600000).toISOString(),
-          level: "mentions",
-        },
-      },
+        const request = new NextRequest(
+            "http://localhost/api/conversations/convo-1/mute",
+            {
+                method: "POST",
+                body: JSON.stringify({ muted: false }),
+            },
+        );
+
+        const response = await postConversationMute(request, {
+            params: Promise.resolve({ conversationId: "convo-1" }),
+        });
+
+        const data = await response.json();
+        expect(response.status).toBe(200);
+        expect(mockUnmuteConversation).toHaveBeenCalledWith(
+            "user-1",
+            "convo-1",
+        );
+        expect(data.muted).toBe(false);
     });
-
-    const request = new NextRequest("http://localhost/api/servers/server-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: true, duration: "1h", level: "mentions" }),
-    });
-
-    const response = await postServerMute(request, {
-      params: Promise.resolve({ serverId: "server-1" }),
-    });
-
-    const data = await response.json();
-    expect(response.status).toBe(200);
-    expect(mockMuteServer).toHaveBeenCalledWith("user-1", "server-1", "1h", "mentions");
-    expect(data.muted).toBe(true);
-    expect(data.level).toBe("mentions");
-  });
-
-  it("unmutes a server when muted is false", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
-    mockUnmuteServer.mockResolvedValue({ serverOverrides: {} });
-
-    const request = new NextRequest("http://localhost/api/servers/server-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: false }),
-    });
-
-    const response = await postServerMute(request, {
-      params: Promise.resolve({ serverId: "server-1" }),
-    });
-
-    const data = await response.json();
-    expect(response.status).toBe(200);
-    expect(mockUnmuteServer).toHaveBeenCalledWith("user-1", "server-1");
-    expect(data.muted).toBe(false);
-  });
-
-  it("mutes a channel", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
-    mockGetDocument.mockResolvedValue({
-      $id: "channel-1",
-      serverId: "server-1",
-    });
-    mockMuteChannel.mockResolvedValue({
-      channelOverrides: { "channel-1": { mutedUntil: "soon", level: "nothing" } },
-    });
-
-    const request = new NextRequest("http://localhost/api/channels/channel-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: true, duration: "forever", level: "nothing" }),
-    });
-
-    const response = await postChannelMute(request, {
-      params: Promise.resolve({ channelId: "channel-1" }),
-    });
-
-    const data = await response.json();
-    expect(response.status).toBe(200);
-    expect(mockMuteChannel).toHaveBeenCalledWith("user-1", "channel-1", "forever", "nothing");
-    expect(data.mutedUntil).toBe("soon");
-  });
-
-  it("unmutes a conversation", async () => {
-    mockSession.mockResolvedValue({ $id: "user-1" });
-    mockGetDocument.mockResolvedValue({
-      $id: "convo-1",
-      participants: ["user-1", "user-2"],
-    });
-    mockUnmuteConversation.mockResolvedValue({ conversationOverrides: {} });
-
-    const request = new NextRequest("http://localhost/api/conversations/convo-1/mute", {
-      method: "POST",
-      body: JSON.stringify({ muted: false }),
-    });
-
-    const response = await postConversationMute(request, {
-      params: Promise.resolve({ conversationId: "convo-1" }),
-    });
-
-    const data = await response.json();
-    expect(response.status).toBe(200);
-    expect(mockUnmuteConversation).toHaveBeenCalledWith("user-1", "convo-1");
-    expect(data.muted).toBe(false);
-  });
 });

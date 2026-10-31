@@ -103,9 +103,7 @@ function ResetPasswordFormContent() {
                             autoComplete="new-password"
                             id="confirmPassword"
                             name="confirmPassword"
-                            onChange={(e) =>
-                                setConfirmPassword(e.target.value)
-                            }
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             type="password"
                             value={confirmPassword}

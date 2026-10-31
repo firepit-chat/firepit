@@ -111,8 +111,7 @@ export async function POST(request: Request) {
         if (!ALLOWED_BACKGROUND_TYPES.has(file.type)) {
             return NextResponse.json(
                 {
-                    error:
-                        "Invalid file type. Only JPEG, PNG, and WebP are allowed",
+                    error: "Invalid file type. Only JPEG, PNG, and WebP are allowed",
                 },
                 { status: 400 },
             );
@@ -124,8 +123,7 @@ export async function POST(request: Request) {
         if (!hasAllowedImageSignature(signatureBytes)) {
             return NextResponse.json(
                 {
-                    error:
-                        "Invalid file type. Only JPEG, PNG, and WebP are allowed",
+                    error: "Invalid file type. Only JPEG, PNG, and WebP are allowed",
                 },
                 { status: 400 },
             );

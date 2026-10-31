@@ -41,10 +41,7 @@ type PostHogMethods = {
         error: Error,
         properties?: Record<string, unknown>,
     ) => void;
-    identify: (
-        id: string,
-        properties?: Record<string, unknown>,
-    ) => void;
+    identify: (id: string, properties?: Record<string, unknown>) => void;
     reset: () => void;
     opt_in_capturing: () => void;
     opt_out_capturing: () => void;
@@ -129,19 +126,13 @@ async function loadPostHog(token: string): Promise<void> {
         // Turn on debug in development mode
         debug: process.env.NODE_ENV === "development",
         autocapture: envFlag("NEXT_PUBLIC_POSTHOG_AUTOCAPTURE", false),
-        capture_pageview: envFlag(
-            "NEXT_PUBLIC_POSTHOG_CAPTURE_PAGEVIEW",
-            true,
-        ),
+        capture_pageview: envFlag("NEXT_PUBLIC_POSTHOG_CAPTURE_PAGEVIEW", true),
         capture_performance: false,
         disable_session_recording: !envFlag(
             "NEXT_PUBLIC_POSTHOG_SESSION_RECORDING",
             false,
         ),
-        request_batching: envFlag(
-            "NEXT_PUBLIC_POSTHOG_REQUEST_BATCHING",
-            true,
-        ),
+        request_batching: envFlag("NEXT_PUBLIC_POSTHOG_REQUEST_BATCHING", true),
         // Anonymous capture is ON by default: pre-auth page views and the
         // sign-in/registration/onboarding funnel are the events that most need
         // collecting, and they can only be collected before a user exists.

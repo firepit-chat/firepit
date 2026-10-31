@@ -94,15 +94,11 @@ export async function GET(request: NextRequest) {
 
         const [authResult, response] = await Promise.all([
             requireManageRolesAccess(serverId),
-            databases.listDocuments(
-                databaseId,
-                rolesCollectionId,
-                [
-                    Query.equal("serverId", serverId),
-                    Query.orderDesc("position"),
-                    Query.limit(100),
-                ],
-            ),
+            databases.listDocuments(databaseId, rolesCollectionId, [
+                Query.equal("serverId", serverId),
+                Query.orderDesc("position"),
+                Query.limit(100),
+            ]),
         ]);
 
         if (!authResult.ok) {

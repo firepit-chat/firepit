@@ -11,23 +11,19 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
-import {
-    ActionButton,
-    StatusPill,
-} from "@/components/action-button";
+import { ActionButton, StatusPill } from "@/components/action-button";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    fetchServerAuditLogs,
-    type ServerAuditLogEntry,
-} from "@/lib/firepit";
+import { fetchServerAuditLogs, type ServerAuditLogEntry } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function actionTone(action?: string): "neutral" | "success" | "warning" | "danger" {
+function actionTone(
+    action?: string,
+): "neutral" | "success" | "warning" | "danger" {
     if (!action) return "neutral";
     const a = action.toLowerCase();
     if (a.includes("ban") && !a.includes("unban")) return "danger";
@@ -94,13 +90,25 @@ export default function AuditLogScreen() {
     if (!serverId) {
         return (
             <AuthRouteGuard>
-                <View style={[styles.root, { backgroundColor: theme.background }]}>
+                <View
+                    style={[styles.root, { backgroundColor: theme.background }]}
+                >
                     <SafeAreaView style={styles.safeArea}>
                         <ThemedView style={styles.shell}>
                             <ThemedView style={styles.card}>
-                                <ThemedText type="title">No server selected</ThemedText>
-                                <ThemedText themeColor="mutedForeground" style={{ fontSize: 14, lineHeight: 20, marginTop: Spacing.one }}>
-                                    Select a server from the admin dashboard to view its audit logs.
+                                <ThemedText type="title">
+                                    No server selected
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={{
+                                        fontSize: 14,
+                                        lineHeight: 20,
+                                        marginTop: Spacing.one,
+                                    }}
+                                >
+                                    Select a server from the admin dashboard to
+                                    view its audit logs.
                                 </ThemedText>
                                 <Pressable
                                     accessibilityRole="button"
@@ -117,7 +125,10 @@ export default function AuditLogScreen() {
                                         },
                                     ]}
                                 >
-                                    <ThemedText type="smallBold" themeColor="primaryForeground">
+                                    <ThemedText
+                                        type="smallBold"
+                                        themeColor="primaryForeground"
+                                    >
                                         Go back
                                     </ThemedText>
                                 </Pressable>
@@ -135,7 +146,10 @@ export default function AuditLogScreen() {
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Audit log
@@ -143,30 +157,39 @@ export default function AuditLogScreen() {
                             <ThemedText type="title">
                                 Moderation history
                             </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Review recent moderation actions and server changes.
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                Review recent moderation actions and server
+                                changes.
                             </ThemedText>
-
                         </ThemedView>
 
                         <ThemedView
                             style={[styles.card, { borderColor: theme.border }]}
                         >
                             <View style={styles.sectionHeaderRow}>
-                                <ThemedText type="smallBold">Actions</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Actions
+                                </ThemedText>
                                 <View style={styles.actionRow}>
                                     <ActionButton
                                         label="Dashboard"
                                         tone="ghost"
                                         onPress={() =>
-                                            router.push(`/admin?serverId=${serverId}` as never)
+                                            router.push(
+                                                `/admin?serverId=${serverId}` as never,
+                                            )
                                         }
                                     />
                                     <ActionButton
                                         label="Moderation"
                                         tone="ghost"
                                         onPress={() =>
-                                            router.push(`/admin/reports?serverId=${serverId}` as never)
+                                            router.push(
+                                                `/admin/reports?serverId=${serverId}` as never,
+                                            )
                                         }
                                     />
                                     <ActionButton
@@ -206,7 +229,7 @@ export default function AuditLogScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                            style={[
+                                    style={[
                                         styles.card,
                                         styles.emptyCard,
                                         { borderColor: theme.border },
@@ -234,10 +257,7 @@ function AuditEntryCard({ entry }: { entry: ServerAuditLogEntry }) {
         <View style={[styles.entryWrap, { borderBottomColor: theme.border }]}>
             <View style={styles.entryCard}>
                 <View style={styles.entryHeader}>
-                    <StatusPill
-                        label={entry.action ?? "unknown"}
-                        tone={tone}
-                    />
+                    <StatusPill label={entry.action ?? "unknown"} tone={tone} />
                     <ThemedText type="code" themeColor="mutedForeground">
                         {formatTimestamp(entry.timestamp)}
                     </ThemedText>
@@ -246,7 +266,9 @@ function AuditEntryCard({ entry }: { entry: ServerAuditLogEntry }) {
                 <View style={styles.entryBody}>
                     <ThemedText>
                         <ThemedText type="smallBold">
-                            {entry.moderatorName ?? entry.moderatorId ?? "System"}
+                            {entry.moderatorName ??
+                                entry.moderatorId ??
+                                "System"}
                         </ThemedText>
                         {entry.targetUserId || entry.targetUserName ? (
                             <ThemedText>

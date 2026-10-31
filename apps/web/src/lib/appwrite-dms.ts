@@ -8,7 +8,11 @@ import {
     normalizeError,
     UnauthorizedError,
 } from "./appwrite-core";
-import { chunkValues, listPages, mapWithConcurrency } from "./appwrite-pagination";
+import {
+    chunkValues,
+    listPages,
+    mapWithConcurrency,
+} from "./appwrite-pagination";
 import { parseReactionsWithMetadata, type Reaction } from "./reactions-utils";
 import { normalizeFileAttachment } from "./file-attachments";
 import { logger } from "./client-logger";
@@ -117,11 +121,7 @@ function isProfileData(value: unknown): value is ProfileData {
 }
 
 type ReactionsInput =
-    | string
-    | Reaction[]
-    | Record<string, unknown>
-    | null
-    | undefined;
+    string | Reaction[] | Record<string, unknown> | null | undefined;
 
 /**
  * Batch-fetch user profiles through the Next.js API route (client-safe).
@@ -486,7 +486,11 @@ export async function getOrCreateConversation(
     } catch (error) {
         logger.warn(
             "Existing conversation lookup failed, continuing to create new conversation",
-            { user1, user2, error: error instanceof Error ? error.message : String(error) },
+            {
+                user1,
+                user2,
+                error: error instanceof Error ? error.message : String(error),
+            },
         );
     }
 

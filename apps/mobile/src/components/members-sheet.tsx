@@ -183,20 +183,34 @@ export function MembersSheet({
         memberIds,
     );
 
-    // Busy and Away count as online; only Offline does not.
+    // Busy and Away count as online; only Offline does not. Until the first batch
+    // lands `statuses` is empty, which would partition the entire membership under
+    // "Offline" and then visibly re-split — reading as presence being broken. Show
+    // an unpartitioned list while it is still loading instead.
+    const statusPending = Object.keys(statuses).length === 0;
     const { online, offline } = useMemo(
         () =>
-            partitionByPresence(
-                members,
-                (member) => statuses[member.userId]?.status,
-            ),
-        [members, statuses],
+            statusPending
+                ? { online: members, offline: [] as ViewerMember[] }
+                : partitionByPresence(
+                      members,
+                      (member) => statuses[member.userId]?.status,
+                  ),
+        [members, statuses, statusPending],
     );
 
     // Flattened so the two groups share one virtualized list: a single
     // FlatList per group would nest virtualized lists.
     const rows = useMemo<Row[]>(() => {
         const result: Row[] = [];
+        // While presence is still unknown, listing people under either header
+        // states something untrue. No headers, just the members.
+        if (statusPending) {
+            for (const member of members) {
+                result.push({ kind: "member", id: member.userId, member });
+            }
+            return result;
+        }
         if (online.length > 0) {
             result.push({
                 kind: "header",
@@ -220,7 +234,7 @@ export function MembersSheet({
             }
         }
         return result;
-    }, [online, offline]);
+    }, [members, online, offline, statusPending]);
 
     const openProfile = useCallback(
         (userId: string) => {
@@ -234,10 +248,7 @@ export function MembersSheet({
         ({ item }: { item: Row }) => {
             if (item.kind === "header") {
                 return (
-                    <MemberGroupHeader
-                        title={item.title}
-                        count={item.count}
-                    />
+                    <MemberGroupHeader title={item.title} count={item.count} />
                 );
             }
             const status = statuses[item.member.userId];
@@ -255,9 +266,7 @@ export function MembersSheet({
 
     const subtitle = channelName?.trim() || null;
     const headerCount =
-        loadState === "ready"
-            ? members.length
-            : (expectedCount ?? null);
+        loadState === "ready" ? members.length : (expectedCount ?? null);
 
     return (
         <Modal
@@ -276,7 +285,9 @@ export function MembersSheet({
                     },
                 ]}
             >
-                <View style={[styles.grabber, { backgroundColor: theme.border }]} />
+                <View
+                    style={[styles.grabber, { backgroundColor: theme.border }]}
+                />
 
                 <View style={styles.headerRow}>
                     <Users size={16} color={theme.mutedForeground} />
@@ -319,7 +330,9 @@ export function MembersSheet({
                     </View>
                 ) : loadState === "error" ? (
                     <View style={styles.centered}>
-                        <ThemedText themeColor="destructive">{error}</ThemedText>
+                        <ThemedText themeColor="destructive">
+                            {error}
+                        </ThemedText>
                     </View>
                 ) : rows.length === 0 ? (
                     <View style={styles.centered}>
@@ -343,8 +356,7 @@ export function MembersSheet({
                                     themeColor="mutedForeground"
                                     style={styles.footer}
                                 >
-                                    Large server — some members may be
-                                    missing.
+                                    Large server — some members may be missing.
                                 </ThemedText>
                             ) : null
                         }

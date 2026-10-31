@@ -49,7 +49,8 @@ export async function POST(request: Request) {
             isPublic?: unknown;
         };
 
-        const { name, description, iconFileId, bannerFileId, isPublic } = payload;
+        const { name, description, iconFileId, bannerFileId, isPublic } =
+            payload;
 
         if (typeof name !== "string") {
             return NextResponse.json(
@@ -176,24 +177,27 @@ export async function POST(request: Request) {
             });
         });
 
-        return NextResponse.json({
-            success: true,
-            membership,
-            server: {
-                $id: server.$id,
-                $createdAt: server.$createdAt,
-                name: server.name,
-                ownerId: server.ownerId,
-                memberCount: server.memberCount ?? 0,
-                description: server.description,
-                iconFileId: server.iconFileId,
-                iconUrl: server.iconUrl,
-                bannerFileId: server.bannerFileId,
-                bannerUrl: server.bannerUrl,
-                isPublic: server.isPublic,
-                defaultOnSignup: server.defaultOnSignup ?? false,
+        return NextResponse.json(
+            {
+                success: true,
+                membership,
+                server: {
+                    $id: server.$id,
+                    $createdAt: server.$createdAt,
+                    name: server.name,
+                    ownerId: server.ownerId,
+                    memberCount: server.memberCount ?? 0,
+                    description: server.description,
+                    iconFileId: server.iconFileId,
+                    iconUrl: server.iconUrl,
+                    bannerFileId: server.bannerFileId,
+                    bannerUrl: server.bannerUrl,
+                    isPublic: server.isPublic,
+                    defaultOnSignup: server.defaultOnSignup ?? false,
+                },
             },
-        }, { status: 201 });
+            { status: 201 },
+        );
     } catch (error) {
         logger.error("Server creation error", {
             error: error instanceof Error ? error.message : String(error),

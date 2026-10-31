@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-    mockAccountGet,
-    mockUsersCreateJWT,
-    mockGetServerClient,
-} = vi.hoisted(() => ({
-    mockAccountGet: vi.fn(),
-    mockUsersCreateJWT: vi.fn(),
-    mockGetServerClient: vi.fn(),
-}));
+const { mockAccountGet, mockUsersCreateJWT, mockGetServerClient } = vi.hoisted(
+    () => ({
+        mockAccountGet: vi.fn(),
+        mockUsersCreateJWT: vi.fn(),
+        mockGetServerClient: vi.fn(),
+    }),
+);
 
 vi.mock("node-appwrite", () => ({
     Account: class {
@@ -36,7 +34,9 @@ vi.mock("@/lib/appwrite-core", () => ({
     })),
 }));
 
-vi.mock("@/lib/appwrite-server", () => ({ getServerClient: mockGetServerClient }));
+vi.mock("@/lib/appwrite-server", () => ({
+    getServerClient: mockGetServerClient,
+}));
 
 vi.mock("@/lib/posthog-utils", () => ({
     logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },

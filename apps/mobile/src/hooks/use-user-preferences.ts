@@ -20,9 +20,7 @@ export function useUserPreferences() {
     const { instanceUrl, accessToken, currentUser } = useFirepitBootstrap();
     const accountId = currentUser?.$id ?? currentUser?.userId;
     const key =
-        instanceUrl && accountId
-            ? prefsCacheKey(instanceUrl, accountId)
-            : null;
+        instanceUrl && accountId ? prefsCacheKey(instanceUrl, accountId) : null;
     const [preferences, setPreferences] = useState<UserPreferences>(
         () => prefsCache.get(key ?? "")?.data ?? {},
     );
@@ -62,7 +60,11 @@ export function useUserPreferences() {
             if (!instanceUrl || !accessToken || !accountId) {
                 return;
             }
-            const data = await updatePreferences(instanceUrl, accessToken, patch);
+            const data = await updatePreferences(
+                instanceUrl,
+                accessToken,
+                patch,
+            );
             prefsCache.set(prefsCacheKey(instanceUrl, accountId), {
                 data,
                 cachedAt: Date.now(),
