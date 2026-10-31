@@ -42,6 +42,14 @@ function formatTimestamp(timestamp?: string) {
     return date.toLocaleString();
 }
 
+// Hoisted: an inline renderItem lands in the list cell's props and defeats
+// its PureComponent, re-rendering every visible row on any parent render.
+const renderInstanceAuditEntry = ({
+    item,
+}: {
+    item: AdminAuditLogEntry;
+}) => <InstanceAuditEntryCard entry={item} />;
+
 export default function InstanceAuditLogScreen() {
     const theme = useTheme();
     const { instanceUrl, accessToken } = useFirepitBootstrap();
@@ -216,9 +224,7 @@ export default function InstanceAuditLogScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <InstanceAuditEntryCard entry={item} />
-                        )}
+                        renderItem={renderInstanceAuditEntry}
                     />
                 </SafeAreaView>
             </View>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -308,17 +308,58 @@ export function GifStickerPicker({
   );
 
   const normalizedQuery = query.trim().toLowerCase();
-  const filteredStickerPacks = normalizedQuery
-    ? stickerPacks
-        .map((pack) => ({
-          ...pack,
-          items: pack.items.filter(
-            (item) =>
-              item.name?.toLowerCase().includes(normalizedQuery),
-          ),
-        }))
-        .filter((pack) => pack.items.length > 0)
-    : stickerPacks;
+  // Was recomputed in the render body on every render, rebuilding an object per
+  // pack; this is the picker's `data`, so it also reset the list on each pass.
+  const filteredStickerPacks = useMemo(
+    () =>
+      normalizedQuery
+        ? stickerPacks
+            .map((pack) => ({
+              ...pack,
+              items: pack.items.filter(
+                (item) =>
+                  item.name?.toLowerCase().includes(normalizedQuery),
+              ),
+            }))
+            .filter((pack) => pack.items.length > 0)
+        : stickerPacks,
+    [normalizedQuery, stickerPacks],
+  );
+
+  const renderStickerPack = useCallback(
+    ({ item: pack }: { item: StickerPack }) => (
+      <View style={{ paddingHorizontal: Spacing.two }}>
+        <ThemedText type="smallBold" style={{ marginVertical: Spacing.one }}>
+          {pack.name}
+        </ThemedText>
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {pack.items.map((sticker) => (
+            <Pressable
+              key={sticker.id}
+              onPress={() => handleSelect(toStickerAttachment(sticker))}
+              style={({ pressed }) => ({
+                width: "30%",
+                margin: 4,
+                borderRadius: 8,
+                overflow: "hidden",
+                borderWidth: 1,
+                borderColor: theme.border,
+                backgroundColor: theme.muted,
+                opacity: pressed ? 0.8 : 1,
+              })}
+            >
+              <Image
+                source={{ uri: sticker.previewUrl || sticker.mediaUrl }}
+                style={{ width: "100%", aspectRatio: 1 }}
+                contentFit="cover"
+              />
+            </Pressable>
+          ))}
+        </View>
+      </View>
+    ),
+    [handleSelect, theme.border, theme.muted],
+  );
 
   const renderGifItem = useCallback(
     ({ item }: { item: GifSearchItem }) => (
@@ -513,37 +554,7 @@ export function GifStickerPicker({
                     </ThemedText>
                   </View>
                 }
-                renderItem={({ item: pack }) => (
-                  <View style={{ paddingHorizontal: Spacing.two }}>
-                    <ThemedText type="smallBold" style={{ marginVertical: Spacing.one }}>
-                      {pack.name}
-                    </ThemedText>
-                    <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                      {pack.items.map((sticker) => (
-                        <Pressable
-                          key={sticker.id}
-                          onPress={() => handleSelect(toStickerAttachment(sticker))}
-                          style={({ pressed }) => ({
-                            width: "30%",
-                            margin: 4,
-                            borderRadius: 8,
-                            overflow: "hidden",
-                            borderWidth: 1,
-                            borderColor: theme.border,
-                            backgroundColor: theme.muted,
-                            opacity: pressed ? 0.8 : 1,
-                          })}
-                        >
-                          <Image
-                            source={{ uri: sticker.previewUrl || sticker.mediaUrl }}
-                            style={{ width: "100%", aspectRatio: 1 }}
-                            contentFit="cover"
-                          />
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
+                renderItem={renderStickerPack}
               />
             )}
           </View>
