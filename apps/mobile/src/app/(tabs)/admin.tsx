@@ -127,6 +127,8 @@ export default function AdminTabScreen() {
     const hasGlobalAccess = isGlobalAdmin || isGlobalMod;
 
     const serverId = selectedServerId ?? paramServerId;
+    const selectedServerName =
+        servers.find((s) => s.$id === serverId)?.name ?? null;
 
     const loadServers = useCallback(async () => {
         if (state !== "ready" || !instanceUrl || !accessToken) return;
@@ -223,6 +225,75 @@ export default function AdminTabScreen() {
                         </ThemedView>
                     ) : null}
 
+                    {/* Server tools for selected server */}
+                    {serverId ? (
+                        <ThemedView
+                            type="card"
+                            style={[styles.card, { borderColor: theme.border }]}
+                        >
+                            <View style={styles.sectionHeadingRow}>
+                                <ThemedText type="smallBold">
+                                    {selectedServerName
+                                        ? `${selectedServerName} tools`
+                                        : "Server tools"}
+                                </ThemedText>
+                                {selectedServerName ? (
+                                    <ThemedText
+                                        type="code"
+                                        themeColor="mutedForeground"
+                                        numberOfLines={1}
+                                        style={styles.sectionHeadingName}
+                                    >
+                                        selected
+                                    </ThemedText>
+                                ) : null}
+                            </View>
+                            <AdminRow
+                                title="Server admin"
+                                description="View stats, manage channels, roles, and server settings."
+                                actionLabel="Open admin dashboard"
+                                onAction={() =>
+                                    router.push(
+                                        `/admin?serverId=${serverId}` as never,
+                                    )
+                                }
+                            />
+                            <AdminRow
+                                title="Moderation"
+                                description="Ban, mute, and kick members. Review and manage reports."
+                                actionLabel="Open moderation"
+                                actionTone="secondary"
+                                onAction={() =>
+                                    router.push(
+                                        `/admin/reports?serverId=${serverId}` as never,
+                                    )
+                                }
+                            />
+                            <AdminRow
+                                title="Audit log"
+                                description="Review moderation actions and server changes."
+                                actionLabel="Open audit log"
+                                actionTone="ghost"
+                                onAction={() =>
+                                    router.push(
+                                        `/admin/audit-log?serverId=${serverId}` as never,
+                                    )
+                                }
+                            />
+                            <AdminRow
+                                title="Message moderation"
+                                description="Search, remove, restore, or permanently delete messages."
+                                actionLabel="Open messages"
+                                actionTone="secondary"
+                                onAction={() =>
+                                    router.push(
+                                        `/admin/message-moderation?serverId=${serverId}` as never,
+                                    )
+                                }
+                            />
+                        </ThemedView>
+                    ) : null}
+
                     {/* Instance-wide tools for global admins/mods */}
                     {hasGlobalAccess ? (
                         <ThemedView
@@ -268,59 +339,6 @@ export default function AdminTabScreen() {
                                     }
                                 />
                             ) : null}
-                        </ThemedView>
-                    ) : null}
-
-                    {/* Server tools for selected server */}
-                    {serverId ? (
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="smallBold">Server tools</ThemedText>
-                            <AdminRow
-                                title="Server admin"
-                                description="View stats, manage channels, roles, and server settings."
-                                actionLabel="Open admin dashboard"
-                                onAction={() =>
-                                    router.push(
-                                        `/admin?serverId=${serverId}` as never,
-                                    )
-                                }
-                            />
-                            <AdminRow
-                                title="Moderation"
-                                description="Ban, mute, and kick members. Review and manage reports."
-                                actionLabel="Open moderation"
-                                actionTone="secondary"
-                                onAction={() =>
-                                    router.push(
-                                        `/admin/reports?serverId=${serverId}` as never,
-                                    )
-                                }
-                            />
-                            <AdminRow
-                                title="Audit log"
-                                description="Review moderation actions and server changes."
-                                actionLabel="Open audit log"
-                                actionTone="ghost"
-                                onAction={() =>
-                                    router.push(
-                                        `/admin/audit-log?serverId=${serverId}` as never,
-                                    )
-                                }
-                            />
-                            <AdminRow
-                                title="Message moderation"
-                                description="Search, remove, restore, or permanently delete messages."
-                                actionLabel="Open messages"
-                                actionTone="secondary"
-                                onAction={() =>
-                                    router.push(
-                                        `/admin/message-moderation?serverId=${serverId}` as never,
-                                    )
-                                }
-                            />
                         </ThemedView>
                     ) : null}
 
@@ -395,6 +413,15 @@ const styles = StyleSheet.create({
         padding: Spacing.three,
         gap: Spacing.two,
         borderWidth: 1,
+    },
+    sectionHeadingRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: Spacing.two,
+    },
+    sectionHeadingName: {
+        flexShrink: 1,
     },
     serverCard: {
         borderRadius: 12,

@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -401,7 +403,11 @@ export function GifStickerPicker({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <ThemedView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ThemedView style={styles.container}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <ThemedText type="title" style={{ flex: 1 }}>
@@ -559,7 +565,8 @@ export function GifStickerPicker({
             )}
           </View>
         )}
-      </ThemedView>
+        </ThemedView>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

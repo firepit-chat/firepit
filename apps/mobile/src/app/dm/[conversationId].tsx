@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Lock } from "lucide-react-native";
+import { ArrowLeft, Lock, EllipsisVertical, Pin, User } from "lucide-react-native";
 import { Avatar } from "@/components/ui/avatar";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
@@ -33,7 +33,7 @@ import {
     statusColor,
     isOnlineStatus,
 } from "@/components/status-indicator";
-import { BottomTabInset, Spacing } from "@/constants/theme";
+import { BottomTabInset, Spacing, withAlpha } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useStatusSubscription } from "@/hooks/use-status-subscription";
 import { useRealtimeMessages } from "@/hooks/use-realtime-messages";
@@ -151,6 +151,12 @@ export default function DirectMessageScreen() {
   const [emojiPickerVisible, setEmojiPickerVisible] = useState(false);
   const [emojiPickerMsgId, setEmojiPickerMsgId] = useState<string | null>(null);
   const [viewerImageUrl, setViewerImageUrl] = useState<string | null>(null);
+  // Stable identity: ChatBubbleMessage is memoized and compares this prop, so a
+  // fresh arrow on every render would defeat the memo on every row.
+  const openImageViewer = useCallback(
+    (url: string) => setViewerImageUrl(url),
+    [],
+  );
   const [composerAttachments, setComposerAttachments] =
     useState<ComposerAttachmentState>({ image: null, files: [] });
   const composerAttachmentsRef = useRef(composerAttachments);
@@ -159,6 +165,7 @@ export default function DirectMessageScreen() {
   }, [composerAttachments]);
   const [pinnedMessages, setPinnedMessages] = useState<DirectMessage[]>([]);
   const [showPinnedPanel, setShowPinnedPanel] = useState(false);
+  const [showConversationMenu, setShowConversationMenu] = useState(false);
   const [pinsLoading, setPinsLoading] = useState(false);
   const [activeThreadMessageId, setActiveThreadMessageId] = useState<string | null>(null);
   const [pollModalVisible, setPollModalVisible] = useState(false);
@@ -321,6 +328,15 @@ export default function DirectMessageScreen() {
               msg.senderDisplayName = profileMap[msg.senderId].displayName;
               if (profileMap[msg.senderId].avatarUrl) {
                 msg.authorAvatarUrl = profileMap[msg.senderId].avatarUrl;
+              }
+              if (profileMap[msg.senderId].avatarFrameUrl) {
+                msg.avatarFrameUrl = profileMap[msg.senderId].avatarFrameUrl;
+              }
+              if (
+                typeof profileMap[msg.senderId].avatarFrameInsetPercent === "number"
+              ) {
+                msg.avatarFrameInsetPercent =
+                  profileMap[msg.senderId].avatarFrameInsetPercent;
               }
             }
           }
@@ -516,7 +532,19 @@ export default function DirectMessageScreen() {
     collectionId: "direct_messages",
     filterField: "conversationId",
     filterValue: normalizedConversationId,
-    onMessageEvent: () => void loadMessages(true),
+    onMessageEvent: (payload) => {
+      const id = typeof payload.$id === "string" ? payload.$id : null;
+      if (!id) return;
+      setMessages((prev) => {
+        const existing = prev.findIndex((m) => m.$id === id);
+        // Only patch what we already have; anything else waits for a load
+        // instead of refetching the whole conversation on every event.
+        if (existing === -1) return prev;
+        const next = prev.slice();
+        next[existing] = { ...prev[existing], ...(payload as DirectMessage) };
+        return next;
+      });
+    },
   });
 
   // Fallback: refresh messages when app returns to foreground
@@ -529,6 +557,15 @@ export default function DirectMessageScreen() {
 
     return () => subscription.remove();
   }, [normalizedConversationId, loadMessages]);
+
+  // Same reason as the channel view: the strict regex truncates a mention to
+  // `[a-zA-Z0-9_]+`, so "@August's test account" would resolve to "August".
+  const knownDisplayNames = useMemo(() => {
+    const names = messages
+      .map((m) => m.senderDisplayName)
+      .filter((n): n is string => Boolean(n));
+    return [...new Set(names)];
+  }, [messages]);
 
   const sendMessage = useCallback(async () => {
     if (
@@ -549,13 +586,38 @@ export default function DirectMessageScreen() {
     }
     sendingRef.current = true;
 
+    // Render the message right away; uploads + encryption can take a moment and
+    // the user should not be staring at a cleared composer wondering if it sent.
+    const optimisticId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticMessage: DirectMessage = {
+      $id: optimisticId,
+      senderId: currentUserId ?? undefined,
+      senderDisplayName:
+        currentUser?.displayName ?? currentUser?.userName ?? undefined,
+      text: text || undefined,
+      conversationId: normalizedConversationId,
+      imageUrl: ca.image?.uri ?? null,
+      attachments: ca.files.map((f) => ({
+        fileName: f.name,
+        fileSize: f.size ?? undefined,
+        fileType: f.mimeType ?? undefined,
+        fileUrl: f.remoteAttachment?.fileUrl ?? f.uri,
+      })),
+      replyToId: replyingTo?.$id ?? null,
+      $createdAt: new Date().toISOString(),
+      local: true,
+    };
+    setMessages((prev) =>
+      prev.some((m) => m.$id === optimisticId) ? prev : [...prev, optimisticMessage],
+    );
+
     // Handle edit mode
     if (editingMessage) {
       setSendState("loading");
       setSendError(null);
       try {
         const res = await fetch(
-          `${instanceUrl}/api/direct-messages/${editingMessage.$id}`,
+          `${instanceUrl}/api/direct-messages?id=${encodeURIComponent(editingMessage.$id ?? "")}`,
           {
             method: "PATCH",
             headers: {
@@ -644,16 +706,21 @@ export default function DirectMessageScreen() {
       setComposerAttachments({ image: null, files: [] });
       setSendState("ready");
 
+      // Replace the placeholder with the real row (attachments, mention ids,
+      // encryption flags) before the reload reconciles anything else.
       const sentMsg = sendResult?.message;
-      if (sentMsg?.$id) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.$id === sentMsg.$id)) return prev;
-          return [...prev, sentMsg];
-        });
-      }
+      setMessages((prev) => {
+        if (sentMsg?.$id) {
+          return prev.map((m) =>
+            m.$id === optimisticId ? { ...sentMsg, local: undefined } : m,
+          );
+        }
+        return prev.filter((m) => m.$id !== optimisticId);
+      });
 
       await loadMessages(true);
     } catch (sendError) {
+      setMessages((prev) => prev.filter((m) => m.$id !== optimisticId));
       setSendState("error");
       setSendError(
         sendError instanceof Error ? sendError.message : "Unable to send message",
@@ -663,6 +730,8 @@ export default function DirectMessageScreen() {
     }
   }, [
     accessToken,
+    currentUser?.displayName,
+    currentUser?.userName,
     currentUserId,
     dmEncryptionEnabled,
     draft,
@@ -789,6 +858,7 @@ export default function DirectMessageScreen() {
           authorName={senderLabel}
           authorAvatarUrl={avatarUrl}
           authorAvatarFrameUrl={item.avatarFrameUrl}
+          authorAvatarFrameInsetPercent={item.avatarFrameInsetPercent}
           authorPronouns={item.pronouns}
           text={item.text ?? ""}
           createdAt={item.$createdAt}
@@ -814,6 +884,7 @@ export default function DirectMessageScreen() {
           reactions={reactions}
           attachments={item.attachments}
           mentions={item.mentions}
+          knownNames={knownDisplayNames}
           poll={item.poll ?? null}
           customEmojis={mappedEmojis}
           onToggleReaction={async (emoji, isAdding) => {
@@ -860,7 +931,7 @@ export default function DirectMessageScreen() {
               console.error("[dm:togglePin] Failed to pin/unpin message", e);
             }
           }}
-          onOpenImageViewer={(url) => setViewerImageUrl(url)}
+          onOpenImageViewer={openImageViewer}
           onOpenProfile={() => {
             if (item.senderId && item.senderId !== currentUserId) {
               setProfileSheetUser({
@@ -888,7 +959,7 @@ export default function DirectMessageScreen() {
               const msgId = item.$id;
               if (!msgId || !instanceUrl || !accessToken) return;
               const res = await fetch(
-                `${instanceUrl}/api/direct-messages/${msgId}`,
+                `${instanceUrl}/api/direct-messages?id=${encodeURIComponent(msgId)}`,
                 {
                   method: "DELETE",
                   headers: authHeaders(accessToken),
@@ -912,6 +983,9 @@ export default function DirectMessageScreen() {
       );
     },
     [
+      theme.border,
+      knownDisplayNames,
+      openImageViewer,
       currentUserId,
       mappedEmojis,
       messagesById,
@@ -919,7 +993,6 @@ export default function DirectMessageScreen() {
       accessToken,
       router,
       setMessages,
-      setViewerImageUrl,
       setEmojiPickerMsgId,
       setEmojiPickerVisible,
       setReplyingTo,
@@ -1025,7 +1098,7 @@ export default function DirectMessageScreen() {
               {dmEncryptionEnabled ? (
                 <View
                   style={[
-                    styles.headerProfileButton,
+                    styles.headerIconButton,
                     {
                       backgroundColor: theme.muted,
                       borderColor: theme.border,
@@ -1039,32 +1112,10 @@ export default function DirectMessageScreen() {
               {normalizedConversationId ? (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => setShowPinnedPanel(true)}
+                  accessibilityLabel="Conversation options"
+                  onPress={() => setShowConversationMenu(true)}
                   style={({ pressed }) => [
-                    styles.headerProfileButton,
-                    {
-                      backgroundColor: theme.muted,
-                      borderColor: theme.border,
-                      opacity: pressed ? 0.88 : 1,
-                      marginRight: Spacing.one,
-                    },
-                  ]}
-                >
-                  <ThemedText type="smallBold" themeColor="foreground">
-                    Pins
-                  </ThemedText>
-                </Pressable>
-              ) : null}
-              {conversation?.otherUser?.userId ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() =>
-                    router.push(
-                      `/user/${encodeURIComponent(conversation.otherUser!.userId)}` as never,
-                    )
-                  }
-                  style={({ pressed }) => [
-                    styles.headerProfileButton,
+                    styles.headerIconButton,
                     {
                       backgroundColor: theme.muted,
                       borderColor: theme.border,
@@ -1072,9 +1123,7 @@ export default function DirectMessageScreen() {
                     },
                   ]}
                 >
-                  <ThemedText type="smallBold" themeColor="foreground">
-                    Profile
-                  </ThemedText>
+                  <EllipsisVertical size={16} color={theme.foreground} />
                 </Pressable>
               ) : null}
             </View>
@@ -1087,7 +1136,25 @@ export default function DirectMessageScreen() {
               instanceUrl={instanceUrl ?? ""}
               accessToken={accessToken ?? ""}
               customEmojis={mappedEmojis}
+              contextId={normalizedConversationId}
+              currentUserId={currentUserId ?? null}
+              onOpenImageViewer={openImageViewer}
               onClose={() => setActiveThreadMessageId(null)}
+              onReplyCountChange={(count) => {
+                const parentId = activeThreadMessageId;
+                if (!parentId) return;
+                setMessages((prev) => {
+                  const parent = prev.find((m) => m.$id === parentId);
+                  if (!parent || parent.threadMessageCount === count) {
+                    return prev;
+                  }
+                  return prev.map((m) =>
+                    m.$id === parentId
+                      ? { ...m, threadMessageCount: count }
+                      : m,
+                  );
+                });
+              }}
               type="dm"
             />
           ) : (
@@ -1338,6 +1405,55 @@ export default function DirectMessageScreen() {
           />
         ) : null}
 
+        {/* Replaces the separate Pins and Profile buttons. Two labelled pills
+            crowded a header that already carries a title, a lock badge and the
+            peer's presence; an overflow menu keeps the actions and the chat
+            surface in the same place, which is where they are used from. */}
+        <Modal
+          visible={showConversationMenu}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowConversationMenu(false)}
+        >
+          <Pressable
+            style={styles.menuBackdrop}
+            onPress={() => setShowConversationMenu(false)}
+          >
+            <View
+              style={[
+                styles.menuSheet,
+                { backgroundColor: theme.card, borderColor: theme.border },
+              ]}
+            >
+              <Pressable
+                style={styles.menuRow}
+                onPress={() => {
+                  setShowConversationMenu(false);
+                  setShowPinnedPanel(true);
+                }}
+              >
+                <Pin size={16} color={theme.foreground} />
+                <ThemedText type="small">Pinned messages</ThemedText>
+              </Pressable>
+              {conversation?.otherUser?.userId ? (
+                <Pressable
+                  style={styles.menuRow}
+                  onPress={() => {
+                    const userId = conversation?.otherUser?.userId;
+                    setShowConversationMenu(false);
+                    if (userId) {
+                      router.push(`/user/${encodeURIComponent(userId)}` as never);
+                    }
+                  }}
+                >
+                  <User size={16} color={theme.foreground} />
+                  <ThemedText type="small">View profile</ThemedText>
+                </Pressable>
+              ) : null}
+            </View>
+          </Pressable>
+        </Modal>
+
         <Modal
           visible={showPinnedPanel}
           transparent
@@ -1369,7 +1485,7 @@ export default function DirectMessageScreen() {
                       key={msg.$id ?? i}
                       style={[
                         styles.pinItem,
-                        { borderBottomColor: theme.border + "40" },
+                        { borderBottomColor: withAlpha(theme.border, 0.25) },
                       ]}
                     >
                       <EmojiRenderer text={msg.text ?? ""} customEmojis={mappedEmojis} />
@@ -1460,11 +1576,30 @@ const styles = StyleSheet.create({
   dmTitle: {
     minWidth: 0,
   },
-  headerProfileButton: {
+  headerIconButton: {
     borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.half,
+  },
+  menuBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  menuSheet: {
+    marginHorizontal: Spacing.three,
+    marginBottom: Spacing.four,
+    borderRadius: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  menuRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
   },
   messageArea: {
     flex: 1,

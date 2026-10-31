@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Notifications from "expo-notifications";
 import { useState, useEffect } from "react";
 
+import { NoticeLine } from "@/components/notice-line";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
@@ -13,26 +14,6 @@ import { useCacheSettings } from "@/providers/cache-settings-context";
 import { type CacheStrategy } from "@/lib/cache/CacheManager";
 import { APP_VERSION } from "@/lib/update/constants";
 import { resendAccountVerification } from "@/lib/firepit";
-
-function StatusPill({
-    label,
-    tone,
-}: {
-    label: string;
-    tone: "neutral" | "success" | "warning" | "danger";
-}) {
-    const theme = useTheme();
-    return (
-        <ThemedView type={tone === "neutral" ? "muted" : tone} style={styles.pill}>
-            <ThemedText
-                type="code"
-                themeColor={tone === "neutral" ? "mutedForeground" : "foreground"}
-            >
-                {label}
-            </ThemedText>
-        </ThemedView>
-    );
-}
 
 function SettingsRow({
     label,
@@ -215,6 +196,10 @@ export default function SettingsTabScreen() {
     const { currentUser, instanceUrl, accessToken, notificationPreferences } =
         useFirepitBootstrap();
 
+    const accountLabel =
+        currentUser?.displayName ?? currentUser?.userName ?? "Signed in";
+    const instanceLabel = instanceUrl ? safeHostname(instanceUrl) : null;
+
     const [notifPermission, setNotifPermission] = useState(false);
     const [verifyingEmail, setVerifyingEmail] = useState(false);
     useEffect(() => {
@@ -292,24 +277,21 @@ export default function SettingsTabScreen() {
                             <ThemedText themeColor="mutedForeground" style={styles.copy}>
                                 Account, notifications, and app preferences.
                             </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill
-                                    label={
-                                        currentUser?.displayName ??
-                                        currentUser?.userName ??
-                                        "signed in"
-                                    }
-                                    tone="success"
-                                />
-                                {instanceUrl ? (
-                                    <StatusPill
-                                        label={safeHostname(instanceUrl)}
-                                        tone="neutral"
-                                    />
-                                ) : (
-                                    <StatusPill label="no instance" tone="warning" />
-                                )}
-                            </View>
+                            {/* The account name and instance host are stated
+                                as text rather than pills; "signed in" was
+                                simply this screen's default state restated as
+                                a badge. Only a missing instance earns a
+                                notice. */}
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                {accountLabel}
+                                {instanceLabel ? ` · ${instanceLabel}` : ""}
+                            </ThemedText>
+                            {!instanceUrl ? (
+                                <NoticeLine>No instance connected.</NoticeLine>
+                            ) : null}
                         </View>
 
                         {/* Account section */}
@@ -372,13 +354,6 @@ export default function SettingsTabScreen() {
                                 description="View and revoke signed-in sessions"
                                 onPress={() =>
                                     router.push("/settings/devices" as never)
-                                }
-                            />
-                            <SettingsRow
-                                label="Danger Zone"
-                                description="Deactivate or permanently delete your account"
-                                onPress={() =>
-                                    router.push("/settings/danger-zone" as never)
                                 }
                             />
                         </View>
@@ -449,6 +424,18 @@ export default function SettingsTabScreen() {
                             />
                         </View>
 
+                        {/* Help category */}
+                        <View style={styles.section}>
+                            <ThemedText type="smallBold">Help</ThemedText>
+                            <SettingsRow
+                                label="Help"
+                                description="Message actions, servers, appearance and troubleshooting"
+                                onPress={() =>
+                                    router.push("/settings/help" as never)
+                                }
+                            />
+                        </View>
+
                         {/* Cache section */}
                         <CacheSettingsSection />
 
@@ -467,6 +454,22 @@ export default function SettingsTabScreen() {
                             </View>
                         </View>
                     </View>
+
+                        {/* Last on the page: destructive and rarely wanted,
+                            so it should not sit among routine account rows. */}
+                        <View style={styles.section}>
+                            <ThemedText type="smallBold" themeColor="destructive">
+                                Danger Zone
+                            </ThemedText>
+                            <SettingsRow
+                                label="Deactivate or delete account"
+                                description="Permanently remove your account and its data"
+                                onPress={() =>
+                                    router.push("/settings/danger-zone" as never)
+                                }
+                            />
+                        </View>
+
                 </ScrollView>
             </SafeAreaView>
         </View>
@@ -495,11 +498,6 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     copy: { fontSize: 14, lineHeight: 20 },
-    pillRow: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: Spacing.one,
-    },
     section: {
         borderRadius: 12,
         backgroundColor: "rgba(255,255,255,0.03)",

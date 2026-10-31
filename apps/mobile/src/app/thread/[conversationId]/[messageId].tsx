@@ -102,7 +102,8 @@ export default function DMThreadScreen() {
                     };
                     setParentMessage(nextParent ? enrich(nextParent) : null);
                     const enrichedReplies = nextReplies.map(enrich);
-                    setReplies(enrichedReplies);
+                    // API returns oldest-first; the list is inverted.
+                    setReplies([...enrichedReplies].reverse());
                     // Cache replies and mark them as thread replies for main list filtering
                     void cacheThreadReplies(normalizedMessageId, enrichedReplies);
                     for (const r of enrichedReplies) {
@@ -115,7 +116,8 @@ export default function DMThreadScreen() {
                 }
             }
             setParentMessage(nextParent);
-            setReplies(nextReplies);
+            // API returns oldest-first; the list is inverted.
+            setReplies([...nextReplies].reverse());
             // Cache replies and mark them as thread replies for main list filtering
             void cacheThreadReplies(normalizedMessageId, nextReplies);
             for (const r of nextReplies) {
@@ -214,6 +216,16 @@ export default function DMThreadScreen() {
                             typeof item.authorAvatarUrl === "string"
                                 ? item.authorAvatarUrl
                                 : null
+                        }
+                        authorAvatarFrameUrl={
+                            typeof item.avatarFrameUrl === "string"
+                                ? item.avatarFrameUrl
+                                : undefined
+                        }
+                        authorAvatarFrameInsetPercent={
+                            typeof item.avatarFrameInsetPercent === "number"
+                                ? item.avatarFrameInsetPercent
+                                : undefined
                         }
                         text={item.text ?? ""}
                         createdAt={item.$createdAt}

@@ -212,6 +212,7 @@ export default function HomeScreen() {
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    automaticallyAdjustKeyboardInsets
                 >
                     <ThemedView style={styles.shell}>
                         <ThemedView
