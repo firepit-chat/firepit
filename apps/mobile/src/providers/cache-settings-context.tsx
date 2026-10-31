@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { AppState } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { cacheManager, type CacheStrategy } from "@/lib/cache/CacheManager";
 
@@ -57,11 +58,32 @@ export function CacheSettingsProvider({ children }: { children: React.ReactNode 
     setStrategyState(newStrategy);
     cacheManager.setStrategy(newStrategy);
     await AsyncStorage.setItem(CACHE_STRATEGY_KEY, newStrategy);
-  }, []);
+    // Switching strategy changes what gets written, so the size on screen is
+    // immediately stale. It was previously only ever measured at mount, which
+    // is why it kept reporting the size from app start.
+    await refreshCacheSize();
+  }, [refreshCacheSize]);
 
   const clearCache = useCallback(async () => {
     await cacheManager.clearCache();
     await refreshCacheSize();
+  }, [refreshCacheSize]);
+
+  // The cache grows while the app is backgrounded (websocket traffic, prefetch).
+  // Re-measure on every return to the foreground so the number is not left
+  // showing whatever it was when the app last started.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") void refreshCacheSize();
+    });
+    return () => subscription.remove();
+  }, [refreshCacheSize]);
+
+  // Belt and braces for the settings screen: polling while mounted is cheap
+  // (a directory stat) and keeps a visible figure honest.
+  useEffect(() => {
+    const timer = setInterval(() => void refreshCacheSize(), 10_000);
+    return () => clearInterval(timer);
   }, [refreshCacheSize]);
 
   return (

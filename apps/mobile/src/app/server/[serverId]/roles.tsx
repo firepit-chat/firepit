@@ -385,16 +385,10 @@ export default function RolesManagementScreen() {
                                 <ThemedText type="smallBold">Actions</ThemedText>
                                 <View style={styles.actionRow}>
                                     <ActionButton
-                                        label="Back to server"
+                                        label="Back to chat"
                                         tone="ghost"
                                         icon="back"
-                                        onPress={() => {
-                                            if (normalizedServerId) {
-                                                router.replace(
-                                                    `/server/${normalizedServerId}`,
-                                                );
-                                            }
-                                        }}
+                                        onPress={() => router.back()}
                                     />
                                     <ActionButton
                                         label="Create role"

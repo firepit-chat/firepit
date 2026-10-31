@@ -175,7 +175,7 @@ export default function DevicesScreen() {
                                 ) : null}
 
                                 {loadError ? (
-                                    <ThemedText themeColor="danger" style={styles.errorText}>
+                                    <ThemedText themeColor="destructive" style={styles.errorText}>
                                         {loadError}
                                     </ThemedText>
                                 ) : null}

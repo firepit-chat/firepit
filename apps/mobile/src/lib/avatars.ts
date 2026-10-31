@@ -50,3 +50,27 @@ export function getMessageAvatarFileId(
     }
     return undefined;
 }
+
+/**
+ * Fallback glyph for an entity with no icon — the text an avatar or server
+ * tile shows instead.
+ *
+ * Mirrors the web app's `Avatar` component, which takes the first two
+ * whitespace-separated tokens and one character from each. Deliberately *not*
+ * first-and-last: "The Queer People Club (QPC)" renders "TQ" on the web and
+ * must render "TQ" here too, or the same server shows a different glyph on
+ * each client.
+ */
+export function getInitials(name: string | null | undefined): string {
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) {
+        return "?";
+    }
+    return trimmed
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part.charAt(0))
+        .join("")
+        .toUpperCase();
+}
+

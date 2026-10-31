@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,6 +17,7 @@ import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 import {
+  muteChannel,
   muteConversation,
   type Channel,
   type DirectMessageConversation,
@@ -24,7 +26,8 @@ import {
 } from "@/lib/firepit";
 import { getChannels, getCategories, getServers, getConversations, enrichConversations } from "@/lib/server-cache";
 import { captureError } from "@/lib/sentry";
-import { router } from "expo-router";
+import { getInitials } from "@/lib/avatars";
+import { router, useLocalSearchParams } from "expo-router";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -34,32 +37,54 @@ function hasId<T extends { $id?: string }>(
   return typeof item.$id === "string" && item.$id.length > 0;
 }
 
-function getInitials(name: string): string {
-  if (!name) return "?";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2)
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  return parts[0].slice(0, 2).toUpperCase();
-}
+const MUTE_DURATIONS = [
+  { label: "15 minutes", value: "15m" },
+  { label: "1 hour", value: "1h" },
+  { label: "8 hours", value: "8h" },
+  { label: "24 hours", value: "24h" },
+  { label: "Until I turn it back on", value: "forever" },
+] as const;
 
 function ChannelItem({
   channel,
   onPress,
+  onMuteToggle,
+  muted,
 }: {
   channel: Channel;
   onPress: () => void;
+  onMuteToggle: (duration: (typeof MUTE_DURATIONS)[number]["value"]) => void;
+  muted: boolean;
 }) {
   const theme = useTheme();
   const chUnread = channel.unreadCount ?? 0;
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={() => {
+        // Long-press is the only mute affordance here, matching the DM rows.
+        Alert.alert(
+          muted ? `Unmute #${channel.name ?? "channel"}` : `Mute #${channel.name ?? "channel"}`,
+          muted ? undefined : "How long should this channel be muted?",
+          [
+            ...(muted
+              ? []
+              : MUTE_DURATIONS.map((option) => ({
+                  text: option.label,
+                  onPress: () => onMuteToggle(option.value),
+                }))),
+            { text: "Cancel", style: "cancel" as const },
+          ],
+        );
+      }}
+      delayLongPress={350}
       style={({ pressed }) => [
         styles.channelItem,
         {
           backgroundColor: pressed
             ? theme.backgroundSelected
             : "transparent",
+          opacity: muted ? 0.5 : 1,
         },
       ]}
     >
@@ -76,7 +101,43 @@ function ChannelItem({
       >
         {channel.name ?? "Untitled"}
       </ThemedText>
-      {chUnread > 0 && (
+      {channel.nsfw ? (
+        <ThemedText
+          type="code"
+          themeColor="destructive"
+          style={styles.channelBadge}
+        >
+          18+
+        </ThemedText>
+      ) : null}
+      {channel.type === "announcement" ? (
+        <ThemedText
+          type="code"
+          themeColor="warningText"
+          style={styles.channelBadge}
+        >
+          ANNOUNCEMENT
+        </ThemedText>
+      ) : null}
+      {channel.type === "voice" ? (
+        <ThemedText
+          type="code"
+          themeColor="successText"
+          style={styles.channelBadge}
+        >
+          VOICE
+        </ThemedText>
+      ) : null}
+      {muted ? (
+        <ThemedText
+          type="code"
+          themeColor="mutedForeground"
+          style={styles.channelBadge}
+        >
+          Muted
+        </ThemedText>
+      ) : null}
+      {chUnread > 0 && !muted ? (
         <View
           style={[
             styles.badge,
@@ -90,7 +151,7 @@ function ChannelItem({
             {chUnread}
           </ThemedText>
         </View>
-      )}
+      ) : null}
     </Pressable>
   );
 }
@@ -104,12 +165,26 @@ export default function ChatTabScreen() {
   const [dms, setDms] = useState<(DirectMessageConversation & { $id: string })[]>([]);
   const [dmLoadState, setDmLoadState] = useState<LoadState>("idle");
   const [mutedConversations, setMutedConversations] = useState<Set<string>>(new Set());
+  // Channel mutes live here now that the channel browser moved from the
+  // dedicated server page to this tab.
+  const [mutedChannels, setMutedChannels] = useState<Set<string>>(new Set());
 
   // Expanded server to show channels
   const [expandedServerId, setExpandedServerId] = useState<string | null>(null);
   const [channels, setChannels] = useState<(Channel & { $id: string })[]>([]);
   const [channelLoadState, setChannelLoadState] = useState<LoadState>("idle");
   const [categories, setCategories] = useState<ServerCategory[]>([]);
+
+  // `?server=<id>` deep-links to one server's channel list. The home page uses
+  // it so tapping a server lands on that server rather than the top of the
+  // list, which is all the deleted server page used to do.
+  const { server: focusServerParam } = useLocalSearchParams<{
+    server?: string | string[];
+  }>();
+  const focusServerId = Array.isArray(focusServerParam)
+    ? focusServerParam[0]
+    : focusServerParam;
+  const requestedFocusServer = useRef<string | null>(null);
 
   const canLoad = state === "ready" && !!instanceUrl && !!accessToken;
 
@@ -185,6 +260,17 @@ export default function ChatTabScreen() {
     }
   }, [expandedServerId, instanceUrl, accessToken]);
 
+  // Expand the deep-linked server once it exists in the loaded list. Keyed on
+  // the request rather than the id so revisiting the tab does not re-fetch and
+  // yank the list back open after the user collapsed it.
+  useEffect(() => {
+    if (!focusServerId || !canLoad) return;
+    if (requestedFocusServer.current === focusServerId) return;
+    if (!servers.some((server) => server.$id === focusServerId)) return;
+    requestedFocusServer.current = focusServerId;
+    void expandServer(focusServerId);
+  }, [canLoad, expandServer, focusServerId, servers]);
+
   // Sort: items with unread first, then alphabetically
   const sortedServers = useMemo(() => {
     return [...servers].sort((a, b) => {
@@ -218,8 +304,7 @@ export default function ChatTabScreen() {
     router.push(`/dm/${conversationId}` as never);
   }, []);
 
-  const handleMute = useCallback(async (conversationId: string, currentlyMuted: boolean) => {
-    if (!instanceUrl || !accessToken) return;
+  const handleMute = useCallback(async (conversationId: string, currentlyMuted: boolean) => {    if (!instanceUrl || !accessToken) return;
     try {
       await muteConversation(instanceUrl, accessToken, conversationId, !currentlyMuted);
       setMutedConversations((prev) => {
@@ -238,6 +323,46 @@ export default function ChatTabScreen() {
       });
     }
   }, [instanceUrl, accessToken]);
+
+  const handleChannelMute = useCallback(
+    async (
+      channelId: string,
+      currentlyMuted: boolean,
+      duration: "15m" | "1h" | "8h" | "24h" | "forever" = "forever",
+    ) => {
+      if (!instanceUrl || !accessToken) return;
+      try {
+        await muteChannel(
+          instanceUrl,
+          accessToken,
+          channelId,
+          !currentlyMuted,
+          duration,
+        );
+        setMutedChannels((prev) => {
+          const next = new Set(prev);
+          if (currentlyMuted) {
+            next.delete(channelId);
+          } else {
+            next.add(channelId);
+          }
+          return next;
+        });
+      } catch (e) {
+        captureError(e instanceof Error ? e : new Error(String(e)), {
+          context: "chat:muteChannel",
+          channelId,
+        });
+      }
+    },
+    [instanceUrl, accessToken],
+  );
+
+  // Drop per-channel mute state when switching servers, so a channel id left
+  // over from the previous server can never mark a row in the next one.
+  useEffect(() => {
+    setMutedChannels(new Set());
+  }, [expandedServerId]);
 
   // Group channels by category for the expanded server
   const groupedChannels = useMemo(() => {
@@ -437,6 +562,14 @@ export default function ChatTabScreen() {
                             <ChannelItem
                               key={channel.$id}
                               channel={channel}
+                              muted={mutedChannels.has(channel.$id)}
+                              onMuteToggle={(duration) => {
+                                void handleChannelMute(
+                                  channel.$id,
+                                  mutedChannels.has(channel.$id),
+                                  duration,
+                                );
+                              }}
                               onPress={() => navigateToChannel(server.$id, channel.$id)}
                             />
                           ))}
@@ -456,6 +589,14 @@ export default function ChatTabScreen() {
                             <ChannelItem
                               key={channel.$id}
                               channel={channel}
+                              muted={mutedChannels.has(channel.$id)}
+                              onMuteToggle={(duration) => {
+                                void handleChannelMute(
+                                  channel.$id,
+                                  mutedChannels.has(channel.$id),
+                                  duration,
+                                );
+                              }}
                               onPress={() => navigateToChannel(server.$id, channel.$id)}
                             />
                           ))}
@@ -695,6 +836,10 @@ const styles = StyleSheet.create({
   channelHash: {
     width: 20,
     textAlign: "center",
+  },
+  channelBadge: {
+    fontSize: 10,
+    marginLeft: 4,
   },
   backdropOrbTop: {
     position: "absolute",
