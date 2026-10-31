@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Features
 
+- **Back up and restore your encrypted DM key.** Encrypted DMs use a key that
+  lives only on your device, so reinstalling or switching devices made older
+  messages unreadable. Settings now has an **Encryption key backup** control
+  that exports the key to a passphrase-protected file and restores it later.
+  The backup is encrypted with Argon2id and XChaCha20-Poly1305; restoring
+  replaces the key stored on the current device.
+
 - **Friends carry the same details as your DMs.** A friend in the friends
   section now shows when you last spoke, how many unread messages you have with
   them, a presence dot, and the same options menu as a direct message — so you
@@ -123,6 +130,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Encrypted DMs between web and mobile now decrypt in both directions.** Web
+  and mobile sorted the two public keys differently when deriving the shared
+  secret, so roughly half of all conversations derived a different key on each
+  client and showed "[Encrypted message unavailable]". New messages use the
+  canonical order, and decryption still tries the old order so existing
+  messages keep opening.
+
 - **Encrypted direct messages now read correctly across web and mobile.** The
   mobile app was not binding the conversation id into the message's
   authenticated data, so anything sent from web showed as "[Encrypted message
@@ -134,6 +148,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the clear inside a conversation the user believes is end-to-end encrypted.
   Encrypted messages now hide those actions, and the thread endpoint refuses a
   reply to an encrypted parent.
+- **New accounts can turn on encrypted DMs again.** Saving settings failed
+  because the encryption key was published only after the update, and the
+  server refuses to enable encryption without a key. The key is now published
+  first, and the save stops with a clear message if that fails.
+- **Pinned encrypted messages were blank.** The pin list rendered the stored
+  text, which is empty for encrypted messages, so a pinned E2EE message showed
+  only its author. Pins are now decrypted like the conversation itself, and your
+  own encrypted message no longer goes blank for a moment right after sending.
 - **Some threads were stuck at "no replies" forever.** The reply count on a
   thread's first message is only ever written when someone replies, and that
   write gave up on the first failure instead of retrying — so one unlucky
@@ -303,6 +325,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ⚙️ Improvements
 
+- **Search survives a slow or briefly unavailable database.** Message search now
+  retries transient Appwrite failures and caps each source at eight seconds, so
+  one slow query no longer holds up the whole result. Whatever the other source
+  returns is still shown.
 - **Faster chat, and about 25% less JavaScript on every page.** A performance
   pass across the web app:
     - The chat page no longer rebuilds the server and channel sidebars, or every
@@ -559,6 +585,10 @@ check:openapi` walks the route handlers and fails if the spec and the
   is a one-line change instead of a scavenger hunt. The old copies cast the input
   rather than validating it, so a malformed `type` could surface as something
   other than `"text"`.
+- **Encrypted DMs use a smaller crypto library.** The client no longer downloads
+  a WebAssembly libsodium build to encrypt or decrypt direct messages. The
+  replacement is byte-for-byte compatible, so existing encrypted conversations
+  still decrypt on both web and mobile.
 
 ## [2.1.0] - 2026-09-27
 

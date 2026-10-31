@@ -1,5 +1,7 @@
-import sodium from "react-native-libsodium";
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
+import { base64 } from "@scure/base";
 
+import { randomBytes } from "@/lib/firepit/random-bytes";
 import {
     deleteSecureItem,
     getSecureItem,
@@ -9,47 +11,33 @@ import {
 const KEY_SIZE = 32;
 const NONCE_SIZE = 24;
 
-function generateKey(): Promise<string> {
-    const key = sodium.randombytes_buf(KEY_SIZE);
-    return Promise.resolve(
-        sodium.to_base64(key, sodium.base64_variants.ORIGINAL),
-    );
+async function generateKey(): Promise<string> {
+    const key = await randomBytes(KEY_SIZE);
+    return base64.encode(key);
 }
 
-function encrypt(keyBase64: string, plaintext: string): Promise<string> {
-    const key = sodium.from_base64(keyBase64, sodium.base64_variants.ORIGINAL);
-    const nonce = sodium.randombytes_buf(NONCE_SIZE);
-    const cipher = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-        plaintext,
-        "",
-        null,
-        nonce,
-        key,
+async function encrypt(keyBase64: string, plaintext: string): Promise<string> {
+    const key = base64.decode(keyBase64);
+    const nonce = await randomBytes(NONCE_SIZE);
+    const cipher = xchacha20poly1305(key, nonce).encrypt(
+        new TextEncoder().encode(plaintext),
     );
     const combined = new Uint8Array(NONCE_SIZE + cipher.length);
     combined.set(nonce, 0);
     combined.set(cipher, NONCE_SIZE);
-    return Promise.resolve(
-        sodium.to_base64(combined, sodium.base64_variants.ORIGINAL),
-    );
+    return base64.encode(combined);
 }
 
-function decrypt(keyBase64: string, encryptedBase64: string): Promise<string> {
-    const key = sodium.from_base64(keyBase64, sodium.base64_variants.ORIGINAL);
-    const combined = sodium.from_base64(
-        encryptedBase64,
-        sodium.base64_variants.ORIGINAL,
-    );
+async function decrypt(
+    keyBase64: string,
+    encryptedBase64: string,
+): Promise<string> {
+    const key = base64.decode(keyBase64);
+    const combined = base64.decode(encryptedBase64);
     const nonce = combined.slice(0, NONCE_SIZE);
     const cipher = combined.slice(NONCE_SIZE);
-    const plain = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-        null,
-        cipher,
-        "",
-        nonce,
-        key,
-    );
-    return Promise.resolve(sodium.to_string(plain));
+    const plain = xchacha20poly1305(key, nonce).decrypt(cipher);
+    return new TextDecoder().decode(plain);
 }
 
 const KEY_STORAGE_KEY = "firepit.credential-encryption-key";
@@ -94,7 +82,7 @@ async function isCryptoAvailable(): Promise<boolean> {
 }
 
 /**
- * Encrypts and stores credentials using XChaCha20-Poly1305 via the native sodium module.
+ * Encrypts and stores credentials using XChaCha20-Poly1305 in expo-secure-store.
  * Throws if encryption is unavailable — plaintext fallback is intentionally avoided.
  */
 export async function storeCredentials(
