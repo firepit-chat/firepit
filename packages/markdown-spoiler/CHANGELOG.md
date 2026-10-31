@@ -1,0 +1,35 @@
+# Changelog
+
+All notable changes to `@firepit/markdown-spoiler` are documented here.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
+this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+Versioning is manual, matching the rest of the repository: add an entry below and
+bump `version` in `package.json` as part of the same change.
+
+## [Unreleased]
+
+## [0.1.0] - 2026-10-02
+
+### ✨ Features
+
+- **Click-to-reveal spoilers** for Markdown, via `[spoiler]...[/spoiler]`, on
+  both React and React Native.
+- **Collapsed spoilers are unmounted rather than blurred.** Hidden content is
+  absent from the DOM, so screen readers cannot read ahead into it and hidden
+  links are never in the tab order. No `filter: blur()`, CSS Houdini, or reveal
+  animation.
+- **`remarkSpoiler` remark plugin.** Spoiler regions are matched across sibling
+  nodes, so formatting, links and images inside a spoiler render normally.
+- **React Native `Spoiler`** with `accessibilityRole="button"` and
+  `accessibilityState={{ expanded }}`, themed through a required `theme` prop.
+- **`stripSpoilerSyntax`** for surfaces that should not show raw delimiters, such
+  as search indexing, notification bodies and reply previews.
+- **Malformed input is non-destructive.** An unmatched `[spoiler]` or
+  `[/spoiler]` renders literally and no authored content is dropped.
+
+### 📚 Documentation
+
+- Documented the syntax, the accessibility rationale, and the two block-level
+  limitations in the package README.
