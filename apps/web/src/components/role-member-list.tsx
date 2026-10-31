@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { Search, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,14 +43,7 @@ export function RoleMemberList({
 	const [showAddDialog, setShowAddDialog] = useState(false);
 	const [addSearchQuery, setAddSearchQuery] = useState("");
 
-	useEffect(() => {
-		if (open) {
-			void loadMembers();
-			void loadAllServerMembers();
-		}
-	}, [open, role.$id, serverId]);
-
-	const loadMembers = async () => {
+	const loadMembers = useCallback(async () => {
 		setLoading(true);
 		try {
 			const response = await fetch(
@@ -69,9 +62,9 @@ export function RoleMemberList({
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [role.$id, serverId]);
 
-	const loadAllServerMembers = async () => {
+	const loadAllServerMembers = useCallback(async () => {
 		try {
 			const response = await fetch(`/api/servers/${serverId}/members`);
 			if (response.ok) {
@@ -81,7 +74,14 @@ export function RoleMemberList({
 		} catch (error) {
 			console.error("Failed to load server members:", error);
 		}
-	};
+	}, [serverId]);
+
+	useEffect(() => {
+		if (open) {
+			void loadMembers();
+			void loadAllServerMembers();
+		}
+	}, [open, loadAllServerMembers, loadMembers]);
 
 	const handleAddMember = async (userId: string) => {
 		try {

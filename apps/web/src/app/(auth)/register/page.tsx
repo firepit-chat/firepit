@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 

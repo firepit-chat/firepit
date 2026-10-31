@@ -152,7 +152,7 @@ export function useFriends(enabled = true) {
                 setActionLoading(null);
             }
         },
-        [currentUserId, queryClient, refetch],
+        [currentUserId, queryClient],
     );
 
     return {

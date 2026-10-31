@@ -98,31 +98,43 @@ async function getAccessibleChannelIds(
                 [Query.equal("serverId", serverId), Query.limit(1000)],
             );
 
-            for (const channelDoc of channelsResult.documents) {
-                const channelId = String(
-                    (channelDoc as Record<string, unknown>).$id,
-                );
-                if (!channelId) {
-                    continue;
-                }
+            // ponytail: caps the channel-message constraint at 100 channels
+            // (Appwrite Query.equal array limit). If users can read more, OR
+            // across paginated equality queries.
+            const remaining = MAX_ACCESSIBLE_CHANNELS - accessibleChannelIds.length;
+            if (remaining <= 0) {
+                return accessibleChannelIds;
+            }
 
-                const channelAccess = await getChannelAccessForUser(
-                    databases,
-                    env,
-                    channelId,
-                    userId,
-                );
-                if (channelAccess.canRead) {
+            // Per-channel access lookups are independent, so resolve them
+            // concurrently. Slicing to the remaining budget first keeps the
+            // number of lookups bounded by the cap exactly as the sequential
+            // loop did.
+            const channelIds = channelsResult.documents
+                .map((channelDoc) =>
+                    String((channelDoc as Record<string, unknown>).$id),
+                )
+                .filter(Boolean)
+                .slice(0, remaining);
+
+            const readable = await Promise.all(
+                channelIds.map(async (channelId) => {
+                    const channelAccess = await getChannelAccessForUser(
+                        databases,
+                        env,
+                        channelId,
+                        userId,
+                    );
+                    return channelAccess.canRead ? channelId : null;
+                }),
+            );
+            for (const channelId of readable) {
+                if (channelId) {
                     accessibleChannelIds.push(channelId);
-                    // ponytail: caps the channel-message constraint at 100
-                    // channels (Appwrite Query.equal array limit). If users can
-                    // read more, OR across paginated equality queries.
-                    if (
-                        accessibleChannelIds.length >= MAX_ACCESSIBLE_CHANNELS
-                    ) {
-                        return accessibleChannelIds;
-                    }
                 }
+            }
+            if (accessibleChannelIds.length >= MAX_ACCESSIBLE_CHANNELS) {
+                return accessibleChannelIds;
             }
         } catch {
             // Skip servers whose metadata failed to resolve (e.g. deleted servers).

@@ -1,6 +1,6 @@
 "use client";
 
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
