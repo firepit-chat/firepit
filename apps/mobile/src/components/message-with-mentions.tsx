@@ -113,8 +113,9 @@ export function MessageWithMentions({
 
         // If the text contains block or inline markdown, render with full markdown renderer
         if (MARKDOWN_PATTERN.test(text)) {
+            const textColor = { color: colors.text };
             const mdStyles: Record<string, TextStyle> = {
-                body: { color: colors.text, fontSize: 14, lineHeight: 20 },
+                body: { ...textColor, fontSize: 14, lineHeight: 20 },
                 strong: { fontWeight: "700" },
                 em: { fontStyle: "italic" },
                 del: { textDecorationLine: "line-through", opacity: 0.7 },
@@ -161,19 +162,29 @@ export function MessageWithMentions({
                             // links and mentions working inside a revealed spoiler.
                             [SPOILER_TOKEN_TYPE]: (node) => (
                                 <SpoilerBlock theme={colors}>
-                                    <Markdown
-                                        style={mdStyles}
-                                        markdownit={getMarkdownParser()}
-                                        rules={{
-                                            text: (child) =>
-                                                renderPlainText(
-                                                    child.content ?? "",
-                                                    "spoiler",
-                                                ),
-                                        }}
-                                    >
-                                        {node.content ?? ""}
-                                    </Markdown>
+                                    {/* The spoiler body sits inside the
+                                        spoiler's own View, which breaks React
+                                        Native's Text inheritance chain — the
+                                        re-parsed text fell back to the platform
+                                        default black and read as a different
+                                        colour from the rest of the message. An
+                                        explicit Text wrapper puts the message
+                                        colour back on the chain. */}
+                                    <Text style={{ color: colors.text }}>
+                                        <Markdown
+                                            style={mdStyles}
+                                            markdownit={getMarkdownParser()}
+                                            rules={{
+                                                text: (child) =>
+                                                    renderPlainText(
+                                                        child.content ?? "",
+                                                        "spoiler",
+                                                    ),
+                                            }}
+                                        >
+                                            {node.content ?? ""}
+                                        </Markdown>
+                                    </Text>
                                 </SpoilerBlock>
                             ),
                         }}

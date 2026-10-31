@@ -403,13 +403,12 @@ export default function HomeTabScreen() {
                                         key={server.$id!}
                                         accessibilityRole="button"
                                         onPress={() =>
-                                            router.push({
-                                                pathname:
-                                                    "/server/[serverId]",
-                                                params: {
-                                                    serverId: server.$id,
-                                                },
-                                            })
+                                            // The chat tab is the channel
+                                            // browser; the dedicated server
+                                            // page it used to open is gone.
+                                            router.push(
+                                                `/chat?server=${server.$id}`,
+                                            )
                                         }
                                         style={({ pressed }) => [
                                             styles.serverRow,

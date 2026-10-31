@@ -88,7 +88,7 @@ export default function InviteScreen() {
             if (!nextServerId) {
                 throw new Error("Invite was redeemed, but no server id was returned.");
             }
-            router.replace(`/server/${nextServerId}`);
+            router.replace("/chat");
         } catch (joinError) {
             setError(
                 joinError instanceof Error
@@ -158,7 +158,7 @@ export default function InviteScreen() {
                                     The invite preview could not be loaded.
                                 </ThemedText>
                                 {error ? (
-                                    <ThemedText themeColor="danger" style={styles.metaText}>
+                                    <ThemedText themeColor="destructive" style={styles.metaText}>
                                         {error}
                                     </ThemedText>
                                 ) : null}
@@ -222,7 +222,7 @@ export default function InviteScreen() {
                                 />
 
                                 {error ? (
-                                    <ThemedText themeColor="danger" style={styles.metaText}>
+                                    <ThemedText themeColor="destructive" style={styles.metaText}>
                                         {error}
                                     </ThemedText>
                                 ) : null}
