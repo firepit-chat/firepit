@@ -27,8 +27,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { MuteDialog } from "@/components/mute-dialog";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -46,7 +55,11 @@ import type {
     NotificationOverrideMap,
     NotificationSettingsResponse,
 } from "@/lib/types";
-import { ensurePublishedDmEncryptionKeyForCurrentUser } from "@/lib/dm-encryption";
+import {
+    ensurePublishedDmEncryptionKeyForCurrentUser,
+    exportDmEncryptionKeyForCurrentUser,
+    importDmEncryptionKeyForCurrentUser,
+} from "@/lib/dm-encryption";
 import { logger } from "@/lib/client-logger";
 
 interface NotificationSettingsProps {
@@ -331,6 +344,12 @@ export function NotificationSettings({
     const [directMessagePrivacy, setDirectMessagePrivacy] =
         useState<DirectMessagePrivacy>("everyone");
     const [dmEncryptionEnabled, setDmEncryptionEnabled] = useState(false);
+    const [backupOpen, setBackupOpen] = useState(false);
+    const [backupPassphrase, setBackupPassphrase] = useState("");
+    const [backupImportText, setBackupImportText] = useState("");
+    const [backupBusy, setBackupBusy] = useState<"export" | "import" | null>(
+        null,
+    );
     const [desktopEnabled, setDesktopEnabled] = useState(true);
     const [pushEnabled, setPushEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
@@ -498,9 +517,90 @@ export function NotificationSettings({
         writeLocalDmEncryptionPreference(checked);
     }, []);
 
+    const handleExportDmKey = useCallback(async () => {
+        if (backupPassphrase.length < 8) {
+            toast.error("Use a passphrase of at least 8 characters");
+            return;
+        }
+        setBackupBusy("export");
+        try {
+            const backup =
+                await exportDmEncryptionKeyForCurrentUser(backupPassphrase);
+            const url = URL.createObjectURL(
+                new Blob([backup], { type: "application/json" }),
+            );
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = "firepit-dm-key-backup.json";
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success("Encryption key backup downloaded");
+            setBackupOpen(false);
+        } catch (error) {
+            logger.error(
+                "Failed to export DM encryption key",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+            toast.error("Failed to export encryption key");
+        } finally {
+            setBackupBusy(null);
+        }
+    }, [backupPassphrase]);
+
+    const handleImportDmKey = useCallback(async () => {
+        if (backupPassphrase.length < 8) {
+            toast.error("Use a passphrase of at least 8 characters");
+            return;
+        }
+        if (backupImportText.trim().length === 0) {
+            toast.error("Paste a key backup first");
+            return;
+        }
+        setBackupBusy("import");
+        try {
+            await importDmEncryptionKeyForCurrentUser(
+                backupPassphrase,
+                backupImportText.trim(),
+            );
+            toast.success("Encryption key restored");
+            setBackupImportText("");
+            setBackupOpen(false);
+        } catch (error) {
+            logger.error(
+                "Failed to restore DM encryption key",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+            toast.error(
+                error instanceof Error
+                    ? error.message
+                    : "Failed to restore encryption key",
+            );
+        } finally {
+            setBackupBusy(null);
+        }
+    }, [backupImportText, backupPassphrase]);
+
     const saveSettings = useCallback(async () => {
         setIsSaving(true);
         try {
+            // The server refuses to turn encryption on until a public key is
+            // published, so publish first. Doing this after the PATCH left new
+            // accounts unable to enable E2EE at all: the save was rejected
+            // before the key was ever created.
+            if (dmEncryptionEnabled) {
+                try {
+                    await ensurePublishedDmEncryptionKeyForCurrentUser();
+                } catch (error) {
+                    logger.error(
+                        "Failed to publish DM encryption key from notification settings",
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error)),
+                    );
+                    throw error;
+                }
+            }
+
             const payload = {
                 globalNotifications: globalLevel,
                 directMessagePrivacy,
@@ -537,24 +637,6 @@ export function NotificationSettings({
 
             writeLocalDmEncryptionPreference(dmEncryptionEnabled);
             toast.success("Settings saved");
-
-            if (dmEncryptionEnabled) {
-                try {
-                    await ensurePublishedDmEncryptionKeyForCurrentUser();
-                } catch (error) {
-                    logger.error(
-                        "Failed to publish DM encryption key from notification settings",
-                        error instanceof Error
-                            ? error
-                            : new Error(String(error)),
-                    );
-                    toast.error(
-                        error instanceof Error
-                            ? error.message
-                            : "Failed to publish encryption key",
-                    );
-                }
-            }
         } catch (error) {
             toast.error(
                 error instanceof Error
@@ -1126,6 +1208,95 @@ export function NotificationSettings({
                         checked={dmEncryptionEnabled}
                         onCheckedChange={handleDmEncryptionEnabledChange}
                     />
+                </div>
+                <div className="mt-4 flex items-center justify-between rounded-md border p-4">
+                    <div>
+                        <Label className="font-medium">
+                            Encryption key backup
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                            Save your DM key before reinstalling or switching
+                            devices, or old encrypted messages become
+                            unreadable.
+                        </p>
+                    </div>
+                    <Dialog open={backupOpen} onOpenChange={setBackupOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                Back up
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                                <DialogTitle>Encryption key backup</DialogTitle>
+                                <DialogDescription>
+                                    The backup is protected by your passphrase.
+                                    Anyone with the file and passphrase can
+                                    read your encrypted DMs, so keep it safe.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="dm-key-passphrase">
+                                        Passphrase
+                                    </Label>
+                                    <Input
+                                        autoComplete="new-password"
+                                        id="dm-key-passphrase"
+                                        onChange={(event) =>
+                                            setBackupPassphrase(
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="At least 8 characters"
+                                        type="password"
+                                        value={backupPassphrase}
+                                    />
+                                </div>
+                                <Button
+                                    disabled={
+                                        backupPassphrase.length < 8 ||
+                                        backupBusy !== null
+                                    }
+                                    onClick={() => void handleExportDmKey()}
+                                >
+                                    {backupBusy === "export"
+                                        ? "Exporting…"
+                                        : "Export to file"}
+                                </Button>
+                                <div className="space-y-2 border-t pt-4">
+                                    <Label htmlFor="dm-key-backup">
+                                        Restore from backup
+                                    </Label>
+                                    <Textarea
+                                        id="dm-key-backup"
+                                        onChange={(event) =>
+                                            setBackupImportText(
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder="Paste backup JSON"
+                                        rows={5}
+                                        value={backupImportText}
+                                    />
+                                    <Button
+                                        disabled={
+                                            backupPassphrase.length < 8 ||
+                                            backupImportText.trim().length ===
+                                                0 ||
+                                            backupBusy !== null
+                                        }
+                                        onClick={() => void handleImportDmKey()}
+                                        variant="secondary"
+                                    >
+                                        {backupBusy === "import"
+                                            ? "Restoring…"
+                                            : "Restore key"}
+                                    </Button>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </Card>
 

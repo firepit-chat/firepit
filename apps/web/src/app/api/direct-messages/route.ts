@@ -17,7 +17,10 @@ import {
     getUserProfile,
     getUserProfilesBatch,
 } from "@/lib/appwrite-profiles";
-import { readDmEncryptionEnabled } from "@/lib/dm-encryption-preference";
+import {
+    readDmEncryptionEnabled,
+    resolveDmEncryptionEnabled,
+} from "@/lib/dm-encryption-preference";
 import { listThreadReadsByContext } from "@/lib/thread-read-store";
 import { isThreadUnread } from "@/lib/thread-read-states";
 import {
@@ -1265,12 +1268,14 @@ export async function GET(request: NextRequest) {
                                 peerNotificationSettings,
                                 selfNotificationSettings,
                                 peerProfile,
+                                selfProfile,
                             ] = await Promise.all([
                                 getFriendshipByPair(session.$id, otherUserId),
                                 getBlockStatus(session.$id, otherUserId),
                                 getNotificationSettings(otherUserId),
                                 getNotificationSettings(session.$id),
                                 getUserProfile(otherUserId).catch(() => null),
+                                getUserProfile(session.$id).catch(() => null),
                             ]);
 
                             const isFriend = friendship?.status === "accepted";
@@ -1307,12 +1312,22 @@ export async function GET(request: NextRequest) {
                                     !blockStatus.blockedMe,
                             };
 
-                            dmEncryptionSelfEnabled = Boolean(
-                                selfNotificationSettings?.dmEncryptionEnabled,
-                            );
-                            dmEncryptionPeerEnabled = Boolean(
-                                peerNotificationSettings?.dmEncryptionEnabled,
-                            );
+                            // Resolve with the same precedence the send guard
+                            // uses. Reading notification_settings directly made
+                            // the client disagree with the server whenever the
+                            // canonical profile value differed, so the client
+                            // would either skip encryption the server required
+                            // or encrypt when it was disabled.
+                            dmEncryptionSelfEnabled =
+                                resolveDmEncryptionEnabled(
+                                    selfProfile,
+                                    selfNotificationSettings,
+                                );
+                            dmEncryptionPeerEnabled =
+                                resolveDmEncryptionEnabled(
+                                    peerProfile,
+                                    peerNotificationSettings,
+                                );
                             dmEncryptionPeerPublicKey =
                                 typeof peerProfile?.dmEncryptionPublicKey ===
                                 "string"

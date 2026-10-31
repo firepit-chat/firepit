@@ -567,12 +567,34 @@ export default function DirectMessageScreen() {
                     }
                 }
             }
-            setPinnedMessages(msgs);
+            // Encrypted rows are stored with an empty `text`, so a pinned E2EE
+            // message would render as a blank line in the pin list.
+            let display = msgs;
+            if (currentUserId && msgs.some((m) => m.isEncrypted)) {
+                display = await Promise.all(
+                    msgs.map((m) =>
+                        decryptMessageTextIfNeeded({
+                            message: m,
+                            peerPublicKeyBase64,
+                            userId: currentUserId,
+                            conversationId: normalizedConversationId,
+                        }),
+                    ),
+                );
+            }
+            if (seq !== pinsSeqRef.current) return;
+            setPinnedMessages(display);
         } catch (e) {
             console.error("[dm:fetchPins] Failed to fetch pinned messages", e);
         }
         if (seq === pinsSeqRef.current) setPinsLoading(false);
-    }, [instanceUrl, accessToken, normalizedConversationId]);
+    }, [
+        instanceUrl,
+        accessToken,
+        normalizedConversationId,
+        currentUserId,
+        peerPublicKeyBase64,
+    ]);
 
     useEffect(() => {
         if (showPinnedPanel) void fetchPins();
@@ -935,7 +957,14 @@ export default function DirectMessageScreen() {
                 if (sentMsg?.$id) {
                     return prev.map((m) =>
                         m.$id === optimisticId
-                            ? { ...sentMsg, local: undefined }
+                            ? {
+                                  ...sentMsg,
+                                  // Encrypted rows come back with an empty
+                                  // `text`, so keep the plaintext already
+                                  // rendered until the reload decrypts it.
+                                  text: sentMsg.text || text,
+                                  local: undefined,
+                              }
                             : m,
                     );
                 }
