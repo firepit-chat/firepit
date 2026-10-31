@@ -323,7 +323,7 @@ export function ModerationMessageList({
             cancelled = true;
             cleanup();
         };
-    }, []);
+    }, [channelId]);
 
     // Update when initial messages change (e.g., filter applied)
     useEffect(() => {

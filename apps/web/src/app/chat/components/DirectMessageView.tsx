@@ -18,13 +18,33 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIndicator } from "@/components/status-indicator";
-import { ImageViewer } from "@/components/image-viewer";
+import dynamic from "next/dynamic";
+
+// Both of these only render on interaction, so they stay out of the initial
+// chat payload. `ImageViewer` was previously imported statically here *and*
+// dynamically in `chat/page.tsx`, which put the same component in the bundle
+// twice; two dynamic references to one module resolve to one async chunk.
+const ImageViewer = dynamic(
+    () =>
+        import("@/components/image-viewer").then((mod) => ({
+            default: mod.ImageViewer,
+        })),
+    { ssr: false },
+);
+
+const GifStickerPicker = dynamic(
+    () =>
+        import("@/components/gif-sticker-picker").then((mod) => ({
+            default: mod.GifStickerPicker,
+        })),
+    { ssr: false },
+);
 import { ImageWithSkeleton } from "@/components/image-with-skeleton";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { ChatInput } from "@/components/chat-input";
 import { ReactionButton } from "@/components/reaction-button";
 import { ReactionPicker } from "@/components/reaction-picker";
-import { GifStickerPicker } from "@/components/gif-sticker-picker";
+
 import { MessageWithMentions } from "@/components/message-with-mentions";
 import { FileUploadButton, FilePreview } from "@/components/file-upload-button";
 import { FileAttachmentDisplay } from "@/components/file-attachment-display";
@@ -36,6 +56,7 @@ import { MESSAGE_LIST_VIEWPORT_HEIGHT } from "@/components/virtualized-message-l
 import { useCustomEmojis } from "@/hooks/useCustomEmojis";
 import { adaptDirectMessages, fromDirectMessage } from "@/lib/chat-surface";
 import { jumpToMessage } from "@/lib/message-navigation";
+import type { ChatSurfaceMessage } from "@/lib/chat-surface";
 import type { DirectMessage, Conversation, FileAttachment } from "@/lib/types";
 import { formatMessageTimestamp } from "@/lib/utils";
 import { uploadImage } from "@/lib/appwrite-dms-client";
@@ -44,6 +65,10 @@ import { toast } from "sonner";
 
 // Keep DM rendering parity with the shared chat surface threshold.
 const VIRTUALIZATION_THRESHOLD = 20;
+
+// Stable no-op fallback: `prop || (() => undefined)` allocated a new function
+// each render, which defeated the memo on every message row.
+const noop = () => undefined;
 
 type DirectMessageViewProps = {
     conversation: Conversation;
@@ -386,21 +411,28 @@ export function DirectMessageView({
             setText(messageText);
         }
     };
-    const startEdit = (message: DirectMessage) => {
+    // Surface messages carry a sliced id; the handlers below need the raw
+    // document. One Map instead of a `messages.find()` scan per interaction.
+    const rawMessagesById = useMemo(
+        () => new Map(messages.map((message) => [message.$id, message])),
+        [messages],
+    );
+
+    const startEdit = useCallback((message: DirectMessage) => {
         setEditingMessageId(message.$id);
         setText(message.text);
         setReplyingToMessage(null);
-    };
+    }, []);
 
     const cancelEdit = () => {
         setEditingMessageId(null);
         setText("");
     };
 
-    const startReply = (message: DirectMessage) => {
+    const startReply = useCallback((message: DirectMessage) => {
         setReplyingToMessage(message);
         setEditingMessageId(null);
-    };
+    }, []);
 
     const cancelReply = () => {
         setReplyingToMessage(null);
@@ -442,14 +474,77 @@ export function DirectMessageView({
         }
     };
 
-    const handleDelete = async (messageId: string) => {
-        try {
-            await onDelete(messageId);
-            setDeleteConfirmId(null);
-        } catch {
-            // Error handled by parent
-        }
-    };
+    const handleDelete = useCallback(
+        async (messageId: string) => {
+            try {
+                await onDelete(messageId);
+                setDeleteConfirmId(null);
+            } catch {
+                // Error handled by parent
+            }
+        },
+        [onDelete],
+    );
+
+    // Each of these is threaded down to every memoized message row, so they
+    // must keep a stable identity across renders.
+    const handleOpenImageViewer = useCallback((imageUrl: string) => {
+        setViewingImage({ url: imageUrl, alt: "Direct message image" });
+    }, []);
+
+    const handleOpenThreadRow = useCallback(
+        async (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw && onOpenThread) {
+                await onOpenThread(raw);
+            }
+        },
+        [onOpenThread, rawMessagesById],
+    );
+
+    const handleStartEditRow = useCallback(
+        (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw) {
+                startEdit(raw);
+            }
+        },
+        [rawMessagesById, startEdit],
+    );
+
+    const handleStartReplyRow = useCallback(
+        (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw) {
+                startReply(raw);
+            }
+        },
+        [rawMessagesById, startReply],
+    );
+
+    const handleTogglePinRow = useCallback(
+        async (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw && onTogglePinMessage) {
+                await onTogglePinMessage(raw);
+            }
+        },
+        [onTogglePinMessage, rawMessagesById],
+    );
+
+    const handleToggleReactionRow = useCallback(
+        async (messageId: string, emoji: string, isAdding: boolean) => {
+            await handleToggleReaction(messageId, emoji, isAdding);
+        },
+        [handleToggleReaction],
+    );
+
+    const handleRemoveRow = useCallback(
+        (messageId: string) => {
+            void handleDelete(messageId);
+        },
+        [handleDelete],
+    );
 
     const handleEmojiSelect = useCallback((emoji: string) => {
         setText((prev) => prev + emoji);
@@ -616,80 +711,23 @@ export function DirectMessageView({
                                 editingMessageId={editingMessageId}
                                 messageDensity={messageDensity}
                                 messages={messages}
-                                onLoadOlder={onLoadOlder || (() => undefined)}
-                                onOpenImageViewer={(imageUrl) => {
-                                    setViewingImage({
-                                        url: imageUrl,
-                                        alt: "Direct message image",
-                                    });
-                                }}
+                                onLoadOlder={onLoadOlder || noop}
+                                onOpenImageViewer={handleOpenImageViewer}
                                 onOpenProfileModal={
-                                    onOpenProfileModal || (() => undefined)
+                                    onOpenProfileModal || noop
                                 }
                                 onOpenThread={
-                                    onOpenThread
-                                        ? async (message) => {
-                                              const rawMessage = messages.find(
-                                                  (candidate) =>
-                                                      candidate.$id ===
-                                                      message.id,
-                                              );
-                                              if (rawMessage) {
-                                                  await onOpenThread(
-                                                      rawMessage,
-                                                  );
-                                              }
-                                          }
-                                        : undefined
+                                    onOpenThread ? handleOpenThreadRow : undefined
                                 }
-                                onRemove={(messageId) => {
-                                    void handleDelete(messageId);
-                                }}
-                                onStartEdit={(message) => {
-                                    const rawMessage = messages.find(
-                                        (candidate) =>
-                                            candidate.$id === message.id,
-                                    );
-                                    if (rawMessage) {
-                                        startEdit(rawMessage);
-                                    }
-                                }}
-                                onStartReply={(message) => {
-                                    const rawMessage = messages.find(
-                                        (candidate) =>
-                                            candidate.$id === message.id,
-                                    );
-                                    if (rawMessage) {
-                                        startReply(rawMessage);
-                                    }
-                                }}
+                                onRemove={handleRemoveRow}
+                                onStartEdit={handleStartEditRow}
+                                onStartReply={handleStartReplyRow}
                                 onTogglePin={
                                     onTogglePinMessage
-                                        ? async (message) => {
-                                              const rawMessage = messages.find(
-                                                  (candidate) =>
-                                                      candidate.$id ===
-                                                      message.id,
-                                              );
-                                              if (rawMessage) {
-                                                  await onTogglePinMessage(
-                                                      rawMessage,
-                                                  );
-                                              }
-                                          }
+                                        ? handleTogglePinRow
                                         : undefined
                                 }
-                                onToggleReaction={async (
-                                    messageId,
-                                    emoji,
-                                    isAdding,
-                                ) => {
-                                    await handleToggleReaction(
-                                        messageId,
-                                        emoji,
-                                        isAdding,
-                                    );
-                                }}
+                                onToggleReaction={handleToggleReactionRow}
                                 onUploadCustomEmoji={uploadEmoji}
                                 pinnedMessageIds={pinnedMessageIds}
                                 setDeleteConfirmId={setDeleteConfirmId}

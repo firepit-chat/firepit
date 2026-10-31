@@ -118,6 +118,7 @@ const nextConfig: NextConfig = {
             "date-fns",
             "emoji-picker-react",
             "react-virtuoso",
+            "posthog-js",
         ],
         // Enable Server Actions for better data fetching
         serverActions: {

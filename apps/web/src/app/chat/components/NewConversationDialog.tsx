@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Search, Loader2, User, Users, X } from "lucide-react";
 import Image from "next/image";
 import {
@@ -201,53 +201,7 @@ export function NewConversationDialog({
         (isGroup && groupName.trim().length === 0);
 
     // Search for users as user types
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        if (searchQuery.length < 2) {
-            setSearchResults([]);
-            return;
-        }
-
-        if (searchTimeoutRef.current) {
-            clearTimeout(searchTimeoutRef.current);
-        }
-
-        searchTimeoutRef.current = setTimeout(() => {
-            searchUsers(searchQuery).catch(() => undefined);
-        }, 300);
-
-        return () => {
-            if (searchTimeoutRef.current) {
-                clearTimeout(searchTimeoutRef.current);
-            }
-        };
-    }, [searchQuery, open]);
-
-    // Reset state when dialog opens/closes
-    useEffect(() => {
-        if (!open) {
-            setSearchQuery("");
-            setSearchResults([]);
-            setSelectedUsers([]);
-            setGroupName("");
-            setError(null);
-            setGroupAvatar(null);
-            setGroupAvatarPreview(null);
-        }
-    }, [open]);
-
-    useEffect(() => {
-        return () => {
-            if (groupAvatarPreview) {
-                URL.revokeObjectURL(groupAvatarPreview);
-            }
-        };
-    }, [groupAvatarPreview]);
-
-    const searchUsers = async (query: string) => {
+    const searchUsers = useCallback(async (query: string) => {
         setSearching(true);
         setError(null);
 
@@ -276,7 +230,53 @@ export function NewConversationDialog({
         } finally {
             setSearching(false);
         }
-    };
+    }, [currentUserId]);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        if (searchQuery.length < 2) {
+            setSearchResults([]);
+            return;
+        }
+
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        searchTimeoutRef.current = setTimeout(() => {
+            searchUsers(searchQuery).catch(() => undefined);
+        }, 300);
+
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, [open, searchQuery, searchUsers]);
+
+    // Reset state when dialog opens/closes
+    useEffect(() => {
+        if (!open) {
+            setSearchQuery("");
+            setSearchResults([]);
+            setSelectedUsers([]);
+            setGroupName("");
+            setError(null);
+            setGroupAvatar(null);
+            setGroupAvatarPreview(null);
+        }
+    }, [open]);
+
+    useEffect(() => {
+        return () => {
+            if (groupAvatarPreview) {
+                URL.revokeObjectURL(groupAvatarPreview);
+            }
+        };
+    }, [groupAvatarPreview]);
 
     const handleToggleUser = (user: UserSearchResult) => {
         setSelectedUsers((prev) => {
