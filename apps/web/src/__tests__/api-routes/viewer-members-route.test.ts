@@ -23,6 +23,25 @@ vi.mock("@/lib/appwrite-server", () => ({
 
 vi.mock("@/lib/auth-server", () => ({ getServerSession: mockGetServerSession }));
 
+// Avatar frames are stored as a preset id and resolved against the storage
+// bucket. Mock both halves so the projection is deterministic and no admin
+// client is needed.
+vi.mock("@/lib/appwrite-profiles", () => ({
+    // `profiles` stores avatarFileId, not avatarUrl, so the URL is derived.
+    getAvatarUrlFromProfile: vi.fn((profile: { avatarFileId?: unknown }) =>
+        typeof profile.avatarFileId === "string" && profile.avatarFileId
+            ? `http://localhost/v1/storage/buckets/avatars/files/${profile.avatarFileId}/view`
+            : undefined,
+    ),
+    getExistingPredefinedAvatarFrameIds: vi.fn(
+        async (ids: string[]) => new Set(ids),
+    ),
+    getPredefinedAvatarFrameUrlByPresetId: vi.fn(
+        (id?: string) =>
+            id ? `http://localhost/v1/storage/buckets/frames/files/${id}/view` : undefined,
+    ),
+}));
+
 vi.mock("@/lib/server-channel-access", () => ({
     getServerPermissionsForUser: mockGetServerPermissionsForUser,
 }));
@@ -139,7 +158,13 @@ describe("viewer members route", () => {
         const data = await response.json();
         expect(response.status).toBe(200);
         const member = data.members[0];
+        // Exact key set, so a new field cannot be added to this endpoint by
+        // accident. Avatar frame fields are expected: a member row renders the
+        // frame, and without them mobile has no preset catalogue to resolve it.
         expect(Object.keys(member).sort()).toEqual([
+            "avatarFrameInsetPercent",
+            "avatarFramePreset",
+            "avatarFrameUrl",
             "avatarUrl",
             "displayName",
             "role",
@@ -149,6 +174,100 @@ describe("viewer members route", () => {
         expect(member.roleIds).toBeUndefined();
         expect(member.isBanned).toBeUndefined();
         expect(member.isMuted).toBeUndefined();
+    });
+
+    it("derives avatarUrl from avatarFileId", async () => {
+        // Regression: `profiles` has no avatarUrl attribute, only
+        // avatarFileId. Reading avatarUrl off the document silently produced
+        // undefined for every member, so the list showed initials forever.
+        seed([{ userId: "user-1", roleIds: [] }]);
+        mockCollections({
+            memberships: [{ userId: "user-1" }],
+            role_assignments: [{ userId: "user-1", roleIds: [] }],
+            roles: ROLES,
+            banned_users: [],
+            muted_users: [],
+            profiles: [
+                {
+                    userId: "user-1",
+                    displayName: "User One",
+                    avatarFileId: "file-abc",
+                },
+            ],
+        });
+
+        const response = await call();
+        const data = await response.json();
+
+        expect(data.members[0].avatarUrl).toBe(
+            "http://localhost/v1/storage/buckets/avatars/files/file-abc/view",
+        );
+    });
+
+    it("leaves avatarUrl null when the member has no avatar", async () => {
+        seed([{ userId: "user-1", roleIds: [] }]);
+        mockCollections({
+            memberships: [{ userId: "user-1" }],
+            role_assignments: [{ userId: "user-1", roleIds: [] }],
+            roles: ROLES,
+            banned_users: [],
+            muted_users: [],
+            profiles: [{ userId: "user-1", displayName: "User One" }],
+        });
+
+        const response = await call();
+        const data = await response.json();
+
+        expect(data.members[0].avatarUrl).toBeNull();
+    });
+
+    it("projects avatar frame preset, resolved url, and inset", async () => {
+        seed([{ userId: "user-1", roleIds: [] }]);
+        mockCollections({
+            memberships: [{ userId: "user-1" }],
+            role_assignments: [{ userId: "user-1", roleIds: [] }],
+            roles: ROLES,
+            banned_users: [],
+            muted_users: [],
+            profiles: [
+                {
+                    userId: "user-1",
+                    displayName: "User One",
+                    avatarFramePreset: "fancy-one",
+                },
+            ],
+        });
+
+        const response = await call();
+        const data = await response.json();
+        const member = data.members[0];
+
+        expect(member.avatarFramePreset).toBe("fancy-one");
+        expect(member.avatarFrameUrl).toBe(
+            "http://localhost/v1/storage/buckets/frames/files/fancy-one/view",
+        );
+        // Each frame is drawn for its own inset, so the client is told which.
+        expect(member.avatarFrameInsetPercent).toBeGreaterThan(0);
+    });
+
+    it("omits frame fields for a member with no frame", async () => {
+        seed([{ userId: "user-1", roleIds: [] }]);
+        mockCollections({
+            memberships: [{ userId: "user-1" }],
+            role_assignments: [{ userId: "user-1", roleIds: [] }],
+            roles: ROLES,
+            banned_users: [],
+            muted_users: [],
+            profiles: [{ userId: "user-1", displayName: "User One" }],
+        });
+
+        const response = await call();
+        const data = await response.json();
+        const member = data.members[0];
+
+        expect(member.avatarFramePreset).toBeNull();
+        expect(member.avatarFrameUrl).toBeNull();
+        expect(member.avatarFrameInsetPercent).toBeNull();
     });
 
     it("returns a stable non-null handle even with no profile username", async () => {

@@ -14,7 +14,9 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
+import { StatusIndicator } from "@/components/status-indicator";
 import { ThemedText } from "@/components/themed-text";
+import { Avatar } from "@/components/ui/avatar";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
@@ -106,17 +108,6 @@ function profileSubtitle(profile: UserProfile | null) {
     return pronouns ?? status ?? bio ?? "";
 }
 
-function statusColor(
-    status?: string,
-): { color: string; label: string } | null {
-    if (!status) return null;
-    const normalized = status.toLowerCase().replace(/[\s_-]/g, "");
-    if (normalized === "online") return { color: "#22c55e", label: "Online" };
-    if (normalized === "away" || normalized === "idle") return { color: "#f59e0b", label: "Away" };
-    if (normalized === "dnd" || normalized === "donotdisturb") return { color: "#ef4444", label: "Do Not Disturb" };
-    return { color: "#6b7280", label: "Offline" };
-}
-
 const PRESET_FRAME_EMOJI: Record<string, string> = {
     star: "⭐",
     diamond: "💎",
@@ -141,49 +132,55 @@ function AvatarWithFrame({
     avatarUrl,
     frameUrl,
     framePreset,
+    frameInsetPercent,
     name,
     size = 72,
 }: {
     avatarUrl?: string | null;
     frameUrl?: string | null;
     framePreset?: string | null;
+    /** Measured inset for the chosen frame; see the web preset-frames module. */
+    frameInsetPercent?: number | null;
     name: string;
     size?: number;
 }) {
     const theme = useTheme();
-    const frameInset = frameUrl ? 14 : 0;
-    const innerSize = size - (frameInset * 2);
     const frameEmoji = frameEmojiForPreset(framePreset ?? undefined);
     const showFrameEmoji = Boolean(!frameUrl && frameEmoji);
 
+    // Frames are drawn with their own measured inset, so the portrait has to be
+    // sized and positioned by the shared Avatar rather than a fixed padding —
+    // otherwise the deep-inset frames (a star, a flower) either shrink the
+    // portrait or cover the frame's inner edge.
+    if (frameUrl) {
+        return (
+            <Avatar
+                uri={avatarUrl}
+                size={size}
+                initials={name}
+                frameUrl={frameUrl}
+                frameInset={frameInsetPercent ?? 12}
+            />
+        );
+    }
+
     return (
         <View style={{ width: size, height: size, position: "relative" }}>
-            {frameUrl ? (
-                <Image
-                    source={{ uri: frameUrl }}
-                    style={[
-                        StyleSheet.absoluteFill,
-                        { zIndex: 1 },
-                    ]}
-                    pointerEvents="none"
-                    contentFit="contain"
-                />
-            ) : null}
             <View
                 style={{
                     position: "absolute",
-                    left: frameInset,
-                    top: frameInset,
-                    width: innerSize,
-                    height: innerSize,
-                    borderRadius: innerSize / 2,
+                    left: 0,
+                    top: 0,
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
                     overflow: "hidden",
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: "rgba(217, 121, 43, 0.14)",
                     zIndex: 2,
                     borderWidth: showFrameEmoji ? 3 : 0,
-                    borderColor: frameUrl ? undefined : theme.accent,
+                    borderColor: theme.accent,
                     borderStyle: "solid",
                 }}
             >
@@ -219,26 +216,6 @@ function AvatarWithFrame({
                     </ThemedText>
                 </View>
             ) : null}
-        </View>
-    );
-}
-
-function StatusDot({ status }: { status?: string }) {
-    const info = statusColor(status);
-    if (!info) return null;
-    return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <View
-                style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: info.color,
-                }}
-            />
-            <ThemedText themeColor="mutedForeground" type="code">
-                {info.label}
-            </ThemedText>
         </View>
     );
 }
@@ -451,6 +428,9 @@ export default function UserProfileScreen() {
                                             avatarUrl={avatarUrl}
                                             frameUrl={frameUrl}
                                             framePreset={framePreset}
+                                            frameInsetPercent={
+                                                profile?.avatarFrameInsetPercent ?? null
+                                            }
                                             name={name}
                                             size={80}
                                         />
@@ -464,7 +444,7 @@ export default function UserProfileScreen() {
                                             {subtitle || statusValue ? (
                                                 <View style={{ gap: 2 }}>
                                                     {statusValue ? (
-                                                        <StatusDot status={statusValue} />
+                                                        <StatusIndicator status={statusValue} size={8} showLabel />
                                                     ) : null}
                                                     {subtitle && subtitle !== statusValue ? (
                                                         <ThemedText

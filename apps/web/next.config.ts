@@ -90,6 +90,13 @@ const nextConfig: NextConfig = {
         NEXT_PUBLIC_APPWRITE_PROJECT_ID:
             process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID ??
             process.env.APPWRITE_PROJECT_ID,
+        // The client needs the emoji bucket to watch it over realtime. Only
+        // `APPWRITE_EMOJIS_BUCKET_ID` is documented (and usually set), which
+        // the browser cannot see, so custom emoji live updates were silently
+        // disabled. Bridged here for the same reason as endpoint and project.
+        NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID:
+            process.env.NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID ??
+            process.env.APPWRITE_EMOJIS_BUCKET_ID,
     },
 
     compiler: {
@@ -119,6 +126,7 @@ const nextConfig: NextConfig = {
             "emoji-picker-react",
             "react-virtuoso",
             "posthog-js",
+            "@firepit-chat/markdown-spoiler",
         ],
         // Enable Server Actions for better data fetching
         serverActions: {
@@ -134,6 +142,7 @@ const nextConfig: NextConfig = {
         },
         turbopackCjsTreeShaking: true,
         turbopackSharedRuntime: true,
+        turbopackGc: true,
     },
 
     // Turbopack configuration for Next.js 15+ (successor to Webpack)
@@ -239,6 +248,7 @@ const nextConfig: NextConfig = {
         ],
         formats: ["image/avif", "image/webp"],
     },
+    allowedDevOrigins: ["192.168.25.45"],
 };
 
 const posthogProjectId = process.env.POSTHOG_PROJECT_ID;

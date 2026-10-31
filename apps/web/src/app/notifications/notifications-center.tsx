@@ -5,7 +5,9 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useInbox } from "@/app/chat/hooks/useInbox";
+import { useServers } from "@/app/chat/hooks/useServers";
 import { InboxToolbar } from "@/app/chat/components/InboxToolbar";
+import { useUnreadChannels } from "./useUnreadChannels";
 import { NotificationSettings } from "@/components/notification-settings";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,13 @@ function getItemFilterLabel(item: InboxItem) {
 export function NotificationsCenter({ userId }: NotificationsCenterProps) {
     const router = useRouter();
     const inboxApi = useInbox(userId);
+    const membershipEnabled = Boolean(
+        process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID,
+    );
+    const serversApi = useServers({ membershipEnabled, userId });
+    const { loading: channelsLoading, unreadChannels } = useUnreadChannels(
+        serversApi.servers,
+    );
     const navigateToItem = (item: InboxItem) => {
         const destination =
             item.contextKind === "channel"
@@ -168,6 +177,90 @@ export function NotificationsCenter({ userId }: NotificationsCenterProps) {
                             unreadCount={inboxApi.unreadCount}
                         />
                     </div>
+                </section>
+
+                <section className="p-6 sm:p-8">
+                    <div className="mb-6 space-y-2">
+                        <div className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                            <Hash className="h-3.5 w-3.5 text-primary" />
+                            Unread channels
+                        </div>
+                        <h2 className="text-2xl font-semibold tracking-tight">
+                            Channels with new messages
+                        </h2>
+                        <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                            Channels you have not caught up on yet. Opening one marks
+                            it read.
+                        </p>
+                    </div>
+
+                    {channelsLoading ? (
+                        <div className="space-y-3">
+                            {["c1", "c2", "c3"].map((id) => (
+                                <div
+                                    className="rounded-md border border-border/60 bg-background/60 p-3"
+                                    key={id}
+                                >
+                                    <Skeleton className="h-4 w-44" />
+                                    <Skeleton className="mt-2 h-3 w-32" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : unreadChannels.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 p-10 text-center">
+                            <Hash className="mb-3 h-8 w-8 text-muted-foreground" />
+                            <p className="text-sm font-medium text-foreground">
+                                You are caught up
+                            </p>
+                            <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                                No channels have messages you have not read.
+                            </p>
+                        </div>
+                    ) : (
+                        <ul className="space-y-3">
+                            {unreadChannels.map(({ channel, serverId }) => (
+                                <li key={`${serverId}:${channel.$id}`}>
+                                    <button
+                                        className="flex w-full items-center gap-3 rounded-md border border-border/60 bg-background/60 p-3 text-left transition-colors hover:bg-background/80"
+                                        onClick={() =>
+                                            router.push(
+                                                `/chat?server=${encodeURIComponent(
+                                                    serverId,
+                                                )}&channel=${encodeURIComponent(
+                                                    channel.$id,
+                                                )}` as Route,
+                                            )
+                                        }
+                                        type="button"
+                                    >
+                                        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                            <Hash
+                                                aria-hidden="true"
+                                                className="size-4 text-primary"
+                                            />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-medium text-foreground">
+                                                {channel.name}
+                                            </span>
+                                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                                                New activity since{" "}
+                                                {new Date(
+                                                    channel.lastMessageAt ??
+                                                        channel.$createdAt,
+                                                ).toLocaleString(undefined, {
+                                                    month: "short",
+                                                    day: "numeric",
+                                                    hour: "numeric",
+                                                    minute: "2-digit",
+                                                })}
+                                            </span>
+                                        </span>
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </section>
 
                 <section className="p-6 sm:p-8">
