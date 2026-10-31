@@ -300,6 +300,7 @@ export async function listConversations(
                 avatarFramePreset: profile?.avatarFramePreset,
                 avatarFrameUrl: profile?.avatarFrameUrl,
                 status: profile?.status?.status,
+                statusMessage: profile?.status?.customMessage,
             };
         });
 
@@ -336,6 +337,7 @@ export async function listConversations(
                           avatarFramePreset: otherUserProfile.avatarFramePreset,
                           avatarFrameUrl: otherUserProfile.avatarFrameUrl,
                           status: otherUserProfile.status,
+                          statusMessage: otherUserProfile.statusMessage,
                       }
                     : base.otherUser,
             };

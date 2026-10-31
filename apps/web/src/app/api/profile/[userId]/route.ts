@@ -3,7 +3,7 @@ import {
     getUserProfile,
     getAvatarUrl,
     getProfileBackgroundUrl,
-    getPredefinedAvatarFrameUrlByPresetId,
+    getAvatarFrameForProfile,
 } from "@/lib/appwrite-profiles";
 import { getUserStatus } from "@/lib/appwrite-status";
 import { logger } from "@/lib/posthog-utils";
@@ -57,6 +57,7 @@ export async function GET(_request: Request, { params }: Props) {
 			: undefined;
 
 		const profileBackgroundImageFileId = profile.profileBackgroundImageFileId;
+		const frame = await getAvatarFrameForProfile(profile);
 
 		return NextResponse.json({
 			userId: profile.userId,
@@ -74,8 +75,9 @@ export async function GET(_request: Request, { params }: Props) {
 			profileBackgroundUrl: profileBackgroundImageFileId
 				? getProfileBackgroundUrl(profileBackgroundImageFileId)
 				: undefined,
-			avatarFramePreset: profile.avatarFramePreset,
-			avatarFrameUrl: getPredefinedAvatarFrameUrlByPresetId(profile.avatarFramePreset),
+			avatarFramePreset: frame.preset,
+			avatarFrameUrl: frame.url,
+			avatarFrameInsetPercent: frame.insetPercent,
 			status: status
 				? {
 						status: status.status,
