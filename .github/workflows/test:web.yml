@@ -51,5 +51,25 @@ jobs:
               working-directory: apps/web
               run: bun run check:openapi
 
+            - name: Check generated API types match the spec
+              working-directory: apps/web
+              run: bun run check:api-types
+
             - name: Run linter
               run: bun run lint
+
+            # Typecheck does not compile CSS, and lint cannot see a Tailwind
+            # scanner picking up a stray utility out of a comment — that class of
+            # break passes every step above and only fails on deploy. This also
+            # catches anything that only typechecks locally because a cached
+            # .next is masking it.
+            - name: Build
+              working-directory: apps/web
+              run: bun run build
+              env:
+                  NEXT_TELEMETRY_DISABLED: 1
+                  APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+                  NEXT_PUBLIC_APPWRITE_ENDPOINT: ${{ secrets.APPWRITE_ENDPOINT }}
+                  APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+                  NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${{ secrets.APPWRITE_PROJECT_ID }}
+                  APPWRITE_API_KEY: ${{ secrets.APPWRITE_API_KEY }}
