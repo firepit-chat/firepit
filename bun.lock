@@ -14,7 +14,7 @@
     },
     "apps/mobile": {
       "name": "firepit-mobile",
-      "version": "2.2.0-canary.1",
+      "version": "2.2.0",
       "dependencies": {
         "@babel/runtime": "^8.0.7",
         "@expo/vector-icons": "^15.1.1",
@@ -80,7 +80,7 @@
     },
     "apps/web": {
       "name": "firepit-web",
-      "version": "2.2.0-canary.0",
+      "version": "2.2.0",
       "dependencies": {
         "@emotion/react": "^11.14.0",
         "@firepit-chat/markdown-spoiler": "workspace:*",
