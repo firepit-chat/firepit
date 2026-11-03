@@ -2,8 +2,14 @@ import { connection, NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { Query } from "node-appwrite";
 import type { Databases } from "node-appwrite";
+import { Effect, Result } from "effect";
+import type { Cause } from "effect";
 
 import { getServerClient } from "@/lib/appwrite-server";
+import {
+    appwriteQuery,
+    type AppwriteCallError,
+} from "@/lib/appwrite-effect";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import type { EnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
@@ -14,11 +20,7 @@ import {
 import { getRelationshipMap } from "@/lib/appwrite-friendships";
 import type { Message, DirectMessage } from "@/lib/types";
 import { getAvatarUrl, resolveProfileUserId } from "@/lib/appwrite-profiles";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 
 type SearchResult = {
     type: "channel" | "dm";
@@ -48,7 +50,10 @@ function getOtherIdFromDirectMessage(
 
 const MAX_ACCESSIBLE_CHANNELS = 100;
 
-const FROM_FILTER_REGEX = /from:@?([a-zA-Z0-9_-]+)/;
+// Quoted names carry spaces and punctuation (display names like
+// `from:"August Unit"`); unquoted keeps the original single-token form so
+// `from:@alice test` still treats "test" as free text.
+const FROM_FILTER_REGEX = /from:@?(?:"([^"]+)"|([a-zA-Z0-9_-]+))/;
 const IN_FILTER_REGEX = /in:#?([a-zA-Z0-9_-]+)/;
 const BEFORE_FILTER_REGEX = /before:(\d{4}-\d{2}-\d{2})/;
 const AFTER_FILTER_REGEX = /after:(\d{4}-\d{2}-\d{2})/;
@@ -98,31 +103,44 @@ async function getAccessibleChannelIds(
                 [Query.equal("serverId", serverId), Query.limit(1000)],
             );
 
-            for (const channelDoc of channelsResult.documents) {
-                const channelId = String(
-                    (channelDoc as Record<string, unknown>).$id,
-                );
-                if (!channelId) {
-                    continue;
-                }
+            // ponytail: caps the channel-message constraint at 100 channels
+            // (Appwrite Query.equal array limit). If users can read more, OR
+            // across paginated equality queries.
+            const remaining =
+                MAX_ACCESSIBLE_CHANNELS - accessibleChannelIds.length;
+            if (remaining <= 0) {
+                return accessibleChannelIds;
+            }
 
-                const channelAccess = await getChannelAccessForUser(
-                    databases,
-                    env,
-                    channelId,
-                    userId,
-                );
-                if (channelAccess.canRead) {
+            // Per-channel access lookups are independent, so resolve them
+            // concurrently. Slicing to the remaining budget first keeps the
+            // number of lookups bounded by the cap exactly as the sequential
+            // loop did.
+            const channelIds = channelsResult.documents
+                .map((channelDoc) =>
+                    String((channelDoc as Record<string, unknown>).$id),
+                )
+                .filter(Boolean)
+                .slice(0, remaining);
+
+            const readable = await Promise.all(
+                channelIds.map(async (channelId) => {
+                    const channelAccess = await getChannelAccessForUser(
+                        databases,
+                        env,
+                        channelId,
+                        userId,
+                    );
+                    return channelAccess.canRead ? channelId : null;
+                }),
+            );
+            for (const channelId of readable) {
+                if (channelId) {
                     accessibleChannelIds.push(channelId);
-                    // ponytail: caps the channel-message constraint at 100
-                    // channels (Appwrite Query.equal array limit). If users can
-                    // read more, OR across paginated equality queries.
-                    if (
-                        accessibleChannelIds.length >= MAX_ACCESSIBLE_CHANNELS
-                    ) {
-                        return accessibleChannelIds;
-                    }
                 }
+            }
+            if (accessibleChannelIds.length >= MAX_ACCESSIBLE_CHANNELS) {
+                return accessibleChannelIds;
             }
         } catch {
             // Skip servers whose metadata failed to resolve (e.g. deleted servers).
@@ -154,7 +172,7 @@ function parseFilters(query: string) {
     // Extract from:@username or from:username
     const fromMatch = remainingText.match(FROM_FILTER_REGEX);
     if (fromMatch) {
-        filters.fromUser = fromMatch[1];
+        filters.fromUser = fromMatch[1] ?? fromMatch[2];
         remainingText = remainingText.replace(fromMatch[0], "").trim();
     }
 
@@ -196,6 +214,38 @@ function parseFilters(query: string) {
     return filters;
 }
 
+function describeSearchFailure(
+    failure: AppwriteCallError | Cause.TimeoutError,
+): string {
+    if (failure._tag === "TimeoutError") {
+        return "timed out";
+    }
+
+    return failure.cause instanceof Error
+        ? failure.cause.message
+        : String(failure.cause);
+}
+
+function searchEffect<A>(
+    label: string,
+    run: () => Promise<A>,
+): Effect.Effect<A | null> {
+    return appwriteQuery(label, run).pipe(
+        Effect.result,
+        Effect.map((outcome) =>
+            Result.match(outcome, {
+                onFailure: (failure) => {
+                    logger.error(`Failed to search ${label}`, {
+                        error: describeSearchFailure(failure),
+                    });
+                    return null;
+                },
+                onSuccess: (value) => value,
+            }),
+        ),
+    );
+}
+
 /**
  * GET /api/search/messages
  * Search messages across channels and DMs with filters
@@ -206,7 +256,6 @@ export async function GET(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -367,48 +416,41 @@ export async function GET(request: NextRequest) {
         const canSearchChannels =
             requestedChannelId !== null || accessibleChannelIds.length > 0;
 
-        // Run channel and DM searches in parallel
-        const [channelResult, dmResult] = await Promise.all([
-            canSearchChannels
-                ? databases.listDocuments(
-                      env.databaseId,
-                      env.collections.messages,
-                      messageQueries,
-                  ).catch((error) => {
-                      logger.error("Failed to search channel messages", {
-                          error:
-                              error instanceof Error
-                                  ? error.message
-                                  : String(error),
-                      });
-                      return null;
-                  })
-                : Promise.resolve(null),
-            dmQueries
-                ? databases.listDocuments(
-                      env.databaseId,
-                      env.collections.directMessages,
-                      dmQueries,
-                  ).catch((error) => {
-                      logger.error("Failed to search direct messages", {
-                          error:
-                              error instanceof Error ? error.message : String(error),
-                      });
-                      return null;
-                  })
-                : Promise.resolve(null),
-        ]);
+        const dmSearchQueries = dmQueries;
+
+        const [channelResult, dmResult] = await Effect.runPromise(
+            Effect.all(
+                [
+                    canSearchChannels
+                        ? searchEffect("channel messages", () =>
+                              databases.listDocuments(
+                                  env.databaseId,
+                                  env.collections.messages,
+                                  messageQueries,
+                              ),
+                          )
+                        : Effect.succeed(null),
+                    dmSearchQueries
+                        ? searchEffect("direct messages", () =>
+                              databases.listDocuments(
+                                  env.databaseId,
+                                  env.collections.directMessages,
+                                  dmSearchQueries,
+                              ),
+                          )
+                        : Effect.succeed(null),
+                ],
+                { concurrency: 2 },
+            ),
+        );
 
         const searchElapsedMs = Date.now() - startTime;
 
         if (channelResult) {
-            trackApiCall(
-                "/api/search/messages",
-                "GET",
-                200,
-                searchElapsedMs,
-                { operation: "listDocuments", collection: "messages" },
-            );
+            trackApiCall("/api/search/messages", "GET", 200, searchElapsedMs, {
+                operation: "listDocuments",
+                collection: "messages",
+            });
 
             for (const doc of channelResult.documents) {
                 const message: Message = {
@@ -452,16 +494,10 @@ export async function GET(request: NextRequest) {
         }
 
         if (dmResult) {
-            trackApiCall(
-                "/api/search/messages",
-                "GET",
-                200,
-                searchElapsedMs,
-                {
-                    operation: "listDocuments",
-                    collection: "directMessages",
-                },
-            );
+            trackApiCall("/api/search/messages", "GET", 200, searchElapsedMs, {
+                operation: "listDocuments",
+                collection: "directMessages",
+            });
 
             for (const doc of dmResult.documents) {
                 const message: DirectMessage = {
@@ -471,9 +507,7 @@ export async function GET(request: NextRequest) {
                     receiverId: String(doc.receiverId),
                     text: String(doc.text),
                     $createdAt: String(doc.$createdAt ?? ""),
-                    editedAt: doc.editedAt
-                        ? String(doc.editedAt)
-                        : undefined,
+                    editedAt: doc.editedAt ? String(doc.editedAt) : undefined,
                     removedAt: doc.removedAt
                         ? String(doc.removedAt)
                         : undefined,
@@ -483,9 +517,7 @@ export async function GET(request: NextRequest) {
                     imageFileId: doc.imageFileId
                         ? String(doc.imageFileId)
                         : undefined,
-                    imageUrl: doc.imageUrl
-                        ? String(doc.imageUrl)
-                        : undefined,
+                    imageUrl: doc.imageUrl ? String(doc.imageUrl) : undefined,
                     replyToId: doc.replyToId
                         ? String(doc.replyToId)
                         : undefined,

@@ -291,7 +291,11 @@ function buildInboxCacheKey(params: {
 }
 
 function countConversationThreadUnread(
-    items: Array<{ contextKind: InboxContextKind; kind: InboxItemKind; unreadCount: number }>,
+    items: Array<{
+        contextKind: InboxContextKind;
+        kind: InboxItemKind;
+        unreadCount: number;
+    }>,
 ) {
     return items.reduce((total, item) => {
         if (item.kind !== "thread" || item.contextKind !== "conversation") {
@@ -327,7 +331,8 @@ function observeInboxDmUnreadConsistency(params: {
     }
 
     const comparison = compareInboxVsDmUnreadThreads({
-        inboxConversationThreadUnreadCount: countConversationThreadUnread(items),
+        inboxConversationThreadUnreadCount:
+            countConversationThreadUnread(items),
         userId,
     });
 
@@ -343,7 +348,8 @@ function observeInboxDmUnreadConsistency(params: {
     recordEvent("InboxDmUnreadConsistencyObserved", {
         conversationCount: comparison.dmSnapshot.conversationCount,
         delta: comparison.delta,
-        dmConversationUnreadThreadCount: comparison.dmSnapshot.totalUnreadThreadCount,
+        dmConversationUnreadThreadCount:
+            comparison.dmSnapshot.totalUnreadThreadCount,
         dmSnapshotTruncated: comparison.dmSnapshot.truncated,
         inboxConversationThreadUnreadCount:
             comparison.inboxConversationThreadUnreadCount,
@@ -430,9 +436,15 @@ export async function GET(request: NextRequest) {
         ? [contextKind]
         : scopeToContextKinds(scope);
 
-    const inboxListLimit = isContextScoped ? Number.POSITIVE_INFINITY : limit;
+    // A context-scoped request used to load the user's ENTIRE unread inbox
+    // (limit: Infinity) and then throw away everything but the one context, so
+    // every channel switch cost a full inbox computation — including the
+    // per-thread unread count queries. Scope the query instead and keep the
+    // limit bounded.
+    const inboxListLimit = limit;
     const loadInbox = () =>
         listInboxItems({
+            contextId: isContextScoped ? contextId : undefined,
             contextKinds,
             kinds,
             limit: inboxListLimit,
@@ -501,9 +513,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = (await request.json().catch(() => null)) as
-        | MarkAllReadBody
-        | MarkItemsReadBody
-        | null;
+        MarkAllReadBody | MarkItemsReadBody | null;
     const isObjectBody = typeof body === "object" && body !== null;
 
     if (isObjectBody && "action" in body && body.action === "mark-all-read") {
@@ -525,7 +535,11 @@ export async function PATCH(request: NextRequest) {
         }
 
         const readAt = new Date().toISOString();
+        // Scope the query by context rather than loading every unread item and
+        // discarding all but the requested one. `limit` stays Infinity here
+        // because mark-all-read must reach every item in scope.
         const inbox = await listInboxItems({
+            contextId: contextKind && contextId ? contextId : undefined,
             contextKinds: contextKind ? [contextKind] : undefined,
             kinds: VALID_KINDS,
             limit: Number.POSITIVE_INFINITY,

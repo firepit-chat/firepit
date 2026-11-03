@@ -7,19 +7,19 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { listPages, chunkValues } from "@/lib/appwrite-pagination";
 import { getEffectivePermissions } from "@/lib/permissions";
 import type { ChannelPermissionOverride } from "@/lib/types";
-import { logger,
+import { normalizeChannelType } from "@/lib/types";
+import {
+    logger,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
 import {
     getServerPermissionsForUser,
     hasAccessToCategory,
-    normalizeChannelType,
 } from "@/lib/server-channel-access";
 
 const env = getEnvConfig();
 const databaseId = env.databaseId || "main";
-const channelPermissionOverridesCollectionId = "channel_permission_overrides";
 
 function getDatabases() {
     return getServerClient().databases;
@@ -57,7 +57,7 @@ async function listOverridePages(params: {
     const { documents, truncated } = await listPages({
         databases,
         databaseId,
-        collectionId: channelPermissionOverridesCollectionId,
+        collectionId: env.collections.channelPermissionOverrides,
         baseQueries: queries,
         pageSize,
         warningContext,
@@ -65,7 +65,7 @@ async function listOverridePages(params: {
 
     if (truncated) {
         throw new Error(
-            `listOverridePages truncated for ${channelPermissionOverridesCollectionId} (${warningContext})`,
+            `listOverridePages truncated for ${env.collections.channelPermissionOverrides} (${warningContext})`,
         );
     }
 
@@ -181,7 +181,10 @@ export async function GET(
             ...userOverrideDocuments,
             ...roleOverrideDocuments,
         ];
-        const applicableOverridesById = new Map<string, ChannelPermissionOverride>();
+        const applicableOverridesById = new Map<
+            string,
+            ChannelPermissionOverride
+        >();
         for (const document of applicableOverrideDocuments) {
             const mappedOverride = mapOverride(
                 document as Record<string, unknown>,
@@ -189,7 +192,9 @@ export async function GET(
             );
             applicableOverridesById.set(mappedOverride.$id, mappedOverride);
         }
-        const applicableOverrides = Array.from(applicableOverridesById.values());
+        const applicableOverrides = Array.from(
+            applicableOverridesById.values(),
+        );
 
         const effectivePerms = getEffectivePermissions(
             serverAccess.roles,

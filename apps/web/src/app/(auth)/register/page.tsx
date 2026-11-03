@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
@@ -72,11 +72,11 @@ function RegisterFormContent() {
                             ? "Verification required. Check your inbox for a verification link."
                             : "Your account is pending approval. You'll be able to sign in once an administrator approves it.");
                     toast.success(requiredMessage);
-                    router.push(`/login?redirect=${encodeURIComponent(destination)}`);
-                } else {
-                    toast.error(
-                        result.error || "An unexpected error occurred",
+                    router.push(
+                        `/login?redirect=${encodeURIComponent(destination)}`,
                     );
+                } else {
+                    toast.error(result.error || "An unexpected error occurred");
                 }
             }
         } catch (err) {

@@ -252,6 +252,36 @@ describe("DM Thread API", () => {
             expect(mockCreateDocument).not.toHaveBeenCalled();
         });
 
+        it("refuses to add a plaintext reply to an encrypted parent", async () => {
+            mockGetServerSession.mockResolvedValue({ $id: "user-1" });
+            mockGetDocument.mockResolvedValueOnce({
+                $id: "msg-1",
+                conversationId: "conv-1",
+                senderId: "user-1",
+                isEncrypted: true,
+                text: "",
+            });
+
+            const { POST } =
+                await import("../../app/api/direct-messages/[messageId]/thread/route");
+            const request = new NextRequest(
+                "http://localhost/api/direct-messages/msg-1/thread",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ text: "plaintext reply" }),
+                },
+            );
+
+            const response = await POST(request, {
+                params: Promise.resolve({ messageId: "msg-1" }),
+            });
+            const data = await response.json();
+
+            expect(response.status).toBe(400);
+            expect(String(data.error)).toContain("encrypted");
+            expect(mockCreateDocument).not.toHaveBeenCalled();
+        });
+
         it("creates thread reply successfully", async () => {
             mockGetServerSession.mockResolvedValue({ $id: "user-1" });
             const now = new Date().toISOString();

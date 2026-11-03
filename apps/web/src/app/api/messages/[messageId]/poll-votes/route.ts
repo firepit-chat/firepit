@@ -103,9 +103,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const reqBody = body as { optionId?: unknown };
     const optionId =
-        typeof reqBody.optionId === "string"
-            ? reqBody.optionId.trim()
-            : "";
+        typeof reqBody.optionId === "string" ? reqBody.optionId.trim() : "";
 
     if (!optionId) {
         return NextResponse.json(
@@ -147,7 +145,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         );
     }
 
-    const access = await getChannelAccessForUser(databases, env, channelId, user.$id);
+    const access = await getChannelAccessForUser(
+        databases,
+        env,
+        channelId,
+        user.$id,
+    );
     if (!access.isMember || !access.canSend) {
         return returnForbidden();
     }
@@ -198,7 +201,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
             },
         );
 
-        const pollState = await getPollStateForMessage(databases, env, messageId);
+        const pollState = await getPollStateForMessage(
+            databases,
+            env,
+            messageId,
+        );
         return NextResponse.json({ poll: pollState });
     }
 

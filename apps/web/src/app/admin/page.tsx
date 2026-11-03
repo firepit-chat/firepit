@@ -83,7 +83,10 @@ export default async function AdminPage(props: {
             <section className="grid gap-6 p-8 sm:p-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(280px,0.95fr)]">
                 <div className="space-y-6">
                     <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                        <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
+                        <ShieldCheck
+                            aria-hidden="true"
+                            className="h-3.5 w-3.5 text-primary"
+                        />
                         Control room
                     </div>
                     <div className="space-y-4">
@@ -101,7 +104,10 @@ export default async function AdminPage(props: {
                         <Button asChild className="rounded-lg">
                             <Link href="/moderation">
                                 Open moderation
-                                <ArrowRight aria-hidden="true" className="ml-2 h-4 w-4" />
+                                <ArrowRight
+                                    aria-hidden="true"
+                                    className="ml-2 h-4 w-4"
+                                />
                             </Link>
                         </Button>
                         <Button
@@ -143,7 +149,10 @@ export default async function AdminPage(props: {
 
                 <div className="space-y-3 rounded-xl border border-border/80 p-5">
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                        <Sparkles aria-hidden="true" className="h-4 w-4 text-primary" />
+                        <Sparkles
+                            aria-hidden="true"
+                            className="h-4 w-4 text-primary"
+                        />
                         Quick links
                     </div>
                     <div className="grid gap-2">
@@ -196,7 +205,10 @@ export default async function AdminPage(props: {
                 <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                     <div className="space-y-2">
                         <div className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                            <Database aria-hidden="true" className="h-3.5 w-3.5 text-primary" />
+                            <Database
+                                aria-hidden="true"
+                                className="h-3.5 w-3.5 text-primary"
+                            />
                             Maintenance tools
                         </div>
                         <h2 className="text-2xl font-semibold tracking-tight">

@@ -24,6 +24,14 @@ type RequestSnapshot = {
 const PREFIX_TOKEN_MAX_ENTRIES = 1024;
 const PREFIX_TOKEN_TTL_MS = 60 * 60 * 1000;
 
+// `cache` is keyed by caller-supplied strings, some of which have unbounded
+// cardinality (e.g. `/api/profiles/batch` caches one entry per distinct id-set,
+// and `/api/inbox` one per context the user opens). Without a cap, an entry
+// written once and never read again is evicted only if something reads it back
+// after its TTL, so a long-lived Node process grows without limit. Mirrors the
+// cap already applied to `prefixTokens` below.
+const CACHE_MAX_ENTRIES = 2000;
+
 class SimpleCache {
     private cache = new Map<string, CacheEntry<unknown>>();
     private pendingRequests = new Map<string, Promise<unknown>>();
@@ -63,7 +71,9 @@ class SimpleCache {
             }
         }
 
-        prefixTokens.sort((left, right) => left.prefix.localeCompare(right.prefix));
+        prefixTokens.sort((left, right) =>
+            left.prefix.localeCompare(right.prefix),
+        );
 
         return {
             prefixTokens,
@@ -86,7 +96,11 @@ class SimpleCache {
             return false;
         }
 
-        for (let index = 0; index < requestSnapshot.prefixTokens.length; index += 1) {
+        for (
+            let index = 0;
+            index < requestSnapshot.prefixTokens.length;
+            index += 1
+        ) {
             const requestToken = requestSnapshot.prefixTokens[index];
             const latestToken = latestSnapshot.prefixTokens[index];
 
@@ -128,6 +142,39 @@ class SimpleCache {
             timestamp: Date.now(),
             ttl,
         });
+        this.evictOverflow();
+    }
+
+    /**
+     * Drop expired entries, then the oldest ones if still over the cap.
+     *
+     * Runs on write rather than on a timer so the cache needs no interval to
+     * keep running.
+     */
+    private evictOverflow(now = Date.now()): void {
+        if (this.cache.size <= CACHE_MAX_ENTRIES) {
+            return;
+        }
+
+        const live: Array<[string, CacheEntry<unknown>]> = [];
+        for (const [key, entry] of this.cache.entries()) {
+            if (now - entry.timestamp > entry.ttl) {
+                this.cache.delete(key);
+                this.pendingRequests.delete(key);
+            } else {
+                live.push([key, entry]);
+            }
+        }
+
+        if (this.cache.size <= CACHE_MAX_ENTRIES) {
+            return;
+        }
+
+        live.sort((left, right) => left[1].timestamp - right[1].timestamp);
+        const overflow = this.cache.size - CACHE_MAX_ENTRIES;
+        for (const [key] of live.slice(0, overflow)) {
+            this.cache.delete(key);
+        }
     }
 
     /**
@@ -252,14 +299,15 @@ class SimpleCache {
             if (isExpired) {
                 // Check if request is already in flight
                 const pending = this.pendingRequests.get(key) as
-                    | Promise<T>
-                    | undefined;
+                    Promise<T> | undefined;
                 if (!pending) {
-                    const requestPrefixTokens = this.capturePrefixTokensForKey(key);
+                    const requestPrefixTokens =
+                        this.capturePrefixTokensForKey(key);
                     // Execute background refresh
                     const promise = fetcher()
                         .then((data) => {
-                            const currentPrefixTokens = this.capturePrefixTokensForKey(key);
+                            const currentPrefixTokens =
+                                this.capturePrefixTokensForKey(key);
                             if (
                                 this.isSnapshotCurrent(
                                     requestPrefixTokens,

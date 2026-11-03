@@ -3,11 +3,10 @@ import {
     getUserProfile,
     getAvatarUrl,
     getProfileBackgroundUrl,
-    getAvatarFrameUrlForProfile,
+    getAvatarFrameForProfile,
 } from "@/lib/appwrite-profiles";
 import { getUserStatus } from "@/lib/appwrite-status";
-import { logger,
-} from "@/lib/posthog-utils";
+import { logger } from "@/lib/posthog-utils";
 
 export async function GET(
     _request: Request,
@@ -61,8 +60,11 @@ export async function GET(
             ? getProfileBackgroundUrl(profile.profileBackgroundImageFileId)
             : undefined;
         let avatarFrameUrl: string | undefined;
+        let avatarFrameInsetPercent: number | undefined;
         try {
-            avatarFrameUrl = await getAvatarFrameUrlForProfile(profile);
+            const frame = await getAvatarFrameForProfile(profile);
+            avatarFrameUrl = frame.url;
+            avatarFrameInsetPercent = frame.insetPercent;
         } catch (error) {
             logger.warn("Failed to resolve avatar frame URL for profile", {
                 error: error instanceof Error ? error.message : String(error),
@@ -89,6 +91,7 @@ export async function GET(
             dmEncryptionPublicKey: profile.dmEncryptionPublicKey,
             avatarFramePreset: profile.avatarFramePreset,
             avatarFrameUrl,
+            avatarFrameInsetPercent,
             status: status
                 ? {
                       status: status.status,

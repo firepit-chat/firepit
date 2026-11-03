@@ -3,10 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { ID } from "node-appwrite";
-import {
-    getSessionTokenFromCookie,
-    requireAuth,
-} from "@/lib/auth-server";
+import { getSessionTokenFromCookie, requireAuth } from "@/lib/auth-server";
 import {
     deleteAvatarFile,
     deleteProfileBackgroundFile,

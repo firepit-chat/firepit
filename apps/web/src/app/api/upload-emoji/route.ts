@@ -7,45 +7,10 @@ import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logger } from "@/lib/posthog-utils";
-
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-
-function getAllowedOrigin(request?: Request) {
-    const origin = request?.headers.get("origin");
-    if (!origin) {
-        return undefined;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? origin : undefined;
-}
-
-function isSameOrigin(request: Request, originHeader: string): boolean {
-    try {
-        return new URL(request.url).origin === originHeader;
-    } catch {
-        return false;
-    }
-}
-
-function ensureAllowedRequestOrigin(request?: Request): string | null {
-    if (!request) {
-        return null;
-    }
-
-    const origin = request.headers.get("origin");
-    if (!origin) {
-        return null;
-    }
-
-    if (isSameOrigin(request, origin)) {
-        return null;
-    }
-
-    return ALLOWED_ORIGINS.includes(origin) ? null : origin;
-}
+import {
+    ensureAllowedRequestOrigin,
+    getAllowedOrigin,
+} from "@/lib/request-origin";
 
 // Helper to create JSON responses with CORS headers
 function jsonResponse(data: unknown, init?: ResponseInit, request?: Request) {
@@ -95,7 +60,10 @@ export async function POST(request: NextRequest) {
 
         const session = await getServerSession();
         if (!session?.$id) {
-            return respond({ error: "Authentication required" }, { status: 401 });
+            return respond(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
         }
 
         const rateLimitResult = checkRateLimit(`upload-emoji:${session.$id}`, {
@@ -143,7 +111,10 @@ export async function POST(request: NextRequest) {
 
         // Validate file type (images only)
         if (!file.type.startsWith("image/")) {
-            return respond({ error: "Only image files are allowed" }, { status: 400 });
+            return respond(
+                { error: "Only image files are allowed" },
+                { status: 400 },
+            );
         }
 
         // Validate file size (max 10MB)
@@ -212,7 +183,10 @@ export async function DELETE(request: NextRequest) {
 
         const session = await getServerSession();
         if (!session?.$id) {
-            return respond({ error: "Authentication required" }, { status: 401 });
+            return respond(
+                { error: "Authentication required" },
+                { status: 401 },
+            );
         }
 
         const env = getEnvConfig();
@@ -224,10 +198,13 @@ export async function DELETE(request: NextRequest) {
             return respond({ error: "No fileId provided" }, { status: 400 });
         }
 
-        const rateLimitResult = checkRateLimit(`upload-emoji-delete:${session.$id}`, {
-            maxRequests: 20,
-            windowMs: 5 * 60 * 1000,
-        });
+        const rateLimitResult = checkRateLimit(
+            `upload-emoji-delete:${session.$id}`,
+            {
+                maxRequests: 20,
+                windowMs: 5 * 60 * 1000,
+            },
+        );
         if (!rateLimitResult.allowed) {
             return respond(
                 { error: "Too many delete requests. Please try again later." },

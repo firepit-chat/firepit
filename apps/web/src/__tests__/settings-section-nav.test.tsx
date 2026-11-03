@@ -62,9 +62,9 @@ describe("SettingsSectionNav", () => {
         container.innerHTML = html;
 
         expect(
-            container.querySelector('[aria-current="location"]')?.getAttribute(
-                "href",
-            ),
+            container
+                .querySelector('[aria-current="location"]')
+                ?.getAttribute("href"),
         ).toBe("#profile");
     });
 });

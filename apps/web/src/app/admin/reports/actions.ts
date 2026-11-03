@@ -80,10 +80,7 @@ async function handleReportAction(
     revalidatePath("/admin/reports");
 }
 
-async function actionResolveReport(
-    reportId: string,
-    resolutionNotes?: string,
-) {
+async function actionResolveReport(reportId: string, resolutionNotes?: string) {
     const normalizedReportId = normalizeReportId(reportId);
     await handleReportAction(
         normalizedReportId,
@@ -93,10 +90,7 @@ async function actionResolveReport(
     );
 }
 
-async function actionDismissReport(
-    reportId: string,
-    resolutionNotes?: string,
-) {
+async function actionDismissReport(reportId: string, resolutionNotes?: string) {
     const normalizedReportId = normalizeReportId(reportId);
     await handleReportAction(
         normalizedReportId,

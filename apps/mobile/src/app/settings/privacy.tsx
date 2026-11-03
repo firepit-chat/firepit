@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import {
     ActivityIndicator,
     Pressable,
@@ -13,30 +13,40 @@ import { Image } from "expo-image";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
+import {
+    BottomTabInset,
+    MaxContentWidth,
+    Spacing,
+    withAlpha,
+} from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import { useBlockedUsers } from "@/hooks/use-blocked-users";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { getInitials } from "@/lib/avatars";
 
-function getInitials(name: string): string {
-    if (!name) return "?";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2)
-        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-    return parts[0].slice(0, 2).toUpperCase();
-}
-
-function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: string }; user: { userId: string; displayName?: string; avatarUrl?: string } } }) {
+function BlockedRow({
+    entry,
+    actionLoading,
+    onUnblock,
+}: {
+    entry: {
+        block: { $id: string; blockedAt: string };
+        user: { userId: string; displayName?: string; avatarUrl?: string };
+    };
+    actionLoading: string | null;
+    onUnblock: (userId: string) => Promise<boolean>;
+}) {
     const theme = useTheme();
     const initials = getInitials(entry.user.displayName ?? "Unknown");
-    const { actionLoading, unblock } = useBlockedUsers();
     const [localLoading, setLocalLoading] = useState(false);
     const isLoading = actionLoading === entry.user.userId || localLoading;
 
     return (
         <View style={[styles.blockedRow, { backgroundColor: theme.muted }]}>
             <Pressable
-                onPress={() => router.push(`/user/${entry.user.userId}` as never)}
+                onPress={() =>
+                    router.push(`/user/${entry.user.userId}` as never)
+                }
                 style={styles.blockedRowPressable}
             >
                 {entry.user.avatarUrl ? (
@@ -46,7 +56,18 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
                         contentFit="cover"
                     />
                 ) : (
-                    <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: theme.mutedForeground + "33" }]}>
+                    <View
+                        style={[
+                            styles.avatar,
+                            styles.avatarFallback,
+                            {
+                                backgroundColor: withAlpha(
+                                    theme.mutedForeground,
+                                    0.2,
+                                ),
+                            },
+                        ]}
+                    >
                         <ThemedText type="smallBold" style={{ fontSize: 14 }}>
                             {initials}
                         </ThemedText>
@@ -56,15 +77,20 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
                     <ThemedText type="smallBold" numberOfLines={1}>
                         {entry.user.displayName ?? "Unknown"}
                     </ThemedText>
-                    <ThemedText type="code" themeColor="mutedForeground" style={{ fontSize: 11 }}>
-                        Blocked on {new Date(entry.block.blockedAt).toLocaleDateString()}
+                    <ThemedText
+                        type="code"
+                        themeColor="mutedForeground"
+                        style={{ fontSize: 11 }}
+                    >
+                        Blocked on{" "}
+                        {new Date(entry.block.blockedAt).toLocaleDateString()}
                     </ThemedText>
                 </View>
             </Pressable>
             <Pressable
                 onPress={async () => {
                     setLocalLoading(true);
-                    await unblock(entry.user.userId);
+                    await onUnblock(entry.user.userId);
                     setLocalLoading(false);
                 }}
                 disabled={isLoading}
@@ -87,7 +113,7 @@ function BlockedRow({ entry }: { entry: { block: { $id: string; blockedAt: strin
 
 export default function PrivacySettingsScreen() {
     const theme = useTheme();
-    const { items, loading, error } = useBlockedUsers();
+    const { items, loading, error, actionLoading, unblock } = useBlockedUsers();
     const { preferences, update } = useUserPreferences();
     const [savingPref, setSavingPref] = useState(false);
 
@@ -106,26 +132,43 @@ export default function PrivacySettingsScreen() {
         <View style={[styles.root, { backgroundColor: theme.background }]}>
             <View
                 pointerEvents="none"
-                style={[styles.backdropOrbTop, { backgroundColor: "rgba(217, 121, 43, 0.08)" }]}
+                style={[
+                    styles.backdropOrbTop,
+                    { backgroundColor: "rgba(217, 121, 43, 0.08)" },
+                ]}
             />
             <View
                 pointerEvents="none"
-                style={[styles.backdropOrbBottom, { backgroundColor: "rgba(78, 138, 134, 0.06)" }]}
+                style={[
+                    styles.backdropOrbBottom,
+                    { backgroundColor: "rgba(78, 138, 134, 0.06)" },
+                ]}
             />
-            <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+            <SafeAreaView
+                style={styles.safeArea}
+                edges={["top", "left", "right"]}
+            >
                 <ScrollView
                     style={{ width: "100%" }}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.shell}>
-                        <View style={styles.header}>
+                        <View
+                            style={[
+                                styles.header,
+                                { borderBottomColor: theme.border },
+                            ]}
+                        >
                             <Pressable
                                 accessibilityRole="button"
                                 onPress={() => router.back()}
                                 style={styles.headerButton}
                             >
-                                <ThemedText type="smallBold" themeColor="foreground">
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="foreground"
+                                >
                                     Back
                                 </ThemedText>
                             </Pressable>
@@ -164,8 +207,8 @@ export default function PrivacySettingsScreen() {
                                     }}
                                     thumbColor={
                                         preferences.skipNsfwWarning
-                                            ? "#FFFFFF"
-                                            : "#888888"
+                                            ? theme.primaryForeground
+                                            : theme.mutedForeground
                                     }
                                 />
                             </View>
@@ -175,9 +218,15 @@ export default function PrivacySettingsScreen() {
                             type="card"
                             style={[styles.card, { borderColor: theme.border }]}
                         >
-                            <ThemedText type="smallBold">Blocked Users</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Blocked users cannot direct message you or appear in search results.
+                            <ThemedText type="smallBold">
+                                Blocked Users
+                            </ThemedText>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
+                                Blocked users cannot direct message you or
+                                appear in search results.
                             </ThemedText>
 
                             {loading ? (
@@ -188,19 +237,30 @@ export default function PrivacySettingsScreen() {
                                     </ThemedText>
                                 </View>
                             ) : items.length === 0 ? (
-                                <ThemedText themeColor="mutedForeground" style={styles.emptyText}>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.emptyText}
+                                >
                                     You have not blocked anyone.
                                 </ThemedText>
                             ) : (
                                 <View style={styles.blockedList}>
                                     {items.map((item) => (
-                                        <BlockedRow key={item.block.$id} entry={item} />
+                                        <BlockedRow
+                                            key={item.block.$id}
+                                            entry={item}
+                                            actionLoading={actionLoading}
+                                            onUnblock={unblock}
+                                        />
                                     ))}
                                 </View>
                             )}
 
                             {error ? (
-                                <ThemedText themeColor="destructive" style={styles.errorText}>
+                                <ThemedText
+                                    themeColor="destructive"
+                                    style={styles.errorText}
+                                >
                                     {error}
                                 </ThemedText>
                             ) : null}
@@ -251,6 +311,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingVertical: Spacing.two,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     headerButton: {
         paddingVertical: Spacing.one,
@@ -264,7 +325,12 @@ const styles = StyleSheet.create({
         borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
-    emptyText: { fontSize: 14, lineHeight: 20, paddingVertical: Spacing.four, textAlign: "center" },
+    emptyText: {
+        fontSize: 14,
+        lineHeight: 20,
+        paddingVertical: Spacing.four,
+        textAlign: "center",
+    },
     errorText: { fontSize: 13, lineHeight: 18 },
     loadingRow: {
         flexDirection: "row",

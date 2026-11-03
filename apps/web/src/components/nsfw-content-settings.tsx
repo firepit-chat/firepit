@@ -32,33 +32,33 @@ export function NsfwContentSettings() {
 
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <ShieldAlert className="h-4 w-4 text-primary" />
-                        <Label
-                            className="text-base font-semibold text-foreground"
-                            htmlFor="skip-nsfw-warning"
-                        >
-                            Show 18+ channels without a warning
-                        </Label>
-                    </div>
-                    <p className="max-w-2xl text-sm text-muted-foreground">
-                        When disabled, opening an 18+ channel asks you to confirm
-                        before showing its messages. Turn this on to skip that
-                        confirmation and enter age-restricted channels directly.
-                    </p>
+            <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                    <ShieldAlert className="h-4 w-4 text-primary" />
+                    <Label
+                        className="text-base font-semibold text-foreground"
+                        htmlFor="skip-nsfw-warning"
+                    >
+                        Show 18+ channels without a warning
+                    </Label>
                 </div>
-
-                <Switch
-                    checked={navigationPreferences.skipNsfwWarning}
-                    disabled={isDisabled}
-                    id="skip-nsfw-warning"
-                    onCheckedChange={(checked) =>
-                        updateNavigationPreferences({
-                            skipNsfwWarning: checked,
-                        })
-                    }
-                />
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                    When disabled, opening an 18+ channel asks you to confirm
+                    before showing its messages. Turn this on to skip that
+                    confirmation and enter age-restricted channels directly.
+                </p>
             </div>
+
+            <Switch
+                checked={navigationPreferences.skipNsfwWarning}
+                disabled={isDisabled}
+                id="skip-nsfw-warning"
+                onCheckedChange={(checked) =>
+                    updateNavigationPreferences({
+                        skipNsfwWarning: checked,
+                    })
+                }
+            />
+        </div>
     );
 }

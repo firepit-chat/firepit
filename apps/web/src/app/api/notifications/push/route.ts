@@ -13,10 +13,10 @@ import {
 } from "@/lib/posthog-utils";
 
 type PushPayload = {
-  userId: string;
-  title: string;
-  body: string;
-  data?: Record<string, unknown>;
+    userId: string;
+    title: string;
+    body: string;
+    data?: Record<string, unknown>;
 };
 
 /**
@@ -62,9 +62,7 @@ export async function POST(request: NextRequest) {
                 .map((doc) => [doc.token as string, doc.$id]),
         );
 
-        const tokens = tokenDocuments.map(
-            (doc) => doc.token as string,
-        );
+        const tokens = tokenDocuments.map((doc) => doc.token as string);
 
         if (tokens.length === 0) {
             return NextResponse.json({
@@ -97,11 +95,16 @@ export async function POST(request: NextRequest) {
         // Send via Expo Push SDK
         const expo = new Expo();
         const chunks = expo.chunkPushNotifications(messages);
-        const results: Array<{ status: string; token: string; error?: string }> = [];
+        const results: Array<{
+            status: string;
+            token: string;
+            error?: string;
+        }> = [];
 
         for (const chunk of chunks) {
             try {
-                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+                const ticketChunk =
+                    await expo.sendPushNotificationsAsync(chunk);
                 for (let i = 0; i < ticketChunk.length; i++) {
                     const ticket = ticketChunk[i];
                     const token = (chunk[i] as { to: string }).to;
@@ -124,7 +127,7 @@ export async function POST(request: NextRequest) {
 
                     results.push({
                         status: ticket.status,
-                        token: `${token.slice(0, 20)  }...`,
+                        token: `${token.slice(0, 20)}...`,
                         error:
                             ticket.status === "error"
                                 ? ticket.details?.error
@@ -135,8 +138,11 @@ export async function POST(request: NextRequest) {
                 for (const tokenMessage of chunk) {
                     results.push({
                         status: "error",
-                        token: `${(tokenMessage as unknown as { to: string }).to.slice(0, 20)  }...`,
-                        error: error instanceof Error ? error.message : String(error),
+                        token: `${(tokenMessage as unknown as { to: string }).to.slice(0, 20)}...`,
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                     });
                 }
             }

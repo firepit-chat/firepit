@@ -7,7 +7,7 @@ import {
     updateNotificationSettings,
 } from "@/lib/notification-settings";
 import { invalidateNotificationSettingsCache } from "@/lib/notification-triggers";
-import { getUserProfile } from "@/lib/appwrite-profiles";
+import { getUserProfile, updateUserProfile } from "@/lib/appwrite-profiles";
 import { logger } from "@/lib/posthog-utils";
 import type {
     DirectMessagePrivacy,
@@ -216,8 +216,7 @@ export async function PATCH(request: Request) {
             if (!hasPublishedPublicKey) {
                 return NextResponse.json(
                     {
-                        error:
-                            "dmEncryptionEnabled requires a published dmEncryptionPublicKey",
+                        error: "dmEncryptionEnabled requires a published dmEncryptionPublicKey",
                     },
                     { status: 400 },
                 );
@@ -332,7 +331,8 @@ export async function PATCH(request: Request) {
         }
 
         // Build update data
-        const updateData: Record<string, unknown> = {};        if (body.globalNotifications !== undefined) {
+        const updateData: Record<string, unknown> = {};
+        if (body.globalNotifications !== undefined) {
             updateData.globalNotifications = body.globalNotifications;
         }
         if (body.directMessagePrivacy !== undefined) {
@@ -378,6 +378,35 @@ export async function PATCH(request: Request) {
                     existingSettings,
                 ),
             });
+        }
+
+        // The encryption preference is canonically stored on the profile. It is
+        // still written to notification_settings alongside it so a rollback to
+        // the previous release keeps the setting; the resolver prefers the
+        // profile and only falls back, and 2.6 drops the duplicate column.
+        if (body.dmEncryptionEnabled !== undefined) {
+            const profileForKey = await getUserProfile(user.$id);
+            if (profileForKey) {
+                try {
+                    await updateUserProfile(profileForKey.$id, {
+                        dmEncryptionEnabled: body.dmEncryptionEnabled,
+                    });
+                } catch (error) {
+                    // A failed profile write must not fail the request: the
+                    // notification-settings write below still lands, and the
+                    // resolver will keep reading the old value from there.
+                    logger.warn(
+                        "Failed to persist dmEncryptionEnabled to profile; notification settings remains authoritative for now",
+                        {
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                            userId: user.$id,
+                        },
+                    );
+                }
+            }
         }
 
         const updatedSettings = await updateNotificationSettings(

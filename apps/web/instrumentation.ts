@@ -21,7 +21,10 @@ export async function register() {
         registerPostHogProcessHandlers();
     } catch (error) {
         // PostHog runtime hooks are optional and should not block startup.
-        const payload = error instanceof Error ? `${error.message} ${error.stack ?? ""}` : String(error);
+        const payload =
+            error instanceof Error
+                ? `${error.message} ${error.stack ?? ""}`
+                : String(error);
         if (typeof globalThis.reportError === "function") {
             globalThis.reportError(new Error(payload));
         } else {

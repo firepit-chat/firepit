@@ -58,8 +58,11 @@ export async function GET(
         const channelId = searchParams.get("channelId")?.trim() || undefined;
         const onlyRemoved = searchParams.get("onlyRemoved") === "1";
         const textQuery = searchParams.get("text")?.trim() || undefined;
-        const cursorAfter = searchParams.get("cursorAfter")?.trim() || undefined;
-        const limit = clampLimit(searchParams.get("limit") ?? String(PAGE_LIMIT));
+        const cursorAfter =
+            searchParams.get("cursorAfter")?.trim() || undefined;
+        const limit = clampLimit(
+            searchParams.get("limit") ?? String(PAGE_LIMIT),
+        );
 
         const fetched = await listGlobalMessages({
             limit,
@@ -75,8 +78,12 @@ export async function GET(
 
         const userIds = new Set<string>();
         for (const message of items) {
-            if (message.userId) {userIds.add(message.userId);}
-            if (message.removedBy) {userIds.add(message.removedBy);}
+            if (message.userId) {
+                userIds.add(message.userId);
+            }
+            if (message.removedBy) {
+                userIds.add(message.removedBy);
+            }
         }
 
         const profiles = new Map<

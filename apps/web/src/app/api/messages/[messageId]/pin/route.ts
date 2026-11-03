@@ -12,11 +12,7 @@ import type {
     PinnedMessage,
 } from "@/lib/types";
 import { getEffectivePermissions, hasPermission } from "@/lib/permissions";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -112,7 +108,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -279,7 +274,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {

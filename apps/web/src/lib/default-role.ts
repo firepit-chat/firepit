@@ -36,9 +36,14 @@ async function updateRoleMemberCount(
             ],
         );
 
-        await databases.updateDocument(databaseId, ROLES_COLLECTION_ID, roleId, {
-            memberCount: result.total,
-        });
+        await databases.updateDocument(
+            databaseId,
+            ROLES_COLLECTION_ID,
+            roleId,
+            {
+                memberCount: result.total,
+            },
+        );
     } catch (error) {
         logger.warn("Failed to update role member count", {
             roleId,
@@ -168,12 +173,16 @@ async function applyDefaultRole(
     userId: string,
 ): Promise<boolean> {
     // Fetch the default role for the server (highest position if multiple)
-    const roles = await databases.listDocuments(databaseId, ROLES_COLLECTION_ID, [
-        Query.equal("serverId", serverId),
-        Query.equal("defaultOnJoin", true),
-        Query.orderDesc("position"),
-        Query.limit(1),
-    ]);
+    const roles = await databases.listDocuments(
+        databaseId,
+        ROLES_COLLECTION_ID,
+        [
+            Query.equal("serverId", serverId),
+            Query.equal("defaultOnJoin", true),
+            Query.orderDesc("position"),
+            Query.limit(1),
+        ],
+    );
 
     const defaultRole = roles.documents[0];
     if (!defaultRole) {
@@ -234,7 +243,12 @@ export async function assignDefaultRoleBrowser(
 ): Promise<boolean> {
     const { databaseId } = getEnvConfig();
     const databases = getBrowserDatabases();
-    return applyDefaultRole(databases as unknown as Databases, databaseId, serverId, userId);
+    return applyDefaultRole(
+        databases as unknown as Databases,
+        databaseId,
+        serverId,
+        userId,
+    );
 }
 
 /**
@@ -270,9 +284,14 @@ export async function enforceSingleDefaultRole(
 
     await Promise.all(
         toDisable.map((doc) =>
-            databases.updateDocument(databaseId, ROLES_COLLECTION_ID, String(doc.$id), {
-                defaultOnJoin: false,
-            }),
+            databases.updateDocument(
+                databaseId,
+                ROLES_COLLECTION_ID,
+                String(doc.$id),
+                {
+                    defaultOnJoin: false,
+                },
+            ),
         ),
     );
 }

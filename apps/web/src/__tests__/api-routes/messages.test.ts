@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
-import { POST, PATCH, DELETE } from "../../app/api/messages/route";
+import { POST, PATCH, DELETE, GET } from "../../app/api/messages/route";
 import { MAX_MESSAGE_LENGTH } from "@/lib/message-constraints";
 
 // Mock node-appwrite for server-side
@@ -9,6 +9,8 @@ vi.mock("node-appwrite", () => ({
     Query: {
         equal: (field: string, value: string) => `equal(${field},${value})`,
         limit: (n: number) => `limit(${n})`,
+        orderDesc: (field: string) => `orderDesc(${field})`,
+        cursorAfter: (id: string) => `cursorAfter(${id})`,
     },
 }));
 
@@ -18,6 +20,7 @@ const {
     mockUpdateDocument,
     mockDeleteDocument,
     mockGetDocument,
+    mockListDocuments,
     mockGetServerSession,
     mockGetChannelAccessForUser,
     mockUpsertMentionInboxItems,
@@ -26,6 +29,7 @@ const {
     mockUpdateDocument: vi.fn(),
     mockDeleteDocument: vi.fn(),
     mockGetDocument: vi.fn(),
+    mockListDocuments: vi.fn(),
     mockGetServerSession: vi.fn(),
     mockGetChannelAccessForUser: vi.fn(),
     mockUpsertMentionInboxItems: vi.fn(),
@@ -36,6 +40,10 @@ vi.mock("@/lib/auth-server", () => ({
     getServerSession: mockGetServerSession,
 }));
 
+vi.mock("@/lib/polls-server", () => ({
+    getPollStatesForMessages: vi.fn(async () => new Map()),
+}));
+
 vi.mock("@/lib/appwrite-server", () => ({
     getServerClient: vi.fn(() => ({
         databases: {
@@ -43,6 +51,7 @@ vi.mock("@/lib/appwrite-server", () => ({
             updateDocument: mockUpdateDocument,
             deleteDocument: mockDeleteDocument,
             getDocument: mockGetDocument,
+            listDocuments: mockListDocuments,
         },
     })),
 }));
@@ -83,6 +92,7 @@ describe("Messages API Routes", () => {
         mockUpdateDocument.mockClear();
         mockDeleteDocument.mockClear();
         mockGetDocument.mockClear();
+        mockListDocuments.mockClear();
         mockGetChannelAccessForUser.mockClear();
         mockUpsertMentionInboxItems.mockClear();
 
@@ -92,6 +102,77 @@ describe("Messages API Routes", () => {
             isMember: true,
             canRead: true,
             canSend: true,
+        });
+    });
+
+    describe("GET /api/messages", () => {
+        // These four fields are the only signal a client has that a message is
+        // a thread parent. They were dropped here once and the mobile app
+        // rendered no reply counter until the thread had been opened once.
+        it("returns thread linkage on listed messages", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+            mockListDocuments.mockResolvedValue({
+                total: 1,
+                documents: [
+                    {
+                        $id: "msg-1",
+                        userId: "user-1",
+                        userName: "Test User",
+                        text: "parent",
+                        channelId: "channel-1",
+                        $createdAt: new Date().toISOString(),
+                        threadMessageCount: 3,
+                        threadParticipants: ["user-1", "user-2"],
+                        lastThreadReplyAt: new Date().toISOString(),
+                    },
+                ],
+            });
+
+            const request = new NextRequest(
+                "http://localhost/api/messages?channelId=channel-1",
+            );
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(data.messages[0]).toMatchObject({
+                threadMessageCount: 3,
+                threadParticipants: ["user-1", "user-2"],
+            });
+            expect(data.messages[0].lastThreadReplyAt).toEqual(
+                expect.any(String),
+            );
+        });
+
+        it("leaves threadMessageCount undefined on an ordinary message", async () => {
+            mockGetServerSession.mockResolvedValue({
+                $id: "user-1",
+                name: "Test User",
+            });
+            mockListDocuments.mockResolvedValue({
+                total: 1,
+                documents: [
+                    {
+                        $id: "msg-2",
+                        userId: "user-1",
+                        text: "no thread here",
+                        channelId: "channel-1",
+                        $createdAt: new Date().toISOString(),
+                    },
+                ],
+            });
+
+            const request = new NextRequest(
+                "http://localhost/api/messages?channelId=channel-1",
+            );
+            const response = await GET(request);
+            const data = await response.json();
+
+            expect(data.messages[0].threadMessageCount).toBeUndefined();
+            expect(data.messages[0].threadId).toBeUndefined();
         });
     });
 

@@ -109,7 +109,8 @@ export default function CreateServerScreen() {
     const [error, setError] = useState<string | null>(null);
 
     const canCreateServers = Boolean(featureFlags?.enabled);
-    const readyToCreate = state === "ready" && Boolean(instanceUrl && accessToken);
+    const readyToCreate =
+        state === "ready" && Boolean(instanceUrl && accessToken);
 
     const submitLabel = useMemo(() => {
         if (isSubmitting) {
@@ -151,9 +152,11 @@ export default function CreateServerScreen() {
             });
             const nextServerId = response.server?.$id;
             if (!nextServerId) {
-                throw new Error("Server was created, but no server id was returned.");
+                throw new Error(
+                    "Server was created, but no server id was returned.",
+                );
             }
-            router.replace(`/server/${nextServerId}`);
+            router.replace("/chat");
         } catch (createError) {
             setError(
                 createError instanceof Error
@@ -170,6 +173,8 @@ export default function CreateServerScreen() {
             <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                automaticallyAdjustKeyboardInsets
             >
                 <View
                     pointerEvents="none"
@@ -189,7 +194,10 @@ export default function CreateServerScreen() {
                     <View style={styles.shell}>
                         <ThemedView
                             type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Create server
@@ -201,17 +209,20 @@ export default function CreateServerScreen() {
                                 themeColor="mutedForeground"
                                 style={styles.copy}
                             >
-                                Give your server a name, add a short description,
-                                and choose whether it should be public. If the
-                                instance disables user-created servers, this
-                                screen will keep the entry point hidden elsewhere
-                                in the app.
+                                Give your server a name, add a short
+                                description, and choose whether it should be
+                                public. If the instance disables user-created
+                                servers, this screen will keep the entry point
+                                hidden elsewhere in the app.
                             </ThemedText>
                         </ThemedView>
 
                         <ThemedView
                             type="card"
-                            style={[styles.panel, { borderColor: theme.border }]}
+                            style={[
+                                styles.panel,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             {!canCreateServers ? (
                                 <View style={styles.stateStack}>
@@ -243,7 +254,9 @@ export default function CreateServerScreen() {
                                             autoCapitalize="words"
                                             autoCorrect={false}
                                             placeholder="My new server"
-                                            placeholderTextColor={theme.mutedForeground}
+                                            placeholderTextColor={
+                                                theme.mutedForeground
+                                            }
                                             value={name}
                                             onChangeText={setName}
                                             style={[
@@ -267,7 +280,9 @@ export default function CreateServerScreen() {
                                             multiline
                                             numberOfLines={4}
                                             placeholder="A place for project updates, memes, and planning."
-                                            placeholderTextColor={theme.mutedForeground}
+                                            placeholderTextColor={
+                                                theme.mutedForeground
+                                            }
                                             value={description}
                                             onChangeText={setDescription}
                                             style={[
@@ -289,12 +304,16 @@ export default function CreateServerScreen() {
                                             <TogglePill
                                                 label="Public"
                                                 selected={isPublic}
-                                                onPress={() => setIsPublic(true)}
+                                                onPress={() =>
+                                                    setIsPublic(true)
+                                                }
                                             />
                                             <TogglePill
                                                 label="Private"
                                                 selected={!isPublic}
-                                                onPress={() => setIsPublic(false)}
+                                                onPress={() =>
+                                                    setIsPublic(false)
+                                                }
                                             />
                                         </View>
                                         <ThemedText
@@ -325,7 +344,7 @@ export default function CreateServerScreen() {
 
                                     {error ? (
                                         <ThemedText
-                                            themeColor="danger"
+                                            themeColor="destructive"
                                             style={styles.metaText}
                                         >
                                             {error}

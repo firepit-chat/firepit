@@ -69,7 +69,11 @@ vi.mock("@/lib/thread-read-store", () => ({
         items: T[];
         worker: (item: T) => Promise<void>;
     }) => {
-        for (let index = 0; index < params.items.length; index += params.batchSize) {
+        for (
+            let index = 0;
+            index < params.items.length;
+            index += params.batchSize
+        ) {
             await Promise.all(
                 params.items
                     .slice(index, index + params.batchSize)
@@ -370,7 +374,9 @@ describe("inbox", () => {
                 }
 
                 if (collectionId === "direct-messages-collection") {
-                    if (queryText.includes("greaterThan(threadMessageCount,0)")) {
+                    if (
+                        queryText.includes("greaterThan(threadMessageCount,0)")
+                    ) {
                         return { documents: [] };
                     }
 
@@ -443,7 +449,9 @@ describe("inbox", () => {
                 const queryText = queries.join("|");
 
                 if (collectionId === "messages-collection") {
-                    if (queryText.includes("greaterThan(threadMessageCount,0)")) {
+                    if (
+                        queryText.includes("greaterThan(threadMessageCount,0)")
+                    ) {
                         return { documents: [] };
                     }
 

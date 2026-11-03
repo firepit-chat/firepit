@@ -98,21 +98,29 @@ export default function InstanceReportsScreen() {
         async (
             reportId: string,
             action: "resolve" | "dismiss",
+            resolutionNotes?: string,
         ) => {
             if (!instanceUrl || !accessToken) return;
             setSavingId(reportId);
             try {
-                await resolveReport(instanceUrl, accessToken, reportId, action);
+                await resolveReport(
+                    instanceUrl,
+                    accessToken,
+                    reportId,
+                    action,
+                    resolutionNotes,
+                );
                 setReports((prev) =>
                     prev.map((r) =>
                         r.$id === reportId
                             ? {
-                                ...r,
-                                status:
-                                    action === "resolve"
-                                        ? "resolved"
-                                        : "dismissed",
-                            }
+                                  ...r,
+                                  status:
+                                      action === "resolve"
+                                          ? "resolved"
+                                          : "dismissed",
+                                  resolutionNotes: resolutionNotes || undefined,
+                              }
                             : r,
                     ),
                 );
@@ -135,22 +143,38 @@ export default function InstanceReportsScreen() {
 
     useRetryOnReconnect(loadState === "error", loadReports);
 
+    // Hoisted: an inline renderItem lands in the list cell's props and defeats
+    // its PureComponent, re-rendering every visible row on any parent render.
+    const renderReport = useCallback(
+        ({ item }: { item: AdminReportEntry }) => (
+            <ReportCard
+                entry={item}
+                savingId={savingId}
+                onResolve={handleResolve}
+            />
+        ),
+        [handleResolve, savingId],
+    );
+
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Reports
                             </ThemedText>
-                            <ThemedText type="title">
-                                User reports
-                            </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                            <ThemedText type="title">User reports</ThemedText>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
                                 Review and act on reports submitted by users for
                                 inappropriate profile content.
                             </ThemedText>
@@ -165,8 +189,8 @@ export default function InstanceReportsScreen() {
                                         loadState === "ready"
                                             ? "success"
                                             : loadState === "error"
-                                                ? "danger"
-                                                : "warning"
+                                              ? "danger"
+                                              : "warning"
                                     }
                                 />
                                 <StatusPill label="instance" tone="warning" />
@@ -185,14 +209,18 @@ export default function InstanceReportsScreen() {
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold">Refresh</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Refresh
+                                </ThemedText>
                             </Pressable>
                         </View>
 
                         {loadError ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText themeColor="destructive">
                                     {loadError}
@@ -225,7 +253,6 @@ export default function InstanceReportsScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
                                     style={[
                                         styles.card,
                                         styles.emptyCard,
@@ -251,13 +278,9 @@ export default function InstanceReportsScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <ReportCard
-                                entry={item}
-                                savingId={savingId}
-                                onResolve={handleResolve}
-                            />
-                        )}
+                        renderItem={renderReport}
+                        keyboardShouldPersistTaps="handled"
+                        automaticallyAdjustKeyboardInsets
                     />
                 </SafeAreaView>
             </View>
@@ -272,7 +295,11 @@ function ReportCard({
 }: {
     entry: AdminReportEntry;
     savingId: string | null;
-    onResolve: (reportId: string, action: "resolve" | "dismiss") => void;
+    onResolve: (
+        reportId: string,
+        action: "resolve" | "dismiss",
+        resolutionNotes?: string,
+    ) => void;
 }) {
     const theme = useTheme();
     const isPending = entry.status === "pending";
@@ -281,11 +308,8 @@ function ReportCard({
     const [resolutionNotes, setResolutionNotes] = useState("");
 
     return (
-        <View style={styles.entryWrap}>
-            <ThemedView
-                type="card"
-                style={[styles.entryCard, { borderColor: theme.border }]}
-            >
+        <View style={[styles.entryWrap, { borderBottomColor: theme.border }]}>
+            <View style={styles.entryCard}>
                 <View style={styles.entryHeader}>
                     <StatusPill
                         label={entry.status ?? "unknown"}
@@ -299,7 +323,9 @@ function ReportCard({
                 <View style={styles.entryBody}>
                     <ThemedText>
                         <ThemedText type="smallBold">Reported user:</ThemedText>{" "}
-                        {entry.reportedUserName ?? entry.reportedUserId ?? "Unknown"}
+                        {entry.reportedUserName ??
+                            entry.reportedUserId ??
+                            "Unknown"}
                     </ThemedText>
                     <ThemedText>
                         <ThemedText type="smallBold">Reporter:</ThemedText>{" "}
@@ -315,7 +341,9 @@ function ReportCard({
                     ) : null}
                     {entry.status !== "pending" && entry.resolvedByName ? (
                         <ThemedText>
-                            <ThemedText type="smallBold">Resolved by:</ThemedText>{" "}
+                            <ThemedText type="smallBold">
+                                Resolved by:
+                            </ThemedText>{" "}
                             {entry.resolvedByName}
                         </ThemedText>
                     ) : null}
@@ -353,7 +381,12 @@ function ReportCard({
                                 accessibilityRole="button"
                                 disabled={isSaving}
                                 onPress={() => {
-                                    if (entry.$id) onResolve(entry.$id, "resolve");
+                                    if (entry.$id)
+                                        onResolve(
+                                            entry.$id,
+                                            "resolve",
+                                            resolutionNotes.trim() || undefined,
+                                        );
                                 }}
                                 style={({ pressed }) => [
                                     styles.actionButton,
@@ -379,7 +412,12 @@ function ReportCard({
                                 accessibilityRole="button"
                                 disabled={isSaving}
                                 onPress={() => {
-                                    if (entry.$id) onResolve(entry.$id, "dismiss");
+                                    if (entry.$id)
+                                        onResolve(
+                                            entry.$id,
+                                            "dismiss",
+                                            resolutionNotes.trim() || undefined,
+                                        );
                                 }}
                                 style={({ pressed }) => [
                                     styles.actionButton,
@@ -390,14 +428,17 @@ function ReportCard({
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold" themeColor="mutedForeground">
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="mutedForeground"
+                                >
                                     Dismiss
                                 </ThemedText>
                             </Pressable>
                         </View>
                     </View>
                 ) : null}
-            </ThemedView>
+            </View>
         </View>
     );
 }
@@ -419,7 +460,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -431,7 +471,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     emptyCard: {
         marginTop: Spacing.three,
@@ -462,12 +501,12 @@ const styles = StyleSheet.create({
         maxWidth: MaxContentWidth,
         alignSelf: "center",
         width: "100%",
+        paddingHorizontal: Spacing.three,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     entryCard: {
-        borderRadius: 18,
-        padding: Spacing.three,
+        paddingVertical: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",
@@ -490,7 +529,6 @@ const styles = StyleSheet.create({
     },
     notesInput: {
         borderRadius: 12,
-        borderWidth: 1,
         paddingHorizontal: Spacing.three,
         paddingVertical: Spacing.two,
         fontSize: 14,

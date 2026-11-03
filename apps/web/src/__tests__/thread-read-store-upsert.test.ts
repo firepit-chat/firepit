@@ -42,7 +42,10 @@ vi.mock("@/lib/appwrite-core", () => ({
     },
 }));
 
-import { deriveThreadReadDocumentId, upsertThreadReads } from "../lib/thread-read-store";
+import {
+    deriveThreadReadDocumentId,
+    upsertThreadReads,
+} from "../lib/thread-read-store";
 
 const EXPECTED_DOC_ID = deriveThreadReadDocumentId({
     contextId: "channel-1",
@@ -173,7 +176,10 @@ describe("thread-read-store upsertThreadReads", () => {
         mockListDocuments.mockResolvedValueOnce({
             documents: [],
         });
-        mockCreateDocument.mockRejectedValueOnce({ code: 409, message: "Duplicate" });
+        mockCreateDocument.mockRejectedValueOnce({
+            code: 409,
+            message: "Duplicate",
+        });
         mockGetDocument.mockResolvedValueOnce({
             $id: "existing-409",
             contextId: "channel-1",

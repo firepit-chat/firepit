@@ -5,12 +5,445 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] - 2026-11-01
 
-### 🐛 Fixes
+### ✨ Features
 
+- **Back up and restore your encrypted DM key.** Encrypted DMs use a key that
+  lives only on your device, so reinstalling or switching devices made older
+  messages unreadable. Settings now has an **Encryption key backup** control
+  that exports the key to a passphrase-protected file and restores it later.
+  The backup is encrypted with Argon2id and XChaCha20-Poly1305; restoring
+  replaces the key stored on the current device.
+
+- **Friends carry the same details as your DMs.** A friend in the friends
+  section now shows when you last spoke, how many unread messages you have with
+  them, a presence dot, and the same options menu as a direct message — so you
+  can mute or reach someone without starting a conversation first. Removing a
+  friend moved into that menu, which also lines the friend timestamps up with the
+  DM timestamps below them.
+- **Every direct message shows a presence dot.** The dot previously appeared only
+  once a status had loaded, so people who were online on an automatic status —
+  or whose status had not arrived yet — looked identical to people who were
+  offline. A dot now always shows, defaulting to offline until presence loads.
+- **Direct messages and friends now show a readable status.** Rows used to print
+  the raw stored value, so an automatic status read as lowercase `offline` rather
+  than a label, and a status you had set yourself was never shown at all. Both
+  lists now show `Online`, `Away`, `Busy` or `Offline`, followed by your custom
+  message when you have one — friends included, which previously showed pronouns
+  instead.
+- **Channel unreads in the header bell.** The notification popup now lists the
+  channels you have not caught up on, so you can see and jump to them without
+  leaving the page you are on. It checks when you open the popup rather than on
+  every page load, and mentions, DMs and thread activity are unchanged below it.
+- **A dot beside channels you have not read.** The sidebar now marks each
+  channel with new messages, so a category counter no longer tells you _that_
+  something is unread without telling you _which_. It uses the same rule as the
+  counter, so the two always agree, and the channel you have open is not marked.
+- **The notifications page lists channels with unread messages.** The page
+  previously showed nothing for an ordinary unread channel message, because it
+  only reads the inbox — which holds mentions, thread replies and DMs. It now
+  lists the channels you have not caught up on, with when the activity was, and
+  clicking one opens it. Mentions, threads and DMs are unchanged and still
+  filterable below.
+
+- **Member lists now show who is around.** The member panel gains profile
+  pictures, a presence dot beside each name (green online, yellow away, red
+  busy, grey offline), and anyone's custom status indented under their name.
+  Members are grouped the way Discord does it: **Online** first, then
+  **Offline**, each with a count in the heading and each still ordered by role
+  rank. Busy and Away count as online — only Offline does not, so someone who
+  has gone quiet does not look absent while they are clearly at their desk.
+  Clicking a member opens their profile.
+- **Avatar frames in the member list.** Members who have chosen an avatar frame
+  now wear it in the member list on both web and mobile, not just on their
+  profile. The member endpoint returns the frame alongside the picture, along
+  with how far to inset the portrait so each frame sits correctly.
+- **Spoilers.** Wrap any part of a message in `[spoiler]...[/spoiler]` to hide
+  it behind a click-to-reveal control. Formatting, links and images inside a
+  spoiler still render once it is revealed, and a message can contain several.
+  Collapsed content is kept out of the page entirely rather than blurred, so
+  screen readers do not announce it and hidden links are not keyboard-reachable.
+  An unmatched `[spoiler]` renders as literal text rather than hiding the rest
+  of the message.
+- **Spoilers in search results.** Spoilered messages stay searchable. A result
+  renders the spoiler as a real, revealable spoiler rather than flattening it to
+  plain text, so the message still reads as hidden without giving up search.
+- **No spoiler text leaking into previews.** Notification bodies and reply
+  previews no longer risk slicing a spoiler open and showing its contents.
+
+- **Member list in the chat right rail.** A new Members panel sits above pinned
+  messages, listing everyone in the server with their highest-ranked role
+  colour. Members are ordered by role rank and then by name, with anyone
+  holding no role at the bottom. The role is resolved on the server, so the
+  panel loads instantly and never needs the full role list.
+    - Backed by a new read-only endpoint, `GET /api/servers/{id}/viewer/members`,
+      that any member can call. The existing `/members` endpoint still requires
+      **Manage Roles**, because the role-management screens read full role
+      assignments and moderation flags from it. The viewer endpoint returns only
+      what a member row renders, and never exposes role ids, ban state, or mute
+      state.
+- **Custom themes.** Light/dark is replaced by six palettes — the four
+  Catppuccin flavours (**Latte**, **Frappé**, **Macchiato**, **Mocha**) plus the
+  **two original Firepit themes** (**Classic Light** and **Classic Dark**) — and
+  a choice of twelve accent colours used for highlights, links, buttons, and
+  charts. Pick a palette and accent from the header menu or **Settings → Theme**
+  on the web, and from **Settings → Appearance** in the mobile app. Your choice
+  is remembered and neither palette nor accent flashes on launch.
+    - The original orange themes are preserved exactly: their primary lives in the
+      default accent slot, so selecting one with no accent chosen reproduces the
+      pre-Catppuccin look. Picking an explicit accent still overrides it.
+    - Catppuccin accent colours are adjusted per palette so that text on an
+      accent-coloured button always clears WCAG AA (4.5:1). Latte's stock accents
+      cannot be used unmodified as button fills — six of the twelve fall below
+      3:1 — so they are lightened to pair with Latte's dark text. The dark
+      palettes already clear 5.3:1 and are used as published.
+
+### 📚 Documentation
+
+- **Updated to node-appwrite 29.** The realtime WebSocket token is now minted
+  with `users.createJWT()`, which replaces the removed `account.createJWT()`.
+  Because the new call runs with the server API key rather than the user's own
+  session, **self-hosted instances must add the user JWT scope to their API
+  key** or the realtime connection will fail to authenticate. The user id is
+  resolved by verifying the session cookie against Appwrite rather than decoding
+  it, so a tampered cookie cannot mint a token for another account.
+- **The API reference now covers every public route.** All 143 operations
+  across 95 paths are documented, up from 89 operations across 54 paths. The
+  in-app API Reference page under Docs renders this spec directly, so the
+  account, session, friends, blocks, profile, admin, announcements, reports,
+  moderation, polls, typing, push notification, and GIF/sticker endpoints are
+  now visible there for the first time.
+- **Bearer-token authentication is now documented.** The spec only described
+  the session cookie, but the server has long accepted an Appwrite session
+  secret as `Authorization: Bearer <token>` (and `x-firepit-token` for Appwrite
+  Cloud) before falling back to the cookie. Authenticated operations now list
+  both schemes. The five `/api/status` operations were also missing a
+  `security` block entirely despite requiring a session.
+- New shared schemas: `SignupPolicy`, `SessionInfo`, `UserPreferences`,
+  `Friendship`, `BlockedUser`, `MessagePoll`, `MessagePollOption`,
+  `Announcement`, and `AnnouncementListResponse`.
+- Removed the stale `apps/mobile/docs/openapi-doc.yml` (v1.8.0). Its only
+  unique content — the `/api/typing` route and the `bearerAuth` scheme — is now
+  in the canonical `apps/web/docs/openapi-doc.yml`, and nothing referenced the
+  copy. `apps/web/docs/openapi-doc.yml` is the single source of truth.
+
+### 🐛 Bug Fixes
+
+- **Encrypted DMs between web and mobile now decrypt in both directions.** Web
+  and mobile sorted the two public keys differently when deriving the shared
+  secret, so roughly half of all conversations derived a different key on each
+  client and showed "[Encrypted message unavailable]". New messages use the
+  canonical order, and decryption still tries the old order so existing
+  messages keep opening.
+
+- **Encrypted direct messages now read correctly across web and mobile.** The
+  mobile app was not binding the conversation id into the message's
+  authenticated data, so anything sent from web showed as "[Encrypted message
+  unavailable]" on mobile. New messages bind the conversation, and messages
+  written before the fix still decrypt. Live encrypted messages also appear
+  immediately instead of only after a refresh.
+- **Encrypted messages can no longer be edited or threaded.** Both actions sent
+  plaintext to the server, which rejected the edit and stored thread replies in
+  the clear inside a conversation the user believes is end-to-end encrypted.
+  Encrypted messages now hide those actions, and the thread endpoint refuses a
+  reply to an encrypted parent.
+- **New accounts can turn on encrypted DMs again.** Saving settings failed
+  because the encryption key was published only after the update, and the
+  server refuses to enable encryption without a key. The key is now published
+  first, and the save stops with a clear message if that fails.
+- **Pinned encrypted messages were blank.** The pin list rendered the stored
+  text, which is empty for encrypted messages, so a pinned E2EE message showed
+  only its author. Pins are now decrypted like the conversation itself, and your
+  own encrypted message no longer goes blank for a moment right after sending.
+- **Some threads were stuck at "no replies" forever.** The reply count on a
+  thread's first message is only ever written when someone replies, and that
+  write gave up on the first failure instead of retrying — so one unlucky
+  conflict left the count at zero permanently, with nothing left to correct it.
+  Threads that had replies showed no "N replies" indicator at all until the
+  thread was opened once. The write now retries, and the channel message API
+  returns the thread fields on the list endpoint as well, so the indicator is
+  right the first time a channel loads.
+- **Toggling a reaction on a channel message failed.** The channel message API
+  copied the raw `reactions` field instead of parsing it, so messages stored in
+  the older JSON-string or emoji-keyed shapes came back with no reaction data
+  at all. The client then could not tell whether you had already reacted, kept
+  sending "add", and the server rejected it with a 400. Reactions are now
+  normalized the same way direct messages already were.
+- **Channel messages never showed their thread replies.** The channel message
+  API dropped `threadId` and `threadMessageCount` when mapping documents, while
+  the direct message API returned both. Messages that started a thread therefore
+  looked identical to ordinary messages: the "N replies" indicator never
+  appeared, and replies leaked into the main channel timeline. Both fields are
+  now returned, matching direct messages.
+- **Long names pushed the date and options menu out of the DM list.** A user
+  with a long name, or a long system-announcement line in amber, widened the
+  whole row so the timestamp was cut off and the mute/options menu could not be
+  reached at all. Rows now stay within the panel, the name truncates, and both
+  the date and the menu remain visible. The channel sidebar had the same latent
+  problem and is fixed with it.
+- **The sidebar snapped you back after opening a channel from a link.** Opening
+  a channel from a notification left `server` and `channel` in the address bar.
+  Selecting a different channel or server was then undone a moment later, so
+  navigating away from a linked channel was impossible without visiting another
+  page first. The link is now cleared once it has been opened, and a reload
+  starts you on the default view rather than replaying the link.
+- **The member list briefly said "No members" on every load.** The panel treated
+  "we have not worked out which server yet" as "this server has no members", so
+  it flashed an empty state before the real list arrived — most visibly when
+  arriving from another page. It now shows as loading until the members for the
+  current server are actually in hand, and a server that genuinely has no
+  members still settles to empty.
+- **Opening a notification link opened the server but not the channel.** A link
+  into a channel in a different server set the channel at the same moment it
+  switched servers. The sidebar had not loaded that server's channels yet, so
+  the channel looked deleted and the app discarded the choice — leaving you on
+  the right server with no channel selected. The app now waits for the channel
+  list it asked for before deciding a channel is gone.
+- **Unread state was rejected by the API with a 400.** Marking a channel or a
+  thread read sent the message's timestamp, and Appwrite writes those with a
+  `+00:00` offset while writing `$updatedAt` with a `Z`. The read endpoints only
+  accepted the `Z` form, so every attempt to mark something read failed and
+  unread badges never cleared on web or mobile. Both endpoints now accept the
+  formats Appwrite actually sends. Thread replies were hitting the same wall and
+  are fixed with it.
+- **Member lists had never shown a profile picture.** The `profiles` collection
+  stores `avatarFileId`; there is no `avatarUrl` attribute on it at all. The
+  member endpoint was reading `avatarUrl` straight off the document, so it was
+  always undefined and every member fell back to their initials. The URL is now
+  derived from the file id, as the profile endpoints already did. The same
+  mistake in the audit log is fixed too.
+- **Avatar frames were mis-padded, most visibly the star.** The per-frame inset
+  had been guessed rather than measured, so the portrait did not line up with
+  the frame's opening — the star wanted 38% padding and was being given 20%,
+  which pushed the portrait well past the frame's inner edge. Every frame's
+  inset is now measured from the artwork. The spring frames are drawn with a
+  solid centre disc instead of an empty opening, so the portrait covers the disc
+  and hides the petals inside it. Two frames whose art crosses the centre (a
+  wreath and a snowflake) have no opening to sit in and are now drawn as an
+  overlay, full-bleed with the artwork on top.
+- **Threads and pinned messages moved out of the sidebar.** A thread now opens in
+  the message column with a `#channel > Thread` header and a back button, so a
+  long thread scrolls normally instead of running forever down a 320px panel.
+  Pinned messages became a button in the channel header that opens a popup list,
+  like the profile popup, instead of permanently occupying sidebar space. Both
+  work in channels and direct messages.
+- **Message lists are grouped by day.** A divider marks the first message of each
+  day — "Today", "Yesterday", or the date.
+- **Direct message timestamps show a date when the time stops being useful.** The
+  clock time for today, "Yesterday" for the day before, and a date like 2/4/26 for
+  anything older.
+- **Category counters now count unread channels instead of all channels.** The
+  number beside a category is the number of channels in it you have unread
+  messages in, and it disappears when there are none. This needed real read
+  tracking first: the app had no notion of which channels you had read, so
+  opening a channel now records where you got to, on the server, and it follows
+  you between devices.
+- **Direct message timestamps stop moving around.** The time is now pinned to a
+  fixed, never-shrinking column, so every row lines up at the same spot and the
+  time can no longer be squeezed or clipped by a long name. Long names, previews
+  and unread badges now ellipsise instead.
+- **Presence now decays the way you would expect.** A status you picked by hand
+  (busy, away, offline) sticks until you change it. "Online" is treated as the
+  default rather than a choice, so it decays like an automatic one: idle after
+  five minutes without activity, offline after fifteen, and back to online on its
+  own the moment you start using the app again. This works on mobile too, which
+  previously never reported activity and so always read as offline.
+- **Frames no longer change the size of the row they sit in.** An avatar's
+  footprint is now exactly the size you ask for whichever frame is worn, so a
+  list of people lines up instead of mixing 31px and 53px elements. Inside that
+  fixed box the portrait fills the frame's opening where the opening is large
+  enough, and is floored at half the box where it is not — so a frame with a
+  small opening (the star) reads as a portrait with the frame's points showing
+  around it, rather than either a mismatched hole or an oversized frame.
+  Previously the box grew to as much as four times the portrait to seat it, which
+  is what made the layout look uneven.
+- **Custom emoji now update live.** The browser was warning that
+  `NEXT_PUBLIC_APPWRITE_EMOJIS_BUCKET_ID` was unset and realtime emoji updates
+  were disabled. Only the server-side `APPWRITE_EMOJIS_BUCKET_ID` is documented
+  and normally set, and the browser cannot see it — so the feature had been off.
+  The value is bridged to the client the same way the endpoint and project are.
+
+- **Fixed "Origin is not allowed" rejecting sign-in behind a reverse proxy.**
+  The CSRF origin check on `POST /api/session` (and the direct-messages and
+  upload routes) decided same-origin with `new URL(request.url).origin`. Behind a
+  proxy that forwards the public hostname but not `X-Forwarded-Proto`, that
+  evaluates to `http://yourdomain` while the browser sends
+  `Origin: https://yourdomain`, so the comparison failed and the request was
+  rejected. The check now compares the `Origin` header against every plausible
+  spelling of the request's own origin. `ALLOWED_ORIGINS` — previously
+  undocumented — is now described in `.env.local.example` and is only needed for
+  genuinely cross-origin callers, not for normal single-origin deployments.
+
+- **Per-channel permission overrides now work on a fresh instance.** The
+  `channel_permission_overrides` collection was never created by the setup
+  script, so a new deployment had no table for the feature to write to. It is
+  now provisioned with its attributes, lookup indexes, and a unique
+  `(channelId, roleId, userId)` index.
+- Creating a permission override no longer races. Two concurrent requests for
+  the same channel/role/user pair could both pass the "does this already
+  exist?" check and each write a row. Existence is now enforced by the unique
+  index, and a conflict returns the same "already exists" message as before.
+- Corrected the `ChannelPermissionOverride` schema in the API reference, which
+  described `allow`/`deny` as objects of booleans rather than arrays of
+  permission names, and omitted `userId` entirely.
 - **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
 - **API errors during build** - Signed-in API routes (for example GIF search and memberships) no longer log failures or return 500 errors when the build prerenders them. Each route now waits for a real request before it reads the session
+
+- **The inbox now clears when you read it.** Marking a channel or conversation
+  as read was scheduled behind an 800 ms debounce whose timer was being reset on
+  every single re-render of the chat page — and the page re-renders on every
+  keystroke. Renders arrived faster than the debounce, so the timer never fired
+  and the inbox stayed unread until you navigated away and back. The hooks now
+  return a stable object, so the effect re-runs when the data changes rather than
+  on every frame.
+- **Messages no longer update while you are away.** Cached inbox and
+  conversation data older than five minutes was never refetched when you
+  navigated back to the chat, so you could be reading a several-minute-old view
+  with no indication anything was stale. Stale queries now revalidate on mount;
+  the per-query freshness windows still keep repeat visits free.
+- **Direct messages no longer open a second, redundant presence
+  subscription.** The channel message hook subscribed to the project's presence
+  events even in DM view, where its typing indicator cannot be used, doubling
+  the presence traffic for no benefit.
+- **Realtime message filtering after an account switch.** The channel
+  subscription read the viewer's id from a stale closure, so a message arriving
+  after switching accounts could be filtered against the previous user's id.
+- **The background DM poll no longer runs on hidden tabs.** A backgrounded DM
+  tab re-queried the message list and a profile batch every 15 seconds
+  indefinitely, for a tab nobody was looking at.
+- **Revoked sessions now take effect promptly.** `getServerSession` was wrapped
+  in a framework cache keyed on nothing (it takes no arguments and reads the
+  session from headers), which could keep a session alive well past the
+  30-second window the function already implements deliberately. That wrapper is
+  gone; the intended cache remains.
+- **The analytics configuration is no longer silently discarded.** Both
+  `instrumentation-client.ts` and a React provider were initialising PostHog
+  with different settings, and the second call quietly overwrote the first,
+  discarding cookieless mode, exception capture, and the pinned config snapshot.
+  There is now a single initializer.
+
+### ⚙️ Improvements
+
+- **Search survives a slow or briefly unavailable database.** Message search now
+  retries transient Appwrite failures and caps each source at eight seconds, so
+  one slow query no longer holds up the whole result. Whatever the other source
+  returns is still shown.
+- **Faster chat, and about 25% less JavaScript on every page.** A performance
+  pass across the web app:
+    - The chat page no longer rebuilds the server and channel sidebars, or every
+      visible message row, on every keystroke. Message handlers, the profile
+      modal opener, and the sidebar subtrees are now stable, so typing only
+      re-renders what actually changed.
+    - Timestamps build their date and time formatters once instead of
+      constructing two per message per render.
+    - Switching channels no longer scans your entire unread inbox and discards
+      all but the one channel you asked for.
+    - The server resolves per-server and per-role lookups concurrently on the
+      moderation page and in message search instead of one round trip at a time.
+    - The first realtime message from someone you have already loaded no longer
+      triggers a redundant profile request.
+    - The in-memory server cache is now size-capped, so a long-running instance
+      cannot grow without bound as you visit more channels and conversations.
+      The analytics SDK and the emoji shortcode table are no longer part of the
+      initial page load — both now load on demand, and events captured before the
+      analytics SDK arrives are replayed rather than dropped. Emoji, the image
+      viewer, the GIF/sticker picker, and the notification settings panel are split
+      out of their initial bundles. As a result the shared JavaScript baseline drops
+      from roughly 357 KB to 263 KB gzipped, and the chat page from 536 KB to 399 KB.
+- **Avatar frame insets are measured, not guessed.** A script renders the
+  committed frame artwork and reports the inset each one needs, and a test holds
+  the shipped values to it — so a redrawn or added frame cannot drift out of
+  sync silently.
+- **`react-hooks` lint rules are enabled.** The plugin was registered but every
+  rule was off, which is how effects with incomplete dependency arrays shipped.
+  `rules-of-hooks` is now an error and `exhaustive-deps` a warning, with the
+  existing violations fixed. A `use`-prefixed server helper that was not a hook
+  was renamed accordingly.
+- **API client types are now generated from the spec.** `bun run
+generate:api-types` produces TypeScript types directly from the documented
+  API, and CI fails if they drift from the spec. Combined with the existing
+  spec-versus-routes check, the documented API can no longer quietly disagree
+  with either the server or the clients compiling against it.
+- **Fixed client-side analytics and error reporting.** The browser PostHog SDK
+  was never initialized, so every client event — sign-in, registration,
+  onboarding, invitations, and the opt-in/opt-out toggle — was queued against an
+  SDK with no credentials and silently dropped. The same gap left the
+  client-side logger and error reporter as no-ops, since both read a
+  `window.posthog` that only exists once the SDK is initialized.
+  Anonymous visitors are captured by default, so the pre-auth funnel — landing,
+  sign-in, registration, onboarding — is recorded; those events are only
+  observable before an account exists. Consent is still enforced per account:
+  turning telemetry off in Settings opts out persistently, which also suppresses
+  anonymous capture on later visits, and an opted-out user is never identified.
+  **Server-side telemetry now honours the same preference**: API-call metrics,
+  forwarded application logs, and error reports attributed to a user are dropped
+  when that account has telemetry disabled. Telemetry with no identifiable user
+  is still sent, since there is no person whose consent applies.
+- **Dark mode is respected again on both platforms.** Choosing a palette no
+  longer overrides it: on a first visit the app follows the operating system's
+  light or dark setting, and an explicit choice is remembered from then on. This
+  had regressed when the fixed palette list replaced automatic detection, which
+  would have handed every existing dark-mode user a light app.
+- **The palette pickers show real colours.** The swatch previews in Settings
+  were rendering with no background at all, because the build produced no CSS
+  for the utility syntax they used. They now sample the actual palette.
+- **Per-channel permission overrides are resolved from a single place.** The
+  read-only member rail and the role-management screen now share one server-side
+  helper, so they cannot disagree about a member's roles, ban state, or
+  ordering.
+- **The DM encryption preference moved to where it belongs.** It now lives on the
+  profile beside the public key it depends on, rather than among notification
+  preferences. Accounts that enabled encryption before the move are unaffected:
+  reads prefer the new location and fall back to the old one, so nobody's DMs
+  silently fall back to plaintext. As a side effect the message send path is
+  slightly cheaper, since the profiles it already loaded now answer the question.
+- Theme and accent choices are stored in a cookie on the web, so the first paint
+  already uses the right colours and the old light/dark launch flash is gone.
+- The member list is fetched through one shared server-side helper, so the
+  read-only viewer and the role-management endpoint can never disagree about a
+  member's roles, ban state, or ordering.
+- The selected palette is no longer written as a React-owned attribute on
+  `<html>`. It used to be rendered server-side as a placeholder, which the theme
+  library also writes — so any re-render of the root layout could overwrite the
+  palette you had chosen. The default palette is now defined in CSS on `:root`
+  instead, which means the page is never unstyled and the choice cannot be
+  clobbered.
+- The theme library moved from `next-themes` to `@teispace/next-themes`, which
+  supports several palettes on one page and is what per-server themes in a future
+  release will build on.
+- **The OpenAPI spec can no longer drift from the code.** `bun run
+check:openapi` walks the route handlers and fails if the spec and the
+  handlers disagree in either direction — a route that exists but is
+  undocumented, or a documented operation with no handler. It runs in CI, so
+  adding or renaming a route without updating the spec now breaks the build
+  instead of failing silently until a generated client called a route that
+  isn't there. It skips the three debug endpoints and the CORS preflight
+  `OPTIONS` handlers on the upload routes.
+- **Type checking now runs in CI.** `bun run typecheck` covers both the web and
+  mobile workspaces and fails the build on a type error in either. Previously
+  no workflow ran it, and the only implicit check was the web build — so a type
+  error in the mobile app could not fail CI.
+- Pinned TypeScript to 6.x across the workspace. A TypeScript 7 install made
+  `bun run lint` fail before linting anything, because `typescript-eslint` does
+  not support it yet. Bump when 7.1 lands.
+- Fixed a handful of lint errors that were masking real issues, including two
+  unhandled promises in the blocked-users and notification-settings hooks.
+- The permission-override collection ID is now configurable via
+  `APPWRITE_CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID` instead of being
+  hardcoded in four places, so it can be renamed without editing source.
+- **One channel-type normalizer instead of four.** Coercing a channel's type to
+  a known value was copy-pasted into four modules, one of which had drifted to a
+  different implementation, and the accepted-values array was duplicated a fourth
+  time. All 14 call sites now share a single function, so adding a channel type
+  is a one-line change instead of a scavenger hunt. The old copies cast the input
+  rather than validating it, so a malformed `type` could surface as something
+  other than `"text"`.
+
+- **Encrypted DMs use a smaller crypto library.** The client no longer downloads
+  a WebAssembly libsodium build to encrypt or decrypt direct messages. The
+  replacement is byte-for-byte compatible, so existing encrypted conversations
+  still decrypt on both web and mobile.
 
 ## [2.1.0] - 2026-09-27
 

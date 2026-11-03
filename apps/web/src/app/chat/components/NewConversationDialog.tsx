@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { Search, Loader2, User, Users, X } from "lucide-react";
 import Image from "next/image";
 import {
@@ -201,6 +201,42 @@ export function NewConversationDialog({
         (isGroup && groupName.trim().length === 0);
 
     // Search for users as user types
+    const searchUsers = useCallback(
+        async (query: string) => {
+            setSearching(true);
+            setError(null);
+
+            try {
+                const response = await fetch(
+                    `/api/users/search?q=${encodeURIComponent(query)}`,
+                );
+
+                if (!response.ok) {
+                    throw new Error("Failed to search users");
+                }
+
+                const data = await response.json();
+
+                // Filter out current user from results
+                const filteredUsers = data.users.filter(
+                    (user: UserSearchResult) => user.userId !== currentUserId,
+                );
+
+                setSearchResults(filteredUsers);
+            } catch (err) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to search users",
+                );
+                setSearchResults([]);
+            } finally {
+                setSearching(false);
+            }
+        },
+        [currentUserId],
+    );
+
     useEffect(() => {
         if (!open) {
             return;
@@ -224,7 +260,7 @@ export function NewConversationDialog({
                 clearTimeout(searchTimeoutRef.current);
             }
         };
-    }, [searchQuery, open]);
+    }, [open, searchQuery, searchUsers]);
 
     // Reset state when dialog opens/closes
     useEffect(() => {
@@ -246,37 +282,6 @@ export function NewConversationDialog({
             }
         };
     }, [groupAvatarPreview]);
-
-    const searchUsers = async (query: string) => {
-        setSearching(true);
-        setError(null);
-
-        try {
-            const response = await fetch(
-                `/api/users/search?q=${encodeURIComponent(query)}`,
-            );
-
-            if (!response.ok) {
-                throw new Error("Failed to search users");
-            }
-
-            const data = await response.json();
-
-            // Filter out current user from results
-            const filteredUsers = data.users.filter(
-                (user: UserSearchResult) => user.userId !== currentUserId,
-            );
-
-            setSearchResults(filteredUsers);
-        } catch (err) {
-            setError(
-                err instanceof Error ? err.message : "Failed to search users",
-            );
-            setSearchResults([]);
-        } finally {
-            setSearching(false);
-        }
-    };
 
     const handleToggleUser = (user: UserSearchResult) => {
         setSelectedUsers((prev) => {

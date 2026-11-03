@@ -9,11 +9,8 @@ import {
     getExistingPredefinedAvatarFrameIds,
     getPredefinedAvatarFrameUrlByPresetId,
 } from "@/lib/appwrite-profiles";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { getPresetFrameById, presetFrameStyle } from "@/lib/preset-frames";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { normalizeStatus } from "@/lib/status-normalization";
@@ -47,7 +44,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         const session = await getServerSession();
         if (!session?.$id) {
             return NextResponse.json(
@@ -256,6 +252,15 @@ export async function POST(request: NextRequest) {
                 avatarFrameUrl: hasPredefinedFrame
                     ? getPredefinedAvatarFrameUrlByPresetId(avatarFramePreset)
                     : undefined,
+                // 0 signals an overlay frame: the art crosses the centre, so a
+                // client with no preset catalogue still draws the portrait
+                // full-bleed with the artwork on top.
+                avatarFrameInsetPercent: hasPredefinedFrame
+                    ? presetFrameStyle(avatarFramePreset) === "overlay"
+                        ? 0
+                        : (getPresetFrameById(avatarFramePreset)
+                              ?.avatarInsetPercent ?? 12)
+                    : undefined,
                 status: status
                     ? {
                           status: status.status,
@@ -284,14 +289,17 @@ export async function POST(request: NextRequest) {
             duration: Date.now() - startTime,
         });
 
-        return NextResponse.json({
-            profiles: profilesMap,
-            visibleUserIds,
-        }, {
-            headers: {
-                'Cache-Control': 'private, max-age=10',
+        return NextResponse.json(
+            {
+                profiles: profilesMap,
+                visibleUserIds,
             },
-        });
+            {
+                headers: {
+                    "Cache-Control": "private, max-age=10",
+                },
+            },
+        );
     } catch (error) {
         recordError(error instanceof Error ? error : new Error(String(error)), {
             context: "POST /api/profiles/batch",

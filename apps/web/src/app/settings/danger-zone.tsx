@@ -29,8 +29,11 @@ export function DangerZone() {
 
     const runAction = async (
         kind: "deactivate" | "delete",
-        action: (formData: FormData) => Promise<
-            { success: true; message: string } | { success: false; error: string }
+        action: (
+            formData: FormData,
+        ) => Promise<
+            | { success: true; message: string }
+            | { success: false; error: string }
         >,
     ) => {
         setBusy(kind);
@@ -117,9 +120,9 @@ export function DangerZone() {
                                     This wipes your profile, posts, direct
                                     messages, attachments, uploads, and all
                                     server data. Your user ID is reserved
-                                    forever as a &quot;Deleted User&quot;
-                                    record and can never be reused. There is no
-                                    way to undo this.
+                                    forever as a &quot;Deleted User&quot; record
+                                    and can never be reused. There is no way to
+                                    undo this.
                                 </DialogDescription>
                             </DialogHeader>
                             <div className="grid gap-4">
@@ -155,9 +158,7 @@ export function DangerZone() {
                             </div>
                             <DialogFooter>
                                 <Button
-                                    onClick={() =>
-                                        setDeleteDialogOpen(false)
-                                    }
+                                    onClick={() => setDeleteDialogOpen(false)}
                                     disabled={busy !== null}
                                     type="button"
                                     variant="outline"

@@ -33,7 +33,11 @@ const authenticatedGetRoutes = findStaticRouteFiles(API_DIR)
 describe("static authenticated GET routes", () => {
     it("finds the routes to check", () => {
         expect(authenticatedGetRoutes.map(({ route }) => route)).toEqual(
-            expect.arrayContaining(["gifs/search", "memberships", "search/messages"]),
+            expect.arrayContaining([
+                "gifs/search",
+                "memberships",
+                "search/messages",
+            ]),
         );
     });
 

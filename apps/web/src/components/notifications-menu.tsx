@@ -1,10 +1,12 @@
 "use client";
 
 import type { Route } from "next";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useInbox } from "@/app/chat/hooks/useInbox";
+import { useServers } from "@/app/chat/hooks/useServers";
+import { useUnreadChannels } from "@/app/notifications/useUnreadChannels";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +18,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buildChatMessageHref } from "@/lib/message-navigation";
-import { Bell, Inbox } from "lucide-react";
+import { Bell, Hash, Inbox } from "lucide-react";
 
 function formatRelativeTime(value: string) {
     const date = new Date(value);
@@ -39,14 +41,29 @@ type NotificationsMenuProps = {
 export function NotificationsMenu({ userId }: NotificationsMenuProps) {
     const router = useRouter();
     const inboxApi = useInbox(userId);
+    // Channel unreads cost a read plus a channel list per server, so they are
+    // only fetched once the popup is opened rather than on every page load.
+    const [open, setOpen] = useState(false);
+    const membershipEnabled = Boolean(
+        process.env.APPWRITE_MEMBERSHIPS_COLLECTION_ID,
+    );
+    const serversApi = useServers({ membershipEnabled, userId });
+    const { loading: channelsLoading, unreadChannels } = useUnreadChannels(
+        serversApi.servers,
+        { enabled: open },
+    );
     const recentItems = useMemo(
         () => inboxApi.items.slice(0, 5),
         [inboxApi.items],
     );
+    const unreadChannelsPreview = useMemo(
+        () => unreadChannels.slice(0, 3),
+        [unreadChannels],
+    );
     const unreadCount = inboxApi.unreadCount;
 
     return (
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={setOpen}>
             <DropdownMenuTrigger asChild>
                 <Button
                     type="button"
@@ -77,6 +94,58 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
 
                 <DropdownMenuSeparator />
 
+                <div className="px-3 pb-1 pt-0.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Unread channels
+                    </p>
+                </div>
+
+                {open && channelsLoading ? (
+                    <div className="space-y-2 px-3 py-2 text-sm text-muted-foreground">
+                        Loading unread channels...
+                    </div>
+                ) : unreadChannelsPreview.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">
+                        {open
+                            ? "No channels with unread messages."
+                            : "Open to check for unread channels."}
+                    </div>
+                ) : (
+                    <div className="space-y-1 px-1 py-1">
+                        {unreadChannelsPreview.map(({ channel, serverId }) => (
+                            <DropdownMenuItem
+                                className="cursor-pointer rounded-md"
+                                key={`${serverId}:${channel.$id}`}
+                                onSelect={() => {
+                                    router.push(
+                                        `/chat?server=${encodeURIComponent(
+                                            serverId,
+                                        )}&channel=${encodeURIComponent(
+                                            channel.$id,
+                                        )}` as Route,
+                                    );
+                                }}
+                            >
+                                <Hash
+                                    aria-hidden="true"
+                                    className="mr-2 size-3.5 shrink-0 text-primary"
+                                />
+                                <span className="min-w-0 flex-1 truncate text-sm">
+                                    {channel.name}
+                                </span>
+                                <span className="shrink-0 text-[11px] text-muted-foreground">
+                                    {formatRelativeTime(
+                                        channel.lastMessageAt ??
+                                            channel.$createdAt,
+                                    )}
+                                </span>
+                            </DropdownMenuItem>
+                        ))}
+                    </div>
+                )}
+
+                <DropdownMenuSeparator />
+
                 {inboxApi.loading ? (
                     <div className="space-y-2 px-3 py-2 text-sm text-muted-foreground">
                         Loading recent notifications...
@@ -85,9 +154,15 @@ export function NotificationsMenu({ userId }: NotificationsMenuProps) {
                     <div className="space-y-2 px-3 py-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2 text-foreground">
                             <Inbox className="h-4 w-4 text-primary" />
-                            All caught up
+                            {unreadChannels.length > 0
+                                ? "No mentions or DMs"
+                                : "All caught up"}
                         </div>
-                        <p>No recent unread notifications found.</p>
+                        <p>
+                            {unreadChannels.length > 0
+                                ? "No recent unread mentions, DMs, or thread activity."
+                                : "No recent unread notifications found."}
+                        </p>
                     </div>
                 ) : (
                     <div className="space-y-1 px-1 py-1">

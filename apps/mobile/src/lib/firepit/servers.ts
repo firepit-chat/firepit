@@ -115,6 +115,46 @@ export async function fetchServer(
     });
 }
 
+/** A member's highest-ranked role, as resolved by the server. */
+export type MemberPrimaryRole = {
+    id: string;
+    name: string;
+    color: string;
+    position: number;
+};
+
+export type ViewerMember = {
+    userId: string;
+    username: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
+    /** The server sends both the preset id and the resolved URL. Mobile has no
+     * preset registry, so it renders from `avatarFrameUrl`. */
+    avatarFramePreset: string | null;
+    avatarFrameUrl: string | null;
+    /** Each frame is drawn for its own inset, and mobile has no preset
+     * registry, so the server sends it. */
+    avatarFrameInsetPercent: number | null;
+    role: MemberPrimaryRole | null;
+};
+
+export type ViewerMembersResponse = {
+    members: ViewerMember[];
+    truncated?: boolean;
+};
+
+export async function fetchViewerMembers(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
+    return firepitRequest<ViewerMembersResponse>({
+        baseUrl,
+        path: `/api/servers/${encodeURIComponent(serverId)}/viewer/members`,
+        token,
+    });
+}
+
 export async function fetchPublicServers(baseUrl: string) {
     return firepitRequest<PublicServerListResponse>({
         baseUrl,
@@ -179,7 +219,11 @@ export async function fetchServerCategories(
     });
 }
 
-export async function fetchServerRoles(baseUrl: string, token: string, serverId: string) {
+export async function fetchServerRoles(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
     return firepitRequest<RoleListResponse>({
         baseUrl,
         path: "/api/roles",
@@ -342,7 +386,11 @@ export async function resolveReport(
     });
 }
 
-export async function fetchServerStats(baseUrl: string, token: string, serverId: string) {
+export async function fetchServerStats(
+    baseUrl: string,
+    token: string,
+    serverId: string,
+) {
     return firepitRequest<ServerStatsResponse>({
         baseUrl,
         path: `/api/servers/${encodeURIComponent(serverId)}/stats`,

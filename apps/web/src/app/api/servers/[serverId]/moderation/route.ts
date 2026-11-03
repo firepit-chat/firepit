@@ -4,8 +4,7 @@ import { Query, ID } from "node-appwrite";
 import { recordAudit } from "@/lib/appwrite-audit";
 import { getServerSession } from "@/lib/auth-server";
 import { getUserRoles } from "@/lib/appwrite-roles";
-import { logger,
-} from "@/lib/posthog-utils";
+import { logger } from "@/lib/posthog-utils";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { listPages } from "@/lib/appwrite-pagination";
@@ -332,7 +331,7 @@ export async function POST(
                 break;
             }
 
-            case "unban":
+            case "unban": {
                 if (!BANNED_USERS_COLLECTION_ID) {
                     return NextResponse.json(
                         { error: "Banned users collection not configured" },
@@ -354,8 +353,9 @@ export async function POST(
                 }
                 result = { removed: removedBans };
                 break;
+            }
 
-            case "unmute":
+            case "unmute": {
                 if (!MUTED_USERS_COLLECTION_ID) {
                     return NextResponse.json(
                         { error: "Muted users collection not configured" },
@@ -377,6 +377,7 @@ export async function POST(
                 }
                 result = { removed: removedMutes };
                 break;
+            }
 
             default:
                 return NextResponse.json(

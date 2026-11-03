@@ -1,6 +1,7 @@
 import { connection, NextResponse } from "next/server";
 
 import { getServerSession } from "@/lib/auth-server";
+import { invalidateTelemetryConsent } from "@/lib/telemetry-consent";
 import {
     getOrCreateUserProfile,
     updateUserProfile,
@@ -286,6 +287,11 @@ export async function PATCH(request: Request) {
                 ),
             });
         }
+
+        // Drop the cached consent decision so an opt-out takes effect on the
+        // next telemetry event rather than after the TTL, and so an opt-in is
+        // not blocked by a stale "denied" entry.
+        invalidateTelemetryConsent(user.$id);
 
         return NextResponse.json(toPreferencesResponse(updatedProfile));
     } catch (error) {

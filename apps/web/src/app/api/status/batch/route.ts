@@ -5,11 +5,7 @@ import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getServerSession } from "@/lib/auth-server";
 import { apiCache } from "@/lib/cache-utils";
-import {
-    logger,
-    trackApiCall,
-    returnUnauthorized,
-} from "@/lib/posthog-utils";
+import { logger, trackApiCall, returnUnauthorized } from "@/lib/posthog-utils";
 import type { UserStatus } from "@/lib/types";
 import {
     normalizeStatus,
@@ -30,7 +26,6 @@ export async function POST(request: Request) {
     const startTime = Date.now();
 
     try {
-
         const session = await getServerSession();
         if (!session?.$id) {
             return returnUnauthorized();

@@ -2,16 +2,22 @@
 
 import { Children, cloneElement, isValidElement } from "react";
 
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import {
+    SPOILER_TAG_NAME,
+    Spoiler,
+    remarkSpoiler,
+    containsSpoilerSyntax,
+} from "@firepit-chat/markdown-spoiler";
 import type { MentionMatch } from "@/lib/mention-utils";
 import { parseMentions } from "@/lib/mention-utils";
 import { EmojiRenderer } from "@/components/emoji-renderer";
 import type { UserProfileData, CustomEmoji } from "@/lib/types";
 
 const MARKDOWN_PATTERN =
-    /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/m;
+    /(\*\*|__|\*[^*\n]+\*|_[^_\n]+_|~~|`|\[spoiler\]|\[[^\]]+\]\([^)]+\)|^\s{0,3}(?:[-+*]|\d+\.)\s+|^\s{0,3}>\s+|^\s{0,3}#{1,6}\s+)/m;
 
 const SAFE_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 
@@ -22,9 +28,9 @@ type MentionToken = {
 };
 
 type MarkdownNode = {
-	tagName?: string;
-	value?: string;
-	children?: MarkdownNode[];
+    tagName?: string;
+    value?: string;
+    children?: MarkdownNode[];
 };
 
 interface MessageWithMentionsProps {
@@ -35,6 +41,12 @@ interface MessageWithMentionsProps {
     currentUserId?: string;
     customEmojis?: CustomEmoji[];
     renderLinks?: boolean;
+    /**
+     * Render the spoiler trigger as a span rather than a button. Needed when the
+     * message is rendered inside another `<button>`, such as a search result
+     * row, because HTML forbids nesting interactive elements.
+     */
+    spoilerInlineTrigger?: boolean;
 }
 
 /**
@@ -53,6 +65,7 @@ export function MessageWithMentions({
     currentUserId,
     customEmojis = [],
     renderLinks = true,
+    spoilerInlineTrigger = false,
 }: MessageWithMentionsProps) {
     const allMatches = findMentionSpans(text, mentions, knownNames);
     const mentionTokens = createMentionTokens({
@@ -69,6 +82,7 @@ export function MessageWithMentions({
                 customEmojis,
                 mentionTokens,
                 renderLinks,
+                spoilerInlineTrigger,
                 text: textWithTokens,
             })}
         </div>
@@ -115,155 +129,183 @@ function renderMessageText({
     customEmojis,
     mentionTokens,
     renderLinks,
+    spoilerInlineTrigger,
 }: {
     text: string;
     customEmojis: CustomEmoji[];
     mentionTokens: MentionToken[];
     renderLinks: boolean;
+    spoilerInlineTrigger: boolean;
 }) {
     if (!hasMarkdownSyntax(text)) {
         return renderDecoratedText({ text, customEmojis, mentionTokens });
     }
 
+    // `Components` is keyed by intrinsic HTML tag names, so the spoiler node's
+    // custom hName has to be cast in. The cast is safe because react-markdown
+    // routes any unrecognised tag to this entry verbatim.
+    const components = {
+        [SPOILER_TAG_NAME]: ({ children }: { children?: React.ReactNode }) => (
+            <Spoiler
+                inlineTrigger={spoilerInlineTrigger}
+                classNames={{
+                    root: "my-0.5 inline",
+                    trigger:
+                        "inline cursor-pointer rounded-sm border border-border/70 bg-muted/60 px-1.5 py-0.5 align-baseline text-sm font-medium text-muted-foreground hover:bg-muted",
+                    content: "ml-1 inline",
+                }}
+            >
+                {children}
+            </Spoiler>
+        ),
+        p: ({ children }) => (
+            <p className="my-1 first:mt-0 last:mb-0">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </p>
+        ),
+        strong: ({ children }) => (
+            <strong className="font-semibold">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </strong>
+        ),
+        em: ({ children }) => (
+            <em className="italic">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </em>
+        ),
+        del: ({ children }) => (
+            <del className="opacity-80">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </del>
+        ),
+        ul: ({ children }) => (
+            <ul className="my-1 list-disc pl-5">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </ul>
+        ),
+        ol: ({ children }) => (
+            <ol className="my-1 list-decimal pl-5">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </ol>
+        ),
+        li: ({ children }) => (
+            <li>
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </li>
+        ),
+        blockquote: ({ children }) => (
+            <blockquote className="my-1 border-l-2 border-border/70 pl-3 text-muted-foreground">
+                {renderMarkdownChildren({
+                    children,
+                    customEmojis,
+                    mentionTokens,
+                })}
+            </blockquote>
+        ),
+        code: ({ children, className, node }) => (
+            <code className={className}>
+                {restoreMentionTokens(
+                    extractMarkdownNodeText(node),
+                    mentionTokens,
+                ) ||
+                    restoreMentionTokensToText({
+                        children,
+                        mentionTokens,
+                    })}
+            </code>
+        ),
+        pre: ({ children, node }) => (
+            <pre className="my-1 overflow-x-auto rounded-md border border-border/70 bg-muted/60 p-2 text-xs leading-5">
+                {restoreMentionTokens(
+                    extractMarkdownNodeText(node),
+                    mentionTokens,
+                ) ||
+                    restoreMentionTokensToText({
+                        children,
+                        mentionTokens,
+                    })}
+            </pre>
+        ),
+        a: ({ children, href }) => {
+            const safeHref = sanitizeLinkHref(href);
+
+            if (!safeHref || !renderLinks) {
+                return (
+                    <span>
+                        {renderMarkdownChildren({
+                            children,
+                            customEmojis,
+                            mentionTokens,
+                        })}
+                    </span>
+                );
+            }
+
+            const isExternal =
+                safeHref.startsWith("http://") ||
+                safeHref.startsWith("https://");
+
+            return (
+                <a
+                    className="font-medium text-primary underline underline-offset-4"
+                    href={safeHref}
+                    rel={isExternal ? "noopener noreferrer" : undefined}
+                    target={isExternal ? "_blank" : undefined}
+                >
+                    {renderMarkdownChildren({
+                        children,
+                        customEmojis,
+                        mentionTokens,
+                    })}
+                </a>
+            );
+        },
+        img: ({ alt }) => (
+            <span className="italic text-muted-foreground">
+                [{alt || "image"}]
+            </span>
+        ),
+    } as Components;
+
     return (
         <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
+            remarkPlugins={
+                // Parsing Markdown is the expensive path, so only pay for the
+                // spoiler plugin when the message could actually contain one.
+                containsSpoilerSyntax(text)
+                    ? [remarkGfm, remarkSpoiler]
+                    : [remarkGfm]
+            }
             skipHtml
-            components={{
-                p: ({ children }) => (
-                    <p className="my-1 first:mt-0 last:mb-0">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </p>
-                ),
-                strong: ({ children }) => (
-                    <strong className="font-semibold">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </strong>
-                ),
-                em: ({ children }) => (
-                    <em className="italic">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </em>
-                ),
-                del: ({ children }) => (
-                    <del className="opacity-80">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </del>
-                ),
-                ul: ({ children }) => (
-                    <ul className="my-1 list-disc pl-5">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </ul>
-                ),
-                ol: ({ children }) => (
-                    <ol className="my-1 list-decimal pl-5">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </ol>
-                ),
-                li: ({ children }) => (
-                    <li>
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </li>
-                ),
-                blockquote: ({ children }) => (
-                    <blockquote className="my-1 border-l-2 border-border/70 pl-3 text-muted-foreground">
-                        {renderMarkdownChildren({
-                            children,
-                            customEmojis,
-                            mentionTokens,
-                        })}
-                    </blockquote>
-                ),
-                code: ({ children, className, node }) => (
-                    <code className={className}>
-                        {restoreMentionTokens(extractMarkdownNodeText(node),
-                            mentionTokens,
-                        ) ||
-                            restoreMentionTokensToText({
-                                children,
-                                mentionTokens,
-                            })}
-                    </code>
-                ),
-                pre: ({ children, node }) => (
-                    <pre className="my-1 overflow-x-auto rounded-md border border-border/70 bg-muted/60 p-2 text-xs leading-5">
-                        {restoreMentionTokens(extractMarkdownNodeText(node),
-                            mentionTokens,
-                        ) ||
-                            restoreMentionTokensToText({
-                                children,
-                                mentionTokens,
-                            })}
-                    </pre>
-                ),
-                a: ({ children, href }) => {
-                    const safeHref = sanitizeLinkHref(href);
-
-                    if (!safeHref || !renderLinks) {
-                        return (
-                            <span>
-                                {renderMarkdownChildren({
-                                    children,
-                                    customEmojis,
-                                    mentionTokens,
-                                })}
-                            </span>
-                        );
-                    }
-
-                    const isExternal =
-                        safeHref.startsWith("http://") ||
-                        safeHref.startsWith("https://");
-
-                    return (
-                        <a
-                            className="font-medium text-primary underline underline-offset-4"
-                            href={safeHref}
-                            rel={isExternal ? "noopener noreferrer" : undefined}
-                            target={isExternal ? "_blank" : undefined}
-                        >
-                            {renderMarkdownChildren({
-                                children,
-                                customEmojis,
-                                mentionTokens,
-                            })}
-                        </a>
-                    );
-                },
-                img: ({ alt }) => (
-                    <span className="italic text-muted-foreground">
-                        [{alt || "image"}]
-                    </span>
-                ),
-            }}
+            components={components}
         >
             {text}
         </ReactMarkdown>
@@ -289,15 +331,14 @@ function renderMarkdownChildren({
         }
 
         if (
-            isValidElement<{ children?: React.ReactNode; node?: MarkdownNode }>(child) &&
+            isValidElement<{ children?: React.ReactNode; node?: MarkdownNode }>(
+                child,
+            ) &&
             child.props.children !== undefined
         ) {
             const tagName = child.props.node?.tagName;
 
-            if (
-                tagName === "code" ||
-                tagName === "pre"
-            ) {
+            if (tagName === "code" || tagName === "pre") {
                 return cloneElement(
                     child,
                     undefined,
@@ -340,13 +381,11 @@ function renderDecoratedText({
     let cursor = 0;
 
     while (cursor < text.length) {
-        let nextMatch:
-            | {
-                  token: string;
-                  index: number;
-                  element: React.ReactElement;
-              }
-            | null = null;
+        let nextMatch: {
+            token: string;
+            index: number;
+            element: React.ReactElement;
+        } | null = null;
 
         for (const mentionToken of mentionTokens) {
             const tokenIndex = text.indexOf(mentionToken.token, cursor);
@@ -453,7 +492,9 @@ function restoreMentionTokens(
     let restoredText = text;
 
     for (const mentionToken of mentionTokens) {
-        restoredText = restoredText.split(mentionToken.token).join(mentionToken.text);
+        restoredText = restoredText
+            .split(mentionToken.token)
+            .join(mentionToken.text);
     }
 
     return restoredText;

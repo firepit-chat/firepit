@@ -30,7 +30,9 @@ export function normalizeMentionIds(input: unknown): string[] {
         normalizedInput = input;
     }
 
-    const trimmed = normalizedInput.filter(isValidMentionId).map((v) => v.trim());
+    const trimmed = normalizedInput
+        .filter(isValidMentionId)
+        .map((v) => v.trim());
     return Array.from(new Set(trimmed));
 }
 

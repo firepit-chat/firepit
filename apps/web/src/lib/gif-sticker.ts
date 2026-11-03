@@ -110,7 +110,9 @@ function normalizeContentFilter(value: string | null): TenorContentFilter {
     return "medium";
 }
 
-export function parseGifSearchParams(searchParams: URLSearchParams): GifSearchParams {
+export function parseGifSearchParams(
+    searchParams: URLSearchParams,
+): GifSearchParams {
     const query = toStringValue(searchParams.get("q"));
     if (!query) {
         throw new GifSearchValidationError("Query parameter q is required");
@@ -127,7 +129,9 @@ export function parseGifSearchParams(searchParams: URLSearchParams): GifSearchPa
         cursor,
         limit,
         query,
-        contentFilter: normalizeContentFilter(searchParams.get("contentfilter")),
+        contentFilter: normalizeContentFilter(
+            searchParams.get("contentfilter"),
+        ),
     };
 }
 

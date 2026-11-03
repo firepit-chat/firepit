@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
-import { logger,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { logger, returnForbidden } from "@/lib/posthog-utils";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
@@ -12,9 +10,7 @@ const FORMULA_PREFIXES = ["=", "+", "-", "@", "\t", "\r"];
 
 function toSafeCsvCell(value: unknown): string {
     const text = String(value ?? "");
-    const guarded = FORMULA_PREFIXES.some((prefix) =>
-        text.startsWith(prefix),
-    )
+    const guarded = FORMULA_PREFIXES.some((prefix) => text.startsWith(prefix))
         ? `'${text}`
         : text;
     return `"${guarded.replace(/"/g, '""')}"`;

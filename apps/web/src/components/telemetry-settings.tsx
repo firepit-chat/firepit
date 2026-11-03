@@ -32,33 +32,33 @@ export function TelemetrySettings() {
 
     return (
         <div className="flex flex-col gap-4 rounded-xl border border-border/80 bg-card p-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                        <Activity className="h-4 w-4 text-primary" />
-                        <Label
-                            className="text-base font-semibold text-foreground"
-                            htmlFor="telemetry-enabled"
-                        >
-                            Telemetry and analytics
-                        </Label>
-                    </div>
-                    <p className="max-w-2xl text-sm text-muted-foreground">
-                        Enable anonymous usage and reliability telemetry for
-                        your account. Turning this off disables client-side
-                        PostHog tracking for your signed-in session.
-                    </p>
+            <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    <Label
+                        className="text-base font-semibold text-foreground"
+                        htmlFor="telemetry-enabled"
+                    >
+                        Telemetry and analytics
+                    </Label>
                 </div>
-
-                <Switch
-                    checked={navigationPreferences.telemetryEnabled}
-                    disabled={isDisabled}
-                    id="telemetry-enabled"
-                    onCheckedChange={(checked) =>
-                        updateNavigationPreferences({
-                            telemetryEnabled: checked,
-                        })
-                    }
-                />
+                <p className="max-w-2xl text-sm text-muted-foreground">
+                    Enable anonymous usage and reliability telemetry for your
+                    account. Turning this off disables client-side PostHog
+                    tracking for your signed-in session.
+                </p>
             </div>
+
+            <Switch
+                checked={navigationPreferences.telemetryEnabled}
+                disabled={isDisabled}
+                id="telemetry-enabled"
+                onCheckedChange={(checked) =>
+                    updateNavigationPreferences({
+                        telemetryEnabled: checked,
+                    })
+                }
+            />
+        </div>
     );
 }

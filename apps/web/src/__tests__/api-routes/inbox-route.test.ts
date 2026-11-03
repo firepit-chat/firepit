@@ -52,7 +52,11 @@ vi.mock("@/lib/thread-read-store", () => ({
         items: T[];
         worker: (item: T) => Promise<void>;
     }) => {
-        for (let index = 0; index < params.items.length; index += params.batchSize) {
+        for (
+            let index = 0;
+            index < params.items.length;
+            index += params.batchSize
+        ) {
             await Promise.all(
                 params.items
                     .slice(index, index + params.batchSize)
@@ -214,9 +218,10 @@ describe("inbox route", () => {
 
         expect(response.status).toBe(200);
         expect(mockListInboxItems).toHaveBeenCalledWith({
+            contextId: "channel-1",
             contextKinds: ["channel"],
             kinds: ["message", "mention", "thread"],
-            limit: Number.POSITIVE_INFINITY,
+            limit: 50,
             userId: "user-1",
         });
         expect(data.items).toHaveLength(1);
@@ -350,6 +355,7 @@ describe("inbox route", () => {
 
         expect(response.status).toBe(200);
         expect(mockListInboxItems).toHaveBeenCalledWith({
+            contextId: "channel-1",
             contextKinds: ["channel"],
             kinds: ["message", "mention", "thread"],
             limit: Number.POSITIVE_INFINITY,
@@ -460,6 +466,7 @@ describe("inbox route", () => {
 
         expect(response.status).toBe(200);
         expect(mockListInboxItems).toHaveBeenCalledWith({
+            contextId: undefined,
             contextKinds: ["conversation"],
             kinds: ["message", "mention", "thread"],
             limit: Number.POSITIVE_INFINITY,

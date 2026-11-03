@@ -6,9 +6,7 @@ import {
     type FileAttachment,
 } from "@/lib/types";
 
-const ATTACHMENT_MEDIA_KIND_SET = new Set<string>(
-    ATTACHMENT_MEDIA_KIND_VALUES,
-);
+const ATTACHMENT_MEDIA_KIND_SET = new Set<string>(ATTACHMENT_MEDIA_KIND_VALUES);
 const ATTACHMENT_SOURCE_SET = new Set<string>(ATTACHMENT_SOURCE_VALUES);
 
 const DEFAULT_MAX_ATTACHMENTS = 10;
@@ -122,7 +120,13 @@ export function normalizeFileAttachment(input: unknown): FileAttachment | null {
     const fileType = normalizeString(candidate.fileType);
     const fileUrl = normalizeUrl(candidate.fileUrl);
 
-    if (!fileId || !fileName || fileSize === undefined || !fileType || !fileUrl) {
+    if (
+        !fileId ||
+        !fileName ||
+        fileSize === undefined ||
+        !fileType ||
+        !fileUrl
+    ) {
         return null;
     }
 

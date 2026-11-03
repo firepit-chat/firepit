@@ -1,6 +1,9 @@
 import { connection, NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth-server";
-import { getOrCreateUserProfile, updateUserProfile } from "@/lib/appwrite-profiles";
+import {
+    getOrCreateUserProfile,
+    updateUserProfile,
+} from "@/lib/appwrite-profiles";
 import { logger, returnUnauthorized } from "@/lib/posthog-utils";
 
 type PatchBody = {
@@ -106,8 +109,7 @@ export async function PATCH(request: Request) {
         ) {
             return NextResponse.json(
                 {
-                    error:
-                        "Invalid dmEncryptionPublicKey: key must be base64 and decode to 32 bytes",
+                    error: "Invalid dmEncryptionPublicKey: key must be base64 and decode to 32 bytes",
                 },
                 { status: 400 },
             );

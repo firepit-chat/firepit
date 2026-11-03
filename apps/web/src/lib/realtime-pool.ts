@@ -58,7 +58,9 @@ function installIdleTeardownListeners() {
  * since the SDK doesn't expose a public reconnect method.
  */
 async function forceReconnectRealtime(): Promise<void> {
-    if (!sharedRealtime) {return;}
+    if (!sharedRealtime) {
+        return;
+    }
 
     const realtime = sharedRealtime as object;
 
@@ -208,11 +210,14 @@ export function isTransientRealtimeSubscribeError(error: unknown): boolean {
             : null;
     const name = typeof candidate?.name === "string" ? candidate.name : "";
     const code =
-        typeof candidate?.code === "string" || typeof candidate?.code === "number"
+        typeof candidate?.code === "string" ||
+        typeof candidate?.code === "number"
             ? String(candidate.code)
             : "";
 
-    if (["NetworkError", "TypeError", "ECONNRESET", "ETIMEDOUT"].includes(name)) {
+    if (
+        ["NetworkError", "TypeError", "ECONNRESET", "ETIMEDOUT"].includes(name)
+    ) {
         return true;
     }
     if (["ECONNRESET", "ETIMEDOUT"].includes(code)) {
@@ -387,8 +392,7 @@ function patchRealtimeSubscribe(realtime: Realtime): Realtime {
                 }
 
                 const raw = resolvedRawSubscription as
-                    | { disconnect?: () => Promise<void> }
-                    | undefined;
+                    { disconnect?: () => Promise<void> } | undefined;
                 if (raw && typeof raw.disconnect === "function") {
                     try {
                         return await Promise.resolve(raw.disconnect());
@@ -411,8 +415,7 @@ function patchRealtimeSubscribe(realtime: Realtime): Realtime {
             handle.update = async (opts?: unknown) => {
                 await queuedUnsubscribe;
                 const raw = resolvedRawSubscription as
-                    | { update?: (opts?: unknown) => Promise<void> }
-                    | undefined;
+                    { update?: (opts?: unknown) => Promise<void> } | undefined;
                 if (raw && typeof raw.update === "function") {
                     return Promise.resolve(raw.update(opts));
                 }

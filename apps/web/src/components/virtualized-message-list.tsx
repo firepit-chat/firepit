@@ -2,7 +2,8 @@
 import { useEffect, useRef } from "react";
 import { Virtuoso } from "react-virtuoso";
 import type { VirtuosoHandle } from "react-virtuoso";
-import type { ChatSurfaceMessage } from "@/lib/chat-surface";
+import { startsNewDay, type ChatSurfaceMessage } from "@/lib/chat-surface";
+import { ChatDateBoundary } from "@/components/chat-date-boundary";
 import type { CustomEmoji } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { ChatSurfaceMessageItem } from "@/components/chat-surface-message-item";
@@ -26,7 +27,10 @@ type VirtualizedMessageListProps = {
         emoji: string,
         isAdding: boolean,
     ) => Promise<void>;
-    onVotePoll?: (message: ChatSurfaceMessage, optionId: string) => Promise<void>;
+    onVotePoll?: (
+        message: ChatSurfaceMessage,
+        optionId: string,
+    ) => Promise<void>;
     onClosePoll?: (message: ChatSurfaceMessage) => Promise<void>;
     onOpenProfileModal: (
         userId: string,
@@ -111,9 +115,7 @@ export function VirtualizedMessageList({
 
     return (
         <Virtuoso
-            className={`min-w-0 w-full ${
-                isCompact ? "p-3" : "p-4"
-            }`}
+            className={`min-w-0 w-full ${isCompact ? "p-3" : "p-4"}`}
             style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
             computeItemKey={(_, message) => message.id}
             data={messages}
@@ -121,12 +123,15 @@ export function VirtualizedMessageList({
             followOutput="smooth"
             initialTopMostItemIndex={messages.length - 1}
             ref={virtuosoRef}
-            itemContent={(_, message) => (
+            itemContent={(index, message) => (
                 <div
                     className={`min-w-0 ${
                         isCompact ? "mx-4 mb-3" : "mx-4 mb-4"
                     }`}
                 >
+                    {startsNewDay(messages, index) ? (
+                        <ChatDateBoundary date={message.createdAt} />
+                    ) : null}
                     {unreadAnchorMessageId === message.id ? (
                         <UnreadBoundary />
                     ) : null}

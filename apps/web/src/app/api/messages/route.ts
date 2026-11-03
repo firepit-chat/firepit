@@ -22,6 +22,7 @@ import {
 } from "@/lib/message-constraints";
 import { upsertMentionInboxItems } from "@/lib/inbox-items";
 import { resolveMessageImageUrl } from "@/lib/message-image-url";
+import { parseReactions, type Reaction } from "@/lib/reactions-utils";
 import {
     getChannelAccessForUser,
     getServerPermissionsForUser,
@@ -115,17 +116,29 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
         imageFileId: normalizeStringField(doc.imageFileId),
         imageUrl: normalizeStringField(doc.imageUrl),
         replyToId: normalizeStringField(doc.replyToId),
+        // Thread linkage. Without these the client cannot tell a thread parent
+        // from an ordinary message, so the "N replies" affordance never renders
+        // and thread replies leak into the main timeline. Mirrors
+        // mapDirectMessageDocument in the direct-messages route.
+        threadId: normalizeStringField(doc.threadId),
+        threadMessageCount:
+            typeof doc.threadMessageCount === "number"
+                ? doc.threadMessageCount
+                : undefined,
+        threadParticipants: Array.isArray(doc.threadParticipants)
+            ? (doc.threadParticipants as string[])
+            : undefined,
+        lastThreadReplyAt: normalizeStringField(doc.lastThreadReplyAt),
         mentions: Array.isArray(doc.mentions)
             ? (doc.mentions as string[])
             : undefined,
-        reactions: Array.isArray(doc.reactions)
-            ? (doc.reactions as Array<{
-                  emoji: string;
-                  userIds: string[];
-                  count: number;
-                  reactedByMe?: boolean;
-              }>)
-            : undefined,
+        // parseReactions, not a bare cast: it accepts the JSON-string and
+        // legacy emoji-map shapes and normalizes userIds. Without it a client
+        // cannot derive "did I already react", so it keeps sending adds and
+        // the toggle fails. Mirrors the direct-messages route.
+        reactions: parseReactions(
+            doc.reactions as string | Reaction[] | undefined,
+        ),
     };
 }
 
@@ -136,7 +149,6 @@ function mapMessageDocument(doc: Record<string, unknown>): Message {
 export async function GET(request: NextRequest) {
     await connection();
     try {
-
         const user = await getServerSession();
         if (!user) {
             return NextResponse.json(
@@ -199,14 +211,20 @@ export async function GET(request: NextRequest) {
 
         // Batch fetch poll states for all messages (single DB call instead of N+1)
         try {
-          const messageIds = messages.map((m) => m.$id);
-          const pollStates = await getPollStatesForMessages(databases, env, messageIds);
-          for (const msg of messages) {
-            const poll = pollStates.get(msg.$id);
-            if (poll) {msg.poll = poll;}
-          }
+            const messageIds = messages.map((m) => m.$id);
+            const pollStates = await getPollStatesForMessages(
+                databases,
+                env,
+                messageIds,
+            );
+            for (const msg of messages) {
+                const poll = pollStates.get(msg.$id);
+                if (poll) {
+                    msg.poll = poll;
+                }
+            }
         } catch {
-          // Poll fetch failed, continue without poll data
+            // Poll fetch failed, continue without poll data
         }
 
         const lastRawDoc = response.documents.at(-1);
@@ -295,9 +313,7 @@ async function createAttachments(
                     messageId,
                     messageType,
                     reason:
-                        error instanceof Error
-                            ? error.message
-                            : String(error),
+                        error instanceof Error ? error.message : String(error),
                 },
             );
 
@@ -330,7 +346,6 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -424,7 +439,7 @@ export async function POST(request: NextRequest) {
         const userId = user.$id;
         const userName = user.name;
 
- // Create message permissions
+        // Create message permissions
         const permissions = perms.message(userId, {
             mod: env.teams.moderatorTeamId,
             admin: env.teams.adminTeamId,
@@ -715,17 +730,24 @@ export async function POST(request: NextRequest) {
 
         // Send push notifications to mentioned users (non-blocking)
         if (hasValidMentions && validMentions.length > 0) {
-            const senderProfile = await getUserProfile(userId).catch(() => null);
+            const senderProfile = await getUserProfile(userId).catch(
+                () => null,
+            );
             const senderName = senderProfile?.displayName || "Someone";
             const mentionText = text || "Mentioned you in a channel";
             for (const mentionedUserId of validMentions) {
                 if (mentionedUserId !== userId) {
-                    void dispatchPushNotification(mentionedUserId, `${senderName} mentioned you`, mentionText, {
-                        type: "mention",
-                        serverId: normalizedServerId,
-                        channelId: normalizedChannelId,
-                        messageId: String(res.$id),
-                    }).catch((err) => logger.warn("Push dispatch failed:", err));
+                    void dispatchPushNotification(
+                        mentionedUserId,
+                        `${senderName} mentioned you`,
+                        mentionText,
+                        {
+                            type: "mention",
+                            serverId: normalizedServerId,
+                            channelId: normalizedChannelId,
+                            messageId: String(res.$id),
+                        },
+                    ).catch((err) => logger.warn("Push dispatch failed:", err));
                 }
             }
         }
@@ -834,6 +856,15 @@ export async function PATCH(request: NextRequest) {
             imageFileId: normalizeStringField(doc.imageFileId),
             imageUrl: normalizeStringField(doc.imageUrl),
             replyToId: normalizeStringField(doc.replyToId),
+            // Thread linkage. Without these the client cannot tell a thread parent
+            // from an ordinary message, so the "N replies" affordance never
+            // renders and thread replies leak into the main timeline. Mirrors
+            // mapDirectMessageDocument in the direct-messages route.
+            threadId: normalizeStringField(doc.threadId),
+            threadMessageCount:
+                typeof doc.threadMessageCount === "number"
+                    ? doc.threadMessageCount
+                    : undefined,
         };
 
         recordEvent("message_edited", {

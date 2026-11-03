@@ -8,14 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockAuthState, mockUseAuth } = vi.hoisted(() => ({
     mockAuthState: {
-        userData: null as
-            | {
-                  userId: string;
-                  name: string;
-                  email: string;
-                  roles: { isAdmin: boolean; isModerator: boolean };
-              }
-            | null,
+        userData: null as {
+            userId: string;
+            name: string;
+            email: string;
+            roles: { isAdmin: boolean; isModerator: boolean };
+        } | null,
     },
     mockUseAuth: vi.fn(),
 }));
@@ -28,7 +26,11 @@ import { useFriends } from "../../hooks/useFriends";
 
 function createWrapper(queryClient: QueryClient) {
     return function Wrapper({ children }: { children: ReactNode }) {
-        return createElement(QueryClientProvider, { client: queryClient }, children);
+        return createElement(
+            QueryClientProvider,
+            { client: queryClient },
+            children,
+        );
     };
 }
 
@@ -129,12 +131,17 @@ describe("useFriends", () => {
         });
 
         await act(async () => {
-            expect(await result.current.acceptFriendRequest("user-2")).toBe(true);
+            expect(await result.current.acceptFriendRequest("user-2")).toBe(
+                true,
+            );
         });
 
-        expect(global.fetch).toHaveBeenCalledWith("/api/friends/user-2/accept", {
-            method: "POST",
-        });
+        expect(global.fetch).toHaveBeenCalledWith(
+            "/api/friends/user-2/accept",
+            {
+                method: "POST",
+            },
+        );
         expect(invalidateSpy).toHaveBeenCalledWith(
             expect.objectContaining({ queryKey: ["friends", "user-1"] }),
         );

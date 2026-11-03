@@ -17,8 +17,7 @@ export const ATTACHMENT_MEDIA_KIND_VALUES = [
     "sticker",
 ] as const;
 
-export type AttachmentMediaKind =
-    (typeof ATTACHMENT_MEDIA_KIND_VALUES)[number];
+export type AttachmentMediaKind = (typeof ATTACHMENT_MEDIA_KIND_VALUES)[number];
 
 export const ATTACHMENT_SOURCE_VALUES = [
     "upload",
@@ -168,6 +167,15 @@ export type Server = {
 export const CHANNEL_TYPE_VALUES = ["text", "voice", "announcement"] as const;
 export type ChannelType = (typeof CHANNEL_TYPE_VALUES)[number];
 
+/**
+ * Coerces an untrusted channel type to a known one, defaulting to "text".
+ * Lives here rather than in a server module so client components can use it
+ * without importing server-only code.
+ */
+export function normalizeChannelType(value: unknown): ChannelType {
+    return CHANNEL_TYPE_VALUES.find((type) => type === value) ?? "text";
+}
+
 export type Channel = {
     $id: string;
     serverId: string;
@@ -177,6 +185,11 @@ export type Channel = {
     categoryId?: string;
     position?: number;
     nsfw?: boolean;
+    /**
+     * Newest message time, used to decide whether the viewer has unread
+     * messages. Absent for a channel with no recent messages.
+     */
+    lastMessageAt?: string;
     $createdAt: string;
     $updatedAt?: string;
 };
@@ -323,6 +336,9 @@ export type Conversation = {
         avatarFramePreset?: string;
         avatarFrameUrl?: string;
         status?: PresenceStatus;
+        /** Custom status text, when the user set one. Preferred over the raw
+         * status word when rendering a row's secondary line. */
+        statusMessage?: string;
     };
     lastMessage?: {
         text: string;
@@ -496,6 +512,14 @@ export type UserProfileData = {
     profileBackgroundImageFileId?: string;
     profileBackgroundImageChangedAt?: string;
     dmEncryptionPublicKey?: string;
+    /**
+     * Canonical home for the DM encryption preference. It used to live on
+     * `notification_settings`, which is the wrong layer — this is a per-user
+     * capability that sits beside the key it depends on, not a notification
+     * preference. See `lib/dm-encryption-preference.ts` for the fallback used
+     * for accounts that predate the column.
+     */
+    dmEncryptionEnabled?: boolean;
     // Tombstone: set when the account was deleted (this profile becomes the
     // "Deleted User" record that keeps the userId from being reused).
     deletedAt?: string;
@@ -560,11 +584,7 @@ export type InviteUsage = {
     joinedAt: string;
 };
 
-const FRIENDSHIP_STATUS_VALUES = [
-    "pending",
-    "accepted",
-    "declined",
-] as const;
+const FRIENDSHIP_STATUS_VALUES = ["pending", "accepted", "declined"] as const;
 
 export type FriendshipStatus = (typeof FRIENDSHIP_STATUS_VALUES)[number];
 

@@ -3,7 +3,9 @@ import { useState, useCallback, useEffect } from "react";
 import { useRetryOnReconnect } from "@/hooks/use-retry-on-reconnect";
 import {
     ActivityIndicator,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -18,10 +20,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    fetchRoleAssignments,
-    moderateServerMember,
-} from "@/lib/firepit";
+import { fetchRoleAssignments, moderateServerMember } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
@@ -36,12 +35,39 @@ type MemberInfo = {
 
 type ModerationAction = "ban" | "mute" | "kick" | "unban" | "unmute";
 
-const ACTION_META: Record<ModerationAction, { label: string; tone: "danger" | "warning" | "neutral"; description: string }> = {
-    ban: { label: "Ban", tone: "danger", description: "Permanently remove and block the user from the server" },
-    unban: { label: "Unban", tone: "neutral", description: "Remove the ban so the user can rejoin" },
-    mute: { label: "Mute", tone: "warning", description: "Prevent the user from sending messages" },
-    unmute: { label: "Unmute", tone: "neutral", description: "Allow the user to send messages again" },
-    kick: { label: "Kick", tone: "warning", description: "Remove the user from the server (they can rejoin)" },
+const ACTION_META: Record<
+    ModerationAction,
+    {
+        label: string;
+        tone: "danger" | "warning" | "neutral";
+        description: string;
+    }
+> = {
+    ban: {
+        label: "Ban",
+        tone: "danger",
+        description: "Permanently remove and block the user from the server",
+    },
+    unban: {
+        label: "Unban",
+        tone: "neutral",
+        description: "Remove the ban so the user can rejoin",
+    },
+    mute: {
+        label: "Mute",
+        tone: "warning",
+        description: "Prevent the user from sending messages",
+    },
+    unmute: {
+        label: "Unmute",
+        tone: "neutral",
+        description: "Allow the user to send messages again",
+    },
+    kick: {
+        label: "Kick",
+        tone: "warning",
+        description: "Remove the user from the server (they can rejoin)",
+    },
 };
 
 function ActionButton({
@@ -128,7 +154,9 @@ export default function ModerationScreen() {
         } catch (error) {
             setLoadState("error");
             setLoadError(
-                error instanceof Error ? error.message : "Unable to load members",
+                error instanceof Error
+                    ? error.message
+                    : "Unable to load members",
             );
         }
     }, [accessToken, instanceUrl, serverId]);
@@ -142,12 +170,24 @@ export default function ModerationScreen() {
     if (!serverId) {
         return (
             <AuthRouteGuard>
-                <View style={[styles.root, { backgroundColor: theme.background }]}>
+                <View
+                    style={[styles.root, { backgroundColor: theme.background }]}
+                >
                     <View style={styles.centerShell}>
-                        <ThemedView type="card" style={[styles.card, { borderColor: theme.border }]}>
-                            <ThemedText type="title">No server selected</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={{ fontSize: 14, lineHeight: 20, marginTop: Spacing.one }}>
-                                Select a server from the admin dashboard to moderate its members.
+                        <ThemedView style={styles.card}>
+                            <ThemedText type="title">
+                                No server selected
+                            </ThemedText>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={{
+                                    fontSize: 14,
+                                    lineHeight: 20,
+                                    marginTop: Spacing.one,
+                                }}
+                            >
+                                Select a server from the admin dashboard to
+                                moderate its members.
                             </ThemedText>
                             <Pressable
                                 accessibilityRole="button"
@@ -164,7 +204,10 @@ export default function ModerationScreen() {
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold" themeColor="primaryForeground">
+                                <ThemedText
+                                    type="smallBold"
+                                    themeColor="primaryForeground"
+                                >
                                     Go back
                                 </ThemedText>
                             </Pressable>
@@ -176,7 +219,14 @@ export default function ModerationScreen() {
     }
 
     const executeAction = async () => {
-        if (!instanceUrl || !accessToken || !targetMember || !serverId || saving) return;
+        if (
+            !instanceUrl ||
+            !accessToken ||
+            !targetMember ||
+            !serverId ||
+            saving
+        )
+            return;
         setSaving(true);
         setActionResult(null);
         try {
@@ -188,7 +238,9 @@ export default function ModerationScreen() {
                 targetMember.userId,
                 reason.trim() || undefined,
             );
-            setActionResult(`${ACTION_META[action].label} succeeded for ${targetMember.displayName ?? targetMember.userId}`);
+            setActionResult(
+                `${ACTION_META[action].label} succeeded for ${targetMember.displayName ?? targetMember.userId}`,
+            );
             setShowAction(false);
             setTargetMember(null);
             setReason("");
@@ -214,118 +266,142 @@ export default function ModerationScreen() {
     return (
         <AuthRouteGuard>
             <View style={styles.root}>
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbTop,
-                        { backgroundColor: "rgba(217, 121, 43, 0.16)" },
-                    ]}
-                />
-                <View
-                    pointerEvents="none"
-                    style={[
-                        styles.backdropOrbBottom,
-                        { backgroundColor: "rgba(78, 138, 134, 0.10)" },
-                    ]}
-                />
                 <ScrollView
-                    style={[styles.scrollView, { backgroundColor: theme.background }]}
+                    style={[
+                        styles.scrollView,
+                        { backgroundColor: theme.background },
+                    ]}
                     contentContainerStyle={styles.scrollContent}
                 >
                     <SafeAreaView style={styles.safeArea}>
-                    <ThemedView style={styles.shell}>
-                        <ThemedView
-                            type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
-                        >
-                            <ThemedText type="code" themeColor="accent">
-                                Moderation
-                            </ThemedText>
-                            <ThemedText type="title">Member moderation</ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                Ban, mute, or kick members. Actions are logged in the audit log.
-                            </ThemedText>
-                            <View style={styles.pillRow}>
-                                <StatusPill
-                                    label={
-                                        loadState === "ready"
-                                            ? `${members.length} members`
-                                            : "loading"
-                                    }
-                                    tone={
-                                        loadState === "ready"
-                                            ? "success"
-                                            : loadState === "error"
-                                              ? "danger"
-                                              : "warning"
-                                    }
-                                />
-                            </View>
-                        </ThemedView>
-
-                        <ThemedView
-                            type="card"
-                            style={[styles.card, { borderColor: theme.border }]}
-                        >
-                            <View style={styles.sectionHeaderRow}>
-                                <ThemedText type="smallBold">Actions</ThemedText>
-                                <View style={styles.actionRow}>
-                                    <ActionButton
-                                        label="Dashboard"
-                                        tone="ghost"
-                                        onPress={() =>
-                                            router.push(`/admin?serverId=${serverId}` as never)
+                        <ThemedView style={styles.shell}>
+                            <ThemedView
+                                style={[
+                                    styles.heroCard,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <ThemedText type="code" themeColor="accent">
+                                    Moderation
+                                </ThemedText>
+                                <ThemedText type="title">
+                                    Member moderation
+                                </ThemedText>
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    Ban, mute, or kick members. Actions are
+                                    logged in the audit log.
+                                </ThemedText>
+                                <View style={styles.pillRow}>
+                                    <StatusPill
+                                        label={
+                                            loadState === "ready"
+                                                ? `${members.length} members`
+                                                : "loading"
                                         }
-                                    />
-                                    <ActionButton
-                                        label="Audit log"
-                                        tone="ghost"
-                                        onPress={() =>
-                                            router.push(`/admin/audit-log?serverId=${serverId}` as never)
+                                        tone={
+                                            loadState === "ready"
+                                                ? "success"
+                                                : loadState === "error"
+                                                  ? "danger"
+                                                  : "warning"
                                         }
-                                    />
-                                    <ActionButton
-                                        label="Refresh"
-                                        tone="secondary"
-                                        onPress={() => void loadMembers()}
                                     />
                                 </View>
-                            </View>
-                            {loadError ? (
-                                <ThemedText themeColor="destructive">{loadError}</ThemedText>
-                            ) : null}
-                        </ThemedView>
-
-                        {loadState === "loading" ? (
-                            <View style={styles.loadingRow}>
-                                <ActivityIndicator color={theme.primary} />
-                                <ThemedText themeColor="mutedForeground">
-                                    Loading members…
-                                </ThemedText>
-                            </View>
-                        ) : null}
-
-                        {loadState === "ready" && members.length === 0 ? (
-                            <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
-                            >
-                                <ThemedText themeColor="mutedForeground">
-                                    No members loaded.
-                                </ThemedText>
                             </ThemedView>
-                        ) : null}
 
-                        {members.map((member) => (
-                            <MemberRow
-                                key={member.userId}
-                                member={member}
-                                onAction={openAction}
-                            />
-                        ))}
-                    </ThemedView>
-                </SafeAreaView>
-            </ScrollView>
+                            <ThemedView
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
+                            >
+                                <View style={styles.sectionHeaderRow}>
+                                    <ThemedText type="smallBold">
+                                        Actions
+                                    </ThemedText>
+                                    <View style={styles.actionRow}>
+                                        <ActionButton
+                                            label="Dashboard"
+                                            tone="ghost"
+                                            onPress={() =>
+                                                router.push(
+                                                    `/admin?serverId=${serverId}` as never,
+                                                )
+                                            }
+                                        />
+                                        <ActionButton
+                                            label="Audit log"
+                                            tone="ghost"
+                                            onPress={() =>
+                                                router.push(
+                                                    `/admin/audit-log?serverId=${serverId}` as never,
+                                                )
+                                            }
+                                        />
+                                        <ActionButton
+                                            label="Refresh"
+                                            tone="secondary"
+                                            onPress={() => void loadMembers()}
+                                        />
+                                    </View>
+                                </View>
+                                {loadError ? (
+                                    <ThemedText themeColor="destructive">
+                                        {loadError}
+                                    </ThemedText>
+                                ) : null}
+                                {/* The success path closes the modal in the same batch
+                                that sets the result, so a result rendered only
+                                inside the modal is never painted. Errors keep the
+                                modal open and are shown there. */}
+                                {actionResult && !showAction ? (
+                                    <ThemedText
+                                        themeColor={
+                                            actionResult.includes("succeeded")
+                                                ? "accent"
+                                                : "destructive"
+                                        }
+                                    >
+                                        {actionResult}
+                                    </ThemedText>
+                                ) : null}
+                            </ThemedView>
+
+                            {loadState === "loading" ? (
+                                <View style={styles.loadingRow}>
+                                    <ActivityIndicator color={theme.primary} />
+                                    <ThemedText themeColor="mutedForeground">
+                                        Loading members…
+                                    </ThemedText>
+                                </View>
+                            ) : null}
+
+                            {loadState === "ready" && members.length === 0 ? (
+                                <ThemedView
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
+                                    <ThemedText themeColor="mutedForeground">
+                                        No members loaded.
+                                    </ThemedText>
+                                </ThemedView>
+                            ) : null}
+
+                            {members.map((member) => (
+                                <MemberRow
+                                    key={member.userId}
+                                    member={member}
+                                    onAction={openAction}
+                                />
+                            ))}
+                        </ThemedView>
+                    </SafeAreaView>
+                </ScrollView>
             </View>
 
             {/* Action modal */}
@@ -340,59 +416,76 @@ export default function ModerationScreen() {
                     onPress={() => setShowAction(false)}
                 >
                     <View pointerEvents="box-none" style={styles.modalAnchor}>
-                        <ThemedView
-                            type="card"
-                            style={[styles.modalCard, { borderColor: theme.border }]}
+                        <KeyboardAvoidingView
+                            behavior={
+                                Platform.OS === "ios" ? "padding" : undefined
+                            }
+                            style={{ width: "100%" }}
                         >
-                            <ThemedText type="smallBold">
-                                {ACTION_META[action].label} member
-                            </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
-                                {ACTION_META[action].description}
-                            </ThemedText>
-                            <ThemedText style={styles.targetName}>
-                                {targetMember?.displayName ?? targetMember?.userId}
-                            </ThemedText>
-                            <TextInput
-                                placeholder="Reason (optional)"
-                                placeholderTextColor={theme.mutedForeground}
-                                value={reason}
-                                onChangeText={setReason}
-                                multiline
+                            <ThemedView
                                 style={[
-                                    styles.input,
-                                    {
-                                        backgroundColor: theme.card,
-                                        borderColor: theme.input,
-                                        color: theme.foreground,
-                                    },
+                                    styles.modalCard,
+                                    { borderColor: theme.border },
                                 ]}
-                            />
-                            {actionResult ? (
-                                <ThemedText
-                                    themeColor={
-                                        actionResult.includes("succeeded")
-                                            ? "accent"
-                                            : "destructive"
-                                    }
-                                >
-                                    {actionResult}
+                            >
+                                <ThemedText type="smallBold">
+                                    {ACTION_META[action].label} member
                                 </ThemedText>
-                            ) : null}
-                            <View style={styles.modalActions}>
-                                <ActionButton
-                                    label="Cancel"
-                                    tone="ghost"
-                                    onPress={() => setShowAction(false)}
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={styles.copy}
+                                >
+                                    {ACTION_META[action].description}
+                                </ThemedText>
+                                <ThemedText style={styles.targetName}>
+                                    {targetMember?.displayName ??
+                                        targetMember?.userId}
+                                </ThemedText>
+                                <TextInput
+                                    placeholder="Reason (optional)"
+                                    placeholderTextColor={theme.mutedForeground}
+                                    value={reason}
+                                    onChangeText={setReason}
+                                    multiline
+                                    style={[
+                                        styles.input,
+                                        {
+                                            backgroundColor: theme.card,
+                                            borderColor: theme.input,
+                                            color: theme.foreground,
+                                        },
+                                    ]}
                                 />
-                                <ActionButton
-                                    label={saving ? "Processing…" : ACTION_META[action].label}
-                                    tone={ACTION_META[action].tone}
-                                    disabled={saving}
-                                    onPress={() => void executeAction()}
-                                />
-                            </View>
-                        </ThemedView>
+                                {actionResult ? (
+                                    <ThemedText
+                                        themeColor={
+                                            actionResult.includes("succeeded")
+                                                ? "accent"
+                                                : "destructive"
+                                        }
+                                    >
+                                        {actionResult}
+                                    </ThemedText>
+                                ) : null}
+                                <View style={styles.modalActions}>
+                                    <ActionButton
+                                        label="Cancel"
+                                        tone="ghost"
+                                        onPress={() => setShowAction(false)}
+                                    />
+                                    <ActionButton
+                                        label={
+                                            saving
+                                                ? "Processing…"
+                                                : ACTION_META[action].label
+                                        }
+                                        tone={ACTION_META[action].tone}
+                                        disabled={saving}
+                                        onPress={() => void executeAction()}
+                                    />
+                                </View>
+                            </ThemedView>
+                        </KeyboardAvoidingView>
                     </View>
                 </Pressable>
             </Modal>
@@ -407,15 +500,11 @@ function MemberRow({
     member: MemberInfo;
     onAction: (member: MemberInfo, action: ModerationAction) => void;
 }) {
-    const theme = useTheme();
     const name = member.displayName ?? member.userName ?? member.userId;
     const initial = name.slice(0, 1).toUpperCase();
 
     return (
-        <ThemedView
-            type="card"
-            style={[styles.card, { borderColor: theme.border }]}
-        >
+        <ThemedView style={styles.card}>
             <View style={styles.memberHeader}>
                 <View style={styles.memberInfo}>
                     <View style={styles.avatarShell}>
@@ -424,7 +513,10 @@ function MemberRow({
                     <View style={styles.memberCopy}>
                         <ThemedText type="smallBold">{name}</ThemedText>
                         {member.userName && member.userName !== name ? (
-                            <ThemedText type="code" themeColor="mutedForeground">
+                            <ThemedText
+                                type="code"
+                                themeColor="mutedForeground"
+                            >
                                 @{member.userName}
                             </ThemedText>
                         ) : null}
@@ -438,7 +530,11 @@ function MemberRow({
             {member.roleIds && member.roleIds.length > 0 ? (
                 <View style={styles.rolePills}>
                     {member.roleIds.map((roleId) => (
-                        <StatusPill key={roleId} label={roleId} tone="neutral" />
+                        <StatusPill
+                            key={roleId}
+                            label={roleId}
+                            tone="neutral"
+                        />
                     ))}
                 </View>
             ) : null}
@@ -489,22 +585,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         paddingHorizontal: Spacing.three,
     },
-    backdropOrbTop: {
-        position: "absolute",
-        width: 260,
-        height: 260,
-        borderRadius: 260,
-        top: -100,
-        left: -80,
-    },
-    backdropOrbBottom: {
-        position: "absolute",
-        width: 320,
-        height: 320,
-        borderRadius: 320,
-        right: -140,
-        bottom: 20,
-    },
     safeArea: {
         flex: 1,
         paddingHorizontal: Spacing.three,
@@ -521,7 +601,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -533,7 +612,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     sectionHeaderRow: {
         flexDirection: "row",

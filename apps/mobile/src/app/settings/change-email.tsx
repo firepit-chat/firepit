@@ -67,7 +67,10 @@ export default function ChangeEmailScreen() {
     return (
         <AuthRouteGuard>
             <View style={[styles.root, { backgroundColor: theme.background }]}>
-                <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+                <SafeAreaView
+                    style={styles.safeArea}
+                    edges={["top", "left", "right"]}
+                >
                     <KeyboardAvoidingView
                         style={styles.flex}
                         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -78,7 +81,12 @@ export default function ChangeEmailScreen() {
                             keyboardShouldPersistTaps="handled"
                         >
                             <View style={styles.shell}>
-                                <View style={styles.header}>
+                                <View
+                                    style={[
+                                        styles.header,
+                                        { borderBottomColor: theme.border },
+                                    ]}
+                                >
                                     <Pressable
                                         accessibilityRole="button"
                                         onPress={() => router.back()}
@@ -99,13 +107,16 @@ export default function ChangeEmailScreen() {
                                     style={styles.copy}
                                 >
                                     Enter your new email and current password.
-                                    If email verification is enabled, you'll get
+                                    If email verification is enabled, you’ll get
                                     a link to confirm the new address.
                                 </ThemedText>
 
                                 <ThemedView
                                     type="card"
-                                    style={[styles.card, { borderColor: theme.border }]}
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
                                 >
                                     <TextInput
                                         autoCapitalize="none"
@@ -113,7 +124,9 @@ export default function ChangeEmailScreen() {
                                         autoComplete="email"
                                         keyboardType="email-address"
                                         placeholder="New email"
-                                        placeholderTextColor={theme.mutedForeground}
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
                                         textContentType="emailAddress"
                                         value={email}
                                         onChangeText={setEmail}
@@ -131,7 +144,9 @@ export default function ChangeEmailScreen() {
                                         autoCorrect={false}
                                         autoComplete="password"
                                         placeholder="Current password"
-                                        placeholderTextColor={theme.mutedForeground}
+                                        placeholderTextColor={
+                                            theme.mutedForeground
+                                        }
                                         secureTextEntry
                                         textContentType="password"
                                         value={password}
@@ -154,7 +169,9 @@ export default function ChangeEmailScreen() {
                                             {
                                                 backgroundColor: theme.primary,
                                                 opacity:
-                                                    pressed || !canSubmit ? 0.6 : 1,
+                                                    pressed || !canSubmit
+                                                        ? 0.6
+                                                        : 1,
                                             },
                                         ]}
                                     >
@@ -162,7 +179,9 @@ export default function ChangeEmailScreen() {
                                             type="smallBold"
                                             themeColor="primaryForeground"
                                         >
-                                            {loading ? "Updating…" : "Update email"}
+                                            {loading
+                                                ? "Updating…"
+                                                : "Update email"}
                                         </ThemedText>
                                     </Pressable>
                                     {message ? (
@@ -172,7 +191,7 @@ export default function ChangeEmailScreen() {
                                     ) : null}
                                     {error ? (
                                         <ThemedText
-                                            themeColor="danger"
+                                            themeColor="destructive"
                                             style={styles.errorText}
                                         >
                                             {error}
@@ -207,6 +226,7 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingVertical: Spacing.two,
+        borderBottomWidth: StyleSheet.hairlineWidth,
     },
     headerButton: {
         paddingVertical: Spacing.one,
