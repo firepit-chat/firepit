@@ -33,6 +33,10 @@
         "@babel/preset-typescript": "^7.29.7",
         "@types/node": "^25.9.9"
     },
+    "overrides": {
+        "@types/react": "19.3.0",
+        "@types/react-dom": "19.3.0"
+    },
     "patchedDependencies": {
         "metro-runtime@0.84.4": "patches/metro-runtime@0.84.4.patch",
         "metro@0.84.4": "patches/metro@0.84.4.patch"
