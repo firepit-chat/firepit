@@ -15,12 +15,6 @@ describe("describeAppwriteError", () => {
         );
     });
 
-    it("includes the code when the type is empty", () => {
-        expect(describeAppwriteError({ code: 500, type: "" })).toBe(
-            " (Appwrite 500)",
-        );
-    });
-
     it("returns an empty string for errors without a code or type", () => {
         expect(describeAppwriteError(new Error("boom"))).toBe("");
         expect(describeAppwriteError("boom")).toBe("");

@@ -17,7 +17,7 @@ let failureLogged = false;
 /**
  * GET /api/custom-emojis
  * List all custom emojis from Appwrite Storage using admin client.
- * When Appwrite fails, returns an empty list instead of a 500.
+ * When Appwrite fails, returns an empty list with the unavailable header.
  */
 export async function GET() {
     try {
@@ -62,9 +62,11 @@ export async function GET() {
                 },
             );
         }
-        const response = NextResponse.json([] satisfies CustomEmoji[]);
-        response.headers.set("Cache-Control", "no-store");
-        response.headers.set(CUSTOM_EMOJIS_UNAVAILABLE_HEADER, "1");
-        return response;
+        return NextResponse.json([], {
+            headers: {
+                "Cache-Control": "no-store",
+                [CUSTOM_EMOJIS_UNAVAILABLE_HEADER]: "1",
+            },
+        });
     }
 }

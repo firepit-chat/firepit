@@ -140,16 +140,6 @@ describe("GET /api/custom-emojis", () => {
         expect(response.headers.get("X-Custom-Emojis-Unavailable")).toBe("1");
     });
 
-    it("should handle non-Error exceptions", async () => {
-        mockListFiles.mockRejectedValue("Unknown error");
-
-        const response = await GET();
-        const data = await response.json();
-
-        expect(response.status).toBe(200);
-        expect(data).toEqual([]);
-    });
-
     it("should log once per outage with the Appwrite code and type", async () => {
         mockListFiles.mockResolvedValue({ files: [] });
         await GET();

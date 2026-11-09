@@ -4825,10 +4825,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List custom emojis available to the client
-         * @description When the emoji storage is unavailable, returns an empty list with the X-Custom-Emojis-Unavailable header instead of an error. Clients should keep any cached emojis in that case.
-         */
+        /** List custom emojis available to the client */
         get: {
             parameters: {
                 query?: never;
@@ -4841,7 +4838,7 @@ export interface paths {
                 /** @description Custom emoji list */
                 200: {
                     headers: {
-                        /** @description Set to "1" when the list is an empty fallback because the emoji storage could not be read. */
+                        /** @description Set to "1" when the list is an empty fallback because the emoji storage could not be read. Clients should keep any cached emojis. */
                         "X-Custom-Emojis-Unavailable"?: string;
                         [name: string]: unknown;
                     };

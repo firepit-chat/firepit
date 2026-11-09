@@ -9,8 +9,8 @@ export function describeAppwriteError(error: unknown): string {
     }
     const { code, type } = error as { code?: unknown; type?: unknown };
     const parts = [
-        typeof code === "number" ? String(code) : null,
-        typeof type === "string" && type ? type : null,
-    ].filter((part): part is string => part !== null);
+        typeof code === "number" && code,
+        typeof type === "string" && type,
+    ].filter(Boolean);
     return parts.length > 0 ? ` (Appwrite ${parts.join(" ")})` : "";
 }
