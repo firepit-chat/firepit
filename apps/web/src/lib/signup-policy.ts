@@ -8,6 +8,7 @@ import { unstable_cache, revalidateTag } from "next/cache";
 
 import { getServerClient } from "./appwrite-server";
 import { getEnvConfig } from "./appwrite-core";
+import { describeAppwriteError } from "./appwrite-errors";
 import { logger } from "./posthog-utils";
 
 export type SignupPolicy = "open" | "approval" | "disabled";
@@ -54,9 +55,12 @@ async function fetchSignupPolicy(): Promise<SignupPolicy> {
             return doc.value;
         }
     } catch (error) {
-        logger.error("Failed to read signup policy", {
-            error: error instanceof Error ? error.message : String(error),
-        });
+        logger.error(
+            `Failed to read signup policy${describeAppwriteError(error)}`,
+            {
+                error: error instanceof Error ? error.message : String(error),
+            },
+        );
     }
     return DEFAULT_POLICY;
 }

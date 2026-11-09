@@ -2,10 +2,12 @@
  * Tests for GET /api/custom-emojis endpoint
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { AppwriteException } from "node-appwrite";
 import { GET } from "@/app/api/custom-emojis/route";
 
 // Create mock storage instance
 const mockListFiles = vi.fn();
+const { mockLoggerError } = vi.hoisted(() => ({ mockLoggerError: vi.fn() }));
 
 // Mock dependencies
 vi.mock("@/lib/appwrite-admin", () => ({
@@ -14,6 +16,10 @@ vi.mock("@/lib/appwrite-admin", () => ({
             listFiles: mockListFiles,
         },
     })),
+}));
+
+vi.mock("@/lib/posthog-utils", () => ({
+    logger: { error: mockLoggerError },
 }));
 
 vi.mock("@/lib/appwrite-core", () => ({
@@ -122,14 +128,16 @@ describe("GET /api/custom-emojis", () => {
         );
     });
 
-    it("should handle storage errors gracefully", async () => {
+    it("should return an uncached empty list when storage fails", async () => {
         mockListFiles.mockRejectedValue(new Error("Storage unavailable"));
 
         const response = await GET();
         const data = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(data.error).toBe("Failed to fetch custom emojis");
+        expect(response.status).toBe(200);
+        expect(data).toEqual([]);
+        expect(response.headers.get("Cache-Control")).toBe("no-store");
+        expect(response.headers.get("X-Custom-Emojis-Unavailable")).toBe("1");
     });
 
     it("should handle non-Error exceptions", async () => {
@@ -138,8 +146,36 @@ describe("GET /api/custom-emojis", () => {
         const response = await GET();
         const data = await response.json();
 
-        expect(response.status).toBe(500);
-        expect(data.error).toBe("Failed to fetch custom emojis");
+        expect(response.status).toBe(200);
+        expect(data).toEqual([]);
+    });
+
+    it("should log once per outage with the Appwrite code and type", async () => {
+        mockListFiles.mockResolvedValue({ files: [] });
+        await GET();
+
+        mockListFiles.mockRejectedValue(
+            new AppwriteException(
+                "Project is in read-only mode",
+                402,
+                "team_read_only",
+            ),
+        );
+        await GET();
+        await GET();
+
+        expect(mockLoggerError).toHaveBeenCalledTimes(1);
+        expect(mockLoggerError).toHaveBeenCalledWith(
+            "Error fetching custom emojis (Appwrite 402 team_read_only)",
+            { error: "Project is in read-only mode" },
+        );
+
+        mockListFiles.mockResolvedValue({ files: [] });
+        await GET();
+        mockListFiles.mockRejectedValue(new Error("Storage unavailable"));
+        await GET();
+
+        expect(mockLoggerError).toHaveBeenCalledTimes(2);
     });
 
     it("should format emoji URLs correctly", async () => {
