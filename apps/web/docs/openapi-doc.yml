@@ -4616,6 +4616,14 @@ paths:
             responses:
                 "200":
                     description: Custom emoji list
+                    headers:
+                        X-Custom-Emojis-Unavailable:
+                            schema:
+                                type: string
+                            description: >-
+                                Set to "1" when the list is an empty fallback
+                                because the emoji storage could not be read.
+                                Clients should keep any cached emojis.
                     content:
                         application/json:
                             schema:

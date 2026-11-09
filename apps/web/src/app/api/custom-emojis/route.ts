@@ -2,14 +2,22 @@ import { NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import { getAdminClient } from "@/lib/appwrite-admin";
 import { getEnvConfig } from "@/lib/appwrite-core";
-import type { CustomEmoji } from "@/lib/types";
+import { describeAppwriteError } from "@/lib/appwrite-errors";
+import {
+    CUSTOM_EMOJIS_UNAVAILABLE_HEADER,
+    type CustomEmoji,
+} from "@/lib/types";
 import { logger } from "@/lib/posthog-utils";
 
 const FILE_EXTENSION_REGEX = /\.[^.]+$/;
 
+// Log the first failure of an outage only; a success re-arms the log.
+let failureLogged = false;
+
 /**
  * GET /api/custom-emojis
- * List all custom emojis from Appwrite Storage using admin client
+ * List all custom emojis from Appwrite Storage using admin client.
+ * When Appwrite fails, returns an empty list with the unavailable header.
  */
 export async function GET() {
     try {
@@ -32,6 +40,7 @@ export async function GET() {
             };
         });
 
+        failureLogged = false;
         const response = NextResponse.json(emojis);
 
         // Cache custom emojis for 5 minutes (rarely change)
@@ -43,12 +52,21 @@ export async function GET() {
 
         return response;
     } catch (error) {
-        logger.error("Error fetching custom emojis", {
-            error: error instanceof Error ? error.message : String(error),
+        if (!failureLogged) {
+            failureLogged = true;
+            logger.error(
+                `Error fetching custom emojis${describeAppwriteError(error)}`,
+                {
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
+        }
+        return NextResponse.json([], {
+            headers: {
+                "Cache-Control": "no-store",
+                [CUSTOM_EMOJIS_UNAVAILABLE_HEADER]: "1",
+            },
         });
-        return NextResponse.json(
-            { error: "Failed to fetch custom emojis" },
-            { status: 500 },
-        );
     }
 }

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **Custom emojis stay available when the backend is unavailable.** If the
+  server cannot read the emoji storage, the emoji list now loads as empty
+  instead of failing, and your previously cached custom emojis stay visible.
+- **Backend errors are easier to diagnose.** Server logs for feature flags,
+  the signup policy and custom emojis now include the Appwrite error code and
+  type, for example `402 team_read_only`.
+
 ## [2.2.0] - 2026-11-01
 
 ### ✨ Features
