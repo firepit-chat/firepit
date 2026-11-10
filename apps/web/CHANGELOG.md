@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **Presence works for new accounts.** A user with no saved status could never
+  set one: the server created the status record without the user id, so every
+  online, away, busy, or manual status change failed. The record now includes
+  the user id, and a failed automatic status update no longer causes an
+  unhandled error in the browser.
+
 ## [2.2.0] - 2026-11-01
 
 ### ✨ Features

@@ -5,12 +5,17 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { useActivityTracking } from "@/hooks/useActivityTracking";
 import * as appwriteStatus from "@/lib/appwrite-status";
+import { logger } from "@/lib/client-logger";
 
 // Mock the status functions
 vi.mock("@/lib/appwrite-status", () => ({
     setUserStatus: vi.fn(() => Promise.resolve()),
     updateLastSeen: vi.fn(() => Promise.resolve()),
     setOffline: vi.fn(() => Promise.resolve()),
+}));
+
+vi.mock("@/lib/client-logger", () => ({
+    logger: { warn: vi.fn() },
 }));
 
 describe("useActivityTracking", () => {
@@ -35,6 +40,20 @@ describe("useActivityTracking", () => {
                 undefined,
                 false,
             );
+        });
+
+        it("should log instead of rejecting when the status write fails", async () => {
+            vi.mocked(appwriteStatus.setUserStatus).mockRejectedValueOnce(
+                new Error("Failed to set user status"),
+            );
+
+            renderHook(() => useActivityTracking({ userId: "user123" }));
+            await vi.waitFor(() => {
+                expect(logger.warn).toHaveBeenCalledWith(
+                    "Failed to report activity status",
+                    { error: "Failed to set user status" },
+                );
+            });
         });
 
         it("should not set status when userId is null", () => {

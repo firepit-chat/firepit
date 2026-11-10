@@ -6,9 +6,16 @@ import {
     updateLastSeen,
     setOffline,
 } from "@/lib/appwrite-status";
+import { logger } from "@/lib/client-logger";
 
 const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 const LAST_SEEN_INTERVAL = 60 * 1000; // 60 seconds (reduced from 30s to save API calls)
+
+function logStatusError(error: unknown) {
+    logger.warn("Failed to report activity status", {
+        error: error instanceof Error ? error.message : String(error),
+    });
+}
 
 type UseActivityTrackingProps = {
     userId: string | null;
@@ -45,7 +52,9 @@ export function useActivityTracking({
 
         // Set initial status to online (isManuallySet=false means it's auto-generated)
         // The API will preserve manually-set statuses that haven't expired
-        void setUserStatus(userId, "online", undefined, undefined, false);
+        setUserStatus(userId, "online", undefined, undefined, false).catch(
+            logStatusError,
+        );
         isActiveRef.current = true;
 
         // Function to handle user activity
@@ -61,19 +70,25 @@ export function useActivityTracking({
 
             // If user was inactive, set back to online (auto-generated, not manual)
             if (!isActiveRef.current) {
-                void setUserStatus(
+                setUserStatus(
                     userId,
                     "online",
                     undefined,
                     undefined,
                     false,
-                );
+                ).catch(logStatusError);
                 isActiveRef.current = true;
             }
 
             // Set new inactivity timer (auto-generated away status)
             inactivityTimerRef.current = setTimeout(() => {
-                void setUserStatus(userId, "away", undefined, undefined, false);
+                setUserStatus(
+                    userId,
+                    "away",
+                    undefined,
+                    undefined,
+                    false,
+                ).catch(logStatusError);
                 isActiveRef.current = false;
             }, INACTIVITY_TIMEOUT);
         }
@@ -111,7 +126,7 @@ export function useActivityTracking({
 
             // Set status to offline
             if (userId) {
-                void setOffline(userId);
+                setOffline(userId).catch(logStatusError);
             }
         };
     }, [userId, enabled]);
