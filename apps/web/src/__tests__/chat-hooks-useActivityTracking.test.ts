@@ -13,6 +13,10 @@ vi.mock("@/lib/appwrite-status", () => ({
     setOffline: vi.fn(() => Promise.resolve()),
 }));
 
+vi.mock("@/lib/client-logger", () => ({
+    logger: { warn: vi.fn() },
+}));
+
 describe("useActivityTracking", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -35,6 +39,21 @@ describe("useActivityTracking", () => {
                 undefined,
                 false,
             );
+        });
+
+        it("should log instead of rejecting when the status write fails", async () => {
+            vi.mocked(appwriteStatus.setUserStatus).mockRejectedValueOnce(
+                new Error("Failed to set user status"),
+            );
+            const { logger } = await import("@/lib/client-logger");
+
+            renderHook(() => useActivityTracking({ userId: "user123" }));
+            await vi.waitFor(() => {
+                expect(logger.warn).toHaveBeenCalledWith(
+                    "Failed to report activity status",
+                    { error: "Failed to set user status" },
+                );
+            });
         });
 
         it("should not set status when userId is null", () => {
