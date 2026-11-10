@@ -5,6 +5,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi, afterEach } from "vitest";
 import { useActivityTracking } from "@/hooks/useActivityTracking";
 import * as appwriteStatus from "@/lib/appwrite-status";
+import { logger } from "@/lib/client-logger";
 
 // Mock the status functions
 vi.mock("@/lib/appwrite-status", () => ({
@@ -45,7 +46,6 @@ describe("useActivityTracking", () => {
             vi.mocked(appwriteStatus.setUserStatus).mockRejectedValueOnce(
                 new Error("Failed to set user status"),
             );
-            const { logger } = await import("@/lib/client-logger");
 
             renderHook(() => useActivityTracking({ userId: "user123" }));
             await vi.waitFor(() => {
