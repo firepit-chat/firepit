@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { connection, NextResponse } from "next/server";
 import { Query } from "node-appwrite";
 import type { NextRequest } from "next/server";
 import type { Models } from "node-appwrite";
@@ -47,6 +47,7 @@ const DEFAULT_LIMIT = 20;
  *   - search: search term to filter by server name
  */
 export async function GET(request: NextRequest) {
+    await connection();
     try {
         const searchParams = request.nextUrl.searchParams;
         const rawLimit = searchParams.get("limit");

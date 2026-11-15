@@ -289,6 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   permission names, and omitted `userId` entirely.
 - **Settings section links** - Opening Settings with a section link (for example `/settings#interface`) no longer causes a hydration mismatch. The section navigation now selects the linked section after the page loads
 - **API errors during build** - Signed-in API routes (for example GIF search and memberships) no longer log failures or return 500 errors when the build prerenders them. Each route now waits for a real request before it reads the session
+- **Errors during build for public servers and notifications** - The public server list (`/api/servers/public`) and the Notifications page no longer log errors when the build prerenders them. A signed-out visit to Notifications now redirects to login without an error log
 
 - **The inbox now clears when you read it.** Marking a channel or conversation
   as read was scheduled behind an 800 ms debounce whose timer was being reset on
