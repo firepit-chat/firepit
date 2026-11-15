@@ -161,13 +161,11 @@ export function SignupControls({ userId }: SignupControlsProps) {
                         <SelectValue placeholder="Select a policy" />
                     </SelectTrigger>
                     <SelectContent>
-                        {Object.entries(POLICY_LABELS).map(
-                            ([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                    {label}
-                                </SelectItem>
-                            ),
-                        )}
+                        {Object.entries(POLICY_LABELS).map(([value, label]) => (
+                            <SelectItem key={value} value={value}>
+                                {label}
+                            </SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
             </div>
@@ -209,7 +207,9 @@ export function SignupControls({ userId }: SignupControlsProps) {
                                         <Button
                                             disabled={busy !== null}
                                             onClick={() =>
-                                                void handleApprove(signup.userId)
+                                                void handleApprove(
+                                                    signup.userId,
+                                                )
                                             }
                                             size="sm"
                                             type="button"

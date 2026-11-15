@@ -1,0 +1,7 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "types": []
+    },
+    "include": ["src/web/**/*.ts", "src/web/**/*.tsx", "src/shared/**/*.ts"]
+}

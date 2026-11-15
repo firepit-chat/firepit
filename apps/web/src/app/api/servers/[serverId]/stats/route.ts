@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerClient } from "@/lib/appwrite-server";
 import { Query } from "node-appwrite";
-import { logger,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { logger, returnForbidden } from "@/lib/posthog-utils";
 import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
@@ -89,42 +87,41 @@ export async function GET(
             recentMessagesResult,
             bannedResult,
             mutedResult,
-        ] = await dedupeServerStatsCache(
-            `api:servers:stats:${serverId}`,
-            () =>
-                Promise.all([
-                    databases.listDocuments(DATABASE_ID, MEMBERSHIPS_COLLECTION_ID, [
-                        Query.equal("serverId", serverId),
-                        Query.limit(1),
-                    ]),
-                    databases.listDocuments(DATABASE_ID, CHANNELS_COLLECTION_ID, [
-                        Query.equal("serverId", serverId),
-                        Query.limit(1),
-                    ]),
-                    databases.listDocuments(DATABASE_ID, MESSAGES_COLLECTION_ID, [
-                        Query.equal("serverId", serverId),
-                        Query.limit(1),
-                    ]),
-                    databases.listDocuments(DATABASE_ID, MESSAGES_COLLECTION_ID, [
-                        Query.equal("serverId", serverId),
-                        Query.greaterThan("$createdAt", oneDayAgo),
-                        Query.limit(1),
-                    ]),
-                    BANNED_USERS_COLLECTION_ID
-                        ? databases.listDocuments(
-                              DATABASE_ID,
-                              BANNED_USERS_COLLECTION_ID,
-                              [Query.equal("serverId", serverId), Query.limit(1)],
-                          )
-                        : Promise.resolve({ documents: [], total: 0 }),
-                    MUTED_USERS_COLLECTION_ID
-                        ? databases.listDocuments(
-                              DATABASE_ID,
-                              MUTED_USERS_COLLECTION_ID,
-                              [Query.equal("serverId", serverId), Query.limit(1)],
-                          )
-                        : Promise.resolve({ documents: [], total: 0 }),
+        ] = await dedupeServerStatsCache(`api:servers:stats:${serverId}`, () =>
+            Promise.all([
+                databases.listDocuments(
+                    DATABASE_ID,
+                    MEMBERSHIPS_COLLECTION_ID,
+                    [Query.equal("serverId", serverId), Query.limit(1)],
+                ),
+                databases.listDocuments(DATABASE_ID, CHANNELS_COLLECTION_ID, [
+                    Query.equal("serverId", serverId),
+                    Query.limit(1),
                 ]),
+                databases.listDocuments(DATABASE_ID, MESSAGES_COLLECTION_ID, [
+                    Query.equal("serverId", serverId),
+                    Query.limit(1),
+                ]),
+                databases.listDocuments(DATABASE_ID, MESSAGES_COLLECTION_ID, [
+                    Query.equal("serverId", serverId),
+                    Query.greaterThan("$createdAt", oneDayAgo),
+                    Query.limit(1),
+                ]),
+                BANNED_USERS_COLLECTION_ID
+                    ? databases.listDocuments(
+                          DATABASE_ID,
+                          BANNED_USERS_COLLECTION_ID,
+                          [Query.equal("serverId", serverId), Query.limit(1)],
+                      )
+                    : Promise.resolve({ documents: [], total: 0 }),
+                MUTED_USERS_COLLECTION_ID
+                    ? databases.listDocuments(
+                          DATABASE_ID,
+                          MUTED_USERS_COLLECTION_ID,
+                          [Query.equal("serverId", serverId), Query.limit(1)],
+                      )
+                    : Promise.resolve({ documents: [], total: 0 }),
+            ]),
         );
 
         const totalMembers = membersResult.total;

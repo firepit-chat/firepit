@@ -7,13 +7,31 @@ import type { InstanceMetadata } from "@/lib/firepit/types";
 
 const DATABASE_ID = "main";
 
+// Typing/reaction bursts land in quick succession. Collect whatever arrives in
+// this window and deliver it in one batch, so a burst costs one render instead
+// of one each.
+const BATCH_WINDOW_MS = 400;
+
 interface UseRealtimeMessagesOptions {
     instance: InstanceMetadata | null;
     accessToken: string | null;
     collectionId: string;
     filterField: string;
     filterValue: string | null | undefined;
-    onMessageEvent: () => void;
+    /**
+     * Receives the changed document straight from the realtime payload. Callers
+     * should patch local state from it; refetching the whole list per event is
+     * what burned through the instance rate limit.
+     *
+     * `events` are the Appwrite event names (`...create`, `...update`, ...).
+     * Without them a caller cannot tell a brand-new row from an edit of one it
+     * never loaded, and has to guess from content — which fails for encrypted
+     * rows whose plaintext is empty.
+     */
+    onMessageEvent: (
+        payload: Record<string, unknown>,
+        events: string[],
+    ) => void;
 }
 
 export function useRealtimeMessages({
@@ -25,10 +43,18 @@ export function useRealtimeMessages({
     onMessageEvent,
 }: UseRealtimeMessagesOptions) {
     const onEventRef = useRef(onMessageEvent);
-    onEventRef.current = onMessageEvent;
 
     const subRef = useRef<(() => void) | null>(null);
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const batchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingRef = useRef<
+        { payload: Record<string, unknown>; events: string[] }[]
+    >([]);
+
+    // Synced after commit rather than during render, so a realtime event that
+    // lands between renders still invokes the current closure.
+    useEffect(() => {
+        onEventRef.current = onMessageEvent;
+    });
 
     const doSubscribe = useCallback((): (() => void) | null => {
         if (!filterValue || !accessToken) return null;
@@ -45,18 +71,28 @@ export function useRealtimeMessages({
             response: RealtimeResponseEvent<Record<string, unknown>>,
         ) => {
             const payload = response.payload as
-                | Record<string, unknown>
-                | undefined;
+                Record<string, unknown> | undefined;
             if (!payload) return;
 
             const targetValue = String(payload[filterField] ?? "");
             if (targetValue !== filterValue) return;
 
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            debounceRef.current = setTimeout(() => {
-                debounceRef.current = null;
-                onEventRef.current();
-            }, 1000);
+            // Queue rather than replace: a burst (two people posting at once, or
+            // a post plus an immediate reaction) must deliver every payload. A
+            // trailing-edge debounce on a single slot drops the ones it
+            // supersedes, and because callers patch local state instead of
+            // refetching, a dropped payload is a message that never appears.
+            pendingRef.current.push({ events: response.events ?? [], payload });
+            if (batchRef.current) return;
+
+            batchRef.current = setTimeout(() => {
+                batchRef.current = null;
+                const queued = pendingRef.current;
+                pendingRef.current = [];
+                for (const item of queued) {
+                    onEventRef.current(item.payload, item.events);
+                }
+            }, BATCH_WINDOW_MS);
         };
 
         try {
@@ -78,7 +114,9 @@ export function useRealtimeMessages({
     }, [instance, accessToken, collectionId, filterField, filterValue]);
 
     const doSubscribeRef = useRef(doSubscribe);
-    doSubscribeRef.current = doSubscribe;
+    useEffect(() => {
+        doSubscribeRef.current = doSubscribe;
+    });
 
     // Subscribe on mount / deps change
     useEffect(() => {
@@ -88,10 +126,11 @@ export function useRealtimeMessages({
         return () => {
             subRef.current?.();
             subRef.current = null;
-            if (debounceRef.current) {
-                clearTimeout(debounceRef.current);
-                debounceRef.current = null;
+            if (batchRef.current) {
+                clearTimeout(batchRef.current);
+                batchRef.current = null;
             }
+            pendingRef.current = [];
         };
     }, [doSubscribe]);
 

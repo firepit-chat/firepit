@@ -34,7 +34,7 @@ const requestScopedGetRoutes = findStaticRouteFiles(API_DIR)
 
 describe("static request-scoped GET routes", () => {
     it("finds the routes to check", () => {
-        expect(requestScopedGetRoutes.map(({ route }) => route)).toEqual(
+        expect(authenticatedGetRoutes.map(({ route }) => route)).toEqual(
             expect.arrayContaining([
                 "gifs/search",
                 "memberships",

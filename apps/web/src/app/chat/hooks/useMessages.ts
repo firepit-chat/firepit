@@ -198,6 +198,18 @@ export function useMessages({
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const typingDebounceRef = useRef<NodeJS.Timeout | null>(null);
     const lastTypingSentAt = useRef<number>(0);
+    const typingPresenceIdRef = useRef<string | null>(null);
+    const typingPresenceCreatedRef = useRef<boolean>(false);
+    const TYPING_COOLDOWN_MS = 2000;
+
+    // Use refs for values needed in stale closures (scheduleTypingStart/Stop)
+    const userIdRef = useRef(userId);
+    const channelIdRef = useRef(channelId);
+    const contextIdRef = useRef(contextId);
+    userIdRef.current = userId;
+    channelIdRef.current = channelId;
+    contextIdRef.current = contextId;
+
     const listRef = useRef<HTMLDivElement>(null);
     const previousLengthRef = useRef<number>(messages.length);
     const scrollBottomThreshold = 160; // px tolerance to consider user near bottom
@@ -261,7 +273,12 @@ export function useMessages({
             try {
                 const initial = await enrichMessagesWithPolls(
                     await enrichMessagesWithProfiles(
-                        await listRecentMessages(pageSize, undefined, channelId),
+                        await listRecentMessages(
+                            pageSize,
+                            undefined,
+                            channelId,
+                        ),
+                        userId,
                     ),
                 );
                 if (cancelled) {
@@ -299,7 +316,7 @@ export function useMessages({
         return () => {
             cancelled = true;
         };
-    }, [channelId, pageSize]);
+    }, [channelId, pageSize, userId]);
 
     // realtime subscription for messages
     useEffect(() => {
@@ -357,8 +374,7 @@ export function useMessages({
                             ? (p.threadParticipants as string[])
                             : undefined,
                         lastThreadReplyAt: p.lastThreadReplyAt as
-                            | string
-                            | undefined,
+                            string | undefined,
                         reactions: parseReactions(
                             p.reactions as string | undefined,
                         ),
@@ -376,8 +392,10 @@ export function useMessages({
                 async function applyCreate(base: Message) {
                     const activeChannelId = currentChannelIdRef.current;
                     // Enrich message with profile data before adding to state
-                    const profileEnriched =
-                        await enrichMessageWithProfile(base, userId);
+                    const profileEnriched = await enrichMessageWithProfile(
+                        base,
+                        userId,
+                    );
                     if (currentChannelIdRef.current !== activeChannelId) {
                         return;
                     }
@@ -415,8 +433,10 @@ export function useMessages({
                 async function applyUpdate(base: Message) {
                     const activeChannelId = currentChannelIdRef.current;
                     // Enrich message with profile data before updating state
-                    const profileEnriched =
-                        await enrichMessageWithProfile(base, userId);
+                    const profileEnriched = await enrichMessageWithProfile(
+                        base,
+                        userId,
+                    );
                     if (currentChannelIdRef.current !== activeChannelId) {
                         return;
                     }
@@ -530,14 +550,105 @@ export function useMessages({
             cancelled = true;
             cleanupFn?.();
         };
-    }, [channelId]);
+        // `userId` is read inside the handler for profile-visibility filtering.
+        // Omitting it meant a message arriving after an account switch was
+        // filtered with the previous viewer's id.
+    }, [channelId, userId]);
+
+    const updateTypingPresence = useCallback(
+        async (state: boolean) => {
+            const effectiveChannelId =
+                contextIdRef.current ?? channelIdRef.current;
+            if (!userIdRef.current) {
+                return;
+            }
+            if (!effectiveChannelId) {
+                return;
+            }
+            if (state && !typingPresenceIdRef.current) {
+                typingPresenceIdRef.current = userIdRef.current;
+            }
+
+            // Throttle: skip re-upsert if we're already typing and the
+            // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
+            // alive; we only need to refresh it periodically.
+            if (state && typingPresenceCreatedRef.current) {
+                const elapsed = Date.now() - lastTypingSentAt.current;
+                if (elapsed < TYPING_COOLDOWN_MS) {
+                    return;
+                }
+            }
+
+            lastTypingSentAt.current = Date.now();
+
+            if (!state && !typingPresenceCreatedRef.current) {
+                return;
+            }
+
+            try {
+                if (state) {
+                    const response = await fetch("/api/typing", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                            channelId: effectiveChannelId,
+                            userName: userName || undefined,
+                            expiresAt: new Date(
+                                Date.now() + 4000,
+                            ).toISOString(),
+                        }),
+                    });
+                    if (response.ok) {
+                        typingPresenceCreatedRef.current = true;
+                    }
+                } else {
+                    await fetch("/api/typing", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            presenceId: typingPresenceIdRef.current,
+                        }),
+                    });
+                    typingPresenceCreatedRef.current = false;
+                    typingPresenceIdRef.current = null;
+                }
+            } catch {
+                // ignore
+            }
+        },
+        [userName],
+    );
+
+    const scheduleTypingStop = useCallback(() => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+        typingTimeoutRef.current = setTimeout(() => {
+            void updateTypingPresence(false);
+        }, typingIdleMs);
+    }, [typingIdleMs, updateTypingPresence]);
+
+    const scheduleTypingStart = useCallback(() => {
+        if (typingDebounceRef.current) {
+            clearTimeout(typingDebounceRef.current);
+        }
+        typingDebounceRef.current = setTimeout(() => {
+            void updateTypingPresence(true);
+        }, typingStartDebounceMs);
+    }, [typingStartDebounceMs, updateTypingPresence]);
 
     // Typing indicator subscription via Appwrite Presences API.
+    // Channel view only: DM view already opens its own unfiltered presence
+    // subscription in `useDirectMessages`, and this hook's typing UI is
+    // unreachable there because `send()` requires a channelId. Subscribing in
+    // both doubled the presence event fan-out (presence is unfiltered, so it
+    // scales with total app traffic).
     useEffect(() => {
         setTypingUsers({});
 
         const effectiveContextId = contextId ?? channelId;
-        if (!effectiveContextId) {
+        if (!effectiveContextId || !channelId) {
             return;
         }
 
@@ -556,9 +667,7 @@ export function useMessages({
 
                 const subscription = await realtime.subscribe(
                     presenceChannel,
-                    (
-                        event: RealtimeResponseEvent<Record<string, unknown>>,
-                    ) => {
+                    (event: RealtimeResponseEvent<Record<string, unknown>>) => {
                         if (cancelled) {
                             return;
                         }
@@ -567,15 +676,12 @@ export function useMessages({
                             unknown
                         >;
                         const metadata = payload.metadata as
-                            | Record<string, unknown>
-                            | undefined;
+                            Record<string, unknown> | undefined;
                         const eventChannelId = String(
                             metadata?.channelId ?? "",
                         );
                         const eventUserId = String(payload.userId ?? "");
-                        const eventUserName = String(
-                            metadata?.userName ?? "",
-                        );
+                        const eventUserName = String(metadata?.userName ?? "");
                         const eventUpdatedAt = String(
                             payload.$updatedAt ?? payload.updatedAt ?? "",
                         );
@@ -594,8 +700,7 @@ export function useMessages({
                         );
                         const isUpsert = event.events.some(
                             (e) =>
-                                e.endsWith(".upsert") ||
-                                e.endsWith(".update"),
+                                e.endsWith(".upsert") || e.endsWith(".update"),
                         );
 
                         setTypingUsers((prev) => {
@@ -636,11 +741,14 @@ export function useMessages({
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
+            if (typingDebounceRef.current) {
+                clearTimeout(typingDebounceRef.current);
+            }
             if (typingPresenceCreatedRef.current) {
                 void updateTypingPresence(false);
             }
         };
-    }, [channelId, userId, contextId]);
+    }, [channelId, userId, contextId, updateTypingPresence]);
 
     const {
         activeThreadParent,
@@ -735,7 +843,7 @@ export function useMessages({
         return () => clearInterval(interval);
     }, []);
 
-    async function loadOlder() {
+    const loadOlder = useCallback(async () => {
         if (!oldestCursor) {
             return;
         }
@@ -746,7 +854,12 @@ export function useMessages({
             // Use larger page size for "load more" to reduce number of requests
             const older = await enrichMessagesWithPolls(
                 await enrichMessagesWithProfiles(
-                    await listRecentMessages(loadMoreSize, oldestCursor, channelId),
+                    await listRecentMessages(
+                        loadMoreSize,
+                        oldestCursor,
+                        channelId,
+                    ),
+                    userId,
                 ),
             );
             const olderTopLevel = older.filter(isTopLevelMessage);
@@ -769,140 +882,155 @@ export function useMessages({
                     : "Failed to load older messages",
             );
         }
-    }
+    }, [channelId, loadMoreSize, oldestCursor, userId]);
 
-    function startEdit(m: Message) {
+    const startEdit = useCallback((m: Message) => {
         setText(m.text);
         setEditingMessageId(m.$id);
-    }
+    }, []);
 
-    function cancelEdit() {
+    const cancelEdit = useCallback(() => {
         setText("");
         setEditingMessageId(null);
-    }
+    }, []);
 
-    function startReply(m: Message) {
+    const startReply = useCallback((m: Message) => {
         setReplyingToMessage(m);
-    }
+    }, []);
 
-    function cancelReply() {
+    const cancelReply = useCallback(() => {
         setReplyingToMessage(null);
-    }
+    }, []);
 
-    async function applyEdit(target: Message) {
-        try {
-            const trimmed = text.trim();
-            if (trimmed.length > MAX_MESSAGE_LENGTH) {
-                toast.error(MESSAGE_TOO_LONG_ERROR);
+    const applyEdit = useCallback(
+        async (target: Message) => {
+            try {
+                const trimmed = text.trim();
+                if (trimmed.length > MAX_MESSAGE_LENGTH) {
+                    toast.error(MESSAGE_TOO_LONG_ERROR);
+                    return;
+                }
+
+                const response = await fetch(`/api/messages?id=${target.$id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: trimmed }),
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Failed to edit message");
+                }
+
+                setText("");
+                setEditingMessageId(null);
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : "Edit failed");
+            }
+        },
+        [text],
+    );
+
+    const remove = useCallback(
+        async (id: string) => {
+            try {
+                const response = await fetch(`/api/messages?id=${id}`, {
+                    method: "DELETE",
+                });
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Failed to delete message");
+                }
+
+                setMessages((prev) => prev.filter((m) => m.$id !== id));
+
+                if (activeThreadParent?.$id === id) {
+                    closeThread();
+                }
+
+                void refreshPins();
+            } catch (err) {
+                toast.error(
+                    err instanceof Error ? err.message : "Delete failed",
+                );
+            }
+        },
+        [activeThreadParent, closeThread, refreshPins],
+    );
+
+    const toggleReaction = useCallback(
+        async (messageId: string, emoji: string, isAdding: boolean) => {
+            if (!userId) {
                 return;
             }
 
-            const response = await fetch(`/api/messages?id=${target.$id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: trimmed }),
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to edit message");
-            }
-
-            setText("");
-            setEditingMessageId(null);
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Edit failed");
-        }
-    }
-
-    async function remove(id: string) {
-        try {
-            const response = await fetch(`/api/messages?id=${id}`, {
-                method: "DELETE",
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || "Failed to delete message");
-            }
-
-            setMessages((prev) => prev.filter((m) => m.$id !== id));
-
-            if (activeThreadParent?.$id === id) {
-                closeThread();
-            }
-
-            void refreshPins();
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Delete failed");
-        }
-    }
-
-    async function toggleReaction(
-        messageId: string,
-        emoji: string,
-        isAdding: boolean,
-    ) {
-        if (!userId) {
-            return;
-        }
-
-        const targetMessage = messages.find(
-            (message) => message.$id === messageId,
-        );
-        const previousReactions = targetMessage?.reactions;
-
-        if (targetMessage) {
-            setMessages((prev) =>
-                prev.map((message) => {
-                    if (message.$id !== messageId) {
-                        return message;
-                    }
-
-                    return {
-                        ...message,
-                        reactions: applyOptimisticReactionUpdate({
-                            emoji,
-                            isAdding,
-                            reactions: message.reactions,
-                            userId,
-                        }),
-                    };
-                }),
+            const targetMessage = messages.find(
+                (message) => message.$id === messageId,
             );
-        }
+            const previousReactions = targetMessage?.reactions;
 
-        try {
-            const result = await toggleReactionRequest(
-                messageId,
-                emoji,
-                isAdding,
-                false,
-            );
-
-            if (result.reactions && targetMessage) {
-                setMessages((prev) =>
-                    prev.map((message) =>
-                        message.$id === messageId
-                            ? { ...message, reactions: result.reactions }
-                            : message,
-                    ),
-                );
-            }
-        } catch (err) {
             if (targetMessage) {
                 setMessages((prev) =>
-                    prev.map((message) =>
-                        message.$id === messageId
-                            ? { ...message, reactions: previousReactions }
-                            : message,
-                    ),
+                    prev.map((message) => {
+                        if (message.$id !== messageId) {
+                            return message;
+                        }
+
+                        return {
+                            ...message,
+                            reactions: applyOptimisticReactionUpdate({
+                                emoji,
+                                isAdding,
+                                reactions: message.reactions,
+                                userId,
+                            }),
+                        };
+                    }),
                 );
             }
 
-            toast.error(err instanceof Error ? err.message : "Reaction failed");
-        }
-    }
+            try {
+                const result = await toggleReactionRequest(
+                    messageId,
+                    emoji,
+                    isAdding,
+                    false,
+                );
+
+                if (result.reactions && targetMessage) {
+                    setMessages((prev) =>
+                        prev.map((message) =>
+                            message.$id === messageId
+                                ? {
+                                      ...message,
+                                      reactions: result.reactions,
+                                  }
+                                : message,
+                        ),
+                    );
+                }
+            } catch (err) {
+                if (targetMessage) {
+                    setMessages((prev) =>
+                        prev.map((message) =>
+                            message.$id === messageId
+                                ? {
+                                      ...message,
+                                      reactions: previousReactions,
+                                  }
+                                : message,
+                        ),
+                    );
+                }
+
+                toast.error(
+                    err instanceof Error ? err.message : "Reaction failed",
+                );
+            }
+        },
+        [messages, userId],
+    );
 
     const replaceMessagePoll = useCallback(
         (messageId: string, poll: MessagePoll) => {
@@ -1098,267 +1226,205 @@ export function useMessages({
                 );
                 replaceThreadPoll(messageId, rollbackPoll ?? null);
                 toast.error(
-                    err instanceof Error ? err.message : "Failed to close poll.",
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to close poll.",
                 );
             }
         },
         [replaceMessagePoll, replaceThreadPoll, userId],
     );
 
-    // Presence-based typing via Appwrite Presences API.
-    // Upsert on start (over the existing realtime WS), delete on stop.
-    // expiresAt = now + 4s, re-upsert at most every 2s while typing.
-    const typingPresenceIdRef = useRef<string | null>(null);
-    const typingPresenceCreatedRef = useRef<boolean>(false);
-    const TYPING_COOLDOWN_MS = 2000;
-
-    // Use refs for values needed in stale closures (scheduleTypingStart/Stop)
-    const userIdRef = useRef(userId);
-    const channelIdRef = useRef(channelId);
-    const contextIdRef = useRef(contextId);
-    userIdRef.current = userId;
-    channelIdRef.current = channelId;
-    contextIdRef.current = contextId;
-
-    async function updateTypingPresence(state: boolean) {
-        const effectiveChannelId = contextIdRef.current ?? channelIdRef.current;
-        if (!userIdRef.current) {
-            return;
-        }
-        if (!effectiveChannelId) {
-            return;
-        }
-        if (state && !typingPresenceIdRef.current) {
-            typingPresenceIdRef.current = userIdRef.current;
-        }
-
-        // Throttle: skip re-upsert if we're already typing and the
-        // cooldown hasn't elapsed. The 4s expiresAt keeps the presence
-        // alive; we only need to refresh it periodically.
-        if (state && typingPresenceCreatedRef.current) {
-            const elapsed = Date.now() - lastTypingSentAt.current;
-            if (elapsed < TYPING_COOLDOWN_MS) {
+    const onChangeText = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>) => {
+            const v = e.target.value;
+            setText(v);
+            if (!userId) {
                 return;
             }
-        }
+            if (!channelId && !contextId) {
+                return;
+            }
+            const isTyping = v.trim().length > 0;
+            if (isTyping) {
+                // Start typing immediately on first keystroke
+                scheduleTypingStart();
+                // Reset the idle timer on every keystroke
+                scheduleTypingStop();
+            } else {
+                // User cleared input — stop immediately
+                if (typingDebounceRef.current) {
+                    clearTimeout(typingDebounceRef.current);
+                }
+                void updateTypingPresence(false);
+                if (typingTimeoutRef.current) {
+                    clearTimeout(typingTimeoutRef.current);
+                }
+            }
+        },
+        [
+            channelId,
+            contextId,
+            scheduleTypingStart,
+            scheduleTypingStop,
+            updateTypingPresence,
+            userId,
+        ],
+    );
 
-        lastTypingSentAt.current = Date.now();
+    const send = useCallback(
+        async (
+            e: React.FormEvent,
+            imageFileId?: string,
+            imageUrl?: string,
+            attachments?: unknown[],
+            textOverride?: string,
+        ) => {
+            e.preventDefault();
+            if (!userId) {
+                return;
+            }
+            if (!channelId) {
+                return;
+            }
+            const value =
+                typeof textOverride === "string"
+                    ? textOverride.trim()
+                    : text.trim();
+            if (value.length > MAX_MESSAGE_LENGTH) {
+                toast.error(MESSAGE_TOO_LONG_ERROR);
+                return;
+            }
+            if (
+                !value &&
+                !imageFileId &&
+                (!attachments || attachments.length === 0)
+            ) {
+                return;
+            }
 
-        if (!state && !typingPresenceCreatedRef.current) {
-            return;
-        }
+            // If editing, find the message and apply edit
+            if (editingMessageId) {
+                const targetMessage = messages.find(
+                    (m) => m.$id === editingMessageId,
+                );
+                if (targetMessage) {
+                    await applyEdit(targetMessage);
+                }
+                return;
+            }
 
-        try {
-            if (state) {
-                const response = await fetch("/api/typing", {
+            // Otherwise, send a new message
+            if (!canSend()) {
+                toast.error("You're sending messages too fast");
+                return;
+            }
+            try {
+                setSending(true);
+                setText("");
+                const replyToId = replyingToMessage?.$id;
+                setReplyingToMessage(null);
+
+                // Parse mentions from text.
+                // Combine autocompleted names with all display names from the
+                // current message list so manually-typed mentions with spaces
+                // (like "@avery <3") are stored correctly in the database.
+                const allKnownNames = [
+                    ...new Set([
+                        ...mentionedNamesRef.current,
+                        ...messages
+                            .map((m) => m.displayName)
+                            .filter((n): n is string => Boolean(n)),
+                    ]),
+                ];
+                const mentions =
+                    allKnownNames.length > 0
+                        ? extractMentionsWithKnownNames(value, allKnownNames)
+                        : extractMentionedUsernames(value);
+
+                const response = await fetch("/api/messages", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                        channelId: effectiveChannelId,
-                        userName: userName || undefined,
-                        expiresAt: new Date(Date.now() + 4000).toISOString(),
+                        text: value,
+                        channelId,
+                        serverId: serverId || undefined,
+                        imageFileId,
+                        imageUrl,
+                        attachments:
+                            attachments && attachments.length > 0
+                                ? attachments
+                                : undefined,
+                        replyToId,
+                        mentions: mentions.length > 0 ? mentions : undefined,
                     }),
                 });
-                if (response.ok) {
-                    typingPresenceCreatedRef.current = true;
+
+                if (!response.ok) {
+                    const data = await response.json();
+                    throw new Error(data.error || "Failed to send message");
                 }
-            } else {
-                await fetch("/api/typing", {
-                    method: "DELETE",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        presenceId: typingPresenceIdRef.current,
-                    }),
-                });
-                typingPresenceCreatedRef.current = false;
-                typingPresenceIdRef.current = null;
-            }
-        } catch {
-            // ignore
-        }
-    }
 
-    function scheduleTypingStop() {
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-        typingTimeoutRef.current = setTimeout(() => {
-            void updateTypingPresence(false);
-        }, typingIdleMs);
-    }
-
-    function scheduleTypingStart() {
-        if (typingDebounceRef.current) {
-            clearTimeout(typingDebounceRef.current);
-        }
-        typingDebounceRef.current = setTimeout(() => {
-            void updateTypingPresence(true);
-        }, typingStartDebounceMs);
-    }
-
-    function onChangeText(e: React.ChangeEvent<HTMLInputElement>) {
-        const v = e.target.value;
-        setText(v);
-        if (!userId) {
-            return;
-        }
-        if (!channelId && !contextId) {
-            return;
-        }
-        const isTyping = v.trim().length > 0;
-        if (isTyping) {
-            // Start typing immediately on first keystroke
-            scheduleTypingStart();
-            // Reset the idle timer on every keystroke
-            scheduleTypingStop();
-        } else {
-            // User cleared input — stop immediately
-            if (typingDebounceRef.current) {
-                clearTimeout(typingDebounceRef.current);
-            }
-            void updateTypingPresence(false);
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-        }
-    }
-
-    async function send(
-        e: React.FormEvent,
-        imageFileId?: string,
-        imageUrl?: string,
-        attachments?: unknown[],
-        textOverride?: string,
-    ) {
-        e.preventDefault();
-        if (!userId) {
-            return;
-        }
-        if (!channelId) {
-            return;
-        }
-        const value =
-            typeof textOverride === "string" ? textOverride.trim() : text.trim();
-        if (value.length > MAX_MESSAGE_LENGTH) {
-            toast.error(MESSAGE_TOO_LONG_ERROR);
-            return;
-        }
-        if (
-            !value &&
-            !imageFileId &&
-            (!attachments || attachments.length === 0)
-        ) {
-            return;
-        }
-
-        // If editing, find the message and apply edit
-        if (editingMessageId) {
-            const targetMessage = messages.find(
-                (m) => m.$id === editingMessageId,
-            );
-            if (targetMessage) {
-                await applyEdit(targetMessage);
-            }
-            return;
-        }
-
-        // Otherwise, send a new message
-        if (!canSend()) {
-            toast.error("You're sending messages too fast");
-            return;
-        }
-        try {
-            setSending(true);
-            setText("");
-            const replyToId = replyingToMessage?.$id;
-            setReplyingToMessage(null);
-
-            // Parse mentions from text.
-            // Combine autocompleted names with all display names from the
-            // current message list so manually-typed mentions with spaces
-            // (like "@avery <3") are stored correctly in the database.
-            const allKnownNames = [
-                ...new Set([
-                    ...mentionedNamesRef.current,
-                    ...messages
-                        .map((m) => m.displayName)
-                        .filter((n): n is string => Boolean(n)),
-                ]),
-            ];
-            const mentions =
-                allKnownNames.length > 0
-                    ? extractMentionsWithKnownNames(value, allKnownNames)
-                    : extractMentionedUsernames(value);
-
-            const response = await fetch("/api/messages", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    text: value,
-                    channelId,
-                    serverId: serverId || undefined,
-                    imageFileId,
-                    imageUrl,
-                    attachments:
-                        attachments && attachments.length > 0
-                            ? attachments
-                            : undefined,
-                    replyToId,
-                    mentions: mentions.length > 0 ? mentions : undefined,
-                }),
-            });
-
-            if (!response.ok) {
+                // Optimistically add the message to local state
                 const data = await response.json();
-                throw new Error(data.error || "Failed to send message");
-            }
+                if (data.message) {
+                    const baseMessage = data.message as Message;
 
-            // Optimistically add the message to local state
-            const data = await response.json();
-            if (data.message) {
-                const baseMessage = data.message as Message;
-
-                // Enrich message with profile data and reply context
-                const profileEnriched =
-                    await enrichMessageWithProfile(baseMessage, userId);
-                if (!profileEnriched) {
-                    return;
-                }
-                const enriched = enrichMessageWithReplyContext(
-                    profileEnriched,
-                    messages,
-                );
-
-                // Add to messages array, ensuring no duplicates
-                setMessages((prev) => {
-                    if (prev.some((m) => m.$id === enriched.$id)) {
-                        return prev.map((message) =>
-                            message.$id === enriched.$id
-                                ? {
-                                      ...message,
-                                      ...enriched,
-                                      attachments:
-                                          enriched.attachments ??
-                                          message.attachments,
-                                  }
-                                : message,
-                        );
-                    }
-                    return [...prev, enriched].sort((a, b) =>
-                        a.$createdAt.localeCompare(b.$createdAt),
+                    // Enrich message with profile data and reply context
+                    const profileEnriched = await enrichMessageWithProfile(
+                        baseMessage,
+                        userId,
                     );
-                });
+                    if (!profileEnriched) {
+                        return;
+                    }
+                    const enriched = enrichMessageWithReplyContext(
+                        profileEnriched,
+                        messages,
+                    );
+
+                    // Add to messages array, ensuring no duplicates
+                    setMessages((prev) => {
+                        if (prev.some((m) => m.$id === enriched.$id)) {
+                            return prev.map((message) =>
+                                message.$id === enriched.$id
+                                    ? {
+                                          ...message,
+                                          ...enriched,
+                                          attachments:
+                                              enriched.attachments ??
+                                              message.attachments,
+                                      }
+                                    : message,
+                            );
+                        }
+                        return [...prev, enriched].sort((a, b) =>
+                            a.$createdAt.localeCompare(b.$createdAt),
+                        );
+                    });
+                }
+            } catch (err) {
+                toast.error(
+                    err instanceof Error ? err.message : "Failed to send",
+                );
+            } finally {
+                setSending(false);
             }
-        } catch (err) {
-            toast.error(err instanceof Error ? err.message : "Failed to send");
-        } finally {
-            setSending(false);
-        }
-    }
+        },
+        [
+            applyEdit,
+            channelId,
+            editingMessageId,
+            messages,
+            replyingToMessage,
+            serverId,
+            text,
+            userId,
+        ],
+    );
 
     // Determine if we should show the "Load Older" button
-    function shouldShowLoadOlder(): boolean {
+    const shouldShowLoadOlder = useCallback((): boolean => {
         // If no messages, don't show button
         if (messages.length === 0) {
             return false;
@@ -1375,7 +1441,7 @@ export function useMessages({
         }
 
         return false;
-    }
+    }, [hasMore, messages.length, oldestCursor]);
 
     const surfaceMessages = useMemo(() => {
         const messagesById = new Map(
@@ -1406,48 +1472,98 @@ export function useMessages({
 
     const realtimeDegraded = messageRealtimeDegraded;
 
-    return {
-        messages,
-        surfaceMessages,
-        loading,
-        sending,
-        oldestCursor,
-        hasMore,
-        text,
-        editingMessageId,
-        replyingToMessage,
-        typingUsers,
-        realtimeDegraded,
-        messageRealtimeDegraded,
-        setTypingUsers,
-        listRef,
-        loadOlder,
-        shouldShowLoadOlder,
-        startEdit,
-        cancelEdit,
-        startReply,
-        cancelReply,
-        applyEdit,
-        remove,
-        toggleReaction,
-        votePoll,
-        closePoll,
-        onChangeText,
-        send,
-        userIdSlice,
-        maxTypingDisplay,
-        channelPins,
-        refreshPins,
-        togglePin,
-        activeThreadParent,
-        threadMessages,
-        threadLoading,
-        threadReplySending,
-        openThread,
-        closeThread,
-        sendThreadReply,
-        setMentionedNames: (names: string[]) => {
-            mentionedNamesRef.current = names;
-        },
-    };
+    const setMentionedNames = useCallback((names: string[]) => {
+        mentionedNamesRef.current = names;
+    }, []);
+
+    // Stable identity: `page.tsx` puts `messagesApi` in dependency arrays, and a
+    // fresh object literal per render re-ran those effects on every render.
+    return useMemo(
+        () => ({
+            messages,
+            surfaceMessages,
+            loading,
+            sending,
+            oldestCursor,
+            hasMore,
+            text,
+            editingMessageId,
+            replyingToMessage,
+            typingUsers,
+            realtimeDegraded,
+            messageRealtimeDegraded,
+            setTypingUsers,
+            listRef,
+            loadOlder,
+            shouldShowLoadOlder,
+            startEdit,
+            cancelEdit,
+            startReply,
+            cancelReply,
+            applyEdit,
+            remove,
+            toggleReaction,
+            votePoll,
+            closePoll,
+            onChangeText,
+            send,
+            userIdSlice,
+            maxTypingDisplay,
+            channelPins,
+            refreshPins,
+            togglePin,
+            activeThreadParent,
+            threadMessages,
+            threadLoading,
+            threadReplySending,
+            openThread,
+            closeThread,
+            sendThreadReply,
+            setMentionedNames,
+        }),
+        // Every member is either primitive state, a ref, or a useCallback. The
+        // list is long by nature; `react-hooks/exhaustive-deps` keeps it honest.
+        [
+            activeThreadParent,
+            applyEdit,
+            cancelEdit,
+            cancelReply,
+            channelPins,
+            closePoll,
+            closeThread,
+            editingMessageId,
+            hasMore,
+            listRef,
+            loadOlder,
+            loading,
+            maxTypingDisplay,
+            messageRealtimeDegraded,
+            messages,
+            oldestCursor,
+            onChangeText,
+            openThread,
+            realtimeDegraded,
+            refreshPins,
+            remove,
+            replyingToMessage,
+            send,
+            sending,
+            sendThreadReply,
+            setMentionedNames,
+            setTypingUsers,
+            shouldShowLoadOlder,
+            startEdit,
+            startReply,
+            surfaceMessages,
+            text,
+            threadLoading,
+            threadMessages,
+            threadReplySending,
+            togglePin,
+            toggleReaction,
+            typingUsers,
+            userIdSlice,
+            votePoll,
+        ],
+    );
 }

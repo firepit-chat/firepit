@@ -62,9 +62,7 @@ export async function POST(request: Request) {
                 channelId,
                 userName: userName || undefined,
             },
-            permissions: [
-                Permission.read(Role.users()),
-            ],
+            permissions: [Permission.read(Role.users())],
         });
 
         return NextResponse.json({ success: true, presence: result });

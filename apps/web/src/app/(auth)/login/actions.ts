@@ -36,7 +36,9 @@ type ResendVerificationResult =
           error: string;
       };
 
-type AppwriteSession = Awaited<ReturnType<Account["createEmailPasswordSession"]>>;
+type AppwriteSession = Awaited<
+    ReturnType<Account["createEmailPasswordSession"]>
+>;
 type AppwriteAccountUser = Awaited<ReturnType<Users["get"]>>;
 type EmailPasswordSessionResult =
     | {
@@ -124,12 +126,17 @@ function buildVerificationRequiredResult(options?: {
 
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 const PHONE_PATTERN = /\b\+?\d[\d\s().-]{7,}\d\b/g;
-const UUID_PATTERN = /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
-const IDENTIFIER_LABEL_PATTERN = /\b(userId|user_id|accountId|profileId|sessionId|documentId|channelId|serverId|conversationId|messageId|email|phone|phoneNumber)\s*[:=]\s*(['"]?)([^,;\s"')]+)\2/gi;
+const UUID_PATTERN =
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+const IDENTIFIER_LABEL_PATTERN =
+    /\b(userId|user_id|accountId|profileId|sessionId|documentId|channelId|serverId|conversationId|messageId|email|phone|phoneNumber)\s*[:=]\s*(['"]?)([^,;\s"')]+)\2/gi;
 
 function redactAuthErrorText(value: string): string {
     const redactedEmails = value.replace(EMAIL_PATTERN, "[REDACTED_EMAIL]");
-    const redactedPhones = redactedEmails.replace(PHONE_PATTERN, "[REDACTED_PHONE]");
+    const redactedPhones = redactedEmails.replace(
+        PHONE_PATTERN,
+        "[REDACTED_PHONE]",
+    );
     const redactedIds = redactedPhones.replace(UUID_PATTERN, "[REDACTED_ID]");
 
     return redactedIds.replace(
@@ -444,10 +451,8 @@ export async function loginAction(
 
                 return {
                     success: false,
-                    error:
-                        "Your account is awaiting administrator approval.",
-                    message:
-                        "Your account is awaiting administrator approval.",
+                    error: "Your account is awaiting administrator approval.",
+                    message: "Your account is awaiting administrator approval.",
                     approvalRequired: true,
                 };
             }
@@ -462,8 +467,7 @@ export async function loginAction(
 
                 return {
                     success: false,
-                    error:
-                        "Your signup was not approved by an administrator.",
+                    error: "Your signup was not approved by an administrator.",
                 };
             }
 
@@ -497,10 +501,13 @@ export async function loginAction(
                         });
                         verificationLinkSent = true;
                     } catch (verificationError) {
-                        logger.error("Failed to send verification email during login", {
-                            userIdHash: generateUserIdHash(session.userId),
-                            error: sanitizeAuthError(verificationError),
-                        });
+                        logger.error(
+                            "Failed to send verification email during login",
+                            {
+                                userIdHash: generateUserIdHash(session.userId),
+                                error: sanitizeAuthError(verificationError),
+                            },
+                        );
                     }
 
                     await deleteSessionBestEffort(
@@ -510,7 +517,9 @@ export async function loginAction(
                     );
                     shouldDeleteTemporarySession = false;
 
-                    return buildVerificationRequiredResult({ verificationLinkSent });
+                    return buildVerificationRequiredResult({
+                        verificationLinkSent,
+                    });
                 }
             }
 
@@ -536,7 +545,11 @@ export async function loginAction(
             return { success: true, userId: session.userId };
         } finally {
             if (shouldDeleteTemporarySession) {
-                await deleteSessionBestEffort(users, session.userId, session.$id);
+                await deleteSessionBestEffort(
+                    users,
+                    session.userId,
+                    session.$id,
+                );
             }
         }
     } catch (error) {
@@ -617,7 +630,8 @@ export async function resendVerificationAction(
                 return {
                     success: true,
                     alreadyVerified: true,
-                    message: "This email is already verified. You can sign in now.",
+                    message:
+                        "This email is already verified. You can sign in now.",
                 };
             }
 
@@ -635,7 +649,10 @@ export async function resendVerificationAction(
             await deleteSessionBestEffort(users, session.userId, session.$id);
         }
     } catch (error) {
-        const parsedError = parseAuthError(error, "Failed to resend verification email.");
+        const parsedError = parseAuthError(
+            error,
+            "Failed to resend verification email.",
+        );
 
         if (parsedError.shouldLog) {
             logger.error("Resend verification failed", {
@@ -702,8 +719,7 @@ export async function registerAction(
         if (policy === "disabled") {
             return {
                 success: false,
-                error:
-                    "Sign-ups are currently disabled on this instance. Contact your administrator.",
+                error: "Sign-ups are currently disabled on this instance. Contact your administrator.",
             };
         }
 
@@ -727,8 +743,7 @@ export async function registerAction(
 
             return {
                 success: false,
-                error:
-                    "Your account is pending approval. You'll be able to sign in once an administrator approves it.",
+                error: "Your account is pending approval. You'll be able to sign in once an administrator approves it.",
                 message:
                     "Account created. It will be reviewed by an administrator before you can sign in.",
                 approvalRequired: true,
@@ -808,8 +823,7 @@ export async function registerAction(
 }
 
 type ResetPasswordResult =
-    | { success: true; message: string }
-    | { success: false; error: string };
+    { success: true; message: string } | { success: false; error: string };
 
 /**
  * Completes a password reset using the userId + secret from the recovery
@@ -860,8 +874,7 @@ export async function resetPasswordAction(
             ) {
                 return {
                     success: false,
-                    error:
-                        "This password reset link is invalid or has expired. Request a new one.",
+                    error: "This password reset link is invalid or has expired. Request a new one.",
                 };
             }
 
@@ -914,7 +927,11 @@ export async function logoutAction(): Promise<{ success: boolean }> {
                     .catch(() => {
                         // Ignore errors - cookie will be deleted anyway
                     });
-                invalidateSessionCacheForToken(endpoint, project, sessionCookie.value);
+                invalidateSessionCacheForToken(
+                    endpoint,
+                    project,
+                    sessionCookie.value,
+                );
             }
         }
 

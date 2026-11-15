@@ -63,7 +63,9 @@ export function SessionManager() {
                 toast.error(data.error ?? "Failed to revoke session.");
                 return;
             }
-            toast.success(isCurrent ? "Signed out of this device." : "Session revoked.");
+            toast.success(
+                isCurrent ? "Signed out of this device." : "Session revoked.",
+            );
             if (isCurrent) {
                 router.push("/login");
             } else {
@@ -100,7 +102,9 @@ export function SessionManager() {
     return (
         <div className="space-y-4">
             {loading ? (
-                <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                <p className="text-sm text-muted-foreground">
+                    Loading sessions...
+                </p>
             ) : sessions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                     No active sessions found.
@@ -129,11 +133,16 @@ export function SessionManager() {
                             <Button
                                 disabled={revoking}
                                 onClick={() =>
-                                    void revoke(session.$id, session.current === true)
+                                    void revoke(
+                                        session.$id,
+                                        session.current === true,
+                                    )
                                 }
                                 size="sm"
                                 type="button"
-                                variant={session.current ? "destructive" : "outline"}
+                                variant={
+                                    session.current ? "destructive" : "outline"
+                                }
                             >
                                 {session.current ? "Sign out" : "Revoke"}
                             </Button>

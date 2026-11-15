@@ -1,6 +1,10 @@
 import { Account, Client } from "react-native-appwrite";
 
-import { authHeaders, firepitRequest, FirepitHttpError } from "@/lib/firepit/http";
+import {
+    authHeaders,
+    firepitRequest,
+    FirepitHttpError,
+} from "@/lib/firepit/http";
 import {
     type CompatibilityEvaluation,
     type CurrentUser,
@@ -261,7 +265,11 @@ export async function fetchAllowUserServers(baseUrl: string) {
 }
 
 async function fetchCurrentUser(baseUrl: string, token: string) {
-    const raw = await firepitRequest<CurrentUser>({ baseUrl, path: "/api/me", token });
+    const raw = await firepitRequest<CurrentUser>({
+        baseUrl,
+        path: "/api/me",
+        token,
+    });
     return normalizeCurrentUser(raw);
 }
 
@@ -325,7 +333,10 @@ async function fetchProfileEnrichment(
         });
         const merged: Partial<CurrentUser> = {};
         for (const key of PROFILE_ENRICHMENT_KEYS) {
-            if (typeof profile[key] === "string" && (profile[key] as string).length > 0) {
+            if (
+                typeof profile[key] === "string" &&
+                (profile[key] as string).length > 0
+            ) {
                 (merged as Record<string, unknown>)[key] = profile[key];
             }
         }
@@ -363,7 +374,10 @@ export async function resolveCurrentUser(
     // from the server, fetched in parallel.
     if (config) {
         try {
-            const directUser = await fetchCurrentUserFromAppwrite(config, token);
+            const directUser = await fetchCurrentUserFromAppwrite(
+                config,
+                token,
+            );
             if (directUser?.$id) {
                 const [profile, roles] = await Promise.all([
                     fetchProfileEnrichment(baseUrl, token, directUser.$id),
@@ -384,14 +398,21 @@ export async function resolveCurrentUser(
         const user = await fetchCurrentUser(baseUrl, token);
         // /api/me returns identity + roles; profile fields come from the profile endpoint
         if (user?.$id) {
-            const profile = await fetchProfileEnrichment(baseUrl, token, user.$id);
+            const profile = await fetchProfileEnrichment(
+                baseUrl,
+                token,
+                user.$id,
+            );
             return { ...user, ...profile };
         }
         return user;
     } catch (error) {
         // If the server rejected the token (401/403), don't fall back to the
         // client SDK — the token is genuinely invalid and we need re-auth.
-        if (error instanceof FirepitHttpError && (error.status === 401 || error.status === 403)) {
+        if (
+            error instanceof FirepitHttpError &&
+            (error.status === 401 || error.status === 403)
+        ) {
             throw error;
         }
         if (!config) {
@@ -417,11 +438,14 @@ export async function authenticateWithPassword(
     // public Account API and returns the session secret.  This is the same
     // type of token the web app stores in its session cookie, so the server
     // can validate it with client.setSession().
-    const response = await fetch(`${instanceUrl.replace(/\/$/, "")}/api/auth/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-    });
+    const response = await fetch(
+        `${instanceUrl.replace(/\/$/, "")}/api/auth/session`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        },
+    );
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -438,7 +462,9 @@ export async function authenticateWithPassword(
     };
 
     if (!data.session) {
-        throw new Error("Authentication response did not include a session token.");
+        throw new Error(
+            "Authentication response did not include a session token.",
+        );
     }
 
     return data.session;

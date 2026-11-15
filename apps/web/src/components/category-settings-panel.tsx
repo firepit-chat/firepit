@@ -30,6 +30,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import type { Channel, ChannelCategory, Role } from "@/lib/types";
+import { normalizeChannelType } from "@/lib/types";
 import { apiCache } from "@/lib/cache-utils";
 
 type EditableChannelType = "text" | "announcement";
@@ -55,20 +56,6 @@ type RolesResponse = {
 type ChannelCreateResponse = {
     channel: Channel;
 };
-
-function normalizeChannelType(
-    value: Channel["type"],
-): "text" | "voice" | "announcement" {
-    if (value === "voice") {
-        return "voice";
-    }
-
-    if (value === "announcement") {
-        return "announcement";
-    }
-
-    return "text";
-}
 
 function sortCategories(categories: ChannelCategory[]) {
     return [...categories].sort(

@@ -1,13 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-    fetchBlockedUsers,
-    unblockUser,
-} from "@/lib/firepit/messages";
+import { fetchBlockedUsers, unblockUser } from "@/lib/firepit/messages";
 import type { BlockedUserEntry } from "@/lib/firepit/types";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 const BLOCKED_CACHE_TTL = 30_000;
-const blockedCache = new Map<string, { data: BlockedUserEntry[]; cachedAt: number }>();
+const blockedCache = new Map<
+    string,
+    { data: BlockedUserEntry[]; cachedAt: number }
+>();
+
+/**
+ * Subscribers are notified whenever a cached list changes.
+ *
+ * The hook is also called once per rendered row (and from more than one
+ * screen at a time), so each call gets its own `useState`. Without this every
+ * instance would hold a private copy and an unblock in one row would refresh
+ * only that row's copy — leaving the list on screen stale.
+ */
+const blockedListeners = new Set<() => void>();
+
+function emit(key: string, data: BlockedUserEntry[]) {
+    blockedCache.set(key, { data, cachedAt: Date.now() });
+    for (const listener of blockedListeners) listener();
+}
 
 function blockedCacheKey(instanceUrl: string, accountId: string): string {
     return `${instanceUrl}|${accountId}`;
@@ -16,7 +31,10 @@ function blockedCacheKey(instanceUrl: string, accountId: string): string {
 export function useBlockedUsers() {
     const { instanceUrl, accessToken, currentUser } = useFirepitBootstrap();
     const accountId = currentUser?.$id;
-    const key = instanceUrl && accountId ? blockedCacheKey(instanceUrl, accountId) : null;
+    const key =
+        instanceUrl && accountId
+            ? blockedCacheKey(instanceUrl, accountId)
+            : null;
     const [items, setItems] = useState<BlockedUserEntry[]>(() => {
         if (key) {
             const cached = blockedCache.get(key);
@@ -30,6 +48,19 @@ export function useBlockedUsers() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Keep this instance in step with the shared cache.
+    useEffect(() => {
+        if (!key) return;
+        const listener = () => {
+            const cached = blockedCache.get(key);
+            if (cached) setItems(cached.data);
+        };
+        blockedListeners.add(listener);
+        return () => {
+            blockedListeners.delete(listener);
+        };
+    }, [key]);
+
     const refetch = useCallback(async () => {
         if (!instanceUrl || !accessToken || !accountId) {
             setItems([]);
@@ -42,7 +73,7 @@ export function useBlockedUsers() {
         try {
             const res = await fetchBlockedUsers(instanceUrl, accessToken);
             const data = res.items ?? [];
-            blockedCache.set(cacheKey, { data, cachedAt: Date.now() });
+            emit(cacheKey, data);
             setItems(data);
         } catch (fetchError) {
             setError(

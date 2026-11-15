@@ -34,11 +34,13 @@ vi.mock("@/app/chat/hooks/useStatusSubscription", () => ({
     })),
 }));
 
-const mockSubscribe = vi.hoisted(() => vi.fn(async () => ({
-    close: vi.fn(),
-    update: vi.fn().mockResolvedValue(),
-    disconnect: vi.fn().mockResolvedValue(),
-})));
+const mockSubscribe = vi.hoisted(() =>
+    vi.fn(async () => ({
+        close: vi.fn(),
+        update: vi.fn().mockResolvedValue(),
+        disconnect: vi.fn().mockResolvedValue(),
+    })),
+);
 const mockTrackSubscription = vi.hoisted(() => vi.fn(() => vi.fn()));
 
 vi.mock("@/lib/realtime-pool", () => ({

@@ -17,7 +17,10 @@ type FriendsData = {
 const FRIENDS_CACHE_TTL = 30_000;
 const friendsCache = new Map<string, { data: FriendsData; cachedAt: number }>();
 
-function friendsCacheKey(instanceUrl: string | null, currentUserId: string | null) {
+function friendsCacheKey(
+    instanceUrl: string | null,
+    currentUserId: string | null,
+) {
     return `${instanceUrl ?? "anon"}:${currentUserId ?? "anon"}`;
 }
 
@@ -73,9 +76,7 @@ export function useFriends() {
     }, [refetch, cacheKey]);
 
     const runMutation = useCallback(
-        async (
-            fn: () => Promise<{ success?: boolean }>,
-        ): Promise<boolean> => {
+        async (fn: () => Promise<{ success?: boolean }>): Promise<boolean> => {
             if (!instanceUrl || !accessToken) return false;
             setActionLoading(true);
             setError(null);
@@ -127,11 +128,7 @@ export function useFriends() {
         removeFriend: (targetUserId: string) =>
             instanceUrl && accessToken
                 ? runMutation(() =>
-                      removeFriendship(
-                          instanceUrl,
-                          accessToken,
-                          targetUserId,
-                      ),
+                      removeFriendship(instanceUrl, accessToken, targetUserId),
                   )
                 : Promise.resolve(false),
     };

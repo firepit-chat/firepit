@@ -127,6 +127,9 @@ export function useConversations(
                     otherUser: {
                         ...baseOtherUser,
                         status: liveStatus.status,
+                        // Carried through so a row can show the custom status
+                        // text rather than only the presence word.
+                        statusMessage: liveStatus.customMessage,
                     },
                 };
             }
@@ -193,8 +196,7 @@ export function useConversations(
                             unknown
                         >;
                         const participants = payload.participants as
-                            | string[]
-                            | undefined;
+                            string[] | undefined;
 
                         if (!participants?.includes(userId)) {
                             return;

@@ -7,11 +7,7 @@ import { getEnvConfig, type EnvConfig } from "@/lib/appwrite-core";
 import { getServerSession } from "@/lib/auth-server";
 import type { DirectMessage } from "@/lib/types";
 import { parseReactions } from "@/lib/reactions-utils";
-import {
-    logger,
-    recordError,
-    trackApiCall,
-} from "@/lib/posthog-utils";
+import { logger, recordError, trackApiCall } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -59,7 +55,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {
@@ -220,7 +215,6 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const startTime = Date.now();
 
     try {
-
         // Verify user is authenticated
         const user = await getServerSession();
         if (!user) {

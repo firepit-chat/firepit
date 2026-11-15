@@ -15,15 +15,14 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
-import {
-    fetchAdminAuditLogs,
-    type AdminAuditLogEntry,
-} from "@/lib/firepit";
+import { fetchAdminAuditLogs, type AdminAuditLogEntry } from "@/lib/firepit";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
-function actionTone(action?: string): "neutral" | "success" | "warning" | "danger" {
+function actionTone(
+    action?: string,
+): "neutral" | "success" | "warning" | "danger" {
     if (!action) return "neutral";
     const a = action.toLowerCase();
     if (a.includes("ban") && !a.includes("unban")) return "danger";
@@ -41,6 +40,12 @@ function formatTimestamp(timestamp?: string) {
     if (Number.isNaN(date.getTime())) return timestamp;
     return date.toLocaleString();
 }
+
+// Hoisted: an inline renderItem lands in the list cell's props and defeats
+// its PureComponent, re-rendering every visible row on any parent render.
+const renderInstanceAuditEntry = ({ item }: { item: AdminAuditLogEntry }) => (
+    <InstanceAuditEntryCard entry={item} />
+);
 
 export default function InstanceAuditLogScreen() {
     const theme = useTheme();
@@ -106,8 +111,10 @@ export default function InstanceAuditLogScreen() {
                 <SafeAreaView style={styles.safeArea}>
                     <ThemedView style={styles.shell}>
                         <ThemedView
-                            type="card"
-                            style={[styles.heroCard, { borderColor: theme.border }]}
+                            style={[
+                                styles.heroCard,
+                                { borderColor: theme.border },
+                            ]}
                         >
                             <ThemedText type="code" themeColor="accent">
                                 Instance audit log
@@ -115,7 +122,10 @@ export default function InstanceAuditLogScreen() {
                             <ThemedText type="title">
                                 Instance-wide events
                             </ThemedText>
-                            <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                            <ThemedText
+                                themeColor="mutedForeground"
+                                style={styles.copy}
+                            >
                                 Every privileged action across all servers, in
                                 chronological order.
                             </ThemedText>
@@ -150,14 +160,18 @@ export default function InstanceAuditLogScreen() {
                                     },
                                 ]}
                             >
-                                <ThemedText type="smallBold">Refresh</ThemedText>
+                                <ThemedText type="smallBold">
+                                    Refresh
+                                </ThemedText>
                             </Pressable>
                         </View>
 
                         {loadError ? (
                             <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
+                                style={[
+                                    styles.card,
+                                    { borderColor: theme.border },
+                                ]}
                             >
                                 <ThemedText themeColor="destructive">
                                     {loadError}
@@ -190,7 +204,6 @@ export default function InstanceAuditLogScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
                                     style={[
                                         styles.card,
                                         styles.emptyCard,
@@ -216,9 +229,7 @@ export default function InstanceAuditLogScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <InstanceAuditEntryCard entry={item} />
-                        )}
+                        renderItem={renderInstanceAuditEntry}
                     />
                 </SafeAreaView>
             </View>
@@ -226,25 +237,17 @@ export default function InstanceAuditLogScreen() {
     );
 }
 
-function InstanceAuditEntryCard({
-    entry,
-}: {
-    entry: AdminAuditLogEntry;
-}) {
+function InstanceAuditEntryCard({ entry }: { entry: AdminAuditLogEntry }) {
     const theme = useTheme();
     const tone = actionTone(entry.action);
 
     return (
         <View style={styles.entryWrap}>
             <ThemedView
-                type="card"
                 style={[styles.entryCard, { borderColor: theme.border }]}
             >
                 <View style={styles.entryHeader}>
-                    <StatusPill
-                        label={entry.action ?? "unknown"}
-                        tone={tone}
-                    />
+                    <StatusPill label={entry.action ?? "unknown"} tone={tone} />
                     <ThemedText type="code" themeColor="mutedForeground">
                         {formatTimestamp(entry.timestamp)}
                     </ThemedText>
@@ -288,7 +291,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -300,7 +302,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     emptyCard: {
         marginTop: Spacing.three,
@@ -336,7 +337,6 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",

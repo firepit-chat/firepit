@@ -2,7 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Clock3, MessageSquarePlus, UserMinus, Users, X } from "lucide-react";
+import {
+    Check,
+    Clock3,
+    MessageSquarePlus,
+    UserMinus,
+    Users,
+    X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -133,7 +140,10 @@ export function FriendsSettings() {
                             ) : null}
                             <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-xs text-muted-foreground">
-                                    {formatFriendshipDate(kind, entry.friendship)}
+                                    {formatFriendshipDate(
+                                        kind,
+                                        entry.friendship,
+                                    )}
                                 </p>
                                 <span className="rounded bg-muted/70 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                     {statusLabel}
@@ -288,13 +298,22 @@ export function FriendsSettings() {
 
                 <Tabs className="space-y-4" defaultValue="friends">
                     <TabsList className="grid h-auto w-full grid-cols-3 rounded-lg bg-muted/50 p-0.5">
-                        <TabsTrigger className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground" value="friends">
+                        <TabsTrigger
+                            className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground"
+                            value="friends"
+                        >
                             Friends
                         </TabsTrigger>
-                        <TabsTrigger className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground" value="incoming">
+                        <TabsTrigger
+                            className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground"
+                            value="incoming"
+                        >
                             Incoming
                         </TabsTrigger>
-                        <TabsTrigger className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground" value="outgoing">
+                        <TabsTrigger
+                            className="rounded-md data-[state=active]:bg-background data-[state=active]:text-foreground"
+                            value="outgoing"
+                        >
                             Sent
                         </TabsTrigger>
                     </TabsList>

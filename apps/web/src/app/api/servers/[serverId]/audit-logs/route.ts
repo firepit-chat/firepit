@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerClient } from "@/lib/appwrite-server";
-import { logger,
+import {
+    logger,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
@@ -18,7 +19,10 @@ export async function GET(
     try {
         const { serverId } = await params;
         const { searchParams } = new URL(request.url);
-        const parsedLimit = Number.parseInt(searchParams.get("limit") || "50", 10);
+        const parsedLimit = Number.parseInt(
+            searchParams.get("limit") || "50",
+            10,
+        );
         const limit = Number.isNaN(parsedLimit)
             ? 50
             : Math.min(Math.max(parsedLimit, 1), MAX_AUDIT_LOG_LIMIT);

@@ -28,6 +28,7 @@ import type {
 } from "@/lib/types";
 
 type InboxFilters = {
+    contextId?: string | undefined;
     contextKinds?: InboxContextKind[];
     kinds: InboxItemKind[];
     limit: number;
@@ -121,7 +122,11 @@ const INBOX_CONVERSATION_THREAD_REPLY_SIGNAL_SELECT_FIELDS = [
     "conversationId",
     "threadId",
 ] as const;
-const PROFILE_SELECT_FIELDS = ["userId", "avatarFileId", "displayName"] as const;
+const PROFILE_SELECT_FIELDS = [
+    "userId",
+    "avatarFileId",
+    "displayName",
+] as const;
 
 type InboxRequestCaches = {
     authorProfileCache: Map<string, AuthorProfile>;
@@ -199,7 +204,10 @@ function buildThreadParentSnapshot(params: {
             ? document.threadMessageCount
             : 0;
     const signalThreadCount = signal?.replyCount ?? 0;
-    const effectiveThreadCount = Math.max(metadataThreadCount, signalThreadCount);
+    const effectiveThreadCount = Math.max(
+        metadataThreadCount,
+        signalThreadCount,
+    );
     let threadMessageCount: number | undefined;
 
     if (effectiveThreadCount > 0) {
@@ -287,7 +295,9 @@ async function listAllDocuments(params: {
 
     const baseQueries = [
         ...queries,
-        ...(selectFields && selectFields.length > 0 ? selectQuery(selectFields) : []),
+        ...(selectFields && selectFields.length > 0
+            ? selectQuery(selectFields)
+            : []),
     ];
 
     let shouldSelectFields = Boolean(selectFields && selectFields.length > 0);
@@ -300,9 +310,7 @@ async function listAllDocuments(params: {
                 databases,
                 databaseId: env.databaseId,
                 collectionId,
-                baseQueries: shouldSelectFields
-                    ? baseQueries
-                    : [...queries],
+                baseQueries: shouldSelectFields ? baseQueries : [...queries],
                 pageSize: pageLimit,
                 warningContext: `listAllDocuments:${collectionId}`,
             });
@@ -310,7 +318,10 @@ async function listAllDocuments(params: {
             truncated = response.truncated;
             break;
         } catch (error) {
-            if (shouldSelectFields && isSchemaAttributeMissingQueryError(error)) {
+            if (
+                shouldSelectFields &&
+                isSchemaAttributeMissingQueryError(error)
+            ) {
                 shouldSelectFields = false;
                 continue;
             }
@@ -343,13 +354,8 @@ async function listDocumentsByIds(params: {
     ids: string[];
     selectFields?: readonly string[];
 }) {
-    const {
-        collectionId,
-        contextField,
-        contextIds,
-        ids,
-        selectFields,
-    } = params;
+    const { collectionId, contextField, contextIds, ids, selectFields } =
+        params;
     const env = getEnvConfig();
     const { databases } = getServerClient();
     const uniqueIds = Array.from(new Set(ids.filter((id) => id.length > 0)));
@@ -382,10 +388,18 @@ async function listDocumentsByIds(params: {
                     Query.equal("$id", idChunk),
                     Query.limit(idChunk.length),
                 ];
-                if (contextField && contextIdChunk && contextIdChunk.length > 0) {
+                if (
+                    contextField &&
+                    contextIdChunk &&
+                    contextIdChunk.length > 0
+                ) {
                     queries.push(Query.equal(contextField, contextIdChunk));
                 }
-                if (shouldSelectFields && selectFields && selectFields.length > 0) {
+                if (
+                    shouldSelectFields &&
+                    selectFields &&
+                    selectFields.length > 0
+                ) {
                     queries.push(...selectQuery(selectFields));
                 }
 
@@ -427,9 +441,7 @@ async function listDocumentsByIds(params: {
     return Array.from(deduped.values());
 }
 
-function toThreadReplySignals(
-    documents: Array<Record<string, unknown>>,
-) {
+function toThreadReplySignals(documents: Array<Record<string, unknown>>) {
     const signalsByParentId = new Map<string, ThreadReplySignal>();
 
     for (const document of documents) {
@@ -440,7 +452,9 @@ function toThreadReplySignals(
         }
 
         const createdAt =
-            typeof document.$createdAt === "string" ? document.$createdAt : undefined;
+            typeof document.$createdAt === "string"
+                ? document.$createdAt
+                : undefined;
 
         const existingSignal = signalsByParentId.get(threadId);
         if (existingSignal) {
@@ -797,8 +811,12 @@ async function loadRelationshipMap(
     if (cache) {
         return uniqueUserIds.reduce<Map<string, RelationshipStatus>>(
             (accumulator, otherUserId) => {
-                const relationshipStatus = cache.relationshipCache.get(otherUserId);
-                if (relationshipStatus !== undefined && relationshipStatus !== null) {
+                const relationshipStatus =
+                    cache.relationshipCache.get(otherUserId);
+                if (
+                    relationshipStatus !== undefined &&
+                    relationshipStatus !== null
+                ) {
                     accumulator.set(otherUserId, relationshipStatus);
                 }
                 return accumulator;
@@ -843,7 +861,9 @@ async function filterReadableChannelContexts<T>(
     }
 
     const readableChannelIds = new Set<string>(
-        channelIds.filter((channelId) => channelAccessCache?.get(channelId) === true),
+        channelIds.filter(
+            (channelId) => channelAccessCache?.get(channelId) === true,
+        ),
     );
     const unknownChannelIds = channelIds.filter(
         (channelId) => channelAccessCache?.has(channelId) !== true,
@@ -869,7 +889,8 @@ async function filterReadableChannelContexts<T>(
                 channelAccessCache?.set(channelId, false);
                 logger.debug("Channel access check failed", {
                     channelId,
-                    error: error instanceof Error ? error.message : String(error),
+                    error:
+                        error instanceof Error ? error.message : String(error),
                     userId,
                 });
             }
@@ -1024,28 +1045,30 @@ async function listUnreadConversationThreadItems(
         }
     }
 
-    const threadParentSnapshots = Array.from(threadParentsById.values()).flatMap(
-        (document) => {
-            const messageId =
-                typeof document.$id === "string" ? document.$id : null;
-            if (!messageId) {
-                return [] as ThreadParentSnapshot[];
-            }
+    const threadParentSnapshots = Array.from(
+        threadParentsById.values(),
+    ).flatMap((document) => {
+        const messageId =
+            typeof document.$id === "string" ? document.$id : null;
+        if (!messageId) {
+            return [] as ThreadParentSnapshot[];
+        }
 
-            const snapshot = buildThreadParentSnapshot({
-                contextField: "conversationId",
-                document,
-                signal: replySignalsByParentId.get(messageId),
-            });
-            return snapshot ? [snapshot] : [];
-        },
-    );
+        const snapshot = buildThreadParentSnapshot({
+            contextField: "conversationId",
+            document,
+            signal: replySignalsByParentId.get(messageId),
+        });
+        return snapshot ? [snapshot] : [];
+    });
 
     const unreadDocuments = threadParentSnapshots.filter((snapshot) => {
         const messageId = String(snapshot.document.$id);
 
         return isThreadUnread({
-            lastReadAt: readStatesByConversationId.get(snapshot.contextId)?.[messageId],
+            lastReadAt: readStatesByConversationId.get(snapshot.contextId)?.[
+                messageId
+            ],
             lastThreadReplyAt: snapshot.lastThreadReplyAt,
             threadMessageCount: snapshot.threadMessageCount,
         });
@@ -1059,9 +1082,9 @@ async function listUnreadConversationThreadItems(
 
             return {
                 contextId: snapshot.contextId,
-                lastReadAt: readStatesByConversationId.get(snapshot.contextId)?.[
-                    parentMessageId
-                ],
+                lastReadAt: readStatesByConversationId.get(
+                    snapshot.contextId,
+                )?.[parentMessageId],
                 parentMessageId,
                 threadMessageCount: snapshot.threadMessageCount,
             } satisfies UnreadThreadParentInput;
@@ -1070,7 +1093,9 @@ async function listUnreadConversationThreadItems(
 
     const authorIds = Array.from(
         new Set(
-            unreadDocuments.map((snapshot) => String(snapshot.document.senderId)),
+            unreadDocuments.map((snapshot) =>
+                String(snapshot.document.senderId),
+            ),
         ),
     );
     const [profileMap, relationshipMap] = await Promise.all([
@@ -1102,7 +1127,8 @@ async function listUnreadConversationThreadItems(
                 contextKind: "conversation",
                 id: `thread:conversation:${String(document.conversationId)}:${String(document.$id)}`,
                 kind: "thread",
-                latestActivityAt: snapshot.lastThreadReplyAt ?? String(document.$createdAt),
+                latestActivityAt:
+                    snapshot.lastThreadReplyAt ?? String(document.$createdAt),
                 messageId: String(document.$id),
                 muted: false,
                 parentMessageId: String(document.$id),
@@ -1128,7 +1154,9 @@ async function listUnreadChannelThreadItems(
     },
 ): Promise<InboxItem[]> {
     const env = getEnvConfig();
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const sevenDaysAgo = new Date(
+        Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const threadParentResponse = await listAllDocuments({
         collectionId: env.collections.messages,
         queries: [
@@ -1164,7 +1192,8 @@ async function listUnreadChannelThreadItems(
         INBOX_CHANNEL_THREAD_REPLY_SIGNAL_SELECT_FIELDS,
     );
 
-    let channelSignalsPromise: Promise<Map<string, ThreadReplySignal>> | null = null;
+    let channelSignalsPromise: Promise<Map<string, ThreadReplySignal>> | null =
+        null;
     if (channelIdsFromThreadMetadata.length > 0) {
         channelSignalsPromise = listThreadReplySignals({
             collectionId: env.collections.messages,
@@ -1179,7 +1208,9 @@ async function listUnreadChannelThreadItems(
         : new Map<string, ThreadReplySignal>();
 
     // Merge maps: channel-specific signals take precedence over recent/global ones
-    const replySignalsByParentId = new Map<string, ThreadReplySignal>(recentSignals);
+    const replySignalsByParentId = new Map<string, ThreadReplySignal>(
+        recentSignals,
+    );
     for (const [k, v] of channelSignals.entries()) {
         replySignalsByParentId.set(k, v);
     }
@@ -1214,22 +1245,22 @@ async function listUnreadChannelThreadItems(
         }
     }
 
-    const threadParentSnapshots = Array.from(threadParentsById.values()).flatMap(
-        (document) => {
-            const messageId =
-                typeof document.$id === "string" ? document.$id : null;
-            if (!messageId) {
-                return [] as ThreadParentSnapshot[];
-            }
+    const threadParentSnapshots = Array.from(
+        threadParentsById.values(),
+    ).flatMap((document) => {
+        const messageId =
+            typeof document.$id === "string" ? document.$id : null;
+        if (!messageId) {
+            return [] as ThreadParentSnapshot[];
+        }
 
-            const snapshot = buildThreadParentSnapshot({
-                contextField: "channelId",
-                document,
-                signal: replySignalsByParentId.get(messageId),
-            });
-            return snapshot ? [snapshot] : [];
-        },
-    );
+        const snapshot = buildThreadParentSnapshot({
+            contextField: "channelId",
+            document,
+            signal: replySignalsByParentId.get(messageId),
+        });
+        return snapshot ? [snapshot] : [];
+    });
 
     const channelIds = Array.from(
         new Set(threadParentSnapshots.map((snapshot) => snapshot.contextId)),
@@ -1284,7 +1315,9 @@ async function listUnreadChannelThreadItems(
 
     const authorIds = Array.from(
         new Set(
-            readableDocuments.map((snapshot) => String(snapshot.document.userId)),
+            readableDocuments.map((snapshot) =>
+                String(snapshot.document.userId),
+            ),
         ),
     );
     const [profileMap, relationshipMap] = await Promise.all([
@@ -1316,7 +1349,8 @@ async function listUnreadChannelThreadItems(
                 contextKind: "channel",
                 id: `thread:channel:${String(document.channelId)}:${String(document.$id)}`,
                 kind: "thread",
-                latestActivityAt: snapshot.lastThreadReplyAt ?? String(document.$createdAt),
+                latestActivityAt:
+                    snapshot.lastThreadReplyAt ?? String(document.$createdAt),
                 messageId: String(document.$id),
                 muted: false,
                 parentMessageId: String(document.$id),
@@ -1343,6 +1377,7 @@ async function listPersistedMentionItems(
     userId: string,
     options?: {
         cache?: InboxRequestCaches;
+        contextId?: string | undefined;
     },
 ): Promise<{ degraded: boolean; items: InboxItem[] }> {
     try {
@@ -1353,6 +1388,11 @@ async function listPersistedMentionItems(
                 Query.equal("userId", userId),
                 Query.equal("kind", "mention"),
                 Query.isNull("readAt"),
+                // Scoped inbox requests ask for a single context; filtering in
+                // the query avoids scanning every unread item the user has.
+                ...(options?.contextId
+                    ? [Query.equal("contextId", options.contextId)]
+                    : []),
                 Query.orderDesc("latestActivityAt"),
             ],
             selectFields: INBOX_PERSISTED_MENTION_SELECT_FIELDS,
@@ -1432,6 +1472,7 @@ async function listPersistedMessageItems(
     userId: string,
     options?: {
         cache?: InboxRequestCaches;
+        contextId?: string | undefined;
     },
 ): Promise<{ degraded: boolean; items: InboxItem[] }> {
     try {
@@ -1442,6 +1483,11 @@ async function listPersistedMessageItems(
                 Query.equal("userId", userId),
                 Query.equal("kind", "message"),
                 Query.isNull("readAt"),
+                // Scoped inbox requests ask for a single context; filtering in
+                // the query avoids scanning every unread item the user has.
+                ...(options?.contextId
+                    ? [Query.equal("contextId", options.contextId)]
+                    : []),
                 Query.orderDesc("latestActivityAt"),
             ],
             selectFields: INBOX_PERSISTED_MENTION_SELECT_FIELDS,
@@ -1524,6 +1570,7 @@ async function listPersistedMessageItems(
  * @returns {Promise<{ contractVersion: InboxDigestResponse; counts: Record<InboxItemKind, number>; items: InboxItem[]; unreadCount: number; }>} The return value.
  */
 export async function listInboxItems({
+    contextId,
     contextKinds,
     kinds,
     limit,
@@ -1559,6 +1606,7 @@ export async function listInboxItems({
             requestedKinds.has("mention")
                 ? listPersistedMentionItems(userId, {
                       cache: caches,
+                      contextId,
                   })
                 : Promise.resolve({ degraded: false, items: [] }),
             requestedKinds.has("message")

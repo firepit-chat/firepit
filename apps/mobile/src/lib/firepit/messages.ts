@@ -57,12 +57,10 @@ export type SendDirectMessageInput = {
     mentions?: string[];
 };
 
-export type CreateConversationInput = {
-    participants?: string[];
+export type CreateGroupConversationInput = {
+    participants: string[];
     name?: string;
     avatarUrl?: string;
-    userId1?: string;
-    userId2?: string;
 };
 
 export async function fetchDirectMessageConversations(
@@ -265,10 +263,10 @@ export async function unpinChannelMessage(
     });
 }
 
-export async function createDirectMessageConversation(
+export async function createGroupDirectMessageConversation(
     baseUrl: string,
     token: string,
-    input: CreateConversationInput,
+    input: CreateGroupConversationInput,
 ) {
     return firepitRequest<{ conversation?: DirectMessageConversation | null }>({
         baseUrl,
@@ -278,6 +276,33 @@ export async function createDirectMessageConversation(
         body: {
             operation: "createConversation",
             ...input,
+        },
+    });
+}
+
+/**
+ * Find-or-create the 1:1 conversation with `userId2`.
+ *
+ * This is a GET, not the `createConversation` POST — that operation is the
+ * *group* endpoint, which ignores unknown ids, resolves the participant list to
+ * just the caller, and then rejects it for having fewer than three. Posting to
+ * it for a 1:1 always failed.
+ */
+export async function getOrCreateDirectMessageConversation(
+    baseUrl: string,
+    token: string,
+    userId1: string,
+    userId2: string,
+) {
+    return firepitRequest<{ conversation?: DirectMessageConversation | null }>({
+        baseUrl,
+        path: "/api/direct-messages",
+        method: "GET",
+        token,
+        query: {
+            type: "conversation",
+            userId1,
+            userId2,
         },
     });
 }
@@ -363,13 +388,15 @@ export async function createChannelThreadReply(
     messageId: string,
     input: ThreadReplyInput,
 ) {
-    return firepitRequest<{ message?: Message | null; reply?: Message | null }>({
-        baseUrl,
-        path: `/api/messages/${encodeURIComponent(messageId)}/thread`,
-        method: "POST",
-        token,
-        body: input,
-    });
+    return firepitRequest<{ message?: Message | null; reply?: Message | null }>(
+        {
+            baseUrl,
+            path: `/api/messages/${encodeURIComponent(messageId)}/thread`,
+            method: "POST",
+            token,
+            body: input,
+        },
+    );
 }
 
 export async function fetchDMThreadMessages(
@@ -390,13 +417,15 @@ export async function createDMThreadReply(
     messageId: string,
     input: ThreadReplyInput,
 ) {
-    return firepitRequest<{ message?: Message | null; reply?: Message | null }>({
-        baseUrl,
-        path: `/api/direct-messages/${encodeURIComponent(messageId)}/thread`,
-        method: "POST",
-        token,
-        body: input,
-    });
+    return firepitRequest<{ message?: Message | null; reply?: Message | null }>(
+        {
+            baseUrl,
+            path: `/api/direct-messages/${encodeURIComponent(messageId)}/thread`,
+            method: "POST",
+            token,
+            body: input,
+        },
+    );
 }
 
 export async function searchMessages(
@@ -594,15 +623,13 @@ export async function submitReport(
     } catch (err) {
         return {
             success: false,
-            error: err instanceof Error ? err.message : "Failed to submit report",
+            error:
+                err instanceof Error ? err.message : "Failed to submit report",
         };
     }
 }
 
-export async function fetchFriendsList(
-    baseUrl: string,
-    token: string,
-) {
+export async function fetchFriendsList(baseUrl: string, token: string) {
     return firepitRequest<FriendsResponse>({
         baseUrl,
         path: "/api/friends",
@@ -610,10 +637,7 @@ export async function fetchFriendsList(
     });
 }
 
-export async function fetchBlockedUsers(
-    baseUrl: string,
-    token: string,
-) {
+export async function fetchBlockedUsers(baseUrl: string, token: string) {
     return firepitRequest<BlockedUsersResponse>({
         baseUrl,
         path: "/api/users/blocked",

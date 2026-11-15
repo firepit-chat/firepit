@@ -148,9 +148,7 @@ export async function recordAudit(
     };
 
     const adminTeamId = env.teams.adminTeamId;
-    const auditPermissions = adminTeamId
-        ? [`read("team:${adminTeamId}")`]
-        : [];
+    const auditPermissions = adminTeamId ? [`read("team:${adminTeamId}")`] : [];
 
     try {
         const { databases } = getServerClient();
@@ -163,10 +161,14 @@ export async function recordAudit(
                 auditPermissions,
             );
         } catch (error) {
-            logger.warn("Audit log write failed, falling back to minimal payload", {
-                action,
-                error: error instanceof Error ? error.message : String(error),
-            });
+            logger.warn(
+                "Audit log write failed, falling back to minimal payload",
+                {
+                    action,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                },
+            );
             await databases.createDocument(
                 DATABASE_ID,
                 AUDIT_COLLECTION_ID,

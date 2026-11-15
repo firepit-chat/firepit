@@ -61,9 +61,7 @@ function canSoftDelete(
     message: NonNullable<
         Awaited<ReturnType<typeof getAdminMessageAuditContext>>
     >,
-    access: Awaited<
-        ReturnType<typeof getServerPermissionsForUser>
-    > | null,
+    access: Awaited<ReturnType<typeof getServerPermissionsForUser>> | null,
 ) {
     if (roles.isModerator || roles.isAdmin) {
         return true;
@@ -82,9 +80,7 @@ function canHardDelete(
     message: NonNullable<
         Awaited<ReturnType<typeof getAdminMessageAuditContext>>
     >,
-    access: Awaited<
-        ReturnType<typeof getServerPermissionsForUser>
-    > | null,
+    access: Awaited<ReturnType<typeof getServerPermissionsForUser>> | null,
 ) {
     if (roles.isAdmin) {
         return true;

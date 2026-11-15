@@ -7,6 +7,10 @@
 import { ID, Query } from "node-appwrite";
 import { getAdminClient } from "./appwrite-admin";
 import { getEnvConfig } from "./appwrite-core";
+import { getPresetFrameById } from "./preset-frames";
+
+// Matches the Avatar components' fallback when a frame declares no inset.
+const DEFAULT_FRAME_INSET_PERCENT = 12;
 import { logger } from "./posthog-utils";
 import {
     getPresetFrameImageUrl,
@@ -38,6 +42,8 @@ type UserProfile = {
     profileBackgroundImageChangedAt?: string;
     avatarFramePreset?: string;
     dmEncryptionPublicKey?: string;
+    /** Canonical home; see lib/dm-encryption-preference.ts. */
+    dmEncryptionEnabled?: boolean;
     deletedAt?: string;
     deletedEmail?: string;
     $createdAt: string;
@@ -64,6 +70,7 @@ const editableProfileKeys = [
     "profileBackgroundImageFileId",
     "avatarFramePreset",
     "dmEncryptionPublicKey",
+    "dmEncryptionEnabled",
 ] as const;
 
 type EditableProfileKey = (typeof editableProfileKeys)[number];
@@ -91,13 +98,21 @@ function chunkValues<T>(values: T[], size: number) {
 
 const PROFILE_CACHE_TTL_MS = 30_000;
 const PROFILE_CACHE_MAX = 500;
-const profileCache = new Map<string, { data: UserProfile | null; ts: number }>();
+const profileCache = new Map<
+    string,
+    { data: UserProfile | null; ts: number }
+>();
 
 function evictProfileCache(): void {
-    if (profileCache.size <= PROFILE_CACHE_MAX) {return;}
+    if (profileCache.size <= PROFILE_CACHE_MAX) {
+        return;
+    }
     const now = Date.now();
     for (const [key, entry] of profileCache) {
-        if (now - entry.ts > PROFILE_CACHE_TTL_MS || profileCache.size > PROFILE_CACHE_MAX) {
+        if (
+            now - entry.ts > PROFILE_CACHE_TTL_MS ||
+            profileCache.size > PROFILE_CACHE_MAX
+        ) {
             profileCache.delete(key);
         }
     }
@@ -147,7 +162,9 @@ export async function getUserProfile(
 export async function getUserProfilesBatch(
     userIds: string[],
 ): Promise<Map<string, UserProfile>> {
-    if (userIds.length === 0) {return new Map();}
+    if (userIds.length === 0) {
+        return new Map();
+    }
 
     evictProfileCache();
     const now = Date.now();
@@ -157,13 +174,17 @@ export async function getUserProfilesBatch(
     for (const uid of userIds) {
         const cached = profileCache.get(uid);
         if (cached && now - cached.ts < PROFILE_CACHE_TTL_MS) {
-            if (cached.data) {result.set(uid, cached.data);}
+            if (cached.data) {
+                result.set(uid, cached.data);
+            }
         } else {
             uncached.push(uid);
         }
     }
 
-    if (uncached.length === 0) {return result;}
+    if (uncached.length === 0) {
+        return result;
+    }
 
     const { databases } = getAdminClient();
     const env = getEnvConfig();
@@ -224,9 +245,19 @@ export async function resolveProfileUserId(identifier: string) {
             );
         }
 
+        // Display names can contain spaces, which is why search filters quote
+        // them (`from:"August Unit"`). Last resort so existing bare
+        // userId/userName lookups keep their original single-query path.
+        if (profiles.documents.length === 0) {
+            profiles = await databases.listDocuments(
+                env.databaseId,
+                env.collections.profiles,
+                [Query.equal("displayName", trimmedIdentifier), Query.limit(1)],
+            );
+        }
+
         const profile = profiles.documents[0] as unknown as
-            | UserProfile
-            | undefined;
+            UserProfile | undefined;
         return profile?.userId;
     } catch {
         return undefined;
@@ -662,6 +693,43 @@ export async function getAvatarFrameUrlForProfile(profile: {
 }
 
 /**
+ * Resolve everything a client needs to draw a profile's avatar frame.
+ *
+ * `insetPercent` is `0` for an overlay frame — one whose art crosses the
+ * centre, so there is no opening to nest a portrait in. Clients without the
+ * preset catalogue need it, and it saves every one of them from re-deriving
+ * the value.
+ *
+ * @param {{ avatarFramePreset?: string }} profile - Minimal frame profile.
+ * @returns {Promise<{ preset: string | undefined; url: string | undefined; insetPercent: number | undefined }>} The frame fields.
+ */
+export async function getAvatarFrameForProfile(profile: {
+    avatarFramePreset?: string;
+}): Promise<{
+    preset: string | undefined;
+    url: string | undefined;
+    insetPercent: number | undefined;
+}> {
+    const preset = profile.avatarFramePreset || undefined;
+    if (!preset) {
+        return { preset: undefined, url: undefined, insetPercent: undefined };
+    }
+    const url = await getPredefinedAvatarFrameUrlIfExists(preset);
+    if (!url) {
+        return { preset, url: undefined, insetPercent: undefined };
+    }
+    const meta = getPresetFrameById(preset);
+    return {
+        preset,
+        url,
+        insetPercent:
+            meta?.frameStyle === "overlay"
+                ? 0
+                : (meta?.avatarInsetPercent ?? DEFAULT_FRAME_INSET_PERCENT),
+    };
+}
+
+/**
  * Get avatar URL for a profile
  *
  * @param {string} fileId - The file id value.
@@ -670,6 +738,26 @@ export async function getAvatarFrameUrlForProfile(profile: {
 export function getAvatarUrl(fileId: string): string {
     const env = getEnvConfig();
     return `${env.endpoint}/storage/buckets/${env.buckets.avatars}/files/${fileId}/view?project=${env.project}`;
+}
+
+/**
+ * Derive an avatar URL from a raw `profiles` document.
+ *
+ * `profiles` stores `avatarFileId`, not `avatarUrl` — there is no `avatarUrl`
+ * attribute on that collection, so reading `profile.avatarUrl` off a document
+ * yields undefined and the caller silently falls back to initials. Only the
+ * API layer derives the URL; anything reading the collection directly must do
+ * it here.
+ *
+ * @param {{ avatarFileId?: unknown }} profile - The raw profile document.
+ * @returns {string | undefined} The avatar URL, or undefined when unset.
+ */
+export function getAvatarUrlFromProfile(profile: {
+    avatarFileId?: unknown;
+}): string | undefined {
+    const fileId =
+        typeof profile.avatarFileId === "string" ? profile.avatarFileId : "";
+    return fileId ? getAvatarUrl(fileId) : undefined;
 }
 
 /**

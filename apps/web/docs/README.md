@@ -11,7 +11,12 @@ This directory was consolidated into a smaller set of durable, section-based doc
 - `FEATURE_FLAGS.md`: current flags, defaults, admin access, and how to add a new flag
 - `PLATFORM_OPERATIONS.md`: platform architecture, performance strategy, monitoring, releases, and operational notes
 - `ROADMAP_IMPLEMENTATION_SPEC.md`: historical implementation detail for the shipped 1.6/1.7 releases, superseded by the repo-root [Roadmap Plan](../../../docs/ROADMAP_PLAN.md)
-- `openapi-doc.yml`: current HTTP API contract for supported public endpoints
+- `openapi-doc.yml`: current HTTP API contract for supported public endpoints.
+  This is the single source of truth for the API — everything else is generated
+  or derived from it. Regenerate the client types with
+  `bun run generate:api-types`; `bun run check:api-types` fails CI if the
+  committed `src/lib/api/schema.ts` is stale, and `bun run check:openapi` fails
+  if the spec and the route handlers disagree.
 
 ## Consolidation Notes
 

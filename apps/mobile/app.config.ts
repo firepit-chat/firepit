@@ -18,7 +18,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         icon: "./assets/images/icon.png",
         scheme: "firepit",
         userInterfaceStyle: "automatic",
-        sdkVersion: "57.0.9",
 
         // Dynamic iOS Config
         ios: {
@@ -104,7 +103,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "expo-sqlite",
             "expo-status-bar",
             "expo-web-browser",
-            ["react-native-libsodium", {}],
             [
                 "expo-build-properties",
                 {

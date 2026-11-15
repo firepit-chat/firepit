@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import type { ChannelCategory } from "@/lib/types";
@@ -14,7 +14,7 @@ export function useCategories(selectedServer: string | null) {
     const [categories, setCategories] = useState<ChannelCategory[]>([]);
     const [initialLoading, setInitialLoading] = useState(false);
 
-    async function refresh() {
+    const refresh = useCallback(async () => {
         if (!selectedServer) {
             setCategories([]);
             return;
@@ -38,7 +38,7 @@ export function useCategories(selectedServer: string | null) {
                     : "Failed to load categories",
             );
         }
-    }
+    }, [selectedServer]);
 
     useEffect(() => {
         if (!selectedServer) {
@@ -96,7 +96,10 @@ export function useCategories(selectedServer: string | null) {
                 handleRefresh,
             );
         };
-    }, [selectedServer]);
+    }, [refresh]);
 
-    return { categories, initialLoading, refresh };
+    return useMemo(
+        () => ({ categories, initialLoading, refresh }),
+        [categories, initialLoading, refresh],
+    );
 }

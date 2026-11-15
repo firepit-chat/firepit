@@ -9,25 +9,10 @@ import type {
     EffectivePermissions,
     Role,
 } from "@/lib/types";
+import { normalizeChannelType } from "@/lib/types";
 
 const ROLE_ASSIGNMENTS_COLLECTION_ID = "role_assignments";
 const ROLES_COLLECTION_ID = "roles";
-const CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID =
-    "channel_permission_overrides";
-const CHANNEL_TYPES = ["text", "voice", "announcement"] as const;
-
-export function normalizeChannelType(
-    value: unknown,
-): "text" | "voice" | "announcement" {
-    if (
-        typeof value === "string" &&
-        CHANNEL_TYPES.includes(value as (typeof CHANNEL_TYPES)[number])
-    ) {
-        return value as "text" | "voice" | "announcement";
-    }
-
-    return "text";
-}
 
 type ChannelAccess = {
     serverId: string;
@@ -280,15 +265,11 @@ async function getRolesByIds(
     const roleIdChunks = chunkValues(roleIds, QUERY_ARRAY_LIMIT);
     const rolePages = await Promise.all(
         roleIdChunks.map((roleIdChunk) =>
-            databases.listDocuments(
-                env.databaseId,
-                ROLES_COLLECTION_ID,
-                [
-                    Query.equal("serverId", serverId),
-                    Query.equal("$id", roleIdChunk),
-                    Query.limit(roleIdChunk.length),
-                ],
-            ),
+            databases.listDocuments(env.databaseId, ROLES_COLLECTION_ID, [
+                Query.equal("serverId", serverId),
+                Query.equal("$id", roleIdChunk),
+                Query.limit(roleIdChunk.length),
+            ]),
         ),
     );
 
@@ -554,7 +535,7 @@ async function computeChannelAccessForUser(
     const overrides = await listPages({
         databases,
         databaseId: env.databaseId,
-        collectionId: CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID,
+        collectionId: env.collections.channelPermissionOverrides,
         baseQueries: [Query.equal("channelId", channelId)],
         pageSize: 100,
         warningContext: "computeChannelAccessForUser",

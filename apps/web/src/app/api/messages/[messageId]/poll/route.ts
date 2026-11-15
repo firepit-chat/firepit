@@ -6,10 +6,7 @@ import { getServerClient } from "@/lib/appwrite-server";
 import { getServerSession } from "@/lib/auth-server";
 import { getPollStateForMessage } from "@/lib/polls-server";
 import { getChannelAccessForUser } from "@/lib/server-channel-access";
-import {
-    returnUnauthorized,
-    returnForbidden,
-} from "@/lib/posthog-utils";
+import { returnUnauthorized, returnForbidden } from "@/lib/posthog-utils";
 
 type RouteContext = {
     params: Promise<{
@@ -54,7 +51,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
         }
 
-        const pollState = await getPollStateForMessage(databases, env, messageId);
+        const pollState = await getPollStateForMessage(
+            databases,
+            env,
+            messageId,
+        );
         return NextResponse.json({ poll: pollState });
     } catch (error) {
         return NextResponse.json(

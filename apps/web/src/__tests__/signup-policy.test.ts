@@ -25,15 +25,15 @@ describe("getApprovalStatusFromPrefs", () => {
     });
 
     it("reads the explicit status", () => {
-        expect(
-            getApprovalStatusFromPrefs({ approvalStatus: "pending" }),
-        ).toBe("pending");
-        expect(
-            getApprovalStatusFromPrefs({ approvalStatus: "rejected" }),
-        ).toBe("rejected");
-        expect(
-            getApprovalStatusFromPrefs({ approvalStatus: "approved" }),
-        ).toBe("approved");
+        expect(getApprovalStatusFromPrefs({ approvalStatus: "pending" })).toBe(
+            "pending",
+        );
+        expect(getApprovalStatusFromPrefs({ approvalStatus: "rejected" })).toBe(
+            "rejected",
+        );
+        expect(getApprovalStatusFromPrefs({ approvalStatus: "approved" })).toBe(
+            "approved",
+        );
     });
 
     it("falls back to approved for unknown values", () => {

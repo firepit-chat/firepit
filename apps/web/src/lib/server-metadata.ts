@@ -52,11 +52,16 @@ export function mapServerDocument(
 ): Server {
     // Validate required identity fields to avoid producing invalid Server objects
     if (
-        typeof document.$id !== "string" || !document.$id.trim() ||
-        typeof document.name !== "string" || !document.name.trim() ||
-        typeof document.ownerId !== "string" || !document.ownerId.trim()
+        typeof document.$id !== "string" ||
+        !document.$id.trim() ||
+        typeof document.name !== "string" ||
+        !document.name.trim() ||
+        typeof document.ownerId !== "string" ||
+        !document.ownerId.trim()
     ) {
-        throw new Error("Invalid server document: missing required identity fields");
+        throw new Error(
+            "Invalid server document: missing required identity fields",
+        );
     }
 
     const iconFileId = normalizeServerFileId(document.iconFileId);

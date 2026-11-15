@@ -15,8 +15,7 @@ import type {
 } from "@/lib/types";
 
 const DEFAULT_ANNOUNCEMENTS_COLLECTION = "announcements";
-const DEFAULT_ANNOUNCEMENT_DELIVERIES_COLLECTION =
-    "announcement_deliveries";
+const DEFAULT_ANNOUNCEMENT_DELIVERIES_COLLECTION = "announcement_deliveries";
 const MAX_ANNOUNCEMENT_BODY_LENGTH = 65_000;
 const MAX_ANNOUNCEMENT_TITLE_LENGTH = 255;
 const MAX_DELIVERY_ATTEMPTS = 6;
@@ -61,9 +60,9 @@ type DeliveryOutcome =
     | {
           outcome: "deferred_retry";
       }
-        | {
-                    outcome: "terminal_failure";
-            }
+    | {
+          outcome: "terminal_failure";
+      }
     | {
           outcome: "delivered";
       }
@@ -134,7 +133,10 @@ function getAnnouncementDeliveriesCollectionId(): string {
     );
 }
 
-function getAnnouncementThreadKey(systemSenderUserId: string, recipientId: string) {
+function getAnnouncementThreadKey(
+    systemSenderUserId: string,
+    recipientId: string,
+) {
     return `${systemSenderUserId}:${recipientId}`;
 }
 
@@ -196,7 +198,9 @@ function toAnnouncementDelivery(
         $id: String(document.$id),
         announcementId: String(document.announcementId),
         attemptCount:
-            typeof document.attemptCount === "number" ? document.attemptCount : 0,
+            typeof document.attemptCount === "number"
+                ? document.attemptCount
+                : 0,
         conversationId:
             typeof document.conversationId === "string"
                 ? document.conversationId
@@ -206,13 +210,17 @@ function toAnnouncementDelivery(
                 ? document.deliveredAt
                 : undefined,
         failedAt:
-            typeof document.failedAt === "string" ? document.failedAt : undefined,
+            typeof document.failedAt === "string"
+                ? document.failedAt
+                : undefined,
         failureReason:
             typeof document.failureReason === "string"
                 ? document.failureReason
                 : undefined,
         messageId:
-            typeof document.messageId === "string" ? document.messageId : undefined,
+            typeof document.messageId === "string"
+                ? document.messageId
+                : undefined,
         nextAttemptAt:
             typeof document.nextAttemptAt === "string"
                 ? document.nextAttemptAt
@@ -223,9 +231,13 @@ function toAnnouncementDelivery(
                 ? document.status
                 : "pending",
         $createdAt:
-            typeof document.$createdAt === "string" ? document.$createdAt : undefined,
+            typeof document.$createdAt === "string"
+                ? document.$createdAt
+                : undefined,
         $updatedAt:
-            typeof document.$updatedAt === "string" ? document.$updatedAt : undefined,
+            typeof document.$updatedAt === "string"
+                ? document.$updatedAt
+                : undefined,
     };
 }
 
@@ -304,7 +316,9 @@ function normalizeMode(mode?: AnnouncementCreateMode): AnnouncementCreateMode {
     return mode ?? "draft";
 }
 
-function resolvePriority(priority?: AnnouncementPriority): AnnouncementPriority {
+function resolvePriority(
+    priority?: AnnouncementPriority,
+): AnnouncementPriority {
     return priority === "urgent" ? "urgent" : "normal";
 }
 
@@ -338,7 +352,9 @@ function resolveScheduledFor(params: {
     return parseIsoTimestamp(scheduledFor);
 }
 
-function resolveStatusForMode(mode: AnnouncementCreateMode): AnnouncementStatus {
+function resolveStatusForMode(
+    mode: AnnouncementCreateMode,
+): AnnouncementStatus {
     if (mode === "draft") {
         return "draft";
     }
@@ -581,8 +597,7 @@ function parseSerializedObject<T>(
         return parsed;
     } catch (error) {
         logger.warn("Failed to parse announcement metadata", {
-            error:
-                error instanceof Error ? error.message : String(error),
+            error: error instanceof Error ? error.message : String(error),
             errorContext,
         });
         return fallback;
@@ -624,7 +639,9 @@ function toAnnouncement(document: Record<string, unknown>): Announcement {
         $id: String(document.$id),
         body: typeof document.body === "string" ? document.body : "",
         bodyFormat:
-            document.bodyFormat === "markdown" ? document.bodyFormat : "markdown",
+            document.bodyFormat === "markdown"
+                ? document.bodyFormat
+                : "markdown",
         createdBy:
             typeof document.createdBy === "string" ? document.createdBy : "",
         dispatchAttempts:
@@ -683,7 +700,8 @@ function toAnnouncement(document: Record<string, unknown>): Announcement {
 }
 
 export function getAnnouncementRuntimeSettings() {
-    const systemSenderUserId = process.env.SYSTEM_SENDER_USER_ID?.trim() || null;
+    const systemSenderUserId =
+        process.env.SYSTEM_SENDER_USER_ID?.trim() || null;
     const dispatcherSecret =
         process.env.ANNOUNCEMENTS_DISPATCHER_SECRET?.trim() || null;
 
@@ -712,9 +730,7 @@ export async function createAnnouncement(
             ? input.idempotencyKey.trim()
             : "";
     const resolvedIdempotencyKey =
-        idempotencyKey.length > 0
-            ? idempotencyKey
-            : `auto:${randomUUID()}`;
+        idempotencyKey.length > 0 ? idempotencyKey : `auto:${randomUUID()}`;
     const recipientScope = parseRecipientScope(
         input.recipientScope,
         "createAnnouncement",
@@ -771,10 +787,7 @@ export async function createAnnouncement(
 
         return toAnnouncement(document as unknown as Record<string, unknown>);
     } catch (error) {
-        if (
-            idempotencyKey.length > 0 &&
-            isDuplicateConstraintError(error)
-        ) {
+        if (idempotencyKey.length > 0 && isDuplicateConstraintError(error)) {
             const existing = await databases.listDocuments(
                 databaseId,
                 getAnnouncementsCollectionId(),
@@ -895,7 +908,9 @@ async function upsertDeliveryRecord(params: {
             existing.$id,
             payload,
         );
-        return toAnnouncementDelivery(updated as unknown as Record<string, unknown>);
+        return toAnnouncementDelivery(
+            updated as unknown as Record<string, unknown>,
+        );
     }
 
     const created = await databases.createDocument(
@@ -904,7 +919,9 @@ async function upsertDeliveryRecord(params: {
         ID.unique(),
         payload,
     );
-    return toAnnouncementDelivery(created as unknown as Record<string, unknown>);
+    return toAnnouncementDelivery(
+        created as unknown as Record<string, unknown>,
+    );
 }
 
 async function ensureAnnouncementThreadConversation(params: {
@@ -987,8 +1004,12 @@ async function sendSystemAnnouncementMessage(params: {
     recipientUserId: string;
     systemSenderUserId: string;
 }): Promise<string> {
-    const { announcement, conversationId, recipientUserId, systemSenderUserId } =
-        params;
+    const {
+        announcement,
+        conversationId,
+        recipientUserId,
+        systemSenderUserId,
+    } = params;
     const { databases } = getServerClient();
     const { databaseId, collections } = getEnvConfig();
 
@@ -1141,7 +1162,10 @@ async function rollupDeliveryStatus(
         databases,
         databaseId,
         collectionId: getAnnouncementDeliveriesCollectionId(),
-        baseQueries: [Query.equal("announcementId", announcementId), Query.orderAsc("$id")],
+        baseQueries: [
+            Query.equal("announcementId", announcementId),
+            Query.orderAsc("$id"),
+        ],
         pageSize: 100,
         warningContext: "rollupDeliveryStatus",
     });
@@ -1171,12 +1195,8 @@ async function finalizeAnnouncementDispatch(params: {
     rollup: DeliveryStatusRollup;
     intendedRecipientCount: number;
 }): Promise<void> {
-    const {
-        announcement,
-        dispatchAttempts,
-        rollup,
-        intendedRecipientCount,
-    } = params;
+    const { announcement, dispatchAttempts, rollup, intendedRecipientCount } =
+        params;
     const { databases } = getServerClient();
     const { databaseId } = getEnvConfig();
 
@@ -1389,8 +1409,7 @@ export async function listAnnouncements(
         toAnnouncement(document as unknown as Record<string, unknown>),
     );
 
-    const nextCursor =
-        items.length === limit ? items.at(-1)?.$id : undefined;
+    const nextCursor = items.length === limit ? items.at(-1)?.$id : undefined;
 
     return {
         items,
@@ -1406,7 +1425,9 @@ export async function dispatchScheduledAnnouncements(
     const { systemSenderUserId } = getAnnouncementRuntimeSettings();
 
     if (!systemSenderUserId) {
-        throw new Error("SYSTEM_SENDER_USER_ID is required to dispatch announcements");
+        throw new Error(
+            "SYSTEM_SENDER_USER_ID is required to dispatch announcements",
+        );
     }
 
     const now = new Date().toISOString();
@@ -1466,7 +1487,9 @@ export async function dispatchAnnouncementById(
     const { systemSenderUserId } = getAnnouncementRuntimeSettings();
 
     if (!systemSenderUserId) {
-        throw new Error("SYSTEM_SENDER_USER_ID is required to dispatch announcements");
+        throw new Error(
+            "SYSTEM_SENDER_USER_ID is required to dispatch announcements",
+        );
     }
 
     const dispatchRunId = randomUUID();

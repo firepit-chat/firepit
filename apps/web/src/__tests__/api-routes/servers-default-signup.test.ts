@@ -51,7 +51,10 @@ describe("GET /api/servers/default-signup", () => {
 
     it("returns 403 for users who are neither admin nor moderator", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "user-1" });
-        mockGetUserRoles.mockResolvedValue({ isAdmin: false, isModerator: false });
+        mockGetUserRoles.mockResolvedValue({
+            isAdmin: false,
+            isModerator: false,
+        });
 
         const response = await GET();
 
@@ -61,7 +64,10 @@ describe("GET /api/servers/default-signup", () => {
 
     it("returns 403 for moderators when not admin", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "user-2" });
-        mockGetUserRoles.mockResolvedValue({ isAdmin: false, isModerator: true });
+        mockGetUserRoles.mockResolvedValue({
+            isAdmin: false,
+            isModerator: true,
+        });
 
         const response = await GET();
 
@@ -71,7 +77,10 @@ describe("GET /api/servers/default-signup", () => {
 
     it("returns null when no default server is configured", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "admin-1" });
-        mockGetUserRoles.mockResolvedValue({ isAdmin: true, isModerator: true });
+        mockGetUserRoles.mockResolvedValue({
+            isAdmin: true,
+            isModerator: true,
+        });
         mockListDocuments.mockResolvedValue({ documents: [] });
 
         const response = await GET();
@@ -83,7 +92,10 @@ describe("GET /api/servers/default-signup", () => {
 
     it("returns the configured default signup server", async () => {
         mockGetServerSession.mockResolvedValue({ $id: "admin-1" });
-        mockGetUserRoles.mockResolvedValue({ isAdmin: true, isModerator: true });
+        mockGetUserRoles.mockResolvedValue({
+            isAdmin: true,
+            isModerator: true,
+        });
         mockListDocuments.mockResolvedValue({
             documents: [
                 {

@@ -18,7 +18,7 @@ import {
     normalizeServerDescription,
     normalizeServerFileId,
 } from "./server-metadata";
-import { normalizeChannelType } from "@/lib/server-channel-access";
+import { normalizeChannelType } from "@/lib/types";
 
 const env = getEnvConfig();
 const DATABASE_ID = env.databaseId;
@@ -35,7 +35,6 @@ function getMembershipsCollectionId(): string | undefined {
 const MAX_LIST_LIMIT = 500; // upper bound used for bulk listing
 const DEFAULT_SERVER_PAGE_SIZE = 25;
 const DEFAULT_CHANNEL_PAGE_SIZE = 50;
-// reuse normalizeChannelType from shared helper
 
 function mapMembershipDocument(doc: Record<string, unknown>): Membership {
     if (typeof doc.$id !== "string" || doc.$id.trim().length === 0) {
@@ -148,7 +147,10 @@ export async function listServersPage(
 
     const items = res.documents.map((doc) => {
         const d = doc as unknown as Record<string, unknown>;
-        return mapServerDocument(d, memberCounts.counts.get(String(d.$id)) ?? 0);
+        return mapServerDocument(
+            d,
+            memberCounts.counts.get(String(d.$id)) ?? 0,
+        );
     });
 
     const last = items.at(-1);
@@ -206,7 +208,9 @@ export function createServer(
         }
 
         try {
-            const description = normalizeServerDescription(options?.description);
+            const description = normalizeServerDescription(
+                options?.description,
+            );
             const iconFileId = normalizeServerFileId(options?.iconFileId);
             const bannerFileId = normalizeServerFileId(options?.bannerFileId);
             const serverData: Record<string, unknown> = {
@@ -281,13 +285,16 @@ export function createServer(
                             documentId: String(s.$id),
                         });
                     } catch (rollbackError) {
-                        logger.error("Failed to roll back server after membership failure", {
-                            error:
-                                rollbackError instanceof Error
-                                    ? rollbackError.message
-                                    : String(rollbackError),
-                            serverId: String(s.$id),
-                        });
+                        logger.error(
+                            "Failed to roll back server after membership failure",
+                            {
+                                error:
+                                    rollbackError instanceof Error
+                                        ? rollbackError.message
+                                        : String(rollbackError),
+                                serverId: String(s.$id),
+                            },
+                        );
                     }
                     throw membershipError;
                 }
@@ -315,7 +322,10 @@ export function createServer(
                 String(s.$id),
             );
 
-            const mappedServer = mapServerDocument(serverRecord, actualMemberCount);
+            const mappedServer = mapServerDocument(
+                serverRecord,
+                actualMemberCount,
+            );
 
             if (options?.includeMembership) {
                 return {
@@ -564,7 +574,9 @@ export async function deleteServer(serverId: string) {
         }
 
         if (hasDeleteFailure) {
-            throw new Error("Failed to delete one or more channels while deleting server");
+            throw new Error(
+                "Failed to delete one or more channels while deleting server",
+            );
         }
     }
 

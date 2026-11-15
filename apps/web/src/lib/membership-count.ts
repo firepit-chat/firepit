@@ -9,12 +9,18 @@ type MemberCountDatabases = {
             databaseId: string,
             collectionId: string,
             queries?: string[],
-        ): Promise<{ total: number; documents?: Array<Record<string, unknown>> }>;
+        ): Promise<{
+            total: number;
+            documents?: Array<Record<string, unknown>>;
+        }>;
         (params: {
             databaseId: string;
             collectionId: string;
             queries?: string[];
-        }): Promise<{ total: number; documents?: Array<Record<string, unknown>> }>;
+        }): Promise<{
+            total: number;
+            documents?: Array<Record<string, unknown>>;
+        }>;
     };
 };
 
@@ -98,7 +104,10 @@ export async function getActualMemberCounts(
 
     try {
         let truncated = false;
-        for (const chunk of chunkValues(uniqueServerIds, MAX_ARRAY_QUERY_VALUES)) {
+        for (const chunk of chunkValues(
+            uniqueServerIds,
+            MAX_ARRAY_QUERY_VALUES,
+        )) {
             const { documents, truncated: chunkTruncated } = await listPages({
                 databases,
                 databaseId: env.databaseId,

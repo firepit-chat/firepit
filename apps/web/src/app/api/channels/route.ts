@@ -9,16 +9,67 @@ import { isDocumentNotFoundError } from "@/lib/appwrite-admin";
 import { getServerSession } from "@/lib/auth-server";
 import { getEffectivePermissions } from "@/lib/permissions";
 import type { Channel, ChannelPermissionOverride, Role } from "@/lib/types";
+import { normalizeChannelType } from "@/lib/types";
 import { getServerPermissionsForUser } from "@/lib/server-channel-access";
 import { apiCache } from "@/lib/cache-utils";
 import { invalidateChannelsServerCaches } from "@/lib/channels-route-cache";
 import { listPages } from "@/lib/appwrite-pagination";
 import { returnForbidden, logger } from "@/lib/posthog-utils";
 
+/**
+ * Newest message time per channel, from a single bounded query over the
+ * server's most recent messages rather than one query per channel. Unread
+ * detection only asks "is this channel newer than the caller has read", so a
+ * recent window is enough: a channel quiet enough to fall outside it has no
+ * unread messages to show.
+ */
+const RECENT_MESSAGES_WINDOW = 300;
+
+async function fetchLastMessageAtByChannel(
+    serverId: string,
+    channelIds: string[],
+): Promise<Map<string, string>> {
+    const byChannel = new Map<string, string>();
+    if (channelIds.length === 0) {
+        return byChannel;
+    }
+
+    try {
+        const { databases } = getServerClient();
+        const env = getEnvConfig();
+        const res = await databases.listDocuments(
+            env.databaseId,
+            env.collections.messages,
+            [
+                Query.equal("serverId", serverId),
+                Query.orderDesc("$createdAt"),
+                Query.limit(RECENT_MESSAGES_WINDOW),
+                Query.select(["channelId", "$createdAt"]),
+            ],
+        );
+
+        for (const doc of res.documents) {
+            const d = doc as unknown as Record<string, unknown>;
+            const channelId = String(d.channelId ?? "");
+            // Documents are newest-first, so the first hit per channel is the
+            // newest message in it.
+            if (channelId.length > 0 && !byChannel.has(channelId)) {
+                byChannel.set(channelId, String(d.$createdAt ?? ""));
+            }
+        }
+    } catch (error) {
+        // Unread styling is cosmetic; a failure here must not fail the list.
+        logger.warn("Failed to load recent message times", {
+            serverId,
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+
+    return byChannel;
+}
+
 const ROLE_ASSIGNMENTS_COLLECTION_ID = "role_assignments";
 const ROLES_COLLECTION_ID = "roles";
-const CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID =
-    "channel_permission_overrides";
 const CHANNELS_ROUTE_CACHE_TTL_MS = 10 * 1000;
 const QUERY_ARRAY_LIMIT = 100;
 
@@ -55,19 +106,6 @@ function chunkValues<T>(values: T[], size: number): T[][] {
     return chunks;
 }
 
-const CHANNEL_TYPES = ["text", "voice", "announcement"] as const;
-
-function normalizeChannelType(value: unknown): Channel["type"] {
-    if (
-        typeof value === "string" &&
-        CHANNEL_TYPES.includes(value as (typeof CHANNEL_TYPES)[number])
-    ) {
-        return value as Channel["type"];
-    }
-
-    return "text";
-}
-
 /**
  * POST /api/channels
  * Creates a channel for a specific server
@@ -91,7 +129,10 @@ export async function POST(request: NextRequest) {
         try {
             parsed = await request.json();
         } catch {
-            return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+            return NextResponse.json(
+                { error: "Invalid JSON" },
+                { status: 400 },
+            );
         }
 
         if (typeof parsed !== "object" || parsed === null) {
@@ -147,13 +188,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        if (body.topic !== undefined && body.topic !== null && typeof body.topic !== "string") {
+        if (
+            body.topic !== undefined &&
+            body.topic !== null &&
+            typeof body.topic !== "string"
+        ) {
             return NextResponse.json(
                 { error: "topic must be a string" },
                 { status: 400 },
             );
         }
-        const topic = (typeof body.topic === "string" ? body.topic.trim() : "") || "";
+        const topic =
+            (typeof body.topic === "string" ? body.topic.trim() : "") || "";
         if (topic.length > 500) {
             return NextResponse.json(
                 { error: "topic must be 500 characters or fewer" },
@@ -333,11 +379,15 @@ export async function GET(request: NextRequest) {
             const membership = await dedupeChannelsRouteCache(
                 `api:channels:membership:${serverId}:${userId}`,
                 () =>
-                    databases.listDocuments(env.databaseId, env.collections.memberships, [
-                        Query.equal("serverId", serverId),
-                        Query.equal("userId", userId),
-                        Query.limit(1),
-                    ]),
+                    databases.listDocuments(
+                        env.databaseId,
+                        env.collections.memberships,
+                        [
+                            Query.equal("serverId", serverId),
+                            Query.equal("userId", userId),
+                            Query.limit(1),
+                        ],
+                    ),
             );
 
             if (membership.documents.length === 0) {
@@ -418,7 +468,7 @@ export async function GET(request: NextRequest) {
                             databases,
                             databaseId: env.databaseId,
                             collectionId:
-                                CHANNEL_PERMISSION_OVERRIDES_COLLECTION_ID,
+                                env.collections.channelPermissionOverrides,
                             baseQueries: [Query.equal("channelId", channelIds)],
                             pageSize: 1000,
                             warningContext: "channels-route-overrides",
@@ -496,9 +546,7 @@ export async function GET(request: NextRequest) {
                                               d.manageChannels,
                                           ),
                                           manageRoles: Boolean(d.manageRoles),
-                                          manageServer: Boolean(
-                                              d.manageServer,
-                                          ),
+                                          manageServer: Boolean(d.manageServer),
                                           mentionEveryone: Boolean(
                                               d.mentionEveryone,
                                           ),
@@ -510,8 +558,7 @@ export async function GET(request: NextRequest) {
                                               d.$createdAt ?? "",
                                           ),
                                           memberCount:
-                                              typeof d.memberCount ===
-                                              "number"
+                                              typeof d.memberCount === "number"
                                                   ? d.memberCount
                                                   : undefined,
                                       } satisfies Role;
@@ -576,15 +623,25 @@ export async function GET(request: NextRequest) {
             });
         }
 
+        const lastMessageAtByChannel = await fetchLastMessageAtByChannel(
+            serverId,
+            channels.map((channel) => channel.$id),
+        );
+        const channelsWithActivity = channels.map((channel) => {
+            const lastMessageAt = lastMessageAtByChannel.get(channel.$id);
+            return lastMessageAt ? { ...channel, lastMessageAt } : channel;
+        });
+
         const lastRawDoc = channelsRes.documents.at(-1);
-        const nextCursor = channelsRes.documents.length === limit && lastRawDoc
-            ? String(lastRawDoc.$id)
-            : null;
+        const nextCursor =
+            channelsRes.documents.length === limit && lastRawDoc
+                ? String(lastRawDoc.$id)
+                : null;
 
         // Use compressed response for large payloads (60-70% bandwidth reduction)
         const response = NextResponse.json(
             {
-                channels,
+                channels: channelsWithActivity,
                 nextCursor,
             },
             {

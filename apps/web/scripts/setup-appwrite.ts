@@ -58,8 +58,7 @@ const skipTeams = /^(1|true|yes)$/i.test(process.env.SKIP_TEAMS ?? "");
 // ---- Constants ----
 const DB_ID = "main";
 const ANNOUNCEMENTS_COLLECTION_ID =
-    process.env.APPWRITE_ANNOUNCEMENTS_COLLECTION_ID?.trim() ||
-    "announcements";
+    process.env.APPWRITE_ANNOUNCEMENTS_COLLECTION_ID?.trim() || "announcements";
 const ANNOUNCEMENT_DELIVERIES_COLLECTION_ID =
     process.env.APPWRITE_ANNOUNCEMENT_DELIVERIES_COLLECTION_ID?.trim() ||
     "announcement_deliveries";
@@ -311,6 +310,29 @@ async function ensureCollection(id: string, name: string) {
             `[setup] created collection '${id}' with document-level security enabled`,
         );
     }
+
+    // Appwrite builds a new collection asynchronously: createCollection returns
+    // before it is queryable, and an attribute create issued in that window is
+    // rejected. Callers immediately add attributes, so wait it out. This is what
+    // left brand-new collections with no attributes at all.
+    for (let attempt = 0; attempt < 15; attempt++) {
+        try {
+            await tryVariants([
+                () => dbAny.getCollection(DB_ID, id),
+                () =>
+                    dbAny.getCollection?.({
+                        databaseId: DB_ID,
+                        collectionId: id,
+                    }),
+            ]);
+            return;
+        } catch {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+    }
+    warn(
+        `[setup] collection '${id}' not queryable yet after 15s; attribute creation may need a re-run`,
+    );
 }
 
 async function ensureStringAttribute(
@@ -808,7 +830,9 @@ async function ensureIndex(
                 }),
         ]);
 
-        const existingType = String((existing as { type?: unknown }).type ?? "");
+        const existingType = String(
+            (existing as { type?: unknown }).type ?? "",
+        );
         const existingAttributes = normalizeIndexAttributes(
             (existing as { attributes?: unknown }).attributes,
         );
@@ -822,7 +846,8 @@ async function ensureIndex(
         if (!definitionMatches) {
             if (!recreateIfMismatched) {
                 warn(
-                    `index ${collection}.${name} exists with unexpected definition (type=${existingType || "unknown"}, attributes=${existingAttributes.join(",",
+                    `index ${collection}.${name} exists with unexpected definition (type=${existingType || "unknown"}, attributes=${existingAttributes.join(
+                        ",",
                     )}); expected type=${type}, attributes=${attributes.join(",")}.`,
                 );
                 return;
@@ -913,7 +938,10 @@ async function backfillAnnouncementIdempotencyKeys(): Promise<void> {
             continue;
         }
 
-        const fallbackIdempotencyKey = `legacy:${announcementId}`.slice(0, LEN_ID);
+        const fallbackIdempotencyKey = `legacy:${announcementId}`.slice(
+            0,
+            LEN_ID,
+        );
         await tryVariants([
             () =>
                 dbAny.updateDocument(
@@ -951,7 +979,9 @@ async function ensureNoDuplicateIdempotencyKeys(): Promise<void> {
     const keyCounts = new Map<string, string[]>();
     for (const doc of duplicateGroups) {
         const key = JSON.stringify([doc.createdBy, doc.idempotencyKey]);
-        if (!key) continue;
+        if (!key) {
+            continue;
+        }
         const existing = keyCounts.get(key) ?? [];
         existing.push(String(doc.$id));
         keyCounts.set(key, existing);
@@ -961,7 +991,10 @@ async function ensureNoDuplicateIdempotencyKeys(): Promise<void> {
     for (const [key, ids] of keyCounts) {
         if (ids.length > 1) {
             duplicates.push({
-                fingerprint: createHash("sha256").update(key).digest("hex").slice(0, 8),
+                fingerprint: createHash("sha256")
+                    .update(key)
+                    .digest("hex")
+                    .slice(0, 8),
                 ids,
             });
         }
@@ -970,8 +1003,14 @@ async function ensureNoDuplicateIdempotencyKeys(): Promise<void> {
     if (duplicates.length > 0) {
         throw new Error(
             `Migration aborted: found ${duplicates.length} duplicate idempotencyKey values. ` +
-            `Sample duplicates: ${duplicates.slice(0, 3).map(d => `fingerprint='${d.fingerprint}' (${d.ids.length} docs: ${d.ids.slice(0, 2).join(", ")})`).join(", ")}. ` +
-            `Remove duplicates or clean idempotencyKey before creating unique index.`,
+                `Sample duplicates: ${duplicates
+                    .slice(0, 3)
+                    .map(
+                        (d) =>
+                            `fingerprint='${d.fingerprint}' (${d.ids.length} docs: ${d.ids.slice(0, 2).join(", ")})`,
+                    )
+                    .join(", ")}. ` +
+                `Remove duplicates or clean idempotencyKey before creating unique index.`,
         );
     }
 
@@ -1333,10 +1372,72 @@ async function setupRoleAssignments() {
     await ensureIndex("role_assignments", "idx_serverId", "key", ["serverId"]);
     // Unique so concurrent assignment requests cannot create duplicate
     // (userId, serverId) rows; the API retries createDocument on 409.
-    await ensureIndex("role_assignments", "idx_userId_serverId", "unique", [
+    await ensureIndex(
+        "role_assignments",
+        "idx_userId_serverId",
+        "unique",
+        ["userId", "serverId"],
+        { recreateIfMismatched: true },
+    );
+}
+
+async function setupChannelPermissionOverrides() {
+    await ensureCollection(
+        "channel_permission_overrides",
+        "Channel Permission Overrides",
+    );
+    // A row is either a role override (userId === "") or a user override
+    // (roleId === ""). Both are always written, so both are required and the
+    // absent side is the empty-string sentinel rather than a missing field.
+    await ensureStringAttribute(
+        "channel_permission_overrides",
+        "channelId",
+        LEN_ID,
+        true,
+    );
+    await ensureStringAttribute(
+        "channel_permission_overrides",
+        "roleId",
+        LEN_ID,
+        true,
+    );
+    await ensureStringAttribute(
+        "channel_permission_overrides",
         "userId",
-        "serverId",
-    ], { recreateIfMismatched: true });
+        LEN_ID,
+        true,
+    );
+    await ensureStringArrayAttribute(
+        "channel_permission_overrides",
+        "allow",
+        LEN_ID,
+        true,
+    );
+    await ensureStringArrayAttribute(
+        "channel_permission_overrides",
+        "deny",
+        LEN_ID,
+        true,
+    );
+
+    await ensureIndex("channel_permission_overrides", "idx_channelId", "key", [
+        "channelId",
+    ]);
+    await ensureIndex("channel_permission_overrides", "idx_userId", "key", [
+        "userId",
+    ]);
+    await ensureIndex("channel_permission_overrides", "idx_roleId", "key", [
+        "roleId",
+    ]);
+    // Unique so one channel cannot accumulate duplicate overrides for the same
+    // role or user; the API retries createDocument on 409.
+    await ensureIndex(
+        "channel_permission_overrides",
+        "idx_channelId_roleId_userId",
+        "unique",
+        ["channelId", "roleId", "userId"],
+        { recreateIfMismatched: true },
+    );
 }
 
 async function setupProfiles() {
@@ -1355,6 +1456,13 @@ async function setupProfiles() {
         ["profileBackgroundImageChangedAt", LEN_TS, false],
         ["avatarFramePreset", 64, false],
         ["dmEncryptionPublicKey", 256, false],
+        // Canonical home for the DM encryption preference. It used to live on
+        // notification_settings, which is the wrong layer: it is a per-user
+        // capability that sits next to the key it depends on, not a
+        // notification preference. notification_settings is still written in
+        // parallel as a fallback for accounts that predate this column; see
+        // lib/dm-encryption-preference.ts.
+        ["dmEncryptionEnabled", 16, false],
         ["deletedAt", LEN_TS, false],
         ["deletedEmail", 255, false],
     ];
@@ -1441,7 +1549,11 @@ async function ensureFeatureFlagDocument(params: {
     const value = params.value;
     const now = new Date().toISOString();
     const valuePayload = value !== undefined ? { value } : {};
-    const descriptionUpdatedAt = { description, updatedAt: now, ...valuePayload };
+    const descriptionUpdatedAt = {
+        description,
+        updatedAt: now,
+        ...valuePayload,
+    };
 
     const documentId = createFeatureFlagDocumentId(key);
     let operation: "added" | "updated" = "added";
@@ -1508,25 +1620,25 @@ async function ensureFeatureFlagDocument(params: {
         );
     }
 
-await tryVariants([
-            () =>
-                dbAny.createDocument(DB_ID, "feature_flags", documentId, {
+    await tryVariants([
+        () =>
+            dbAny.createDocument(DB_ID, "feature_flags", documentId, {
+                ...descriptionUpdatedAt,
+                enabled,
+                key,
+            }),
+        () =>
+            dbAny.createDocument?.({
+                data: {
                     ...descriptionUpdatedAt,
                     enabled,
                     key,
-                }),
-            () =>
-                dbAny.createDocument?.({
-                    data: {
-                        ...descriptionUpdatedAt,
-                        enabled,
-                        key,
-                    },
-                    databaseId: DB_ID,
-                    collectionId: "feature_flags",
-                    documentId,
-                }),
-        ]).catch(async (error) => {
+                },
+                databaseId: DB_ID,
+                collectionId: "feature_flags",
+                documentId,
+            }),
+    ]).catch(async (error) => {
         if (!isDuplicateConflictError(error)) {
             throw error;
         }
@@ -1678,10 +1790,13 @@ async function setupConversations() {
     await ensureIndex("conversations", "idx_participants", "key", [
         "participants",
     ]);
-    await ensureIndex("conversations", "idx_announcement_thread", "unique", [
-        "isSystemAnnouncementThread",
-        "announcementThreadKey",
-    ], { recreateIfMismatched: true });
+    await ensureIndex(
+        "conversations",
+        "idx_announcement_thread",
+        "unique",
+        ["isSystemAnnouncementThread", "announcementThreadKey"],
+        { recreateIfMismatched: true },
+    );
 }
 
 async function setupDirectMessages() {
@@ -1733,6 +1848,23 @@ async function setupDirectMessages() {
         LEN_ID,
         false,
     );
+    // Federation (2.6) fields. Reserved in 2.2 and left null: no behaviour
+    // ships against them yet. `sequence` is a per-conversation, per-sender-
+    // instance cursor and `sender_instance` is the sender's IIID, null for
+    // local users. Both are nullable so nothing backfills and ordering by
+    // $createdAt is unaffected.
+    await ensureIntegerAttribute("direct_messages", "sequence", false);
+    await ensureStringAttribute(
+        "direct_messages",
+        "sender_instance",
+        LEN_ID,
+        false,
+    );
+    // No (conversationId, sequence) index yet on purpose: every existing row
+    // has sequence null, so it would buy nothing while adding a setup-time
+    // failure mode. 2.6 adds it in the same change that starts writing the
+    // columns.
+
     // Note: Using system $createdAt attribute for ordering, no custom attribute needed
     await ensureIndex("direct_messages", "idx_conversation", "key", [
         "conversationId",
@@ -1800,7 +1932,8 @@ async function setupAnnouncements() {
 
         idempotencyIndexMatches = indexDefinitionMatches({
             actualAttributes: normalizeIndexAttributes(
-                (existingIdempotencyIndex as { attributes?: unknown }).attributes,
+                (existingIdempotencyIndex as { attributes?: unknown })
+                    .attributes,
             ),
             actualType: String(
                 (existingIdempotencyIndex as { type?: unknown }).type ?? "",
@@ -2005,31 +2138,30 @@ async function setupPushTokens() {
     await ensureStringAttribute("push_tokens", "token", 512, true);
     await ensureStringAttribute("push_tokens", "platform", 16, true);
     await ensureStringAttribute("push_tokens", "updatedAt", LEN_TS, true);
-    await ensureIndex("push_tokens", "idx_push_userId", "key", [
-        "userId",
-    ]);
+    await ensureIndex("push_tokens", "idx_push_userId", "key", ["userId"]);
     await ensureIndex("push_tokens", "idx_push_token", "unique", [
         "userId",
         "token",
     ]);
 }
 
-async function setupThreadReads() {
-    await ensureCollection("thread_reads", "Thread Reads");
-    await ensureStringAttribute("thread_reads", "userId", LEN_ID, true);
-    await ensureStringAttribute("thread_reads", "contextType", 32, true);
-    await ensureStringAttribute("thread_reads", "contextId", LEN_ID, true);
-    // setupThreadReads: `thread_reads.reads` stores a JSON map and is capped at ~65KB;
-    // at typical ISO timestamp payload sizes this supports roughly ~1000 thread ids per context.
-    await ensureStringAttribute("thread_reads", "reads", LEN_TEXT_LARGE, true);
-    await waitForAttribute("thread_reads", "reads");
+/**
+ * Both read-state collections store a JSON map of ids to timestamps in a single
+ * `reads` string attribute. Appwrite caps string attributes, and growing one is
+ * a schema migration rather than something ensureStringAttribute will do, so the
+ * size is checked explicitly. At typical ISO timestamp payload sizes
+ * LEN_TEXT_LARGE holds roughly ~1000 entries per document.
+ */
+async function ensureJsonMapAttribute(collection: string) {
+    await ensureStringAttribute(collection, "reads", LEN_TEXT_LARGE, true);
+    await waitForAttribute(collection, "reads");
 
     const readsAttribute = (await tryVariants([
-        () => dbAny.getAttribute(DB_ID, "thread_reads", "reads"),
+        () => dbAny.getAttribute(DB_ID, collection, "reads"),
         () =>
             dbAny.getAttribute?.({
                 databaseId: DB_ID,
-                collectionId: "thread_reads",
+                collectionId: collection,
                 key: "reads",
             }),
     ])) as {
@@ -2045,16 +2177,16 @@ async function setupThreadReads() {
     ) {
         try {
             await updateStringAttributeSize(
-                "thread_reads",
+                collection,
                 "reads",
                 LEN_TEXT_LARGE,
                 true,
             );
-            await waitForAttribute("thread_reads", "reads");
-            info("[setup] migrated thread_reads.reads to large text size");
+            await waitForAttribute(collection, "reads");
+            info(`[setup] migrated ${collection}.reads to large text size`);
         } catch (migrationError) {
             throw new Error(
-                `thread_reads.reads schema mismatch (size=${configuredSize}, required=${readsRequired}). Expected size=${LEN_TEXT_LARGE} and required=true. Run a manual schema migration before setup can continue. ${
+                `${collection}.reads schema mismatch (size=${configuredSize}, required=${readsRequired}). Expected size=${LEN_TEXT_LARGE} and required=true. Run a manual schema migration before setup can continue. ${
                     migrationError instanceof Error
                         ? migrationError.message
                         : String(migrationError)
@@ -2062,11 +2194,40 @@ async function setupThreadReads() {
             );
         }
     }
+}
+
+async function setupThreadReads() {
+    await ensureCollection("thread_reads", "Thread Reads");
+    await ensureStringAttribute("thread_reads", "userId", LEN_ID, true);
+    await ensureStringAttribute("thread_reads", "contextType", 32, true);
+    await ensureStringAttribute("thread_reads", "contextId", LEN_ID, true);
+    await ensureJsonMapAttribute("thread_reads");
 
     await ensureIndex("thread_reads", "idx_user_context", "unique", [
         "userId",
         "contextType",
         "contextId",
+    ]);
+}
+
+/**
+ * Per-channel read state, one document per user per server holding a
+ * channelId -> lastReadAt map. Read state lives here rather than on the channel
+ * because channels are shared by every member while "read" is per person.
+ *
+ * A user who has never opened a channel has no entry, and the caller falls back
+ * to the channel's creation time, so everything since the channel existed counts
+ * as unread.
+ */
+async function setupChannelReads() {
+    await ensureCollection("channel_reads", "Channel Reads");
+    await ensureStringAttribute("channel_reads", "userId", LEN_ID, true);
+    await ensureStringAttribute("channel_reads", "serverId", LEN_ID, true);
+    await ensureJsonMapAttribute("channel_reads");
+
+    await ensureIndex("channel_reads", "idx_user_server", "unique", [
+        "userId",
+        "serverId",
     ]);
 }
 
@@ -2177,18 +2338,16 @@ async function setupStorage() {
         1048576,
         ["png"],
     ); // 1MB for predefined avatar frame PNGs
-    await ensureBucket(
-        GIFS_BUCKET_ID,
-        "GIF Assets",
-        5242880,
-        ["gif", "webp", "mp4"],
-    ); // 5MB for curated/imported GIF assets
-    await ensureBucket(
-        STICKERS_BUCKET_ID,
-        "Sticker Assets",
-        2097152,
-        ["png", "webp", "gif"],
-    ); // 2MB for sticker assets
+    await ensureBucket(GIFS_BUCKET_ID, "GIF Assets", 5242880, [
+        "gif",
+        "webp",
+        "mp4",
+    ]); // 5MB for curated/imported GIF assets
+    await ensureBucket(STICKERS_BUCKET_ID, "Sticker Assets", 2097152, [
+        "png",
+        "webp",
+        "gif",
+    ]); // 2MB for sticker assets
     // Files bucket for various file types (documents, videos, audio, archives, code)
     await ensureBucket(
         "files",
@@ -2358,6 +2517,8 @@ async function run() {
     await setupRoles();
     info("[setup] Setting up role assignments...");
     await setupRoleAssignments();
+    info("[setup] Setting up channel permission overrides...");
+    await setupChannelPermissionOverrides();
     info("[setup] Setting up profiles...");
     await setupProfiles();
     info("[setup] Setting up feature flags...");
@@ -2390,6 +2551,7 @@ async function run() {
     await setupInboxItems();
     info("[setup] Setting up thread reads...");
     await setupThreadReads();
+    await setupChannelReads();
     info("[setup] Setting up teams...");
     await ensureTeams();
     writeStdout();

@@ -268,15 +268,14 @@ describe("NotificationSettings", () => {
             expect(patchCall).toBeDefined();
 
             const payload = JSON.parse(
-                ((patchCall?.[1] as { body?: string }).body as string) ||
-                    "{}",
+                ((patchCall?.[1] as { body?: string }).body as string) || "{}",
             ) as { dmEncryptionEnabled?: boolean };
 
             expect(payload.dmEncryptionEnabled).toBe(true);
         });
     });
 
-    it("logs when DM encryption key publish fails after enabling encryption", async () => {
+    it("aborts saving when the DM encryption key cannot be published", async () => {
         mockEnsurePublishedDmEncryptionKey.mockRejectedValueOnce(
             new Error("sodium.from_base64 is undefined"),
         );
@@ -315,5 +314,10 @@ describe("NotificationSettings", () => {
                 expect.any(Error),
             );
         });
+
+        // Publishing happens before the PATCH, so a failed publish must abort
+        // the save rather than enabling encryption without a key. Only the
+        // initial settings GET should have been issued.
+        expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 });

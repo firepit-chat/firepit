@@ -1,61 +1,45 @@
 "use client";
 
+import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
+import { x25519 } from "@noble/curves/ed25519.js";
+import { argon2id } from "@noble/hashes/argon2.js";
+import { blake2b } from "@noble/hashes/blake2.js";
+
 import { logger } from "@/lib/client-logger";
 import type { DirectMessage } from "@/lib/types";
 
 const LOCAL_STORAGE_PREFIX = "firepit.dm.encryption";
 const KEY_VERSION = "xchacha20poly1305-v1";
 const KEY_CONTEXT = "firepit-dm-v1";
+const NONCE_BYTES = 24;
+type KeyOrder = "le" | "be";
+
+const KEY_BACKUP_TYPE = "firepit-dm-key-backup";
+const KEY_BACKUP_VERSION = 1;
+const KEY_BACKUP_AAD = "firepit-dm-key-backup-v1";
+const KEY_BACKUP_SALT_BYTES = 16;
+// Argon2id cost is capped on import so a crafted backup cannot exhaust memory.
+const KEY_BACKUP_KDF = { t: 2, m: 19456, p: 1, dkLen: 32 } as const;
+const MAX_KDF_T = 10;
+const MAX_KDF_M = 262144;
+const MAX_KDF_P = 4;
+
+type DmKeyBackup = {
+    cipherBase64: string;
+    encryptionVersion: string;
+    kdf: "argon2id";
+    m: number;
+    nonceBase64: string;
+    p: number;
+    publicKeyBase64: string;
+    saltBase64: string;
+    t: number;
+    type: typeof KEY_BACKUP_TYPE;
+    version: typeof KEY_BACKUP_VERSION;
+};
 const WRAPPING_KEY_DB_NAME = "firepit-dm-encryption";
 const WRAPPING_KEY_STORE = "wrapping-keys";
-const ENCRYPTED_MESSAGE_PLACEHOLDER = "[Encrypted message unavailable]";
-
-function loadSodiumModule() {
-    return import("libsodium-wrappers");
-}
-
-type SodiumModule = Awaited<ReturnType<typeof loadSodiumModule>>;
-
-type SodiumApi = {
-    ready: Promise<unknown>;
-    base64_variants: {
-        ORIGINAL: number;
-    };
-    crypto_aead_xchacha20poly1305_ietf_NPUBBYTES: number;
-    compare: (a: Uint8Array, b: Uint8Array) => number;
-    crypto_aead_xchacha20poly1305_ietf_decrypt: (
-        additionalData: Uint8Array | null,
-        cipher: Uint8Array,
-        secretNonce: Uint8Array | null,
-        nonce: Uint8Array,
-        key: Uint8Array,
-    ) => Uint8Array;
-    crypto_aead_xchacha20poly1305_ietf_encrypt: (
-        plain: Uint8Array,
-        additionalData: Uint8Array | null,
-        secretNonce: Uint8Array | null,
-        nonce: Uint8Array,
-        key: Uint8Array,
-    ) => Uint8Array;
-    crypto_box_keypair: () => {
-        privateKey: Uint8Array;
-        publicKey: Uint8Array;
-    };
-    crypto_generichash: (
-        outLen: number,
-        message: Uint8Array,
-        key?: Uint8Array,
-    ) => Uint8Array;
-    crypto_scalarmult: (
-        privateKey: Uint8Array,
-        publicKey: Uint8Array,
-    ) => Uint8Array;
-    from_base64: (value: string, variant: number) => Uint8Array;
-    from_string: (value: string) => Uint8Array;
-    randombytes_buf: (size: number) => Uint8Array;
-    to_base64: (value: Uint8Array, variant: number) => string;
-    to_string: (value: Uint8Array) => string;
-};
+export const ENCRYPTED_MESSAGE_PLACEHOLDER = "[Encrypted message unavailable]";
 
 type StoredEncryptedKeyPair = {
     alg: "AES-GCM";
@@ -84,7 +68,6 @@ type DmEncryptedPayload = {
     encryptionVersion: string;
 };
 
-let sodiumPromise: Promise<SodiumApi> | null = null;
 let wrappingKeyDbPromise: Promise<IDBDatabase | null> | null = null;
 const pendingKeyPromises = new Map<string, Promise<DmEncryptionKeyPair>>();
 const pendingWrappingKeys = new Map<string, Promise<CryptoKey | null>>();
@@ -92,13 +75,6 @@ const volatileKeyPairs = new Map<string, DmEncryptionKeyPair>();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return Boolean(value) && typeof value === "object";
-}
-
-function isThenable(value: unknown): value is Promise<unknown> {
-    return (
-        isRecord(value) &&
-        typeof (value as { then?: unknown }).then === "function"
-    );
 }
 
 function isCryptoKeyLike(value: unknown): value is CryptoKey {
@@ -117,79 +93,6 @@ function isCryptoKeyLike(value: unknown): value is CryptoKey {
         typeof candidate.type === "string" &&
         Array.isArray(candidate.usages)
     );
-}
-
-function isSodiumApi(value: unknown): value is SodiumApi {
-    if (!isRecord(value)) {
-        return false;
-    }
-
-    const ready = value.ready;
-    const base64Variants = value.base64_variants;
-
-    return (
-        Boolean(ready) &&
-        typeof (ready as { then?: unknown }).then === "function" &&
-        isRecord(base64Variants) &&
-        typeof base64Variants.ORIGINAL === "number" &&
-        typeof value.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES ===
-            "number" &&
-        typeof value.compare === "function" &&
-        typeof value.crypto_aead_xchacha20poly1305_ietf_decrypt ===
-            "function" &&
-        typeof value.crypto_aead_xchacha20poly1305_ietf_encrypt ===
-            "function" &&
-        typeof value.crypto_box_keypair === "function" &&
-        typeof value.crypto_generichash === "function" &&
-        typeof value.crypto_scalarmult === "function" &&
-        typeof value.from_base64 === "function" &&
-        typeof value.from_string === "function" &&
-        typeof value.randombytes_buf === "function" &&
-        typeof value.to_base64 === "function" &&
-        typeof value.to_string === "function"
-    );
-}
-
-async function resolveSodiumApi(
-    moduleNamespace: SodiumModule,
-): Promise<SodiumApi> {
-    const candidates: unknown[] = [moduleNamespace];
-
-    if (isRecord(moduleNamespace) && "default" in moduleNamespace) {
-        candidates.push(moduleNamespace.default);
-    }
-
-    const readyPromises = candidates
-        .map((candidate) =>
-            isRecord(candidate) && "ready" in candidate
-                ? candidate.ready
-                : undefined,
-        )
-        .filter((candidateReady): candidateReady is Promise<unknown> =>
-            isThenable(candidateReady),
-        );
-
-    if (readyPromises.length > 0) {
-        await Promise.all(readyPromises);
-    }
-
-    for (const candidate of candidates) {
-        if (isSodiumApi(candidate)) {
-            return candidate as unknown as SodiumApi;
-        }
-    }
-
-    const moduleKeys = isRecord(moduleNamespace)
-        ? Object.keys(moduleNamespace).join(",")
-        : "non-object-module-namespace";
-
-    logger.error(
-        "libsodium-wrappers did not expose expected sodium API",
-        undefined,
-        { moduleKeys },
-    );
-
-    throw new Error("libsodium-wrappers did not expose expected sodium API");
 }
 
 function getStorageKey(userId: string): string {
@@ -269,23 +172,6 @@ function isStoredKeyMetadata(value: unknown): value is StoredKeyMetadata {
         typeof candidate.publicKeyBase64 === "string" &&
         typeof candidate.version === "string"
     );
-}
-
-async function getSodium(): Promise<SodiumApi> {
-    if (!sodiumPromise) {
-        sodiumPromise = loadSodiumModule()
-            .then((module) => resolveSodiumApi(module))
-            .catch((error) => {
-                sodiumPromise = null;
-                logger.error(
-                    "Failed to initialize libsodium for DM encryption",
-                    error instanceof Error ? error : new Error(String(error)),
-                );
-                throw error;
-            });
-    }
-
-    return sodiumPromise;
 }
 
 function openWrappingKeyDb(): Promise<IDBDatabase | null> {
@@ -691,18 +577,11 @@ async function ensureDmEncryptionKeyPair(
             return freshRead;
         }
 
-        const sodium = await getSodium();
-        const generated = sodium.crypto_box_keypair();
+        const generated = x25519.keygen();
 
         const keyPair: DmEncryptionKeyPair = {
-            privateKeyBase64: sodium.to_base64(
-                generated.privateKey,
-                sodium.base64_variants.ORIGINAL,
-            ),
-            publicKeyBase64: sodium.to_base64(
-                generated.publicKey,
-                sodium.base64_variants.ORIGINAL,
-            ),
+            privateKeyBase64: uint8ArrayToBase64(generated.secretKey),
+            publicKeyBase64: uint8ArrayToBase64(generated.publicKey),
             version: KEY_VERSION,
         };
 
@@ -773,7 +652,10 @@ export async function ensurePublishedDmEncryptionKey(
     return keyPair;
 }
 
-export async function ensurePublishedDmEncryptionKeyForCurrentUser(): Promise<void> {
+async function fetchDmEncryptionKeyMetadata(): Promise<{
+    dmEncryptionPublicKey?: string;
+    userId: string;
+}> {
     const response = await fetch("/api/me/dm-encryption-key");
     const body = await parseResponseBody(response);
 
@@ -794,33 +676,200 @@ export async function ensurePublishedDmEncryptionKeyForCurrentUser(): Promise<vo
         throw new Error("Missing userId in encryption key metadata response");
     }
 
-    const keyPair = await ensureDmEncryptionKeyPair(userId);
-    if (dmEncryptionPublicKey === keyPair.publicKeyBase64) {
+    return {
+        dmEncryptionPublicKey:
+            typeof dmEncryptionPublicKey === "string"
+                ? dmEncryptionPublicKey
+                : undefined,
+        userId,
+    };
+}
+
+export async function ensurePublishedDmEncryptionKeyForCurrentUser(): Promise<void> {
+    const metadata = await fetchDmEncryptionKeyMetadata();
+    const keyPair = await ensureDmEncryptionKeyPair(metadata.userId);
+    if (metadata.dmEncryptionPublicKey === keyPair.publicKeyBase64) {
         return;
     }
 
     await publishDmEncryptionPublicKey(keyPair.publicKeyBase64);
 }
 
+function encodeKeyBackup(
+    passphrase: string,
+    keyPair: DmEncryptionKeyPair,
+): string {
+    const salt = randomBytes(KEY_BACKUP_SALT_BYTES);
+    const nonce = randomBytes(NONCE_BYTES);
+    const key = argon2id(
+        new TextEncoder().encode(passphrase),
+        salt,
+        KEY_BACKUP_KDF,
+    );
+    const cipher = xchacha20poly1305(
+        key,
+        nonce,
+        new TextEncoder().encode(KEY_BACKUP_AAD),
+    ).encrypt(new TextEncoder().encode(JSON.stringify(keyPair)));
+
+    const backup: DmKeyBackup = {
+        cipherBase64: uint8ArrayToBase64(cipher),
+        encryptionVersion: keyPair.version,
+        kdf: "argon2id",
+        m: KEY_BACKUP_KDF.m,
+        nonceBase64: uint8ArrayToBase64(nonce),
+        p: KEY_BACKUP_KDF.p,
+        publicKeyBase64: keyPair.publicKeyBase64,
+        saltBase64: uint8ArrayToBase64(salt),
+        t: KEY_BACKUP_KDF.t,
+        type: KEY_BACKUP_TYPE,
+        version: KEY_BACKUP_VERSION,
+    };
+
+    return JSON.stringify(backup, null, 2);
+}
+
+function decodeKeyBackup(
+    passphrase: string,
+    encoded: string,
+): DmEncryptionKeyPair {
+    const parsed = JSON.parse(encoded) as Partial<DmKeyBackup>;
+
+    if (
+        parsed.type !== KEY_BACKUP_TYPE ||
+        parsed.version !== KEY_BACKUP_VERSION ||
+        parsed.kdf !== "argon2id" ||
+        typeof parsed.saltBase64 !== "string" ||
+        typeof parsed.nonceBase64 !== "string" ||
+        typeof parsed.cipherBase64 !== "string" ||
+        typeof parsed.publicKeyBase64 !== "string" ||
+        typeof parsed.t !== "number" ||
+        typeof parsed.m !== "number" ||
+        typeof parsed.p !== "number" ||
+        parsed.t < 1 ||
+        parsed.t > MAX_KDF_T ||
+        parsed.m < 8 ||
+        parsed.m > MAX_KDF_M ||
+        parsed.p < 1 ||
+        parsed.p > MAX_KDF_P
+    ) {
+        throw new Error("This is not a valid Firepit DM key backup");
+    }
+
+    const key = argon2id(
+        new TextEncoder().encode(passphrase),
+        base64ToUint8Array(parsed.saltBase64),
+        { t: parsed.t, m: parsed.m, p: parsed.p, dkLen: 32 },
+    );
+
+    let keyPair: DmEncryptionKeyPair;
+    try {
+        const plain = xchacha20poly1305(
+            key,
+            base64ToUint8Array(parsed.nonceBase64),
+            new TextEncoder().encode(KEY_BACKUP_AAD),
+        ).decrypt(base64ToUint8Array(parsed.cipherBase64));
+        keyPair = JSON.parse(new TextDecoder().decode(plain)) as DmEncryptionKeyPair;
+    } catch {
+        throw new Error("Wrong passphrase or corrupted key backup");
+    }
+
+    if (
+        typeof keyPair?.privateKeyBase64 !== "string" ||
+        typeof keyPair?.publicKeyBase64 !== "string"
+    ) {
+        throw new Error("Key backup is missing its key pair");
+    }
+
+    const derivedPublic = uint8ArrayToBase64(
+        x25519.getPublicKey(base64ToUint8Array(keyPair.privateKeyBase64)),
+    );
+    if (
+        derivedPublic !== keyPair.publicKeyBase64 ||
+        derivedPublic !== parsed.publicKeyBase64
+    ) {
+        throw new Error("Key backup does not match its public key");
+    }
+
+    return {
+        privateKeyBase64: keyPair.privateKeyBase64,
+        publicKeyBase64: keyPair.publicKeyBase64,
+        version:
+            typeof keyPair.version === "string"
+                ? keyPair.version
+                : KEY_VERSION,
+    };
+}
+
+export async function exportDmEncryptionKeyForCurrentUser(
+    passphrase: string,
+): Promise<string> {
+    const metadata = await fetchDmEncryptionKeyMetadata();
+    const keyPair = await ensureDmEncryptionKeyPair(metadata.userId);
+    return encodeKeyBackup(passphrase, keyPair);
+}
+
+export async function importDmEncryptionKeyForCurrentUser(
+    passphrase: string,
+    encoded: string,
+): Promise<void> {
+    const keyPair = decodeKeyBackup(passphrase, encoded);
+    const metadata = await fetchDmEncryptionKeyMetadata();
+    await saveKeyPairToStorage(metadata.userId, keyPair);
+    await publishDmEncryptionPublicKey(keyPair.publicKeyBase64);
+}
+
+// libsodium's `compare` treats byte arrays as little-endian integers. Mobile
+// historically sorted with a plain memcmp instead, so decryption must also try
+// the big-endian order to read messages written by those builds.
+function compareBytes(
+    a: Uint8Array,
+    b: Uint8Array,
+    order: KeyOrder,
+): number {
+    const length = Math.min(a.length, b.length);
+    if (order === "le") {
+        for (let index = length - 1; index >= 0; index -= 1) {
+            if (a[index] !== b[index]) {
+                return a[index] < b[index] ? -1 : 1;
+            }
+        }
+    } else {
+        for (let index = 0; index < length; index += 1) {
+            if (a[index] !== b[index]) {
+                return a[index] < b[index] ? -1 : 1;
+            }
+        }
+    }
+    return a.length - b.length;
+}
+
+function randomBytes(length: number): Uint8Array {
+    if (typeof crypto === "undefined" || !crypto.getRandomValues) {
+        throw new Error("Secure random number generation is unavailable");
+    }
+    return crypto.getRandomValues(new Uint8Array(length));
+}
+
 function deriveSharedKey(
-    sodium: SodiumApi,
     senderPrivateKey: Uint8Array,
     senderPublicKey: Uint8Array,
     recipientPublicKey: Uint8Array,
+    order: KeyOrder = "le",
 ): Uint8Array {
-    const sharedSecret = sodium.crypto_scalarmult(
+    const sharedSecret = x25519.getSharedSecret(
         senderPrivateKey,
         recipientPublicKey,
     );
 
-    const comparison = sodium.compare(senderPublicKey, recipientPublicKey);
+    const comparison = compareBytes(senderPublicKey, recipientPublicKey, order);
     const left = comparison <= 0 ? senderPublicKey : recipientPublicKey;
     const right = comparison <= 0 ? recipientPublicKey : senderPublicKey;
 
-    const contextBytes = sodium.from_string(KEY_CONTEXT);
+    const contextBytes = new TextEncoder().encode(KEY_CONTEXT);
     const keyMaterial = concatBytes(sharedSecret, left, right, contextBytes);
 
-    return sodium.crypto_generichash(32, keyMaterial);
+    return blake2b(keyMaterial, { dkLen: 32 });
 }
 
 export async function encryptDmText(params: {
@@ -829,47 +878,31 @@ export async function encryptDmText(params: {
     senderKeyPair: DmEncryptionKeyPair;
     text: string;
 }): Promise<DmEncryptedPayload> {
-    const sodium = await getSodium();
-
-    const senderPublicKey = sodium.from_base64(
-        normalizeBase64(params.senderKeyPair.publicKeyBase64),
-        sodium.base64_variants.ORIGINAL,
+    const senderPublicKey = base64ToUint8Array(
+        params.senderKeyPair.publicKeyBase64,
     );
-    const senderPrivateKey = sodium.from_base64(
-        normalizeBase64(params.senderKeyPair.privateKeyBase64),
-        sodium.base64_variants.ORIGINAL,
+    const senderPrivateKey = base64ToUint8Array(
+        params.senderKeyPair.privateKeyBase64,
     );
-    const recipientPublicKey = sodium.from_base64(
-        normalizeBase64(params.recipientPublicKeyBase64),
-        sodium.base64_variants.ORIGINAL,
+    const recipientPublicKey = base64ToUint8Array(
+        params.recipientPublicKeyBase64,
     );
 
     const encryptionKey = deriveSharedKey(
-        sodium,
         senderPrivateKey,
         senderPublicKey,
         recipientPublicKey,
     );
-    const nonce = sodium.randombytes_buf(
-        sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES,
-    );
-    const cipher = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-        sodium.from_string(params.text),
-        sodium.from_string(params.context),
-        null,
-        nonce,
+    const nonce = randomBytes(NONCE_BYTES);
+    const cipher = xchacha20poly1305(
         encryptionKey,
-    );
+        nonce,
+        new TextEncoder().encode(params.context),
+    ).encrypt(new TextEncoder().encode(params.text));
 
     return {
-        encryptedText: sodium.to_base64(
-            cipher,
-            sodium.base64_variants.ORIGINAL,
-        ),
-        encryptionNonce: sodium.to_base64(
-            nonce,
-            sodium.base64_variants.ORIGINAL,
-        ),
+        encryptedText: uint8ArrayToBase64(cipher),
+        encryptionNonce: uint8ArrayToBase64(nonce),
         encryptionSenderPublicKey: params.senderKeyPair.publicKeyBase64,
         encryptionVersion: KEY_VERSION,
     };
@@ -881,53 +914,40 @@ async function decryptDmPayload(params: {
     encryptionNonce: string;
     legacy?: boolean;
     localKeyPair: DmEncryptionKeyPair;
+    order?: KeyOrder;
     peerPublicKeyBase64: string;
 }): Promise<string | null> {
-    const sodium = await getSodium();
-
     try {
-        const localPublicKey = sodium.from_base64(
-            normalizeBase64(params.localKeyPair.publicKeyBase64),
-            sodium.base64_variants.ORIGINAL,
+        const localPublicKey = base64ToUint8Array(
+            params.localKeyPair.publicKeyBase64,
         );
-        const localPrivateKey = sodium.from_base64(
-            normalizeBase64(params.localKeyPair.privateKeyBase64),
-            sodium.base64_variants.ORIGINAL,
+        const localPrivateKey = base64ToUint8Array(
+            params.localKeyPair.privateKeyBase64,
         );
-        const peerPublicKey = sodium.from_base64(
-            normalizeBase64(params.peerPublicKeyBase64),
-            sodium.base64_variants.ORIGINAL,
-        );
+        const peerPublicKey = base64ToUint8Array(params.peerPublicKeyBase64);
 
         const key = deriveSharedKey(
-            sodium,
             localPrivateKey,
             localPublicKey,
             peerPublicKey,
+            params.order,
         );
-        const nonce = sodium.from_base64(
-            normalizeBase64(params.encryptionNonce),
-            sodium.base64_variants.ORIGINAL,
-        );
-        const cipher = sodium.from_base64(
-            normalizeBase64(params.encryptedText),
-            sodium.base64_variants.ORIGINAL,
-        );
+        const nonce = base64ToUint8Array(params.encryptionNonce);
+        const cipher = base64ToUint8Array(params.encryptedText);
 
+        // Messages written before conversation binding used no additional data.
         const additionalData =
             params.legacy || !params.context
-                ? null
-                : sodium.from_string(params.context);
+                ? undefined
+                : new TextEncoder().encode(params.context);
 
-        const plain = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-            null,
-            cipher,
-            additionalData,
-            nonce,
+        const plain = xchacha20poly1305(
             key,
-        );
+            nonce,
+            additionalData,
+        ).decrypt(cipher);
 
-        return sodium.to_string(plain);
+        return new TextDecoder().decode(plain);
     } catch (error) {
         logger.debug("decryptDmPayload failed", {
             error:
@@ -985,24 +1005,31 @@ export async function decryptMessageTextIfNeeded(params: {
             : message.encryptionSenderPublicKey;
 
     // Messages encrypted before conversation binding used null additional data.
+    // Older mobile builds also sorted the public keys big-endian, so try both
+    // orderings; the current encoding is little-endian.
     const context = message.conversationId;
-    let decryptedText = await decryptDmPayload({
-        context,
-        encryptedText: message.encryptedText,
-        encryptionNonce: message.encryptionNonce,
-        localKeyPair: keyPair,
-        peerPublicKeyBase64: peerPublicKey,
-    });
+    let decryptedText: string | null = null;
 
-    if (decryptedText === null) {
-        decryptedText = await decryptDmPayload({
-            context,
-            encryptedText: message.encryptedText,
-            encryptionNonce: message.encryptionNonce,
-            legacy: true,
-            localKeyPair: keyPair,
-            peerPublicKeyBase64: peerPublicKey,
-        });
+    for (const order of ["le", "be"] as const) {
+        for (const legacy of [false, true]) {
+            decryptedText = await decryptDmPayload({
+                context,
+                encryptedText: message.encryptedText,
+                encryptionNonce: message.encryptionNonce,
+                legacy,
+                localKeyPair: keyPair,
+                order,
+                peerPublicKeyBase64: peerPublicKey,
+            });
+
+            if (decryptedText !== null) {
+                break;
+            }
+        }
+
+        if (decryptedText !== null) {
+            break;
+        }
     }
 
     if (decryptedText === null) {

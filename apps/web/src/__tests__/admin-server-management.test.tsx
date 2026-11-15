@@ -94,9 +94,8 @@ describe("ServerManagement", () => {
         render(<ServerManagement isAdmin={true} isModerator={true} />);
 
         const typeSelect = await screen.findByLabelText("Channel Type");
-        const typeOptions = within(typeSelect).getAllByRole<HTMLOptionElement>(
-            "option",
-        );
+        const typeOptions =
+            within(typeSelect).getAllByRole<HTMLOptionElement>("option");
         const optionValues = typeOptions.map((option) => option.value);
 
         expect(optionValues).toContain("text");

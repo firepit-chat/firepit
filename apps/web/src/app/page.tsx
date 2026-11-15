@@ -157,20 +157,13 @@ export default async function Home() {
                             </div>
 
                             <div className="flex flex-col gap-3 sm:flex-row">
-                                <Button
-                                    asChild
-                                    size="lg"
-                                >
+                                <Button asChild size="lg">
                                     <Link href="/login">
                                         Get started
                                         <ArrowRight className="ml-2 h-4 w-4" />
                                     </Link>
                                 </Button>
-                                <Button
-                                    asChild
-                                    size="lg"
-                                    variant="outline"
-                                >
+                                <Button asChild size="lg" variant="outline">
                                     <Link href="/chat">Preview the chat</Link>
                                 </Button>
                             </div>
@@ -280,28 +273,17 @@ export default async function Home() {
                         </div>
 
                         <div className="flex flex-col gap-3 sm:flex-row">
-                            <Button
-                                asChild
-                                size="lg"
-                            >
+                            <Button asChild size="lg">
                                 <Link href="/chat">
                                     Open chat
                                     <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                             </Button>
-                            <Button
-                                asChild
-                                size="lg"
-                                variant="outline"
-                            >
+                            <Button asChild size="lg" variant="outline">
                                 <Link href="/settings">Settings</Link>
                             </Button>
                             {isModerator || isAdmin ? (
-                                <Button
-                                    asChild
-                                    size="lg"
-                                    variant="secondary"
-                                >
+                                <Button asChild size="lg" variant="secondary">
                                     <Link href="/moderation">Moderation</Link>
                                 </Button>
                             ) : null}

@@ -258,8 +258,8 @@ describe("POST /api/channel-permissions", () => {
             deny: [],
         };
 
-        // Mock listDocuments to return no existing overrides
-        mockListDocuments.mockResolvedValue({ documents: [] });
+        // POST no longer reads first; the unique (channelId, roleId, userId)
+        // index is what rejects a duplicate.
         mockCreateDocument.mockResolvedValue(mockOverride);
 
         const request = new NextRequest(
@@ -280,8 +280,56 @@ describe("POST /api/channel-permissions", () => {
 
         expect(response.status).toBe(201);
         expect(data.override).toEqual(mockOverride);
-        expect(mockListDocuments).toHaveBeenCalled();
         expect(mockCreateDocument).toHaveBeenCalled();
+        expect(mockListDocuments).not.toHaveBeenCalled();
+    });
+
+    it("should reject a duplicate override when the unique index conflicts", async () => {
+        // The unique index is the only thing preventing a duplicate row, so
+        // this covers the race the removed read-then-write check used to lose.
+        mockCreateDocument.mockRejectedValue(
+            Object.assign(new Error("Conflict"), { code: 409 }),
+        );
+
+        const request = new NextRequest(
+            "http://localhost:3000/api/channel-permissions",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    channelId: "channel1",
+                    roleId: "role1",
+                    allow: ["readMessages"],
+                    deny: [],
+                }),
+            },
+        );
+
+        const response = await POST(request);
+        const data = await response.json();
+
+        expect(response.status).toBe(400);
+        expect(data.error).toMatch(/already exists/i);
+    });
+
+    it("should surface a non-conflict create failure as a 500", async () => {
+        mockCreateDocument.mockRejectedValue(new Error("Database error"));
+
+        const request = new NextRequest(
+            "http://localhost:3000/api/channel-permissions",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    channelId: "channel1",
+                    roleId: "role1",
+                    allow: ["readMessages"],
+                    deny: [],
+                }),
+            },
+        );
+
+        const response = await POST(request);
+
+        expect(response.status).toBe(500);
     });
 
     it("should create a permission override with userId", async () => {

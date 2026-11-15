@@ -273,7 +273,7 @@ export function ChatInput({
                 setAvailableUsers([]);
             }
         },
-        [onChange],
+        [onChange, onMentionsChange],
     );
 
     const handleMentionSelect = useCallback(

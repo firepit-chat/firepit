@@ -5,7 +5,8 @@ import { getServerSession } from "@/lib/auth-server";
 import { getEnvConfig } from "@/lib/appwrite-core";
 import { getServerClient } from "@/lib/appwrite-server";
 import { getUserRoles } from "@/lib/appwrite-roles";
-import { logger,
+import {
+    logger,
     returnUnauthorized,
     returnForbidden,
 } from "@/lib/posthog-utils";
@@ -54,8 +55,7 @@ export async function GET() {
     }
 
     const serverDocument = response.documents.at(0) as
-        | DefaultSignupServerDocument
-        | undefined;
+        DefaultSignupServerDocument | undefined;
     if (!serverDocument) {
         return NextResponse.json({ server: null });
     }

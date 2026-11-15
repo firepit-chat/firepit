@@ -116,12 +116,16 @@ export function normalizePollDocument(raw: unknown): PollDocShape | null {
         options: value.options,
         status: normalizePollStatus(value.status),
         createdBy: value.createdBy,
-        closedAt: typeof value.closedAt === "string" ? value.closedAt : undefined,
-        closedBy: typeof value.closedBy === "string" ? value.closedBy : undefined,
+        closedAt:
+            typeof value.closedAt === "string" ? value.closedAt : undefined,
+        closedBy:
+            typeof value.closedBy === "string" ? value.closedBy : undefined,
     };
 }
 
-export function normalizePollVoteDocument(raw: unknown): PollVoteDocShape | null {
+export function normalizePollVoteDocument(
+    raw: unknown,
+): PollVoteDocShape | null {
     if (!raw || typeof raw !== "object") {
         return null;
     }
@@ -287,7 +291,9 @@ export function buildMessagePoll(params: {
     }
 
     const options: MessagePollOption[] = optionTemplate.map((option) => {
-        const voterIds = Array.from(voteMap.get(option.id) ?? new Set<string>());
+        const voterIds = Array.from(
+            voteMap.get(option.id) ?? new Set<string>(),
+        );
         return {
             id: option.id,
             text: option.text,

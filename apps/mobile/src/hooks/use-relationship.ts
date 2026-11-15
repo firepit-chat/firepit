@@ -12,13 +12,22 @@ import type { RelationshipStatus } from "@/lib/firepit/types";
 import { useFirepitBootstrap } from "@/providers/firepit-provider";
 
 const RELATIONSHIP_CACHE_TTL = 30_000;
-const relationshipCache = new Map<string, { data: RelationshipStatus | null; cachedAt: number }>();
+const relationshipCache = new Map<
+    string,
+    { data: RelationshipStatus | null; cachedAt: number }
+>();
 
-function relationshipCacheKey(currentUserId: string | null, targetUserId: string) {
+function relationshipCacheKey(
+    currentUserId: string | null,
+    targetUserId: string,
+) {
     return `${currentUserId ?? "anon"}:${targetUserId}`;
 }
 
-function invalidateRelationshipCache(currentUserId: string | null, targetUserId: string) {
+function invalidateRelationshipCache(
+    currentUserId: string | null,
+    targetUserId: string,
+) {
     relationshipCache.delete(relationshipCacheKey(currentUserId, targetUserId));
 }
 
@@ -31,15 +40,20 @@ export function useRelationship(targetUserId: string | null) {
     const isSelf = Boolean(
         currentUserId && targetUserId && currentUserId === targetUserId,
     );
-    const [relationship, setRelationship] = useState<RelationshipStatus | null>(() => {
-        if (cacheKey) {
-            const cached = relationshipCache.get(cacheKey);
-            if (cached && Date.now() - cached.cachedAt < RELATIONSHIP_CACHE_TTL) {
-                return cached.data;
+    const [relationship, setRelationship] = useState<RelationshipStatus | null>(
+        () => {
+            if (cacheKey) {
+                const cached = relationshipCache.get(cacheKey);
+                if (
+                    cached &&
+                    Date.now() - cached.cachedAt < RELATIONSHIP_CACHE_TTL
+                ) {
+                    return cached.data;
+                }
             }
-        }
-        return null;
-    });
+            return null;
+        },
+    );
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -88,7 +102,10 @@ export function useRelationship(targetUserId: string | null) {
     useEffect(() => {
         if (cacheKey) {
             const cached = relationshipCache.get(cacheKey);
-            if (cached && Date.now() - cached.cachedAt < RELATIONSHIP_CACHE_TTL) {
+            if (
+                cached &&
+                Date.now() - cached.cachedAt < RELATIONSHIP_CACHE_TTL
+            ) {
                 return;
             }
         }
@@ -96,9 +113,7 @@ export function useRelationship(targetUserId: string | null) {
     }, [refetch, cacheKey]);
 
     const runMutation = useCallback(
-        async (
-            fn: () => Promise<{ success?: boolean }>,
-        ): Promise<boolean> => {
+        async (fn: () => Promise<{ success?: boolean }>): Promise<boolean> => {
             if (!instanceUrl || !accessToken) return false;
             setActionLoading(true);
             setError(null);
@@ -133,11 +148,7 @@ export function useRelationship(targetUserId: string | null) {
         sendFriendRequest: () =>
             targetUserId && instanceUrl && accessToken
                 ? runMutation(() =>
-                      sendFriendRequest(
-                          instanceUrl,
-                          accessToken,
-                          targetUserId,
-                      ),
+                      sendFriendRequest(instanceUrl, accessToken, targetUserId),
                   )
                 : unavailable(),
         acceptFriendRequest: () =>
@@ -163,32 +174,19 @@ export function useRelationship(targetUserId: string | null) {
         removeFriendship: () =>
             targetUserId && instanceUrl && accessToken
                 ? runMutation(() =>
-                      removeFriendship(
-                          instanceUrl,
-                          accessToken,
-                          targetUserId,
-                      ),
+                      removeFriendship(instanceUrl, accessToken, targetUserId),
                   )
                 : unavailable(),
         blockUser: (reason?: string) =>
             targetUserId && instanceUrl && accessToken
                 ? runMutation(() =>
-                      blockUser(
-                          instanceUrl,
-                          accessToken,
-                          targetUserId,
-                          reason,
-                      ),
+                      blockUser(instanceUrl, accessToken, targetUserId, reason),
                   )
                 : unavailable(),
         unblockUser: () =>
             targetUserId && instanceUrl && accessToken
                 ? runMutation(() =>
-                      unblockUser(
-                          instanceUrl,
-                          accessToken,
-                          targetUserId,
-                      ),
+                      unblockUser(instanceUrl, accessToken, targetUserId),
                   )
                 : unavailable(),
     };

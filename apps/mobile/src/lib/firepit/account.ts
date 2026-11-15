@@ -108,10 +108,7 @@ export async function revokeOtherSessions(baseUrl: string, token: string) {
     });
 }
 
-export async function fetchSignupControls(
-    baseUrl: string,
-    token: string,
-) {
+export async function fetchSignupControls(baseUrl: string, token: string) {
     return firepitRequest<SignupControlsResponse>({
         baseUrl,
         path: "/api/admin/signups",
@@ -166,7 +163,9 @@ export async function fetchModerationMessages(
         token,
         query: {
             channelId: options.channelId,
-            onlyRemoved: options.onlyRemoved,
+            // The server tests `=== "1"`, so a serialized `true` never matches
+            // and the "only removed" filter silently showed every message.
+            onlyRemoved: options.onlyRemoved ? "1" : undefined,
             text: options.text,
             limit: options.limit,
             cursorAfter: options.cursorAfter,
@@ -178,10 +177,7 @@ export async function fetchModerationMessages(
     };
 }
 
-export type MessageModerationAction =
-    | "soft-delete"
-    | "restore"
-    | "hard-delete";
+export type MessageModerationAction = "soft-delete" | "restore" | "hard-delete";
 
 export async function applyMessageAction(
     baseUrl: string,

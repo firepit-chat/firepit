@@ -30,10 +30,11 @@ import {
 } from "./actions";
 import { AvatarUpload } from "./AvatarUpload";
 import { ProfileAppearanceSettings } from "@/components/profile-appearance-settings";
+import { ThemeSettings } from "@/components/theme-settings";
 import { BlockedUsersSettings } from "@/components/blocked-users-settings";
 import { DeveloperModeSettings } from "@/components/developer-mode-settings";
 import { FriendsSettings } from "@/components/friends-settings";
-import { NotificationSettings } from "@/components/notification-settings";
+import { NotificationSettingsLazy } from "./notification-settings-lazy";
 import { NsfwContentSettings } from "@/components/nsfw-content-settings";
 import { PendingFriendRequestsBadge } from "@/components/pending-friend-requests-badge";
 import { SettingsSectionNav } from "@/components/settings-section-nav";
@@ -95,9 +96,15 @@ export default async function SettingsPage() {
             title: "Privacy",
         },
         {
-            description: "Optional navigation, interface, and content controls.",
+            description:
+                "Optional navigation, interface, and content controls.",
             href: "#interface",
             title: "Interface",
+        },
+        {
+            description: "Colour palette and accent colour.",
+            href: "#theme",
+            title: "Theme",
         },
         {
             description: "Cache and notification recovery tools.",
@@ -132,14 +139,18 @@ export default async function SettingsPage() {
 
                         <div className="flex flex-wrap gap-3">
                             <Button asChild className="rounded-lg">
-                                <Link href="#connections">View connections</Link>
+                                <Link href="#connections">
+                                    View connections
+                                </Link>
                             </Button>
                             <Button
                                 asChild
                                 className="rounded-lg border-border/70"
                                 variant="outline"
                             >
-                                <Link href="#privacy-blocking">Privacy controls</Link>
+                                <Link href="#privacy-blocking">
+                                    Privacy controls
+                                </Link>
                             </Button>
                         </div>
 
@@ -204,7 +215,7 @@ export default async function SettingsPage() {
                     </div>
                 </section>
 
-                        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
+                <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_18rem] xl:items-start">
                     <div className="grid gap-8">
                         <div className="sticky top-24 z-20 xl:hidden">
                             <SettingsSectionNav
@@ -450,18 +461,15 @@ export default async function SettingsPage() {
                             </Card>
                         </section>
 
-                        <section
-                            className="scroll-mt-24"
-                            id="account-security"
-                        >
+                        <section className="scroll-mt-24" id="account-security">
                             <Card className="rounded-xl border border-border/80">
                                 <CardHeader className="space-y-1">
                                     <CardTitle>
                                         Email &amp; sign-in security
                                     </CardTitle>
                                     <CardDescription>
-                                        Change your email address or review
-                                        the devices signed in to your account.
+                                        Change your email address or review the
+                                        devices signed in to your account.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="grid gap-8 lg:grid-cols-2">
@@ -494,7 +502,7 @@ export default async function SettingsPage() {
                                     notifications from firepit.
                                 </p>
                             </div>
-                            <NotificationSettings />
+                            <NotificationSettingsLazy />
                         </section>
 
                         <section
@@ -554,6 +562,21 @@ export default async function SettingsPage() {
                             <NsfwContentSettings />
                         </section>
 
+                        <section className="scroll-mt-24" id="theme">
+                            <Card className="rounded-xl border border-border/80">
+                                <CardHeader className="space-y-1">
+                                    <CardTitle>Theme</CardTitle>
+                                    <CardDescription>
+                                        Pick a colour palette and the accent
+                                        used for highlights, links, and buttons.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <ThemeSettings />
+                                </CardContent>
+                            </Card>
+                        </section>
+
                         <section
                             className="scroll-mt-24 space-y-6"
                             id="troubleshooting"
@@ -571,10 +594,7 @@ export default async function SettingsPage() {
                             <FlushCaches />
                         </section>
 
-                        <section
-                            className="scroll-mt-24"
-                            id="danger-zone"
-                        >
+                        <section className="scroll-mt-24" id="danger-zone">
                             <Card className="rounded-xl border border-border/80">
                                 <CardHeader className="space-y-1">
                                     <CardTitle>Danger zone</CardTitle>

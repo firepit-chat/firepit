@@ -10,7 +10,11 @@ import { useDeveloperMode } from "../../hooks/useDeveloperMode";
 
 function createWrapper(queryClient: QueryClient) {
     return function Wrapper({ children }: { children: ReactNode }) {
-        return createElement(QueryClientProvider, { client: queryClient }, children);
+        return createElement(
+            QueryClientProvider,
+            { client: queryClient },
+            children,
+        );
     };
 }
 
@@ -64,10 +68,9 @@ describe("useDeveloperMode", () => {
         });
 
         expect(result.current.developerMode).toBe(false);
-        expect(result.current.navigationPreferences.navigationItemOrder).toEqual([
-            "friends",
-            "docs",
-        ]);
+        expect(
+            result.current.navigationPreferences.navigationItemOrder,
+        ).toEqual(["friends", "docs"]);
         expect(global.fetch).toHaveBeenCalledWith("/api/me/preferences", {
             credentials: "include",
         });

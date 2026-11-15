@@ -26,8 +26,7 @@ function createMockResponse(body: unknown, status = 200): Response {
 
 function getFetchBodyPayload<T = unknown>(callIndex = 0): T {
     const options = getMockFetch().mock.calls[callIndex]?.[1] as
-        | { body?: string }
-        | undefined;
+        { body?: string } | undefined;
     const payloadText = typeof options?.body === "string" ? options.body : "{}";
     return JSON.parse(payloadText) as T;
 }

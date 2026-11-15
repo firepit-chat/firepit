@@ -33,7 +33,9 @@ function chunkValues<T>(values: T[], size: number): T[][] {
     return chunks;
 }
 
-function isMembershipDocument(document: unknown): document is MembershipDocument {
+function isMembershipDocument(
+    document: unknown,
+): document is MembershipDocument {
     if (!document || typeof document !== "object") {
         return false;
     }
@@ -82,7 +84,10 @@ export async function GET(request: NextRequest) {
                 databases,
                 databaseId: env.databaseId,
                 collectionId: env.collections.memberships,
-                baseQueries: [Query.equal("userId", session.$id), ...membershipFields],
+                baseQueries: [
+                    Query.equal("userId", session.$id),
+                    ...membershipFields,
+                ],
                 pageSize,
                 maxPages: 50,
                 warningContext: "loadServerIds",
@@ -126,10 +131,7 @@ export async function GET(request: NextRequest) {
                 databases.listDocuments(
                     env.databaseId,
                     env.collections.servers,
-                    [
-                        Query.equal("$id", ids),
-                        Query.orderAsc("$createdAt"),
-                    ],
+                    [Query.equal("$id", ids), Query.orderAsc("$createdAt")],
                 ),
             ),
         );

@@ -203,7 +203,7 @@ export function ServerAdminPanel({
     const canEditServerSettings = isOwner || canManageServer;
     const iconInputId = useId();
     const bannerInputId = useId();
-        const publicDiscoveryId = `${useId()}-public-discovery`;
+    const publicDiscoveryId = `${useId()}-public-discovery`;
 
     useEffect(() => {
         if (!open) {
@@ -231,7 +231,9 @@ export function ServerAdminPanel({
     const handleServerImageUpload = useCallback(
         async (kind: "icon" | "banner", file: File) => {
             if (file.size > MAX_SERVER_IMAGE_UPLOAD_BYTES) {
-                const maxUploadSize = formatBytes(MAX_SERVER_IMAGE_UPLOAD_BYTES);
+                const maxUploadSize = formatBytes(
+                    MAX_SERVER_IMAGE_UPLOAD_BYTES,
+                );
                 toast.error(`Image must be ${maxUploadSize} or smaller`);
                 return;
             }
@@ -520,13 +522,7 @@ export function ServerAdminPanel({
             void loadRoles();
             void loadAuditLogs();
         }
-    }, [
-        open,
-        loadServerStats,
-        loadMembers,
-        loadRoles,
-        loadAuditLogs,
-    ]);
+    }, [open, loadServerStats, loadMembers, loadRoles, loadAuditLogs]);
 
     const handleModerationAction = async () => {
         setAttemptedModerationSubmit(true);
@@ -659,1090 +655,1137 @@ export function ServerAdminPanel({
         <>
             <Dialog open={open} onOpenChange={onOpenChange}>
                 <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                        <Shield className="h-5 w-5 text-primary" />
-                        Server Admin Panel - {serverName}
-                    </DialogTitle>
-                    <DialogDescription>
-                        Manage server members, view moderation logs, and monitor
-                        server activity
-                    </DialogDescription>
-                </DialogHeader>
-
-                <Tabs
-                    value={activeTab}
-                    onValueChange={setActiveTab}
-                    className="flex-1 flex flex-col overflow-hidden"
-                >
-                    <TabsList
-                        className={`grid w-full ${
-                            canEditServerSettings
-                                ? "grid-cols-7"
-                                : "grid-cols-6"
-                        }`}
-                    >
-                        <TabsTrigger value="overview">
-                            <LayoutDashboard className="h-4 w-4 mr-2" />
-                            Overview
-                        </TabsTrigger>
-                        {canEditServerSettings && (
-                            <TabsTrigger value="settings">
-                                <Settings className="h-4 w-4 mr-2" />
-                                Settings
-                            </TabsTrigger>
-                        )}
-                        <TabsTrigger value="members">
-                            <Users className="h-4 w-4 mr-2" />
-                            Members
-                        </TabsTrigger>
-                        <TabsTrigger value="invites">
-                            <Link className="h-4 w-4 mr-2" />
-                            Invites
-                        </TabsTrigger>
-                        {canEditServerSettings && (
-                            <TabsTrigger value="roles">
-                                <Shield className="h-4 w-4 mr-2" />
-                                Roles
-                            </TabsTrigger>
-                        )}
-                        <TabsTrigger value="moderation">
-                            <Shield className="h-4 w-4 mr-2" />
-                            Moderation
-                        </TabsTrigger>
-                        <TabsTrigger value="audit">
-                            <AlertTriangle className="h-4 w-4 mr-2" />
-                            Audit Log
-                        </TabsTrigger>
-                    </TabsList>
-
-                    <div className="flex-1 overflow-y-auto mt-4">
-                        <TabsContent value="overview" className="space-y-4 m-0">
-                            <div className="grid grid-cols-3 gap-4">
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <Users className="h-8 w-8 text-blue-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Total Members
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.totalMembers}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <Hash className="h-8 w-8 text-green-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Channels
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.totalChannels}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <MessageSquare className="h-8 w-8 text-purple-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Total Messages
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.totalMessages}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <MessageSquare className="h-8 w-8 text-orange-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Recent (24h)
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.recentMessages}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <Ban className="h-8 w-8 text-red-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Banned Users
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.bannedUsers}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-
-                                <Card className="p-4">
-                                    <div className="flex items-center gap-3">
-                                        <UserX className="h-8 w-8 text-yellow-500" />
-                                        <div>
-                                            <p className="text-sm text-muted-foreground">
-                                                Muted Users
-                                            </p>
-                                            <p className="text-2xl font-bold">
-                                                {stats.mutedUsers}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </Card>
-                            </div>
-
-                            <Card className="p-4">
-                                <h3 className="font-semibold mb-3">
-                                    Server Information
-                                </h3>
-                                <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Server ID:
-                                        </span>
-                                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                                            {serverId}
-                                        </code>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Your Role:
-                                        </span>
-                                        <Badge
-                                            variant={
-                                                isOwner
-                                                    ? "default"
-                                                    : "secondary"
-                                            }
-                                        >
-                                            {isOwner
-                                                ? "Owner"
-                                                : canManageServer
-                                                  ? "Server Manager"
-                                                  : "Administrator"}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            </Card>
-
-                        </TabsContent>
-
-                        {canEditServerSettings && (
-                            <TabsContent
-                                value="settings"
-                                className="space-y-4 m-0"
-                            >
-                                <Card className="p-4 space-y-4">
-                                    <div>
-                                        <h3 className="font-semibold">
-                                            Server Customization
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Update how your server appears and
-                                            who can discover it.
-                                        </p>
-                                    </div>
-
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="server-settings-name">
-                                            Server name
-                                        </Label>
-                                        <Input
-                                            id="server-settings-name"
-                                            value={settingsName}
-                                            onChange={(event) =>
-                                                setSettingsName(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            maxLength={100}
-                                        />
-                                    </div>
-
-                                    <div className="grid gap-2">
-                                        <Label htmlFor="server-settings-description">
-                                            Description
-                                        </Label>
-                                        <Textarea
-                                            id="server-settings-description"
-                                            value={settingsDescription}
-                                            onChange={(event) =>
-                                                setSettingsDescription(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            rows={4}
-                                            maxLength={500}
-                                            placeholder="Tell members what this server is about"
-                                        />
-                                    </div>
-
-                                    <div className="flex items-center justify-between rounded-lg border p-3">
-                                        <div>
-                                            <Label
-                                                className="text-sm font-medium"
-                                                   htmlFor={publicDiscoveryId}
-                                            >
-                                                Public discovery
-                                            </Label>
-                                            <p className="text-xs text-muted-foreground">
-                                                Private servers are hidden from
-                                                discovery and direct join.
-                                            </p>
-                                        </div>
-                                        <Switch
-                                               id={publicDiscoveryId}
-                                            checked={settingsIsPublic}
-                                            onCheckedChange={setSettingsIsPublic}
-                                        />
-                                    </div>
-
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <div className="space-y-2">
-                                            <Label htmlFor={iconInputId}>
-                                                Server icon
-                                            </Label>
-                                            <div className="rounded-lg border p-3 space-y-3">
-                                                <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden">
-                                                    {settingsIconUrl ? (
-                                                        <div
-                                                            className="h-full w-full bg-cover bg-center"
-                                                            style={{
-                                                                backgroundImage: `url(${settingsIconUrl})`,
-                                                            }}
-                                                        />
-                                                    ) : null}
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            iconInputRef.current?.click()
-                                                        }
-                                                        disabled={uploadingIcon}
-                                                    >
-                                                        {uploadingIcon ? (
-                                                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                        ) : (
-                                                            <ImagePlus className="h-4 w-4 mr-1" />
-                                                        )}
-                                                        Upload icon
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setSettingsIconFileId(
-                                                                "",
-                                                            );
-                                                            setSettingsIconUrl(
-                                                                null,
-                                                            );
-                                                        }}
-                                                        disabled={
-                                                            !settingsIconFileId
-                                                        }
-                                                    >
-                                                        Remove
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor={bannerInputId}>
-                                                Server banner
-                                            </Label>
-                                            <div className="rounded-lg border p-3 space-y-3">
-                                                <div className="h-16 w-full rounded-lg bg-muted overflow-hidden">
-                                                    {settingsBannerUrl ? (
-                                                        <div
-                                                            className="h-full w-full bg-cover bg-center"
-                                                            style={{
-                                                                backgroundImage: `url(${settingsBannerUrl})`,
-                                                            }}
-                                                        />
-                                                    ) : null}
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            bannerInputRef.current?.click()
-                                                        }
-                                                        disabled={uploadingBanner}
-                                                    >
-                                                        {uploadingBanner ? (
-                                                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                        ) : (
-                                                            <ImagePlus className="h-4 w-4 mr-1" />
-                                                        )}
-                                                        Upload banner
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setSettingsBannerFileId(
-                                                                "",
-                                                            );
-                                                            setSettingsBannerUrl(
-                                                                null,
-                                                            );
-                                                        }}
-                                                        disabled={
-                                                            !settingsBannerFileId
-                                                        }
-                                                    >
-                                                        Remove
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-end">
-                                        <Button
-                                            type="button"
-                                            onClick={() => {
-                                                void saveServerSettings();
-                                            }}
-                                            disabled={savingSettings}
-                                        >
-                                            {savingSettings ? (
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            ) : (
-                                                <Save className="h-4 w-4 mr-2" />
-                                            )}
-                                            Save changes
-                                        </Button>
-                                    </div>
-                                </Card>
-                            </TabsContent>
-                        )}
-
-                        <TabsContent value="members" className="space-y-4 m-0">
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <Input
-                                    placeholder="Search members..."
-                                    value={searchQuery}
-                                    onChange={(e) =>
-                                        setSearchQuery(e.target.value)
-                                    }
-                                    className="flex-1 min-w-52"
-                                />
-                                <div className="flex items-center gap-2">
-                                    <Select
-                                        value={memberFilter}
-                                        onValueChange={(v) =>
-                                            setMemberFilter(
-                                                v as "all" | "banned" | "muted",
-                                            )
-                                        }
-                                    >
-                                        <SelectTrigger className="w-40">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">
-                                                All Members
-                                            </SelectItem>
-                                            <SelectItem value="banned">
-                                                Banned ({stats.bannedUsers})
-                                            </SelectItem>
-                                            <SelectItem value="muted">
-                                                Muted ({stats.mutedUsers})
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <Badge variant="secondary">
-                                        {filteredMembers.length}{" "}
-                                        {filteredMembers.length === 1
-                                            ? "member"
-                                            : "members"}
-                                    </Badge>
-                                </div>
-                            </div>
-
-                            {rolesLoading && (
-                                <div
-                                    className="text-sm text-muted-foreground"
-                                    role="status"
-                                    aria-live="polite"
-                                    aria-busy="true"
-                                >
-                                    Loading roles...
-                                </div>
-                            )}
-
-                            {rolesError && (
-                                <div
-                                    className="text-sm text-destructive"
-                                    role="alert"
-                                    aria-live="assertive"
-                                >
-                                    {rolesError}
-                                </div>
-                            )}
-
-                            <div className="space-y-2">
-                                {loading ? (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        Loading members...
-                                    </div>
-                                ) : filteredMembers.length === 0 ? (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        No members found
-                                    </div>
-                                ) : (
-                                    filteredMembers.map((member) => {
-                                        const memberRoles =
-                                            getMemberRoles(member);
-                                        const highestRole =
-                                            getMemberHighestRole(memberRoles);
-                                        const additionalRoleCount =
-                                            memberRoles.length > 0
-                                                ? memberRoles.length - 1
-                                                : 0;
-
-                                        return (
-                                            <div
-                                                key={member.userId}
-                                                className="border-t border-border/60 py-3 first:border-t-0"
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar
-                                                            src={
-                                                                member.avatarUrl
-                                                            }
-                                                            alt={
-                                                                member.displayName ||
-                                                                member.userName ||
-                                                                "User"
-                                                            }
-                                                            fallback={
-                                                                member.displayName ||
-                                                                member.userName ||
-                                                                "?"
-                                                            }
-                                                            size="md"
-                                                        />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="font-medium truncate">
-                                                                {member.displayName ||
-                                                                    member.userName ||
-                                                                    member.userId}
-                                                            </p>
-                                                            {highestRole ? (
-                                                                <div className="flex items-center gap-1.5 mt-0.5">
-                                                                    <div
-                                                                        className="h-2 w-2 rounded-full"
-                                                                        style={{
-                                                                            backgroundColor:
-                                                                                highestRole.color,
-                                                                        }}
-                                                                    />
-                                                                    <span className="text-xs truncate">
-                                                                        {
-                                                                            highestRole.name
-                                                                        }
-                                                                    </span>
-                                                                    {additionalRoleCount >
-                                                                        0 && (
-                                                                        <span className="text-xs text-muted-foreground">
-                                                                            +
-                                                                            {
-                                                                                additionalRoleCount
-                                                                            }
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <p className="text-xs text-muted-foreground mt-0.5">
-                                                                    No roles
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                        {member.isBanned && (
-                                                            <Badge
-                                                                variant="destructive"
-                                                                className="ml-2"
-                                                            >
-                                                                Banned
-                                                            </Badge>
-                                                        )}
-                                                        {member.isMuted && (
-                                                            <Badge
-                                                                variant="outline"
-                                                                className="ml-2"
-                                                            >
-                                                                Muted
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    {isOwner && (
-                                                        <div className="flex gap-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    openModerationDialog(
-                                                                        member,
-                                                                        "mute",
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    member.isMuted
-                                                                }
-                                                            >
-                                                                <UserX className="h-4 w-4 mr-1" />
-                                                                Mute
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    openModerationDialog(
-                                                                        member,
-                                                                        "kick",
-                                                                    )
-                                                                }
-                                                            >
-                                                                <UserX className="h-4 w-4 mr-1" />
-                                                                Kick
-                                                            </Button>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    openModerationDialog(
-                                                                        member,
-                                                                        "ban",
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    member.isBanned
-                                                                }
-                                                            >
-                                                                <Ban className="h-4 w-4 mr-1" />
-                                                                Ban
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="invites" className="space-y-4 m-0">
-                            <Card className="p-4">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div>
-                                        <h3 className="font-semibold flex items-center gap-2">
-                                            <Link className="h-5 w-5" />
-                                            Server Invites
-                                        </h3>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Create and manage invite links for
-                                            this server
-                                        </p>
-                                    </div>
-                                    <Button
-                                        onClick={() =>
-                                            setCreateInviteOpen(true)
-                                        }
-                                    >
-                                        Create Invite
-                                    </Button>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <div className="p-4 bg-muted rounded-lg">
-                                        <p className="text-sm text-muted-foreground mb-3">
-                                            Invites allow you to share links
-                                            that let others join your server.
-                                            You can customize expiration times,
-                                            usage limits, and more.
-                                        </p>
-                                        <Button
-                                            variant="outline"
-                                            onClick={() =>
-                                                setInviteManagerOpen(true)
-                                            }
-                                            className="w-full"
-                                        >
-                                            <Link className="h-4 w-4 mr-2" />
-                                            Manage All Invites
-                                        </Button>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="p-3 bg-muted rounded-lg">
-                                            <p className="text-xs text-muted-foreground mb-1">
-                                                Quick Actions
-                                            </p>
-                                            <div className="space-y-2 mt-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        setCreateInviteOpen(
-                                                            true,
-                                                        )
-                                                    }
-                                                    className="w-full"
-                                                >
-                                                    Create Instant Invite
-                                                </Button>
-                                            </div>
-                                        </div>
-
-                                        <div className="p-3 bg-muted rounded-lg">
-                                            <p className="text-xs text-muted-foreground mb-1">
-                                                Features
-                                            </p>
-                                            <ul className="text-xs space-y-1 mt-2">
-                                                <li>
-                                                    • Customizable expiration
-                                                </li>
-                                                <li>• Usage limits</li>
-                                                <li>• Temporary membership</li>
-                                                <li>• Usage tracking</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="roles" className="space-y-4 m-0">
-                            <Tabs
-                                className="min-w-0 space-y-4 overflow-x-hidden"
-                                defaultValue="roles"
-                            >
-                                <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted/50 p-0.5">
-                                    <TabsTrigger className="rounded-md" value="roles">
-                                        Roles
-                                    </TabsTrigger>
-                                    <TabsTrigger className="rounded-md" value="categories">
-                                        Categories
-                                    </TabsTrigger>
-                                </TabsList>
-                                <TabsContent
-                                    className="min-w-0 space-y-4 overflow-x-hidden"
-                                    value="roles"
-                                >
-                                    {rolesLoading ? (
-                                        <p className="py-8 text-center text-sm text-muted-foreground">
-                                            Loading roles...
-                                        </p>
-                                    ) : (
-                                        <RoleList
-                                            roles={roles}
-                                            isOwner={isOwner}
-                                            onCreateRole={handleCreateRole}
-                                            onEditRole={handleEditRole}
-                                            onDeleteRole={handleDeleteRole}
-                                            onManageMembers={handleManageMembers}
-                                        />
-                                    )}
-                                </TabsContent>
-                                <TabsContent
-                                    className="min-w-0 space-y-4 overflow-x-hidden"
-                                    value="categories"
-                                >
-                                    <CategorySettingsPanel
-                                        canManage={isOwner}
-                                        serverId={serverId}
-                                    />
-                                </TabsContent>
-                            </Tabs>
-                        </TabsContent>
-
-                        <TabsContent
-                            value="moderation"
-                            className="space-y-4 m-0"
-                        >
-                            <Card className="p-4">
-                                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                                    <Shield className="h-5 w-5" />
-                                    Message Moderation
-                                </h3>
-                                <p className="text-sm text-muted-foreground mb-4">
-                                    Review and moderate this server&apos;s
-                                    messages in the moderation workspace.
-                                </p>
-                                <Button asChild>
-                                    <NextLink
-                                        href={`/moderation?serverId=${encodeURIComponent(serverId)}`}
-                                    >
-                                        <Shield className="h-4 w-4 mr-2" />
-                                        Open Moderation Workspace
-                                    </NextLink>
-                                </Button>
-                            </Card>
-                        </TabsContent>
-
-                        <TabsContent value="audit" className="space-y-4 m-0">
-                            <Card className="p-4">
-                                <div className="flex items-center justify-between gap-4 mb-4">
-                                    <div className="flex items-center gap-2 flex-1">
-                                        <Filter className="h-4 w-4 text-muted-foreground" />
-                                        <Select
-                                            value={auditFilter}
-                                            onValueChange={setAuditFilter}
-                                        >
-                                            <SelectTrigger className="w-45">
-                                                <SelectValue placeholder="Filter by action" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="all">
-                                                    All Actions
-                                                </SelectItem>
-                                                <SelectItem value="ban">
-                                                    Ban
-                                                </SelectItem>
-                                                <SelectItem value="unban">
-                                                    Unban
-                                                </SelectItem>
-                                                <SelectItem value="mute">
-                                                    Mute
-                                                </SelectItem>
-                                                <SelectItem value="unmute">
-                                                    Unmute
-                                                </SelectItem>
-                                                <SelectItem value="kick">
-                                                    Kick
-                                                </SelectItem>
-                                                <SelectItem value="soft_delete">
-                                                    Soft Delete
-                                                </SelectItem>
-                                                <SelectItem value="restore">
-                                                    Restore
-                                                </SelectItem>
-                                                <SelectItem value="hard_delete">
-                                                    Hard Delete
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <Badge variant="outline">
-                                            {filteredAuditLogs.length} logs
-                                        </Badge>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                void exportAuditLogs("csv")
-                                            }
-                                            disabled={auditLogs.length === 0}
-                                        >
-                                            <Download className="h-4 w-4 mr-1" />
-                                            Export CSV
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() =>
-                                                void exportAuditLogs("json")
-                                            }
-                                            disabled={auditLogs.length === 0}
-                                        >
-                                            <Download className="h-4 w-4 mr-1" />
-                                            Export JSON
-                                        </Button>
-                                    </div>
-                                </div>
-                            </Card>
-
-                            <div className="space-y-2">
-                                {filteredAuditLogs.length === 0 ? (
-                                    <div className="text-center py-8 text-muted-foreground">
-                                        {auditLogs.length === 0
-                                            ? "No audit logs yet"
-                                            : "No logs match the selected filter"}
-                                    </div>
-                                ) : (
-                                    filteredAuditLogs.map((log) => {
-                                        const moderatorDisplay =
-                                            getAuditModeratorLabel(log);
-                                        const targetDisplay =
-                                            getAuditTargetLabel(log);
-
-                                        return (
-                                            <div
-                                                key={log.$id}
-                                                className="border-t border-border/60 py-3 first:border-t-0"
-                                            >
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <Badge
-                                                                variant={
-                                                                    log.action ===
-                                                                        "ban" ||
-                                                                    log.action ===
-                                                                        "hard_delete"
-                                                                        ? "destructive"
-                                                                        : log.action ===
-                                                                            "mute"
-                                                                          ? "outline"
-                                                                          : log.action ===
-                                                                                  "kick" ||
-                                                                              log.action ===
-                                                                                  "soft_delete"
-                                                                            ? "secondary"
-                                                                            : "default"
-                                                                }
-                                                            >
-                                                                {log.action}
-                                                            </Badge>
-                                                            <span className="text-sm font-medium">
-                                                                {
-                                                                    moderatorDisplay
-                                                                }
-                                                            </span>
-                                                            {targetDisplay && (
-                                                                <>
-                                                                    <span className="text-sm text-muted-foreground">
-                                                                        →
-                                                                    </span>
-                                                                    <span className="text-sm">
-                                                                        {
-                                                                            targetDisplay
-                                                                        }
-                                                                    </span>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                        {log.reason && (
-                                                            <p className="text-sm text-muted-foreground mt-1">
-                                                                Reason:{" "}
-                                                                {log.reason}
-                                                            </p>
-                                                        )}
-                                                        {log.details && (
-                                                            <p className="text-xs text-muted-foreground mt-1">
-                                                                {log.details}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
-                                                        {new Date(
-                                                            log.timestamp,
-                                                        ).toLocaleString()}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </TabsContent>
-                    </div>
-                </Tabs>
-
-                <input
-                    ref={iconInputRef}
-                    type="file"
-                    id={iconInputId}
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    className="hidden"
-                    onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) {
-                            return;
-                        }
-
-                        void handleServerImageUpload("icon", file);
-                        event.target.value = "";
-                    }}
-                />
-
-                <input
-                    ref={bannerInputRef}
-                    type="file"
-                    id={bannerInputId}
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    className="hidden"
-                    onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        if (!file) {
-                            return;
-                        }
-
-                        void handleServerImageUpload("banner", file);
-                        event.target.value = "";
-                    }}
-                />
-
-                <DialogFooter>
-                    <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                        type="button"
-                    >
-                        Close
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-
-            {/* Moderation Action Dialog */}
-            <Dialog
-                open={moderationDialogOpen}
-                onOpenChange={(open) => {
-                    setModerationDialogOpen(open);
-                    if (!open) {
-                        setModerationReason("");
-                        setModerationReasonTouched(false);
-                        setAttemptedModerationSubmit(false);
-                    }
-                }}
-            >
-                <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>
-                            {moderationAction === "ban" && "Ban User"}
-                            {moderationAction === "mute" && "Mute User"}
-                            {moderationAction === "kick" && "Kick User"}
+                        <DialogTitle className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-primary" />
+                            Server Admin Panel - {serverName}
                         </DialogTitle>
                         <DialogDescription>
-                            {moderationAction === "ban" &&
-                                "This will permanently ban the user from the server."}
-                            {moderationAction === "mute" &&
-                                "This will prevent the user from sending messages."}
-                            {moderationAction === "kick" &&
-                                "This will remove the user from the server."}
+                            Manage server members, view moderation logs, and
+                            monitor server activity
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
-                        <div>
-                            <Label>User</Label>
-                            <div className="flex items-center gap-2 mt-2 p-2 bg-muted rounded">
-                                <Avatar
-                                    src={selectedMember?.avatarUrl}
-                                    alt={
-                                        selectedMember?.displayName ||
-                                        selectedMember?.userName ||
-                                        "User"
-                                    }
-                                    fallback={
-                                        selectedMember?.displayName ||
-                                        selectedMember?.userName ||
-                                        "?"
-                                    }
-                                    size="sm"
-                                />
-                                <span className="font-medium">
-                                    {selectedMember?.displayName ||
-                                        selectedMember?.userName ||
-                                        selectedMember?.userId}
-                                </span>
-                            </div>
-                        </div>
+                    <Tabs
+                        value={activeTab}
+                        onValueChange={setActiveTab}
+                        className="flex-1 flex flex-col overflow-hidden"
+                    >
+                        <TabsList
+                            className={`grid w-full ${
+                                canEditServerSettings
+                                    ? "grid-cols-7"
+                                    : "grid-cols-6"
+                            }`}
+                        >
+                            <TabsTrigger value="overview">
+                                <LayoutDashboard className="h-4 w-4 mr-2" />
+                                Overview
+                            </TabsTrigger>
+                            {canEditServerSettings && (
+                                <TabsTrigger value="settings">
+                                    <Settings className="h-4 w-4 mr-2" />
+                                    Settings
+                                </TabsTrigger>
+                            )}
+                            <TabsTrigger value="members">
+                                <Users className="h-4 w-4 mr-2" />
+                                Members
+                            </TabsTrigger>
+                            <TabsTrigger value="invites">
+                                <Link className="h-4 w-4 mr-2" />
+                                Invites
+                            </TabsTrigger>
+                            {canEditServerSettings && (
+                                <TabsTrigger value="roles">
+                                    <Shield className="h-4 w-4 mr-2" />
+                                    Roles
+                                </TabsTrigger>
+                            )}
+                            <TabsTrigger value="moderation">
+                                <Shield className="h-4 w-4 mr-2" />
+                                Moderation
+                            </TabsTrigger>
+                            <TabsTrigger value="audit">
+                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                Audit Log
+                            </TabsTrigger>
+                        </TabsList>
 
-                        <div>
-                            <Label htmlFor="reason">
-                                Reason{" "}
-                                {moderationAction === "ban"
-                                    ? "*"
-                                    : "(optional)"}
-                            </Label>
-                            <Input
-                                id="reason"
-                                placeholder={
-                                    moderationAction === "ban"
-                                        ? "Enter reason for this ban..."
-                                        : "Enter reason for this action..."
-                                }
-                                value={moderationReason}
-                                onChange={(e) => {
-                                    setModerationReason(e.target.value);
-                                }}
-                                onBlur={() => setModerationReasonTouched(true)}
-                                className="mt-2"
-                            />
-                            {moderationAction === "ban" &&
-                                !moderationReason.trim() &&
-                                (moderationReasonTouched ||
-                                    attemptedModerationSubmit) && (
-                                    <p className="text-xs text-destructive mt-1">
-                                        A reason is required when banning a user
-                                    </p>
+                        <div className="flex-1 overflow-y-auto mt-4">
+                            <TabsContent
+                                value="overview"
+                                className="space-y-4 m-0"
+                            >
+                                <div className="grid grid-cols-3 gap-4">
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <Users className="h-8 w-8 text-blue-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Total Members
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.totalMembers}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <Hash className="h-8 w-8 text-green-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Channels
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.totalChannels}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <MessageSquare className="h-8 w-8 text-purple-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Total Messages
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.totalMessages}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <MessageSquare className="h-8 w-8 text-orange-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Recent (24h)
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.recentMessages}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <Ban className="h-8 w-8 text-red-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Banned Users
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.bannedUsers}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+
+                                    <Card className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <UserX className="h-8 w-8 text-yellow-500" />
+                                            <div>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Muted Users
+                                                </p>
+                                                <p className="text-2xl font-bold">
+                                                    {stats.mutedUsers}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </Card>
+                                </div>
+
+                                <Card className="p-4">
+                                    <h3 className="font-semibold mb-3">
+                                        Server Information
+                                    </h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                                Server ID:
+                                            </span>
+                                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                                                {serverId}
+                                            </code>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">
+                                                Your Role:
+                                            </span>
+                                            <Badge
+                                                variant={
+                                                    isOwner
+                                                        ? "default"
+                                                        : "secondary"
+                                                }
+                                            >
+                                                {isOwner
+                                                    ? "Owner"
+                                                    : canManageServer
+                                                      ? "Server Manager"
+                                                      : "Administrator"}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </TabsContent>
+
+                            {canEditServerSettings && (
+                                <TabsContent
+                                    value="settings"
+                                    className="space-y-4 m-0"
+                                >
+                                    <Card className="p-4 space-y-4">
+                                        <div>
+                                            <h3 className="font-semibold">
+                                                Server Customization
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Update how your server appears
+                                                and who can discover it.
+                                            </p>
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="server-settings-name">
+                                                Server name
+                                            </Label>
+                                            <Input
+                                                id="server-settings-name"
+                                                value={settingsName}
+                                                onChange={(event) =>
+                                                    setSettingsName(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                maxLength={100}
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="server-settings-description">
+                                                Description
+                                            </Label>
+                                            <Textarea
+                                                id="server-settings-description"
+                                                value={settingsDescription}
+                                                onChange={(event) =>
+                                                    setSettingsDescription(
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                rows={4}
+                                                maxLength={500}
+                                                placeholder="Tell members what this server is about"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between rounded-lg border p-3">
+                                            <div>
+                                                <Label
+                                                    className="text-sm font-medium"
+                                                    htmlFor={publicDiscoveryId}
+                                                >
+                                                    Public discovery
+                                                </Label>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Private servers are hidden
+                                                    from discovery and direct
+                                                    join.
+                                                </p>
+                                            </div>
+                                            <Switch
+                                                id={publicDiscoveryId}
+                                                checked={settingsIsPublic}
+                                                onCheckedChange={
+                                                    setSettingsIsPublic
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor={iconInputId}>
+                                                    Server icon
+                                                </Label>
+                                                <div className="rounded-lg border p-3 space-y-3">
+                                                    <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden">
+                                                        {settingsIconUrl ? (
+                                                            <div
+                                                                className="h-full w-full bg-cover bg-center"
+                                                                style={{
+                                                                    backgroundImage: `url(${settingsIconUrl})`,
+                                                                }}
+                                                            />
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                iconInputRef.current?.click()
+                                                            }
+                                                            disabled={
+                                                                uploadingIcon
+                                                            }
+                                                        >
+                                                            {uploadingIcon ? (
+                                                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                            ) : (
+                                                                <ImagePlus className="h-4 w-4 mr-1" />
+                                                            )}
+                                                            Upload icon
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSettingsIconFileId(
+                                                                    "",
+                                                                );
+                                                                setSettingsIconUrl(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                            disabled={
+                                                                !settingsIconFileId
+                                                            }
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label htmlFor={bannerInputId}>
+                                                    Server banner
+                                                </Label>
+                                                <div className="rounded-lg border p-3 space-y-3">
+                                                    <div className="h-16 w-full rounded-lg bg-muted overflow-hidden">
+                                                        {settingsBannerUrl ? (
+                                                            <div
+                                                                className="h-full w-full bg-cover bg-center"
+                                                                style={{
+                                                                    backgroundImage: `url(${settingsBannerUrl})`,
+                                                                }}
+                                                            />
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                bannerInputRef.current?.click()
+                                                            }
+                                                            disabled={
+                                                                uploadingBanner
+                                                            }
+                                                        >
+                                                            {uploadingBanner ? (
+                                                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                            ) : (
+                                                                <ImagePlus className="h-4 w-4 mr-1" />
+                                                            )}
+                                                            Upload banner
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSettingsBannerFileId(
+                                                                    "",
+                                                                );
+                                                                setSettingsBannerUrl(
+                                                                    null,
+                                                                );
+                                                            }}
+                                                            disabled={
+                                                                !settingsBannerFileId
+                                                            }
+                                                        >
+                                                            Remove
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex justify-end">
+                                            <Button
+                                                type="button"
+                                                onClick={() => {
+                                                    void saveServerSettings();
+                                                }}
+                                                disabled={savingSettings}
+                                            >
+                                                {savingSettings ? (
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Save className="h-4 w-4 mr-2" />
+                                                )}
+                                                Save changes
+                                            </Button>
+                                        </div>
+                                    </Card>
+                                </TabsContent>
+                            )}
+
+                            <TabsContent
+                                value="members"
+                                className="space-y-4 m-0"
+                            >
+                                <div className="flex items-center gap-4 flex-wrap">
+                                    <Input
+                                        placeholder="Search members..."
+                                        value={searchQuery}
+                                        onChange={(e) =>
+                                            setSearchQuery(e.target.value)
+                                        }
+                                        className="flex-1 min-w-52"
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <Select
+                                            value={memberFilter}
+                                            onValueChange={(v) =>
+                                                setMemberFilter(
+                                                    v as
+                                                        | "all"
+                                                        | "banned"
+                                                        | "muted",
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger className="w-40">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">
+                                                    All Members
+                                                </SelectItem>
+                                                <SelectItem value="banned">
+                                                    Banned ({stats.bannedUsers})
+                                                </SelectItem>
+                                                <SelectItem value="muted">
+                                                    Muted ({stats.mutedUsers})
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <Badge variant="secondary">
+                                            {filteredMembers.length}{" "}
+                                            {filteredMembers.length === 1
+                                                ? "member"
+                                                : "members"}
+                                        </Badge>
+                                    </div>
+                                </div>
+
+                                {rolesLoading && (
+                                    <div
+                                        className="text-sm text-muted-foreground"
+                                        role="status"
+                                        aria-live="polite"
+                                        aria-busy="true"
+                                    >
+                                        Loading roles...
+                                    </div>
                                 )}
+
+                                {rolesError && (
+                                    <div
+                                        className="text-sm text-destructive"
+                                        role="alert"
+                                        aria-live="assertive"
+                                    >
+                                        {rolesError}
+                                    </div>
+                                )}
+
+                                <div className="space-y-2">
+                                    {loading ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            Loading members...
+                                        </div>
+                                    ) : filteredMembers.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            No members found
+                                        </div>
+                                    ) : (
+                                        filteredMembers.map((member) => {
+                                            const memberRoles =
+                                                getMemberRoles(member);
+                                            const highestRole =
+                                                getMemberHighestRole(
+                                                    memberRoles,
+                                                );
+                                            const additionalRoleCount =
+                                                memberRoles.length > 0
+                                                    ? memberRoles.length - 1
+                                                    : 0;
+
+                                            return (
+                                                <div
+                                                    key={member.userId}
+                                                    className="border-t border-border/60 py-3 first:border-t-0"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar
+                                                                src={
+                                                                    member.avatarUrl
+                                                                }
+                                                                alt={
+                                                                    member.displayName ||
+                                                                    member.userName ||
+                                                                    "User"
+                                                                }
+                                                                fallback={
+                                                                    member.displayName ||
+                                                                    member.userName ||
+                                                                    "?"
+                                                                }
+                                                                size="md"
+                                                            />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="font-medium truncate">
+                                                                    {member.displayName ||
+                                                                        member.userName ||
+                                                                        member.userId}
+                                                                </p>
+                                                                {highestRole ? (
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        <div
+                                                                            className="h-2 w-2 rounded-full"
+                                                                            style={{
+                                                                                backgroundColor:
+                                                                                    highestRole.color,
+                                                                            }}
+                                                                        />
+                                                                        <span className="text-xs truncate">
+                                                                            {
+                                                                                highestRole.name
+                                                                            }
+                                                                        </span>
+                                                                        {additionalRoleCount >
+                                                                            0 && (
+                                                                            <span className="text-xs text-muted-foreground">
+                                                                                +
+                                                                                {
+                                                                                    additionalRoleCount
+                                                                                }
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                                                        No roles
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {member.isBanned && (
+                                                                <Badge
+                                                                    variant="destructive"
+                                                                    className="ml-2"
+                                                                >
+                                                                    Banned
+                                                                </Badge>
+                                                            )}
+                                                            {member.isMuted && (
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="ml-2"
+                                                                >
+                                                                    Muted
+                                                                </Badge>
+                                                            )}
+                                                        </div>
+                                                        {isOwner && (
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        openModerationDialog(
+                                                                            member,
+                                                                            "mute",
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        member.isMuted
+                                                                    }
+                                                                >
+                                                                    <UserX className="h-4 w-4 mr-1" />
+                                                                    Mute
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        openModerationDialog(
+                                                                            member,
+                                                                            "kick",
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <UserX className="h-4 w-4 mr-1" />
+                                                                    Kick
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        openModerationDialog(
+                                                                            member,
+                                                                            "ban",
+                                                                        )
+                                                                    }
+                                                                    disabled={
+                                                                        member.isBanned
+                                                                    }
+                                                                >
+                                                                    <Ban className="h-4 w-4 mr-1" />
+                                                                    Ban
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent
+                                value="invites"
+                                className="space-y-4 m-0"
+                            >
+                                <Card className="p-4">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="font-semibold flex items-center gap-2">
+                                                <Link className="h-5 w-5" />
+                                                Server Invites
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Create and manage invite links
+                                                for this server
+                                            </p>
+                                        </div>
+                                        <Button
+                                            onClick={() =>
+                                                setCreateInviteOpen(true)
+                                            }
+                                        >
+                                            Create Invite
+                                        </Button>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="p-4 bg-muted rounded-lg">
+                                            <p className="text-sm text-muted-foreground mb-3">
+                                                Invites allow you to share links
+                                                that let others join your
+                                                server. You can customize
+                                                expiration times, usage limits,
+                                                and more.
+                                            </p>
+                                            <Button
+                                                variant="outline"
+                                                onClick={() =>
+                                                    setInviteManagerOpen(true)
+                                                }
+                                                className="w-full"
+                                            >
+                                                <Link className="h-4 w-4 mr-2" />
+                                                Manage All Invites
+                                            </Button>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="p-3 bg-muted rounded-lg">
+                                                <p className="text-xs text-muted-foreground mb-1">
+                                                    Quick Actions
+                                                </p>
+                                                <div className="space-y-2 mt-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            setCreateInviteOpen(
+                                                                true,
+                                                            )
+                                                        }
+                                                        className="w-full"
+                                                    >
+                                                        Create Instant Invite
+                                                    </Button>
+                                                </div>
+                                            </div>
+
+                                            <div className="p-3 bg-muted rounded-lg">
+                                                <p className="text-xs text-muted-foreground mb-1">
+                                                    Features
+                                                </p>
+                                                <ul className="text-xs space-y-1 mt-2">
+                                                    <li>
+                                                        • Customizable
+                                                        expiration
+                                                    </li>
+                                                    <li>• Usage limits</li>
+                                                    <li>
+                                                        • Temporary membership
+                                                    </li>
+                                                    <li>• Usage tracking</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent
+                                value="roles"
+                                className="space-y-4 m-0"
+                            >
+                                <Tabs
+                                    className="min-w-0 space-y-4 overflow-x-hidden"
+                                    defaultValue="roles"
+                                >
+                                    <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted/50 p-0.5">
+                                        <TabsTrigger
+                                            className="rounded-md"
+                                            value="roles"
+                                        >
+                                            Roles
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                            className="rounded-md"
+                                            value="categories"
+                                        >
+                                            Categories
+                                        </TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent
+                                        className="min-w-0 space-y-4 overflow-x-hidden"
+                                        value="roles"
+                                    >
+                                        {rolesLoading ? (
+                                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                                Loading roles...
+                                            </p>
+                                        ) : (
+                                            <RoleList
+                                                roles={roles}
+                                                isOwner={isOwner}
+                                                onCreateRole={handleCreateRole}
+                                                onEditRole={handleEditRole}
+                                                onDeleteRole={handleDeleteRole}
+                                                onManageMembers={
+                                                    handleManageMembers
+                                                }
+                                            />
+                                        )}
+                                    </TabsContent>
+                                    <TabsContent
+                                        className="min-w-0 space-y-4 overflow-x-hidden"
+                                        value="categories"
+                                    >
+                                        <CategorySettingsPanel
+                                            canManage={isOwner}
+                                            serverId={serverId}
+                                        />
+                                    </TabsContent>
+                                </Tabs>
+                            </TabsContent>
+
+                            <TabsContent
+                                value="moderation"
+                                className="space-y-4 m-0"
+                            >
+                                <Card className="p-4">
+                                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                                        <Shield className="h-5 w-5" />
+                                        Message Moderation
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        Review and moderate this server&apos;s
+                                        messages in the moderation workspace.
+                                    </p>
+                                    <Button asChild>
+                                        <NextLink
+                                            href={`/moderation?serverId=${encodeURIComponent(serverId)}`}
+                                        >
+                                            <Shield className="h-4 w-4 mr-2" />
+                                            Open Moderation Workspace
+                                        </NextLink>
+                                    </Button>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent
+                                value="audit"
+                                className="space-y-4 m-0"
+                            >
+                                <Card className="p-4">
+                                    <div className="flex items-center justify-between gap-4 mb-4">
+                                        <div className="flex items-center gap-2 flex-1">
+                                            <Filter className="h-4 w-4 text-muted-foreground" />
+                                            <Select
+                                                value={auditFilter}
+                                                onValueChange={setAuditFilter}
+                                            >
+                                                <SelectTrigger className="w-45">
+                                                    <SelectValue placeholder="Filter by action" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="all">
+                                                        All Actions
+                                                    </SelectItem>
+                                                    <SelectItem value="ban">
+                                                        Ban
+                                                    </SelectItem>
+                                                    <SelectItem value="unban">
+                                                        Unban
+                                                    </SelectItem>
+                                                    <SelectItem value="mute">
+                                                        Mute
+                                                    </SelectItem>
+                                                    <SelectItem value="unmute">
+                                                        Unmute
+                                                    </SelectItem>
+                                                    <SelectItem value="kick">
+                                                        Kick
+                                                    </SelectItem>
+                                                    <SelectItem value="soft_delete">
+                                                        Soft Delete
+                                                    </SelectItem>
+                                                    <SelectItem value="restore">
+                                                        Restore
+                                                    </SelectItem>
+                                                    <SelectItem value="hard_delete">
+                                                        Hard Delete
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Badge variant="outline">
+                                                {filteredAuditLogs.length} logs
+                                            </Badge>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    void exportAuditLogs("csv")
+                                                }
+                                                disabled={
+                                                    auditLogs.length === 0
+                                                }
+                                            >
+                                                <Download className="h-4 w-4 mr-1" />
+                                                Export CSV
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    void exportAuditLogs("json")
+                                                }
+                                                disabled={
+                                                    auditLogs.length === 0
+                                                }
+                                            >
+                                                <Download className="h-4 w-4 mr-1" />
+                                                Export JSON
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </Card>
+
+                                <div className="space-y-2">
+                                    {filteredAuditLogs.length === 0 ? (
+                                        <div className="text-center py-8 text-muted-foreground">
+                                            {auditLogs.length === 0
+                                                ? "No audit logs yet"
+                                                : "No logs match the selected filter"}
+                                        </div>
+                                    ) : (
+                                        filteredAuditLogs.map((log) => {
+                                            const moderatorDisplay =
+                                                getAuditModeratorLabel(log);
+                                            const targetDisplay =
+                                                getAuditTargetLabel(log);
+
+                                            return (
+                                                <div
+                                                    key={log.$id}
+                                                    className="border-t border-border/60 py-3 first:border-t-0"
+                                                >
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <Badge
+                                                                    variant={
+                                                                        log.action ===
+                                                                            "ban" ||
+                                                                        log.action ===
+                                                                            "hard_delete"
+                                                                            ? "destructive"
+                                                                            : log.action ===
+                                                                                "mute"
+                                                                              ? "outline"
+                                                                              : log.action ===
+                                                                                      "kick" ||
+                                                                                  log.action ===
+                                                                                      "soft_delete"
+                                                                                ? "secondary"
+                                                                                : "default"
+                                                                    }
+                                                                >
+                                                                    {log.action}
+                                                                </Badge>
+                                                                <span className="text-sm font-medium">
+                                                                    {
+                                                                        moderatorDisplay
+                                                                    }
+                                                                </span>
+                                                                {targetDisplay && (
+                                                                    <>
+                                                                        <span className="text-sm text-muted-foreground">
+                                                                            →
+                                                                        </span>
+                                                                        <span className="text-sm">
+                                                                            {
+                                                                                targetDisplay
+                                                                            }
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            {log.reason && (
+                                                                <p className="text-sm text-muted-foreground mt-1">
+                                                                    Reason:{" "}
+                                                                    {log.reason}
+                                                                </p>
+                                                            )}
+                                                            {log.details && (
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    {
+                                                                        log.details
+                                                                    }
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-xs text-muted-foreground whitespace-nowrap ml-4">
+                                                            {new Date(
+                                                                log.timestamp,
+                                                            ).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </TabsContent>
                         </div>
-                    </div>
+                    </Tabs>
+
+                    <input
+                        ref={iconInputRef}
+                        type="file"
+                        id={iconInputId}
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) {
+                                return;
+                            }
+
+                            void handleServerImageUpload("icon", file);
+                            event.target.value = "";
+                        }}
+                    />
+
+                    <input
+                        ref={bannerInputRef}
+                        type="file"
+                        id={bannerInputId}
+                        accept="image/jpeg,image/png,image/gif,image/webp"
+                        className="hidden"
+                        onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (!file) {
+                                return;
+                            }
+
+                            void handleServerImageUpload("banner", file);
+                            event.target.value = "";
+                        }}
+                    />
 
                     <DialogFooter>
                         <Button
                             variant="outline"
-                            onClick={() => setModerationDialogOpen(false)}
+                            onClick={() => onOpenChange(false)}
                             type="button"
                         >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant={
-                                moderationAction === "ban"
-                                    ? "destructive"
-                                    : "default"
-                            }
-                            onClick={handleModerationAction}
-                            type="button"
-                        >
-                            Confirm {moderationAction}
+                            Close
                         </Button>
                     </DialogFooter>
                 </DialogContent>
-            </Dialog>
 
-            {/* Invite Management Dialogs */}
-            <InviteManagerDialog
-                open={inviteManagerOpen}
-                onOpenChange={setInviteManagerOpen}
-                serverId={serverId}
-                onCreateInvite={() => {
-                    setInviteManagerOpen(false);
-                    setCreateInviteOpen(true);
-                }}
-            />
+                {/* Moderation Action Dialog */}
+                <Dialog
+                    open={moderationDialogOpen}
+                    onOpenChange={(open) => {
+                        setModerationDialogOpen(open);
+                        if (!open) {
+                            setModerationReason("");
+                            setModerationReasonTouched(false);
+                            setAttemptedModerationSubmit(false);
+                        }
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>
+                                {moderationAction === "ban" && "Ban User"}
+                                {moderationAction === "mute" && "Mute User"}
+                                {moderationAction === "kick" && "Kick User"}
+                            </DialogTitle>
+                            <DialogDescription>
+                                {moderationAction === "ban" &&
+                                    "This will permanently ban the user from the server."}
+                                {moderationAction === "mute" &&
+                                    "This will prevent the user from sending messages."}
+                                {moderationAction === "kick" &&
+                                    "This will remove the user from the server."}
+                            </DialogDescription>
+                        </DialogHeader>
 
-            <CreateInviteDialog
-                open={createInviteOpen}
-                onOpenChange={setCreateInviteOpen}
-                serverId={serverId}
-                onInviteCreated={() => {
-                    // Optionally reload invite list if manager is open
-                }}
-            />
+                        <div className="space-y-4">
+                            <div>
+                                <Label>User</Label>
+                                <div className="flex items-center gap-2 mt-2 p-2 bg-muted rounded">
+                                    <Avatar
+                                        src={selectedMember?.avatarUrl}
+                                        alt={
+                                            selectedMember?.displayName ||
+                                            selectedMember?.userName ||
+                                            "User"
+                                        }
+                                        fallback={
+                                            selectedMember?.displayName ||
+                                            selectedMember?.userName ||
+                                            "?"
+                                        }
+                                        size="sm"
+                                    />
+                                    <span className="font-medium">
+                                        {selectedMember?.displayName ||
+                                            selectedMember?.userName ||
+                                            selectedMember?.userId}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="reason">
+                                    Reason{" "}
+                                    {moderationAction === "ban"
+                                        ? "*"
+                                        : "(optional)"}
+                                </Label>
+                                <Input
+                                    id="reason"
+                                    placeholder={
+                                        moderationAction === "ban"
+                                            ? "Enter reason for this ban..."
+                                            : "Enter reason for this action..."
+                                    }
+                                    value={moderationReason}
+                                    onChange={(e) => {
+                                        setModerationReason(e.target.value);
+                                    }}
+                                    onBlur={() =>
+                                        setModerationReasonTouched(true)
+                                    }
+                                    className="mt-2"
+                                />
+                                {moderationAction === "ban" &&
+                                    !moderationReason.trim() &&
+                                    (moderationReasonTouched ||
+                                        attemptedModerationSubmit) && (
+                                        <p className="text-xs text-destructive mt-1">
+                                            A reason is required when banning a
+                                            user
+                                        </p>
+                                    )}
+                            </div>
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => setModerationDialogOpen(false)}
+                                type="button"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant={
+                                    moderationAction === "ban"
+                                        ? "destructive"
+                                        : "default"
+                                }
+                                onClick={handleModerationAction}
+                                type="button"
+                            >
+                                Confirm {moderationAction}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Invite Management Dialogs */}
+                <InviteManagerDialog
+                    open={inviteManagerOpen}
+                    onOpenChange={setInviteManagerOpen}
+                    serverId={serverId}
+                    onCreateInvite={() => {
+                        setInviteManagerOpen(false);
+                        setCreateInviteOpen(true);
+                    }}
+                />
+
+                <CreateInviteDialog
+                    open={createInviteOpen}
+                    onOpenChange={setCreateInviteOpen}
+                    serverId={serverId}
+                    onInviteCreated={() => {
+                        // Optionally reload invite list if manager is open
+                    }}
+                />
             </Dialog>
 
             <RoleEditor

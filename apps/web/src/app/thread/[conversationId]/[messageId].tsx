@@ -103,8 +103,7 @@ export default function DmThreadPage() {
                     senderId: parentData.senderId,
                     senderDisplayName: parentData.senderDisplayName,
                     senderAvatarUrl: parentData.senderAvatarUrl,
-                    senderAvatarFramePreset:
-                        parentData.senderAvatarFramePreset,
+                    senderAvatarFramePreset: parentData.senderAvatarFramePreset,
                     senderAvatarFrameUrl: parentData.senderAvatarFrameUrl,
                     senderPronouns: parentData.senderPronouns,
                     text: parentData.text,
@@ -121,7 +120,8 @@ export default function DmThreadPage() {
                     threadParticipants: parentData.threadParticipants,
                     lastThreadReplyAt: parentData.lastThreadReplyAt,
                     mentions: parentData.mentions,
-                    reactions: parentData.reactions as DirectMessage["reactions"],
+                    reactions:
+                        parentData.reactions as DirectMessage["reactions"],
                     isPinned: parentData.isPinned,
                     pinnedAt: parentData.pinnedAt,
                     pinnedBy: parentData.pinnedBy,
@@ -192,8 +192,7 @@ export default function DmThreadPage() {
 
     // Convert to ChatSurfaceMessage for the shared component
     const parentSurfaceMessage = useMemo(
-        () =>
-            parentMessage ? fromDirectMessage(parentMessage) : null,
+        () => (parentMessage ? fromDirectMessage(parentMessage) : null),
         [parentMessage],
     );
 
@@ -241,11 +240,7 @@ export default function DmThreadPage() {
         <div className="flex h-screen flex-col bg-background">
             {/* Header */}
             <div className="flex items-center gap-3 border-b border-border/60 px-6 py-4">
-                <Button
-                    onClick={() => router.back()}
-                    size="sm"
-                    variant="ghost"
-                >
+                <Button onClick={() => router.back()} size="sm" variant="ghost">
                     <ArrowLeft className="size-4" />
                 </Button>
                 <h1 className="text-lg font-semibold">Thread</h1>

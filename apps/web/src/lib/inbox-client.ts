@@ -18,7 +18,10 @@ type MarkInboxItemsReadInput = {
  */
 export async function listInbox(): Promise<InboxListResponse> {
     const response = await fetch("/api/inbox");
-    return parseJsonResponse<InboxListResponse>(response, "Failed to load inbox");
+    return parseJsonResponse<InboxListResponse>(
+        response,
+        "Failed to load inbox",
+    );
 }
 
 /**

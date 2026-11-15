@@ -66,9 +66,15 @@ type ChannelDoc = AppwriteDoc & {
 };
 
 function parseDispatchLimit(limit: number): number | undefined {
-    if (!Number.isFinite(limit)) {return undefined;}
-    if (!Number.isInteger(limit)) {return undefined;}
-    if (limit < 1 || limit > MAX_DISPATCH_LIMIT) {return undefined;}
+    if (!Number.isFinite(limit)) {
+        return undefined;
+    }
+    if (!Number.isInteger(limit)) {
+        return undefined;
+    }
+    if (limit < 1 || limit > MAX_DISPATCH_LIMIT) {
+        return undefined;
+    }
     return limit;
 }
 
@@ -84,13 +90,18 @@ function validateAnnouncementDispatchLimit(limit: number): number {
 }
 
 function normalizeListLimit(limit: number | undefined): number | undefined {
-    if (limit === undefined) {return undefined;}
+    if (limit === undefined) {
+        return undefined;
+    }
 
     const parsedLimit = parseDispatchLimit(limit);
     if (parsedLimit === undefined) {
-        logger.warn("normalizeListLimit received invalid limit; falling back to undefined", {
-            limit,
-        });
+        logger.warn(
+            "normalizeListLimit received invalid limit; falling back to undefined",
+            {
+                limit,
+            },
+        );
     }
 
     return parsedLimit;

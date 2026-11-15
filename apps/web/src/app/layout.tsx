@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/app-layout";
 import { OfflineBanner } from "@/components/offline-banner";
 import { ResourceHints } from "@/components/resource-hints";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { PREFERENCES_BOOTSTRAP_SCRIPT } from "@/lib/theme-bootstrap";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -60,10 +61,28 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" suppressHydrationWarning>
+        <html
+            // The theme is applied by @teispace/next-themes' pre-paint script,
+            // which reads the cookie and sets data-theme before first paint. It
+            // is deliberately NOT rendered here: this is a React-owned
+            // attribute, so hardcoding it would let any re-render of the layout
+            // overwrite the user's choice. `index.css` defines the Latte tokens
+            // on `:root` as the default so the page is never unstyled, and the
+            // accent is applied by ACCENT_BOOTSTRAP_SCRIPT below.
+            lang="en"
+            suppressHydrationWarning
+        >
             <body
                 className={`${geistSans.variable} ${geistMono.variable} overflow-x-hidden antialiased bg-background text-foreground`}
             >
+                <script
+                    // Runs before paint to avoid an accent flash and to seed
+                    // the theme from the OS preference. The payload is a static
+                    // literal built from the name lists above.
+                    dangerouslySetInnerHTML={{
+                        __html: PREFERENCES_BOOTSTRAP_SCRIPT,
+                    }}
+                />
                 <ResourceHints />
                 <ServiceWorkerRegistration />
                 <OfflineBanner />

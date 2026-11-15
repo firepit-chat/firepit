@@ -39,7 +39,8 @@ vi.mock("@/lib/auth-server", () => {
 
         constructor(code: "UNAUTHORIZED" | "FORBIDDEN", message?: string) {
             super(
-                message ?? (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"),
+                message ??
+                    (code === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden"),
             );
             this.name = "AuthError";
             this.code = code;
@@ -53,17 +54,20 @@ vi.mock("@/lib/auth-server", () => {
 });
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: {
         error: mockLoggerError,
     },
 }));
 
 const { GET, POST } = await import("../../app/api/announcements/route");
-const { POST: dispatchAnnouncements } = await import(
-    "../../app/api/announcements/dispatch/route",
-);
+const { POST: dispatchAnnouncements } =
+    await import("../../app/api/announcements/dispatch/route");
 
 describe("announcements API routes", () => {
     beforeEach(() => {
@@ -275,7 +279,9 @@ describe("announcements API routes", () => {
         const data = await response.json();
 
         expect(response.status).toBe(503);
-        expect(data.error).toBe("Announcements dispatcher secret is not configured");
+        expect(data.error).toBe(
+            "Announcements dispatcher secret is not configured",
+        );
     });
 
     it("rejects dispatch requests with an invalid secret", async () => {
@@ -304,7 +310,8 @@ describe("announcements API routes", () => {
                 "http://localhost/api/announcements/dispatch?limit=150",
                 {
                     headers: {
-                        "x-announcements-dispatcher-secret": "dispatcher-secret",
+                        "x-announcements-dispatcher-secret":
+                            "dispatcher-secret",
                     },
                 },
             ),

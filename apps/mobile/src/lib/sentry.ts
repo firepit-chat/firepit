@@ -4,32 +4,32 @@ import Constants from "expo-constants";
 let initialized = false;
 
 export function initSentry(): void {
-  if (initialized) return;
-  initialized = true;
+    if (initialized) return;
+    initialized = true;
 
-  const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
-  if (!dsn) return;
+    const dsn = Constants.expoConfig?.extra?.sentryDsn as string | undefined;
+    if (!dsn) return;
 
-  Sentry.init({
-    dsn,
+    Sentry.init({
+        dsn,
 
-    sendDefaultPii: false,
-    enableLogs: false,
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1,
-    integrations: [Sentry.mobileReplayIntegration()],
+        sendDefaultPii: false,
+        enableLogs: false,
+        replaysSessionSampleRate: 0.1,
+        replaysOnErrorSampleRate: 1,
+        integrations: [Sentry.mobileReplayIntegration()],
 
-    debug: false,
-    environment:
-      (Constants.expoConfig?.extra?.appEnv as string) || "development",
-  });
+        debug: false,
+        environment:
+            (Constants.expoConfig?.extra?.appEnv as string) || "development",
+    });
 }
 
 export function captureError(
-  error: Error,
-  context?: Record<string, unknown>,
+    error: Error,
+    context?: Record<string, unknown>,
 ): void {
-  Sentry.captureException(error, { extra: context });
+    Sentry.captureException(error, { extra: context });
 }
 
 export { Sentry };

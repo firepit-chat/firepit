@@ -27,7 +27,10 @@ type ChatThreadContentProps = {
         emoji: string,
         isAdding: boolean,
     ) => Promise<void>;
-    onVotePoll?: (message: ChatSurfaceMessage, optionId: string) => Promise<void>;
+    onVotePoll?: (
+        message: ChatSurfaceMessage,
+        optionId: string,
+    ) => Promise<void>;
     onClosePoll?: (message: ChatSurfaceMessage) => Promise<void>;
     replyText?: string;
     onReplyTextChange?: (value: string) => void;
@@ -55,7 +58,10 @@ function MessageCard({
         emoji: string,
         isAdding: boolean,
     ) => Promise<void>;
-    onVotePoll?: (message: ChatSurfaceMessage, optionId: string) => Promise<void>;
+    onVotePoll?: (
+        message: ChatSurfaceMessage,
+        optionId: string,
+    ) => Promise<void>;
     onClosePoll?: (message: ChatSurfaceMessage) => Promise<void>;
 }) {
     return (
@@ -85,9 +91,7 @@ function MessageCard({
                         currentUserId={currentUserId}
                         messageId={message.id}
                         onClose={
-                            onClosePoll
-                                ? () => onClosePoll(message)
-                                : undefined
+                            onClosePoll ? () => onClosePoll(message) : undefined
                         }
                         onVote={
                             onVotePoll

@@ -16,9 +16,7 @@ import type { FeatureFlag } from "./types";
 // Keep node-appwrite usage behind server-only wrappers and rerun
 // src/__tests__/feature-flags.test.ts after SDK upgrades.
 
-export {
-    FEATURE_FLAGS,
-} from "./feature-flags-definitions";
+export { FEATURE_FLAGS } from "./feature-flags-definitions";
 export type { FeatureFlagKey } from "./feature-flags-definitions";
 
 // Default values for feature flags

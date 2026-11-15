@@ -121,6 +121,12 @@ function PickerRow<T extends string>({
     );
 }
 
+// Hoisted: an inline renderItem lands in the list cell's props and defeats
+// its PureComponent, re-rendering every visible row on any parent render.
+const renderAnnouncementRow = ({ item }: { item: Announcement }) => (
+    <AnnouncementCard item={item} />
+);
+
 export default function InstanceAnnouncementsScreen() {
     const theme = useTheme();
     const { instanceUrl, accessToken } = useFirepitBootstrap();
@@ -155,17 +161,12 @@ export default function InstanceAnnouncementsScreen() {
             setLoadError(null);
 
             try {
-                const statuses =
-                    filter === "all" ? undefined : [filter];
-                const res = await listAnnouncements(
-                    instanceUrl,
-                    accessToken,
-                    {
-                        cursorAfter,
-                        limit: 25,
-                        statuses,
-                    },
-                );
+                const statuses = filter === "all" ? undefined : [filter];
+                const res = await listAnnouncements(instanceUrl, accessToken, {
+                    cursorAfter,
+                    limit: 25,
+                    statuses,
+                });
                 const items = res.items ?? [];
                 if (cursorAfter) {
                     setAnnouncements((prev) => {
@@ -257,22 +258,15 @@ export default function InstanceAnnouncementsScreen() {
         <View style={styles.listGap}>
             {/* Hero */}
             <ThemedView
-                type="card"
                 style={[styles.heroCard, { borderColor: theme.border }]}
             >
                 <ThemedText type="code" themeColor="accent">
                     Announcements
                 </ThemedText>
-                <ThemedText type="title">
-                    Instance announcements
-                </ThemedText>
-                <ThemedText
-                    themeColor="mutedForeground"
-                    style={styles.copy}
-                >
-                    Compose, schedule, and send system announcements
-                    to every profiled user through read-only DM
-                    threads.
+                <ThemedText type="title">Instance announcements</ThemedText>
+                <ThemedText themeColor="mutedForeground" style={styles.copy}>
+                    Compose, schedule, and send system announcements to every
+                    profiled user through read-only DM threads.
                 </ThemedText>
                 <View style={styles.pillRow}>
                     <StatusPill
@@ -294,13 +288,8 @@ export default function InstanceAnnouncementsScreen() {
             </ThemedView>
 
             {/* Compose form */}
-            <ThemedView
-                type="card"
-                style={[styles.card, { borderColor: theme.border }]}
-            >
-                <ThemedText type="smallBold">
-                    Compose announcement
-                </ThemedText>
+            <ThemedView style={[styles.card, { borderColor: theme.border }]}>
+                <ThemedText type="smallBold">Compose announcement</ThemedText>
 
                 <TextInput
                     style={[
@@ -336,10 +325,7 @@ export default function InstanceAnnouncementsScreen() {
                     onChangeText={setBody}
                 />
 
-                <ThemedText
-                    type="code"
-                    themeColor="mutedForeground"
-                >
+                <ThemedText type="code" themeColor="mutedForeground">
                     Mode
                 </ThemedText>
                 <PickerRow
@@ -348,10 +334,7 @@ export default function InstanceAnnouncementsScreen() {
                     onChange={setMode}
                 />
 
-                <ThemedText
-                    type="code"
-                    themeColor="mutedForeground"
-                >
+                <ThemedText type="code" themeColor="mutedForeground">
                     Priority
                 </ThemedText>
                 <PickerRow
@@ -362,10 +345,7 @@ export default function InstanceAnnouncementsScreen() {
 
                 {mode === "schedule" ? (
                     <>
-                        <ThemedText
-                            type="code"
-                            themeColor="mutedForeground"
-                        >
+                        <ThemedText type="code" themeColor="mutedForeground">
                             Scheduled for
                         </ThemedText>
                         <TextInput
@@ -378,9 +358,7 @@ export default function InstanceAnnouncementsScreen() {
                                 },
                             ]}
                             placeholder="YYYY-MM-DD HH:MM"
-                            placeholderTextColor={
-                                theme.mutedForeground
-                            }
+                            placeholderTextColor={theme.mutedForeground}
                             value={scheduledFor}
                             onChangeText={setScheduledFor}
                         />
@@ -411,10 +389,7 @@ export default function InstanceAnnouncementsScreen() {
                             styles.submitButton,
                             {
                                 backgroundColor: theme.primary,
-                                opacity:
-                                    pressed || isSubmitting
-                                        ? 0.7
-                                        : 1,
+                                opacity: pressed || isSubmitting ? 0.7 : 1,
                             },
                         ]}
                     >
@@ -437,11 +412,7 @@ export default function InstanceAnnouncementsScreen() {
 
             {loadError ? (
                 <ThemedView
-                    type="card"
-                    style={[
-                        styles.card,
-                        { borderColor: theme.border },
-                    ]}
+                    style={[styles.card, { borderColor: theme.border }]}
                 >
                     <ThemedText themeColor="destructive">
                         {loadError}
@@ -459,9 +430,7 @@ export default function InstanceAnnouncementsScreen() {
             ) : null}
 
             {/* List header + filter */}
-            <ThemedText type="smallBold">
-                Recent announcements
-            </ThemedText>
+            <ThemedText type="smallBold">Recent announcements</ThemedText>
             <View style={styles.filterRow}>
                 {FILTER_OPTIONS.map((opt) => {
                     const selected = opt.value === filter;
@@ -469,9 +438,7 @@ export default function InstanceAnnouncementsScreen() {
                         <Pressable
                             key={opt.value}
                             accessibilityRole="button"
-                            onPress={() =>
-                                setFilter(opt.value)
-                            }
+                            onPress={() => setFilter(opt.value)}
                             style={[
                                 styles.filterChip,
                                 {
@@ -523,7 +490,6 @@ export default function InstanceAnnouncementsScreen() {
                         ListEmptyComponent={
                             loadState === "ready" ? (
                                 <ThemedView
-                                    type="card"
                                     style={[
                                         styles.card,
                                         styles.emptyCard,
@@ -549,9 +515,9 @@ export default function InstanceAnnouncementsScreen() {
                                 </View>
                             ) : null
                         }
-                        renderItem={({ item }) => (
-                            <AnnouncementCard item={item} />
-                        )}
+                        renderItem={renderAnnouncementRow}
+                        keyboardShouldPersistTaps="handled"
+                        automaticallyAdjustKeyboardInsets
                     />
                 </SafeAreaView>
             </View>
@@ -562,12 +528,13 @@ export default function InstanceAnnouncementsScreen() {
 function AnnouncementCard({ item }: { item: Announcement }) {
     const theme = useTheme();
     return (
-        <ThemedView
-            type="card"
-            style={[styles.entryCard, { borderColor: theme.border }]}
-        >
+        <View style={styles.entryCard}>
             <View style={styles.entryHeader}>
-                <ThemedText type="smallBold" numberOfLines={1} style={styles.entryTitle}>
+                <ThemedText
+                    type="smallBold"
+                    numberOfLines={1}
+                    style={styles.entryTitle}
+                >
                     {item.title || "Untitled announcement"}
                 </ThemedText>
                 <StatusPill
@@ -601,7 +568,7 @@ function AnnouncementCard({ item }: { item: Announcement }) {
                     </ThemedText>
                 ) : null}
             </View>
-        </ThemedView>
+        </View>
     );
 }
 
@@ -619,7 +586,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: Spacing.four,
         gap: Spacing.three,
-        borderWidth: 1,
     },
     copy: { fontSize: 14, lineHeight: 20 },
     pillRow: {
@@ -631,7 +597,6 @@ const styles = StyleSheet.create({
         borderRadius: 22,
         padding: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     input: {
         borderRadius: 12,
@@ -691,10 +656,8 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
     },
     entryCard: {
-        borderRadius: 18,
-        padding: Spacing.three,
+        paddingVertical: Spacing.three,
         gap: Spacing.two,
-        borderWidth: 1,
     },
     entryHeader: {
         flexDirection: "row",

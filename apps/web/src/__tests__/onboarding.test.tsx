@@ -149,8 +149,7 @@ describe("Onboarding Page", () => {
             expect(mockAction).toHaveBeenCalled();
             expect(mockAction).toHaveBeenCalledWith(expect.any(FormData));
             const submittedData = mockAction.mock.calls.at(0)?.at(0) as
-                | FormData
-                | undefined;
+                FormData | undefined;
             expect(submittedData).toBeDefined();
             expect(submittedData?.get("displayName")).toBe("John Doe");
         });

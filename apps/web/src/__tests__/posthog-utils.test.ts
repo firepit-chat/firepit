@@ -71,6 +71,13 @@ vi.mock("next/server", () => ({
     after: vi.fn(),
 }));
 
+/**
+ * The server capture path resolves per-user telemetry consent asynchronously, so
+ * emission lands a microtask later for records carrying a user id. Tests that
+ * assert on emitted telemetry need to let that settle.
+ */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe("posthog-utils", () => {
     beforeEach(() => {
         __resetPostHogClient();
@@ -106,8 +113,9 @@ describe("posthog-utils", () => {
             );
         });
 
-        it("should log info messages with attributes", () => {
+        it("should log info messages with attributes", async () => {
             logger.info("Test info", { userId: "123" });
+            await settle();
             expect(mockEmit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     body: "Test info",
@@ -116,8 +124,9 @@ describe("posthog-utils", () => {
             );
         });
 
-        it("should redact sensitive keys from log attributes", () => {
+        it("should redact sensitive keys from log attributes", async () => {
             logger.info("Test info", { email: "a@b.c", userId: "123" });
+            await settle();
             expect(mockEmit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     attributes: expect.objectContaining({
@@ -161,12 +170,13 @@ describe("posthog-utils", () => {
             );
         });
 
-        it("should capture an application_log event when credentials exist", () => {
+        it("should capture an application_log event when credentials exist", async () => {
             process.env.POSTHOG_PROJECT_API_KEY = "test-key";
             __resetPostHogClient();
 
             logger.info("Test info", { userId: "u1" });
 
+            await settle();
             expect(mockPostHogCapture).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "application_log",
@@ -219,11 +229,12 @@ describe("posthog-utils", () => {
             );
         });
 
-        it("should capture an exception event when credentials exist", () => {
+        it("should capture an exception event when credentials exist", async () => {
             process.env.POSTHOG_PROJECT_API_KEY = "test-key";
             __resetPostHogClient();
 
             recordError(new Error("boom"), { userId: "u1" });
+            await settle();
 
             expect(mockPostHogCaptureException).toHaveBeenCalledWith(
                 expect.any(Error),
@@ -290,12 +301,13 @@ describe("posthog-utils", () => {
             }).not.toThrow();
         });
 
-        it("should capture the event when credentials exist", () => {
+        it("should capture the event when credentials exist", async () => {
             process.env.POSTHOG_PROJECT_API_KEY = "test-key";
             __resetPostHogClient();
 
             recordEvent("UserLogin", { userId: "123", method: "oauth" });
 
+            await settle();
             expect(mockPostHogCapture).toHaveBeenCalledWith(
                 expect.objectContaining({
                     event: "UserLogin",

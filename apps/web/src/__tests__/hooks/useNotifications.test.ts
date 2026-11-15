@@ -4,23 +4,27 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCloseSubscriptionSafely, mockGetEnvConfig, mockSubscribe, mockTrackSubscription } =
-    vi.hoisted(() => ({
-        mockCloseSubscriptionSafely: vi.fn(() => Promise.resolve()),
-        mockGetEnvConfig: vi.fn(() => ({
-            collections: {
-                directMessages: "direct-messages",
-                messages: "messages",
-            },
-            databaseId: "database-1",
-        })),
-        mockSubscribe: vi.fn(() => ({
-            close: vi.fn().mockResolvedValue(undefined),
-            update: vi.fn().mockResolvedValue(undefined),
-            disconnect: vi.fn().mockResolvedValue(undefined),
-        })),
-        mockTrackSubscription: vi.fn(() => vi.fn()),
-    }));
+const {
+    mockCloseSubscriptionSafely,
+    mockGetEnvConfig,
+    mockSubscribe,
+    mockTrackSubscription,
+} = vi.hoisted(() => ({
+    mockCloseSubscriptionSafely: vi.fn(() => Promise.resolve()),
+    mockGetEnvConfig: vi.fn(() => ({
+        collections: {
+            directMessages: "direct-messages",
+            messages: "messages",
+        },
+        databaseId: "database-1",
+    })),
+    mockSubscribe: vi.fn(() => ({
+        close: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+        disconnect: vi.fn().mockResolvedValue(undefined),
+    })),
+    mockTrackSubscription: vi.fn(() => vi.fn()),
+}));
 
 vi.mock("../../lib/appwrite-core", () => ({
     getEnvConfig: mockGetEnvConfig,
@@ -85,7 +89,9 @@ describe("useNotifications", () => {
             useNotifications({ userId: "user-1" }),
         );
 
-        await expect(result.current.requestPermission()).resolves.toBe("denied");
+        await expect(result.current.requestPermission()).resolves.toBe(
+            "denied",
+        );
     });
 
     it("returns granted immediately when permission is already granted", async () => {

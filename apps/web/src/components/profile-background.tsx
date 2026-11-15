@@ -1,8 +1,7 @@
 "use client";
-
-import { useState } from "react";
 import Image from "next/image";
 import { getPresetFrameById } from "@/lib/preset-frames";
+import { Avatar } from "@/components/ui/avatar";
 
 type ProfileBackgroundProps = {
     backgroundColor?: string;
@@ -70,92 +69,69 @@ export function AvatarWithFrame({
     className = "",
 }: AvatarWithFrameProps) {
     const sizes = sizeClasses[size];
-    const [avatarErrored, setAvatarErrored] = useState(false);
     const presetFrame = avatarFramePreset
         ? getPresetFrameById(avatarFramePreset)
         : null;
-    const candidateFrameUrl = avatarFrameUrl ?? presetFrame?.imageUrl;
-    const trimmedFrameUrl =
-        typeof candidateFrameUrl === "string"
-            ? candidateFrameUrl.trim()
-            : undefined;
     const resolvedFrameUrl =
-        trimmedFrameUrl && trimmedFrameUrl.length > 0
-            ? trimmedFrameUrl
-            : undefined;
+        avatarFrameUrl?.trim() || presetFrame?.imageUrl?.trim() || "";
+    const hasFrameAsset = resolvedFrameUrl.length > 0;
     const frameEmoji = getFrameEmoji(avatarFramePreset);
 
+    // Frame geometry lives in the shared Avatar so a frame is padded the same
+    // way here as in chat, the header and the member list. This used to be a
+    // second copy of it, which is why the profile hero rendered frames
+    // differently from everywhere else.
+    if (hasFrameAsset || !frameEmoji) {
+        return (
+            <Avatar
+                alt={displayName}
+                className={className}
+                fallback={displayName.trim().charAt(0).toUpperCase() || "?"}
+                framePreset={avatarFramePreset ?? undefined}
+                frameUrl={resolvedFrameUrl || undefined}
+                sizePx={sizes.container}
+                src={avatarUrl}
+            />
+        );
+    }
+
+    // Preset chosen but no artwork yet: show the portrait with a themed ring
+    // and the frame's emoji, so the choice is still visible.
     const frameBorderStyle = presetFrame?.borderStyle || "solid";
     const frameColor = presetFrame?.color || "#6366f1";
-    const frameThickness = 3;
-    const hasFrameAsset = Boolean(resolvedFrameUrl);
-    const configuredInset = presetFrame?.avatarInsetPercent ?? 12;
-    const avatarInsetPercent = hasFrameAsset
-        ? Math.min(35, Math.max(0, configuredInset))
-        : 0;
-    const avatarInitial = displayName.trim().charAt(0).toUpperCase() || "?";
 
     return (
         <div
-            className={`relative overflow-visible ${className}`}
-            style={{ width: sizes.container, height: sizes.container }}
+            className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-muted ${className}`}
+            style={{
+                borderColor: frameColor,
+                borderStyle: frameBorderStyle,
+                borderWidth: 3,
+                height: sizes.container,
+                width: sizes.container,
+            }}
         >
-            {/* Frame image rendered behind the avatar */}
-            {resolvedFrameUrl && (
+            {avatarUrl ? (
                 <Image
-                    alt="Avatar frame"
-                    className="absolute inset-0 z-10 pointer-events-none"
+                    alt={displayName}
+                    className="object-cover"
                     fill
-                    sizes={`${sizes.container + 20}px`}
-                    src={resolvedFrameUrl}
-                    style={{ objectFit: "contain" }}
+                    sizes={`${sizes.avatarPx}px`}
+                    src={avatarUrl}
                     unoptimized
                 />
+            ) : (
+                <span className="font-semibold text-foreground/70">
+                    {(displayName.trim().charAt(0) || "?").toUpperCase()}
+                </span>
             )}
-
-            {/* Avatar container with inset, layered on top of frame */}
-            <div
-                className="absolute z-20 flex items-center justify-center overflow-hidden rounded-full bg-muted"
-                style={{
-                    left: `${avatarInsetPercent}%`,
-                    top: `${avatarInsetPercent}%`,
-                    width: `${100 - avatarInsetPercent * 2}%`,
-                    height: `${100 - avatarInsetPercent * 2}%`,
-                    borderColor: hasFrameAsset ? undefined : frameColor,
-                    borderStyle: hasFrameAsset ? undefined : frameBorderStyle,
-                    borderWidth: hasFrameAsset
-                        ? undefined
-                        : `${frameThickness}px`,
-                }}
+            <span
+                aria-hidden="true"
+                className="absolute -bottom-1 -right-1 z-10 flex size-5 items-center justify-center rounded-full bg-background text-xs"
             >
-                {avatarUrl && !avatarErrored ? (
-                    <Image
-                        alt={displayName}
-                        className="object-cover"
-                        fill
-                        onError={() => setAvatarErrored(true)}
-                        sizes={`${sizes.avatarPx}px`}
-                        src={avatarUrl}
-                        unoptimized
-                    />
-                ) : (
-                    <span className="text-foreground/70 font-semibold">
-                        {avatarInitial}
-                    </span>
-                )}
-            </div>
-
-            {frameEmoji && !hasFrameAsset && (
-                <div
-                    className="absolute -bottom-1 -right-1 z-30 flex size-5 items-center justify-center rounded-full bg-background text-xs"
-                    title={`Frame: ${presetFrame?.name || "Custom"}`}
-                >
-                    <span aria-hidden="true">{frameEmoji}</span>
-                    <span className="sr-only">
-                        {`Frame: ${presetFrame?.name || "Custom"}`}
-                    </span>
-                </div>
-            )}
+                {frameEmoji}
+            </span>
+            <span className="sr-only">{`Frame: ${presetFrame?.name || "Custom"}`}</span>
         </div>
     );
 }

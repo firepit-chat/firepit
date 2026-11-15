@@ -1,10 +1,5 @@
 {
-  "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": [
-    "public/sw.js",
-    "scripts/test-server-auth.ts"
-  ],
-  "tags": [
-    "-lintignore"
-  ]
+    "$schema": "https://unpkg.com/knip@6/schema.json",
+    "entry": ["public/sw.js", "scripts/test-server-auth.ts"],
+    "tags": ["-lintignore"]
 }

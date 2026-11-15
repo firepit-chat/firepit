@@ -14,12 +14,14 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 
 import { AuthRouteGuard } from "@/components/auth-route-guard";
+import { StatusIndicator } from "@/components/status-indicator";
 import { ThemedText } from "@/components/themed-text";
+import { Avatar } from "@/components/ui/avatar";
 import { ThemedView } from "@/components/themed-view";
 import { BottomTabInset, MaxContentWidth, Spacing } from "@/constants/theme";
 import { useTheme } from "@/hooks/use-theme";
 import {
-    createDirectMessageConversation,
+    getOrCreateDirectMessageConversation,
     type UserProfile,
 } from "@/lib/firepit";
 import { getCachedUserProfile } from "@/lib/profile-cache";
@@ -72,9 +74,7 @@ function parseCssGradient(cssValue: string): ParsedGradient | null {
     return { colors, start, end };
 }
 
-function normalizeParam(
-    value?: string | string[] | null,
-): string | undefined {
+function normalizeParam(value?: string | string[] | null): string | undefined {
     if (Array.isArray(value)) {
         return value[0];
     }
@@ -82,7 +82,9 @@ function normalizeParam(
 }
 
 function safeText(value: unknown) {
-    return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+    return typeof value === "string" && value.trim().length > 0
+        ? value.trim()
+        : null;
 }
 
 function profileDisplayName(profile: UserProfile | null, userId: string) {
@@ -99,22 +101,13 @@ function profileSubtitle(profile: UserProfile | null) {
     const statusText =
         typeof profile?.status === "string"
             ? profile.status
-            : profile?.status?.status ?? profile?.status?.customMessage ?? null;
+            : (profile?.status?.status ??
+              profile?.status?.customMessage ??
+              null);
     const pronouns = safeText(profile?.pronouns);
     const status = safeText(statusText);
     const bio = safeText(profile?.bio);
     return pronouns ?? status ?? bio ?? "";
-}
-
-function statusColor(
-    status?: string,
-): { color: string; label: string } | null {
-    if (!status) return null;
-    const normalized = status.toLowerCase().replace(/[\s_-]/g, "");
-    if (normalized === "online") return { color: "#22c55e", label: "Online" };
-    if (normalized === "away" || normalized === "idle") return { color: "#f59e0b", label: "Away" };
-    if (normalized === "dnd" || normalized === "donotdisturb") return { color: "#ef4444", label: "Do Not Disturb" };
-    return { color: "#6b7280", label: "Offline" };
 }
 
 const PRESET_FRAME_EMOJI: Record<string, string> = {
@@ -141,49 +134,55 @@ function AvatarWithFrame({
     avatarUrl,
     frameUrl,
     framePreset,
+    frameInsetPercent,
     name,
     size = 72,
 }: {
     avatarUrl?: string | null;
     frameUrl?: string | null;
     framePreset?: string | null;
+    /** Measured inset for the chosen frame; see the web preset-frames module. */
+    frameInsetPercent?: number | null;
     name: string;
     size?: number;
 }) {
     const theme = useTheme();
-    const frameInset = frameUrl ? 14 : 0;
-    const innerSize = size - (frameInset * 2);
     const frameEmoji = frameEmojiForPreset(framePreset ?? undefined);
     const showFrameEmoji = Boolean(!frameUrl && frameEmoji);
 
+    // Frames are drawn with their own measured inset, so the portrait has to be
+    // sized and positioned by the shared Avatar rather than a fixed padding —
+    // otherwise the deep-inset frames (a star, a flower) either shrink the
+    // portrait or cover the frame's inner edge.
+    if (frameUrl) {
+        return (
+            <Avatar
+                uri={avatarUrl}
+                size={size}
+                initials={name}
+                frameUrl={frameUrl}
+                frameInset={frameInsetPercent ?? 12}
+            />
+        );
+    }
+
     return (
         <View style={{ width: size, height: size, position: "relative" }}>
-            {frameUrl ? (
-                <Image
-                    source={{ uri: frameUrl }}
-                    style={[
-                        StyleSheet.absoluteFill,
-                        { zIndex: 1 },
-                    ]}
-                    pointerEvents="none"
-                    contentFit="contain"
-                />
-            ) : null}
             <View
                 style={{
                     position: "absolute",
-                    left: frameInset,
-                    top: frameInset,
-                    width: innerSize,
-                    height: innerSize,
-                    borderRadius: innerSize / 2,
+                    left: 0,
+                    top: 0,
+                    width: size,
+                    height: size,
+                    borderRadius: size / 2,
                     overflow: "hidden",
                     alignItems: "center",
                     justifyContent: "center",
                     backgroundColor: "rgba(217, 121, 43, 0.14)",
                     zIndex: 2,
                     borderWidth: showFrameEmoji ? 3 : 0,
-                    borderColor: frameUrl ? undefined : theme.accent,
+                    borderColor: theme.accent,
                     borderStyle: "solid",
                 }}
             >
@@ -223,35 +222,13 @@ function AvatarWithFrame({
     );
 }
 
-function StatusDot({ status }: { status?: string }) {
-    const info = statusColor(status);
-    if (!info) return null;
-    return (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <View
-                style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 4,
-                    backgroundColor: info.color,
-                }}
-            />
-            <ThemedText themeColor="mutedForeground" type="code">
-                {info.label}
-            </ThemedText>
-        </View>
-    );
-}
-
 type ProfileBackground =
     | { type: "image" }
     | { type: "gradient"; parsed: ParsedGradient }
     | { type: "color"; color: string }
     | null;
 
-function getProfileBackground(
-    profile: UserProfile | null,
-): ProfileBackground {
+function getProfileBackground(profile: UserProfile | null): ProfileBackground {
     if (profile?.profileBackgroundUrl) {
         return { type: "image" };
     }
@@ -272,7 +249,8 @@ export default function UserProfileScreen() {
     const theme = useTheme();
     const { userId } = useLocalSearchParams<RouteParams>();
     const normalizedUserId = normalizeParam(userId);
-    const { instanceUrl, accessToken, currentUser, state } = useFirepitBootstrap();
+    const { instanceUrl, accessToken, currentUser, state } =
+        useFirepitBootstrap();
     const [loadState, setLoadState] = useState<LoadState>("idle");
     const [error, setError] = useState<string | null>(null);
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -283,16 +261,28 @@ export default function UserProfileScreen() {
 
     const signedIn = Boolean(state === "ready" && instanceUrl && accessToken);
     const currentUserId = currentUser?.$id ?? currentUser?.userId ?? null;
-    const isOwnProfile = Boolean(currentUserId && normalizedUserId && currentUserId === normalizedUserId);
-    const canStartDm = Boolean(
-        signedIn && normalizedUserId && currentUserId && normalizedUserId !== currentUserId,
+    const isOwnProfile = Boolean(
+        currentUserId && normalizedUserId && currentUserId === normalizedUserId,
     );
-    const avatarUrl = profile?.avatarUrl ?? profile?.avatar ?? profile?.profileImageUrl ?? null;
+    const canStartDm = Boolean(
+        signedIn &&
+        normalizedUserId &&
+        currentUserId &&
+        normalizedUserId !== currentUserId,
+    );
+    const avatarUrl =
+        profile?.avatarUrl ??
+        profile?.avatar ??
+        profile?.profileImageUrl ??
+        null;
     const frameUrl = profile?.avatarFrameUrl ?? null;
     const framePreset = profile?.avatarFramePreset ?? null;
     const name = profileDisplayName(profile, normalizedUserId ?? "profile");
     const subtitle = profileSubtitle(profile);
-    const statusValue = typeof profile?.status === "string" ? profile.status : profile?.status?.status ?? undefined;
+    const statusValue =
+        typeof profile?.status === "string"
+            ? profile.status
+            : (profile?.status?.status ?? undefined);
     const profileBackground = getProfileBackground(profile);
     const hasBackground = profileBackground !== null;
 
@@ -341,39 +331,53 @@ export default function UserProfileScreen() {
         };
     }, [accessToken, instanceUrl, normalizedUserId, reloadNonce]);
 
-    useRetryOnReconnect(loadState === "error", () => setReloadNonce((n) => n + 1));
+    useRetryOnReconnect(loadState === "error", () =>
+        setReloadNonce((n) => n + 1),
+    );
 
     const profileFields = useMemo(
-        () => [
-            { label: "Pronouns", value: safeText(profile?.pronouns) },
-            { label: "Location", value: safeText(profile?.location) },
-            { label: "Website", value: safeText(profile?.website), isLink: true },
-            { label: "Bio", value: safeText(profile?.bio) },
-        ].filter((item) => item.value),
+        () =>
+            [
+                { label: "Pronouns", value: safeText(profile?.pronouns) },
+                { label: "Location", value: safeText(profile?.location) },
+                {
+                    label: "Website",
+                    value: safeText(profile?.website),
+                    isLink: true,
+                },
+                { label: "Bio", value: safeText(profile?.bio) },
+            ].filter((item) => item.value),
         [profile],
     );
 
     const startDm = async () => {
-        if (!instanceUrl || !accessToken || !normalizedUserId || !currentUserId) {
+        if (
+            !instanceUrl ||
+            !accessToken ||
+            !normalizedUserId ||
+            !currentUserId
+        ) {
             return;
         }
 
         setStartingDm("loading");
         setActionError(null);
         try {
-            const response = await createDirectMessageConversation(
+            const response = await getOrCreateDirectMessageConversation(
                 instanceUrl,
                 accessToken,
-                {
-                    userId1: currentUserId,
-                    userId2: normalizedUserId,
-                },
+                currentUserId,
+                normalizedUserId,
             );
             const conversationId = response.conversation?.$id;
             setStartingDm("ready");
-            if (conversationId) {
-                router.push(`/dm/${conversationId}` as never);
+            if (!conversationId) {
+                // Previously this silently did nothing, leaving the button
+                // spinning back to idle with no feedback at all.
+                setActionError("Unable to start conversation");
+                return;
             }
+            router.push(`/dm/${conversationId}` as never);
         } catch (startError) {
             setStartingDm("error");
             setActionError(
@@ -394,8 +398,14 @@ export default function UserProfileScreen() {
                     >
                         {loadState === "loading" ? (
                             <View style={styles.loadingContainer}>
-                                <ActivityIndicator color={theme.primary} size="large" />
-                                <ThemedText themeColor="mutedForeground" style={{ marginTop: Spacing.two }}>
+                                <ActivityIndicator
+                                    color={theme.primary}
+                                    size="large"
+                                />
+                                <ThemedText
+                                    themeColor="mutedForeground"
+                                    style={{ marginTop: Spacing.two }}
+                                >
                                     Loading profile…
                                 </ThemedText>
                             </View>
@@ -405,222 +415,309 @@ export default function UserProfileScreen() {
                                     type="card"
                                     style={[
                                         styles.heroCard,
-                                    {
-                                        borderColor: theme.border,
-                                        ...(hasBackground
-                                            ? { backgroundColor: undefined }
-                                            : {}),
-                                    },
-                                ]}
-                            >
-                                {profileBackground?.type === "image" ? (
-                                    <View style={StyleSheet.absoluteFill}>
-                                        <Image
-                                            source={{
-                                                uri: profile?.profileBackgroundUrl,
-                                            }}
-                                            style={[StyleSheet.absoluteFill, { borderRadius: 24 }]}
-                                            contentFit="cover"
-                                        />
-                                    </View>
-                                ) : null}
-                                {profileBackground?.type === "gradient" ? (
-                                    <LinearGradient
-                                        colors={profileBackground.parsed.colors as [string, string, ...string[]]}
-                                        start={profileBackground.parsed.start}
-                                        end={profileBackground.parsed.end}
-                                        style={StyleSheet.absoluteFill}
-                                    />
-                                ) : null}
-                                {profileBackground?.type === "color" && profileBackground.color ? (
-                                    <View
-                                        style={[
-                                            StyleSheet.absoluteFill,
-                                            { backgroundColor: profileBackground.color },
-                                        ]}
-                                    />
-                                ) : null}
-                                <View
-                                    style={[
-                                        styles.heroContentOverlay,
-                                        hasBackground ? styles.heroOverlay : null,
+                                        {
+                                            borderColor: theme.border,
+                                            ...(hasBackground
+                                                ? { backgroundColor: undefined }
+                                                : {}),
+                                        },
                                     ]}
                                 >
-                                    <View style={styles.heroRow}>
-                                        <AvatarWithFrame
-                                            avatarUrl={avatarUrl}
-                                            frameUrl={frameUrl}
-                                            framePreset={framePreset}
-                                            name={name}
-                                            size={80}
+                                    {profileBackground?.type === "image" ? (
+                                        <View style={StyleSheet.absoluteFill}>
+                                            <Image
+                                                source={{
+                                                    uri: profile?.profileBackgroundUrl,
+                                                }}
+                                                style={[
+                                                    StyleSheet.absoluteFill,
+                                                    { borderRadius: 24 },
+                                                ]}
+                                                contentFit="cover"
+                                            />
+                                        </View>
+                                    ) : null}
+                                    {profileBackground?.type === "gradient" ? (
+                                        <LinearGradient
+                                            colors={
+                                                profileBackground.parsed
+                                                    .colors as [
+                                                    string,
+                                                    string,
+                                                    ...string[],
+                                                ]
+                                            }
+                                            start={
+                                                profileBackground.parsed.start
+                                            }
+                                            end={profileBackground.parsed.end}
+                                            style={StyleSheet.absoluteFill}
                                         />
-                                        <View style={styles.heroCopy}>
-                                            <ThemedText type="code" themeColor="accent">
-                                                Profile
-                                            </ThemedText>
-                                            <ThemedText type="title">
-                                                {name}
-                                            </ThemedText>
-                                            {subtitle || statusValue ? (
-                                                <View style={{ gap: 2 }}>
-                                                    {statusValue ? (
-                                                        <StatusDot status={statusValue} />
-                                                    ) : null}
-                                                    {subtitle && subtitle !== statusValue ? (
-                                                        <ThemedText
-                                                            themeColor="mutedForeground"
-                                                            style={styles.copy}
-                                                        >
-                                                            {subtitle}
-                                                        </ThemedText>
-                                                    ) : null}
-                                                </View>
-                                            ) : null}
-                                            <ThemedText type="code" themeColor="mutedForeground">
-                                                {normalizedUserId}
-                                            </ThemedText>
+                                    ) : null}
+                                    {profileBackground?.type === "color" &&
+                                    profileBackground.color ? (
+                                        <View
+                                            style={[
+                                                StyleSheet.absoluteFill,
+                                                {
+                                                    backgroundColor:
+                                                        profileBackground.color,
+                                                },
+                                            ]}
+                                        />
+                                    ) : null}
+                                    <View
+                                        style={[
+                                            styles.heroContentOverlay,
+                                            hasBackground
+                                                ? styles.heroOverlay
+                                                : null,
+                                        ]}
+                                    >
+                                        <View style={styles.heroRow}>
+                                            <AvatarWithFrame
+                                                avatarUrl={avatarUrl}
+                                                frameUrl={frameUrl}
+                                                framePreset={framePreset}
+                                                frameInsetPercent={
+                                                    profile?.avatarFrameInsetPercent ??
+                                                    null
+                                                }
+                                                name={name}
+                                                size={80}
+                                            />
+                                            <View style={styles.heroCopy}>
+                                                <ThemedText
+                                                    type="code"
+                                                    themeColor="accent"
+                                                >
+                                                    Profile
+                                                </ThemedText>
+                                                <ThemedText type="title">
+                                                    {name}
+                                                </ThemedText>
+                                                {subtitle || statusValue ? (
+                                                    <View style={{ gap: 2 }}>
+                                                        {statusValue ? (
+                                                            <StatusIndicator
+                                                                status={
+                                                                    statusValue
+                                                                }
+                                                                size={8}
+                                                                showLabel
+                                                            />
+                                                        ) : null}
+                                                        {subtitle &&
+                                                        subtitle !==
+                                                            statusValue ? (
+                                                            <ThemedText
+                                                                themeColor="mutedForeground"
+                                                                style={
+                                                                    styles.copy
+                                                                }
+                                                            >
+                                                                {subtitle}
+                                                            </ThemedText>
+                                                        ) : null}
+                                                    </View>
+                                                ) : null}
+                                                <ThemedText
+                                                    type="code"
+                                                    themeColor="mutedForeground"
+                                                >
+                                                    {normalizedUserId}
+                                                </ThemedText>
+                                            </View>
                                         </View>
                                     </View>
-                                </View>
-                            </ThemedView>
+                                </ThemedView>
 
-                            <ThemedView
-                                type="card"
-                                style={[styles.card, { borderColor: theme.border }]}
-                            >
-                                <View style={styles.sectionHeaderRow}>
-                                    <ThemedText type="smallBold">Actions</ThemedText>
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        onPress={() => router.back()}
-                                        style={({ pressed }) => [
-                                            styles.inlineButton,
-                                            {
-                                                backgroundColor: theme.muted,
-                                                borderColor: theme.border,
-                                                opacity: pressed ? 0.88 : 1,
-                                            },
+                                <ThemedView
+                                    type="card"
+                                    style={[
+                                        styles.card,
+                                        { borderColor: theme.border },
+                                    ]}
+                                >
+                                    <View style={styles.sectionHeaderRow}>
+                                        <ThemedText type="smallBold">
+                                            Actions
+                                        </ThemedText>
+                                        <Pressable
+                                            accessibilityRole="button"
+                                            onPress={() => router.back()}
+                                            style={({ pressed }) => [
+                                                styles.inlineButton,
+                                                {
+                                                    backgroundColor:
+                                                        theme.muted,
+                                                    borderColor: theme.border,
+                                                    opacity: pressed ? 0.88 : 1,
+                                                },
+                                            ]}
+                                        >
+                                            <ThemedText
+                                                type="smallBold"
+                                                themeColor="foreground"
+                                            >
+                                                Back
+                                            </ThemedText>
+                                        </Pressable>
+                                    </View>
+
+                                    {error ? (
+                                        <ThemedText themeColor="destructive">
+                                            {error}
+                                        </ThemedText>
+                                    ) : null}
+                                    {actionError ? (
+                                        <ThemedText themeColor="destructive">
+                                            {actionError}
+                                        </ThemedText>
+                                    ) : null}
+
+                                    {canStartDm ? (
+                                        <Pressable
+                                            accessibilityRole="button"
+                                            disabled={startingDm === "loading"}
+                                            onPress={() => void startDm()}
+                                            style={({ pressed }) => [
+                                                styles.primaryButton,
+                                                {
+                                                    backgroundColor:
+                                                        theme.primary,
+                                                    opacity:
+                                                        startingDm === "loading"
+                                                            ? 0.55
+                                                            : pressed
+                                                              ? 0.88
+                                                              : 1,
+                                                },
+                                            ]}
+                                        >
+                                            <ThemedText
+                                                type="smallBold"
+                                                themeColor="primaryForeground"
+                                            >
+                                                {startingDm === "loading"
+                                                    ? "Starting DM…"
+                                                    : "Start DM"}
+                                            </ThemedText>
+                                        </Pressable>
+                                    ) : null}
+
+                                    {normalizedUserId && !isOwnProfile ? (
+                                        <>
+                                            <View style={styles.divider} />
+                                            <RelationshipActions
+                                                targetUserId={normalizedUserId}
+                                            />
+                                        </>
+                                    ) : null}
+                                </ThemedView>
+
+                                {profileFields.length ? (
+                                    <ThemedView
+                                        type="card"
+                                        style={[
+                                            styles.card,
+                                            { borderColor: theme.border },
                                         ]}
                                     >
-                                        <ThemedText type="smallBold" themeColor="foreground">
-                                            Back
+                                        <ThemedText type="smallBold">
+                                            Profile details
                                         </ThemedText>
-                                    </Pressable>
-                                </View>
-
-                                {error ? (
-                                    <ThemedText themeColor="destructive">{error}</ThemedText>
-                                ) : null}
-                                {actionError ? (
-                                    <ThemedText themeColor="destructive">{actionError}</ThemedText>
-                                ) : null}
-
-                                {canStartDm ? (
-                                    <Pressable
-                                        accessibilityRole="button"
-                                        disabled={startingDm === "loading"}
-                                        onPress={() => void startDm()}
-                                        style={({ pressed }) => [
-                                            styles.primaryButton,
-                                            {
-                                                backgroundColor: theme.primary,
-                                                opacity:
-                                                    startingDm === "loading"
-                                                        ? 0.55
-                                                        : pressed
-                                                          ? 0.88
-                                                          : 1,
-                                            },
-                                        ]}
-                                    >
-                                        <ThemedText type="smallBold" themeColor="primaryForeground">
-                                            {startingDm === "loading"
-                                                ? "Starting DM…"
-                                                : "Start DM"}
-                                        </ThemedText>
-                                    </Pressable>
+                                        <View style={styles.fieldList}>
+                                            {profileFields.map((field) => (
+                                                <View
+                                                    key={field.label}
+                                                    style={styles.fieldRow}
+                                                >
+                                                    <ThemedText
+                                                        type="code"
+                                                        themeColor="mutedForeground"
+                                                    >
+                                                        {field.label}
+                                                    </ThemedText>
+                                                    {"isLink" in field &&
+                                                    field.isLink ? (
+                                                        <Pressable
+                                                            accessibilityRole="link"
+                                                            onPress={() => {
+                                                                const url =
+                                                                    field.value;
+                                                                if (!url)
+                                                                    return;
+                                                                const link =
+                                                                    /^https?:\/\//i.test(
+                                                                        url,
+                                                                    )
+                                                                        ? url
+                                                                        : `https://${url}`;
+                                                                Linking.openURL(
+                                                                    link,
+                                                                ).catch(
+                                                                    () =>
+                                                                        undefined,
+                                                                );
+                                                            }}
+                                                        >
+                                                            <ThemedText
+                                                                themeColor="foreground"
+                                                                style={
+                                                                    styles.linkText
+                                                                }
+                                                            >
+                                                                {field.value}
+                                                            </ThemedText>
+                                                        </Pressable>
+                                                    ) : (
+                                                        <ThemedText
+                                                            style={
+                                                                field.label ===
+                                                                "Bio"
+                                                                    ? styles.bioText
+                                                                    : undefined
+                                                            }
+                                                        >
+                                                            {field.value}
+                                                        </ThemedText>
+                                                    )}
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </ThemedView>
                                 ) : null}
 
                                 {normalizedUserId && !isOwnProfile ? (
-                                    <>
-                                        <View style={styles.divider} />
-                                        <RelationshipActions
-                                            targetUserId={normalizedUserId}
-                                        />
-                                    </>
+                                    <Pressable
+                                        accessibilityRole="button"
+                                        onPress={() => setReportVisible(true)}
+                                        style={({ pressed }) => ({
+                                            alignSelf: "center",
+                                            opacity: pressed ? 0.7 : 1,
+                                            paddingVertical: Spacing.two,
+                                        })}
+                                    >
+                                        <ThemedText
+                                            type="code"
+                                            themeColor="mutedForeground"
+                                            style={styles.reportText}
+                                        >
+                                            Report User
+                                        </ThemedText>
+                                    </Pressable>
+                                ) : null}
+
+                                {normalizedUserId ? (
+                                    <ReportUserModal
+                                        visible={reportVisible}
+                                        onClose={() => setReportVisible(false)}
+                                        targetUserId={normalizedUserId}
+                                        targetDisplayName={name}
+                                    />
                                 ) : null}
                             </ThemedView>
-
-                            {profileFields.length ? (
-                                <ThemedView
-                                    type="card"
-                                    style={[styles.card, { borderColor: theme.border }]}
-                                >
-                                    <ThemedText type="smallBold">Profile details</ThemedText>
-                                    <View style={styles.fieldList}>
-                                        {profileFields.map((field) => (
-                                            <View key={field.label} style={styles.fieldRow}>
-                                                <ThemedText type="code" themeColor="mutedForeground">
-                                                    {field.label}
-                                                </ThemedText>
-                                                {"isLink" in field && field.isLink ? (
-                                                    <Pressable
-                                                        accessibilityRole="link"
-                                                        onPress={() => {
-                                                            const url = field.value;
-                                                            if (!url) return;
-                                                            const link = /^https?:\/\//i.test(url)
-                                                                ? url
-                                                                : `https://${url}`;
-                                                            Linking.openURL(link).catch(
-                                                                () => undefined,
-                                                            );
-                                                        }}
-                                                    >
-                                                        <ThemedText themeColor="foreground" style={styles.linkText}>
-                                                            {field.value}
-                                                        </ThemedText>
-                                                    </Pressable>
-                                                ) : (
-                                                    <ThemedText style={field.label === "Bio" ? styles.bioText : undefined}>
-                                                        {field.value}
-                                                    </ThemedText>
-                                                )}
-                                            </View>
-                                        ))}
-                                    </View>
-                                </ThemedView>
-                            ) : null}
-
-                            {normalizedUserId && !isOwnProfile ? (
-                                <Pressable
-                                    accessibilityRole="button"
-                                    onPress={() => setReportVisible(true)}
-                                    style={({ pressed }) => ({
-                                        alignSelf: "center",
-                                        opacity: pressed ? 0.7 : 1,
-                                        paddingVertical: Spacing.two,
-                                    })}
-                                >
-                                    <ThemedText
-                                        type="code"
-                                        themeColor="mutedForeground"
-                                        style={styles.reportText}
-                                    >
-                                        Report User
-                                    </ThemedText>
-                                </Pressable>
-                            ) : null}
-
-                            {normalizedUserId ? (
-                                <ReportUserModal
-                                    visible={reportVisible}
-                                    onClose={() => setReportVisible(false)}
-                                    targetUserId={normalizedUserId}
-                                    targetDisplayName={name}
-                                />
-                            ) : null}
-                        </ThemedView>
                         )}
                     </ScrollView>
                 </SafeAreaView>

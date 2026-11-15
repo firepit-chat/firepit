@@ -16,19 +16,19 @@ const {
     mockSetProject: vi.fn().mockReturnThis(),
 }));
 
- vi.mock("node-appwrite", () => ({
-     Account: vi.fn(function () {
-         return {
-             updateVerification: mockUpdateVerification,
-         };
-     }),
-     Client: vi.fn(function () {
-         return {
-             setEndpoint: mockSetEndpoint,
-             setProject: mockSetProject,
-         };
-     }),
- }));
+vi.mock("node-appwrite", () => ({
+    Account: vi.fn(function () {
+        return {
+            updateVerification: mockUpdateVerification,
+        };
+    }),
+    Client: vi.fn(function () {
+        return {
+            setEndpoint: mockSetEndpoint,
+            setProject: mockSetProject,
+        };
+    }),
+}));
 
 vi.mock("@/lib/appwrite-core", () => ({
     getEnvConfig: mockGetEnvConfig,
@@ -42,8 +42,12 @@ vi.mock("@/lib/feature-flags", () => ({
 }));
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: {
         error: mockLoggerError,
     },
@@ -131,7 +135,9 @@ describe("verify-email API route", () => {
     });
 
     it("logs and redirects with verified=0 when verification fails", async () => {
-        mockUpdateVerification.mockRejectedValue(new Error("verification failed"));
+        mockUpdateVerification.mockRejectedValue(
+            new Error("verification failed"),
+        );
 
         const response = await GET(
             new Request(

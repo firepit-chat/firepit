@@ -18,17 +18,43 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusIndicator } from "@/components/status-indicator";
-import { ImageViewer } from "@/components/image-viewer";
+import dynamic from "next/dynamic";
+
+// Both of these only render on interaction, so they stay out of the initial
+// chat payload. `ImageViewer` was previously imported statically here *and*
+// dynamically in `chat/page.tsx`, which put the same component in the bundle
+// twice; two dynamic references to one module resolve to one async chunk.
+const ImageViewer = dynamic(
+    () =>
+        import("@/components/image-viewer").then((mod) => ({
+            default: mod.ImageViewer,
+        })),
+    { ssr: false },
+);
+
+const GifStickerPicker = dynamic(
+    () =>
+        import("@/components/gif-sticker-picker").then((mod) => ({
+            default: mod.GifStickerPicker,
+        })),
+    { ssr: false },
+);
 import { ImageWithSkeleton } from "@/components/image-with-skeleton";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { ChatInput } from "@/components/chat-input";
 import { ReactionButton } from "@/components/reaction-button";
 import { ReactionPicker } from "@/components/reaction-picker";
-import { GifStickerPicker } from "@/components/gif-sticker-picker";
+
 import { MessageWithMentions } from "@/components/message-with-mentions";
 import { FileUploadButton, FilePreview } from "@/components/file-upload-button";
 import { FileAttachmentDisplay } from "@/components/file-attachment-display";
 import { VirtualizedDMList } from "@/components/virtualized-dm-list";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { ChatPinnedMessagesContent } from "@/components/chat-pinned-messages-content";
 import { ChatThreadContent } from "@/components/chat-thread-content";
 import { MentionHelpTooltip } from "@/components/mention-help-tooltip";
@@ -36,6 +62,7 @@ import { MESSAGE_LIST_VIEWPORT_HEIGHT } from "@/components/virtualized-message-l
 import { useCustomEmojis } from "@/hooks/useCustomEmojis";
 import { adaptDirectMessages, fromDirectMessage } from "@/lib/chat-surface";
 import { jumpToMessage } from "@/lib/message-navigation";
+import type { ChatSurfaceMessage } from "@/lib/chat-surface";
 import type { DirectMessage, Conversation, FileAttachment } from "@/lib/types";
 import { formatMessageTimestamp } from "@/lib/utils";
 import { uploadImage } from "@/lib/appwrite-dms-client";
@@ -44,6 +71,10 @@ import { toast } from "sonner";
 
 // Keep DM rendering parity with the shared chat surface threshold.
 const VIRTUALIZATION_THRESHOLD = 20;
+
+// Stable no-op fallback: `prop || (() => undefined)` allocated a new function
+// each render, which defeated the memo on every message row.
+const noop = () => undefined;
 
 type DirectMessageViewProps = {
     conversation: Conversation;
@@ -227,6 +258,7 @@ export function DirectMessageView({
         [],
     );
     const [threadReplyText, setThreadReplyText] = useState("");
+    const [pinnedOpen, setPinnedOpen] = useState(false);
     const messagesContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const isGroup =
@@ -386,21 +418,28 @@ export function DirectMessageView({
             setText(messageText);
         }
     };
-    const startEdit = (message: DirectMessage) => {
+    // Surface messages carry a sliced id; the handlers below need the raw
+    // document. One Map instead of a `messages.find()` scan per interaction.
+    const rawMessagesById = useMemo(
+        () => new Map(messages.map((message) => [message.$id, message])),
+        [messages],
+    );
+
+    const startEdit = useCallback((message: DirectMessage) => {
         setEditingMessageId(message.$id);
         setText(message.text);
         setReplyingToMessage(null);
-    };
+    }, []);
 
     const cancelEdit = () => {
         setEditingMessageId(null);
         setText("");
     };
 
-    const startReply = (message: DirectMessage) => {
+    const startReply = useCallback((message: DirectMessage) => {
         setReplyingToMessage(message);
         setEditingMessageId(null);
-    };
+    }, []);
 
     const cancelReply = () => {
         setReplyingToMessage(null);
@@ -442,14 +481,77 @@ export function DirectMessageView({
         }
     };
 
-    const handleDelete = async (messageId: string) => {
-        try {
-            await onDelete(messageId);
-            setDeleteConfirmId(null);
-        } catch {
-            // Error handled by parent
-        }
-    };
+    const handleDelete = useCallback(
+        async (messageId: string) => {
+            try {
+                await onDelete(messageId);
+                setDeleteConfirmId(null);
+            } catch {
+                // Error handled by parent
+            }
+        },
+        [onDelete],
+    );
+
+    // Each of these is threaded down to every memoized message row, so they
+    // must keep a stable identity across renders.
+    const handleOpenImageViewer = useCallback((imageUrl: string) => {
+        setViewingImage({ url: imageUrl, alt: "Direct message image" });
+    }, []);
+
+    const handleOpenThreadRow = useCallback(
+        async (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw && onOpenThread) {
+                await onOpenThread(raw);
+            }
+        },
+        [onOpenThread, rawMessagesById],
+    );
+
+    const handleStartEditRow = useCallback(
+        (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw) {
+                startEdit(raw);
+            }
+        },
+        [rawMessagesById, startEdit],
+    );
+
+    const handleStartReplyRow = useCallback(
+        (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw) {
+                startReply(raw);
+            }
+        },
+        [rawMessagesById, startReply],
+    );
+
+    const handleTogglePinRow = useCallback(
+        async (message: ChatSurfaceMessage) => {
+            const raw = rawMessagesById.get(message.id);
+            if (raw && onTogglePinMessage) {
+                await onTogglePinMessage(raw);
+            }
+        },
+        [onTogglePinMessage, rawMessagesById],
+    );
+
+    const handleToggleReactionRow = useCallback(
+        async (messageId: string, emoji: string, isAdding: boolean) => {
+            await handleToggleReaction(messageId, emoji, isAdding);
+        },
+        [handleToggleReaction],
+    );
+
+    const handleRemoveRow = useCallback(
+        (messageId: string) => {
+            void handleDelete(messageId);
+        },
+        [handleDelete],
+    );
 
     const handleEmojiSelect = useCallback((emoji: string) => {
         setText((prev) => prev + emoji);
@@ -465,6 +567,82 @@ export function DirectMessageView({
     const removeFileAttachment = useCallback((index: number) => {
         setFileAttachments((prev) => prev.filter((_, i) => i !== index));
     }, []);
+
+    /**
+     * Threads render in the message column rather than beside it: docked in the
+     * 320px sidebar a long thread scrolled that column forever, and the reply
+     * list's `flex-1 overflow-y-auto` had no bounded height to fill.
+     */
+    function renderThreadView() {
+        return (
+            <div className="min-w-0 space-y-4">
+                <div className="flex items-center gap-2 border-b border-border/80 pb-3">
+                    <Button
+                        onClick={onCloseThread}
+                        size="sm"
+                        title="Back to conversation"
+                        type="button"
+                        variant="ghost"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="flex min-w-0 items-center gap-1.5 text-sm">
+                        <MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate font-semibold">
+                            {displayName}
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            &gt;
+                        </span>
+                        <span className="shrink-0 text-muted-foreground">
+                            Thread
+                        </span>
+                    </div>
+                </div>
+                <div
+                    className="flex min-w-0 flex-col"
+                    style={{ height: MESSAGE_LIST_VIEWPORT_HEIGHT }}
+                >
+                    <ChatThreadContent
+                        currentUserId={currentUserId}
+                        customEmojis={customEmojis}
+                        loading={threadLoading}
+                        onReplyTextChange={
+                            onSendThreadReply ? setThreadReplyText : undefined
+                        }
+                        onSendReply={
+                            onSendThreadReply
+                                ? async () => {
+                                      const value = threadReplyText;
+                                      setThreadReplyText("");
+                                      await onSendThreadReply(value);
+                                  }
+                                : undefined
+                        }
+                        onToggleReaction={async (
+                            messageId,
+                            emoji,
+                            isAdding,
+                        ) => {
+                            await handleToggleReaction(
+                                messageId,
+                                emoji,
+                                isAdding,
+                            );
+                        }}
+                        parentMessage={threadParentSurfaceMessage}
+                        replies={threadSurfaceMessages}
+                        replyDisabled={readOnly}
+                        replyPlaceholder={
+                            readOnly ? readOnlyMessage : "Reply in thread"
+                        }
+                        sendingReply={threadReplySending}
+                        replyText={threadReplyText}
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-w-0 space-y-4">
@@ -494,10 +672,7 @@ export function DirectMessageView({
                                 size="sm"
                                 status={
                                     otherUser.status as
-                                        | "online"
-                                        | "away"
-                                        | "busy"
-                                        | "offline"
+                                        "online" | "away" | "busy" | "offline"
                                 }
                             />
                         </div>
@@ -526,6 +701,16 @@ export function DirectMessageView({
                         </p>
                     ) : null}
                 </div>
+                <Button
+                    aria-label="Pinned messages"
+                    onClick={() => setPinnedOpen(true)}
+                    size="icon"
+                    title="Pinned messages"
+                    type="button"
+                    variant="ghost"
+                >
+                    <Pin className="h-4 w-4" />
+                </Button>
             </div>
 
             {readOnly ? (
@@ -541,7 +726,16 @@ export function DirectMessageView({
             ) : null}
 
             <div className="grid gap-4">
-                <div className="min-w-0 space-y-4">
+                {activeThreadParent && onCloseThread
+                    ? renderThreadView()
+                    : null}
+                <div
+                    className={
+                        activeThreadParent && onCloseThread
+                            ? "hidden"
+                            : "min-w-0 space-y-4"
+                    }
+                >
                     <MentionHelpTooltip />
                     {unreadAnchorMessageId &&
                     (onJumpToUnread || onCatchUpUnread) ? (
@@ -616,80 +810,23 @@ export function DirectMessageView({
                                 editingMessageId={editingMessageId}
                                 messageDensity={messageDensity}
                                 messages={messages}
-                                onLoadOlder={onLoadOlder || (() => undefined)}
-                                onOpenImageViewer={(imageUrl) => {
-                                    setViewingImage({
-                                        url: imageUrl,
-                                        alt: "Direct message image",
-                                    });
-                                }}
-                                onOpenProfileModal={
-                                    onOpenProfileModal || (() => undefined)
-                                }
+                                onLoadOlder={onLoadOlder || noop}
+                                onOpenImageViewer={handleOpenImageViewer}
+                                onOpenProfileModal={onOpenProfileModal || noop}
                                 onOpenThread={
                                     onOpenThread
-                                        ? async (message) => {
-                                              const rawMessage = messages.find(
-                                                  (candidate) =>
-                                                      candidate.$id ===
-                                                      message.id,
-                                              );
-                                              if (rawMessage) {
-                                                  await onOpenThread(
-                                                      rawMessage,
-                                                  );
-                                              }
-                                          }
+                                        ? handleOpenThreadRow
                                         : undefined
                                 }
-                                onRemove={(messageId) => {
-                                    void handleDelete(messageId);
-                                }}
-                                onStartEdit={(message) => {
-                                    const rawMessage = messages.find(
-                                        (candidate) =>
-                                            candidate.$id === message.id,
-                                    );
-                                    if (rawMessage) {
-                                        startEdit(rawMessage);
-                                    }
-                                }}
-                                onStartReply={(message) => {
-                                    const rawMessage = messages.find(
-                                        (candidate) =>
-                                            candidate.$id === message.id,
-                                    );
-                                    if (rawMessage) {
-                                        startReply(rawMessage);
-                                    }
-                                }}
+                                onRemove={handleRemoveRow}
+                                onStartEdit={handleStartEditRow}
+                                onStartReply={handleStartReplyRow}
                                 onTogglePin={
                                     onTogglePinMessage
-                                        ? async (message) => {
-                                              const rawMessage = messages.find(
-                                                  (candidate) =>
-                                                      candidate.$id ===
-                                                      message.id,
-                                              );
-                                              if (rawMessage) {
-                                                  await onTogglePinMessage(
-                                                      rawMessage,
-                                                  );
-                                              }
-                                          }
+                                        ? handleTogglePinRow
                                         : undefined
                                 }
-                                onToggleReaction={async (
-                                    messageId,
-                                    emoji,
-                                    isAdding,
-                                ) => {
-                                    await handleToggleReaction(
-                                        messageId,
-                                        emoji,
-                                        isAdding,
-                                    );
-                                }}
+                                onToggleReaction={handleToggleReactionRow}
                                 onUploadCustomEmoji={uploadEmoji}
                                 pinnedMessageIds={pinnedMessageIds}
                                 setDeleteConfirmId={setDeleteConfirmId}
@@ -971,7 +1108,8 @@ export function DirectMessageView({
                                                             )}
                                                         </div>
                                                     ) : null}
-                                                    {typeof message.threadMessageCount ===
+                                                    {!message.isEncrypted &&
+                                                    typeof message.threadMessageCount ===
                                                         "number" &&
                                                     message.threadMessageCount >
                                                         0 &&
@@ -1029,7 +1167,8 @@ export function DirectMessageView({
                                                             >
                                                                 <Reply className="h-4 w-4" />
                                                             </Button>
-                                                            {onOpenThread ? (
+                                                            {onOpenThread &&
+                                                            !message.isEncrypted ? (
                                                                 <Button
                                                                     aria-label="Start thread"
                                                                     onClick={() => {
@@ -1065,7 +1204,8 @@ export function DirectMessageView({
                                                                     />
                                                                 </Button>
                                                             ) : null}
-                                                            {isMine ? (
+                                                            {isMine &&
+                                                            !message.isEncrypted ? (
                                                                 <>
                                                                     <Button
                                                                         onClick={() =>
@@ -1318,16 +1458,18 @@ export function DirectMessageView({
                     </>
                 </div>
 
-                <aside className="min-w-0 space-y-4 p-3 lg:border-l lg:border-border/80 lg:pl-4">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <Pin className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                            Pinned Messages
-                        </div>
+                <Dialog onOpenChange={setPinnedOpen} open={pinnedOpen}>
+                    <DialogContent className="max-w-xl">
+                        <DialogHeader>
+                            <DialogTitle>Pinned Messages</DialogTitle>
+                        </DialogHeader>
                         <ChatPinnedMessagesContent
                             canManageMessages={Boolean(onTogglePinMessage)}
                             messages={pinnedSurfaceMessages}
-                            onJumpToMessage={jumpToMessage}
+                            onJumpToMessage={(messageId) => {
+                                setPinnedOpen(false);
+                                jumpToMessage(messageId);
+                            }}
                             onUnpin={
                                 onTogglePinMessage
                                     ? async (surfaceMessage) => {
@@ -1346,70 +1488,8 @@ export function DirectMessageView({
                                     : undefined
                             }
                         />
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-sm font-medium">Thread</h3>
-                            {activeThreadParent && onCloseThread && (
-                                <Button
-                                    onClick={onCloseThread}
-                                    size="sm"
-                                    type="button"
-                                    variant="ghost"
-                                >
-                                    Close
-                                </Button>
-                            )}
-                        </div>
-                        {!activeThreadParent ? (
-                            <p className="text-xs text-muted-foreground">
-                                Open a message thread to view replies here.
-                            </p>
-                        ) : (
-                            <ChatThreadContent
-                                currentUserId={currentUserId}
-                                customEmojis={customEmojis}
-                                loading={threadLoading}
-                                onReplyTextChange={
-                                    onSendThreadReply
-                                        ? setThreadReplyText
-                                        : undefined
-                                }
-                                onSendReply={
-                                    onSendThreadReply
-                                        ? async () => {
-                                              const value = threadReplyText;
-                                              setThreadReplyText("");
-                                              await onSendThreadReply(value);
-                                          }
-                                        : undefined
-                                }
-                                onToggleReaction={async (
-                                    messageId,
-                                    emoji,
-                                    isAdding,
-                                ) => {
-                                    await handleToggleReaction(
-                                        messageId,
-                                        emoji,
-                                        isAdding,
-                                    );
-                                }}
-                                parentMessage={threadParentSurfaceMessage}
-                                replies={threadSurfaceMessages}
-                                replyDisabled={readOnly}
-                                replyPlaceholder={
-                                    readOnly
-                                        ? readOnlyMessage
-                                        : "Reply in thread"
-                                }
-                                sendingReply={threadReplySending}
-                                replyText={threadReplyText}
-                            />
-                        )}
-                    </div>
-                </aside>
+                    </DialogContent>
+                </Dialog>
             </div>
             {viewingImage && (
                 <ImageViewer

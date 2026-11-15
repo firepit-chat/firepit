@@ -47,7 +47,10 @@ export function normalizeAppwriteStorageUrl(
         return value;
     }
 
-    const endpointPrefix = endpointUrl.pathname.replace(TRAILING_SLASH_PATTERN, "");
+    const endpointPrefix = endpointUrl.pathname.replace(
+        TRAILING_SLASH_PATTERN,
+        "",
+    );
 
     try {
         const normalized = new URL(value, endpointUrl.origin);

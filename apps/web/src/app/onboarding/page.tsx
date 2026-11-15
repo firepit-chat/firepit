@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
+import { posthog } from "@/lib/posthog-client";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Sparkles, ChevronLeft, ChevronRight, Check } from "lucide-react";

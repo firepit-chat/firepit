@@ -42,13 +42,7 @@ export function MessagePollBlock({
                             .join(",")}`,
                 )
                 .join("|")}`,
-        [
-            poll.closedAt,
-            poll.closedBy,
-            poll.id,
-            poll.options,
-            poll.status,
-        ],
+        [poll.closedAt, poll.closedBy, poll.id, poll.options, poll.status],
     );
 
     useEffect(() => {
@@ -129,9 +123,12 @@ export function MessagePollBlock({
                 return;
             }
 
-            const response = await fetch(`/api/messages/${messageId}/poll/close`, {
-                method: "POST",
-            });
+            const response = await fetch(
+                `/api/messages/${messageId}/poll/close`,
+                {
+                    method: "POST",
+                },
+            );
 
             const payload = (await response.json()) as {
                 error?: string;
@@ -145,7 +142,9 @@ export function MessagePollBlock({
             setLocalPollState(payload.poll);
         } catch (error) {
             toast.error(
-                error instanceof Error ? error.message : "Failed to close poll.",
+                error instanceof Error
+                    ? error.message
+                    : "Failed to close poll.",
             );
         } finally {
             setClosing(false);
@@ -155,7 +154,9 @@ export function MessagePollBlock({
     return (
         <div className="mt-2 rounded-xl border border-border/60 bg-muted/20 p-3">
             <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium text-foreground">{pollState.question}</p>
+                <p className="text-sm font-medium text-foreground">
+                    {pollState.question}
+                </p>
                 {pollClosed ? (
                     <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         Closed
@@ -180,7 +181,9 @@ export function MessagePollBlock({
                             type="button"
                             variant={isSelected ? "default" : "outline"}
                         >
-                            <span className="truncate text-sm">{option.text}</span>
+                            <span className="truncate text-sm">
+                                {option.text}
+                            </span>
                             <span className="inline-flex items-center gap-1 text-xs">
                                 {isLoading ? (
                                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -197,7 +200,8 @@ export function MessagePollBlock({
                     {pollState.options.reduce(
                         (total, option) => total + option.count,
                         0,
-                    )} votes
+                    )}{" "}
+                    votes
                 </span>
 
                 <div className="flex items-center gap-2">

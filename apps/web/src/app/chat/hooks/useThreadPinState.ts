@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -713,20 +713,40 @@ export function useThreadPinState<TMessage extends ThreadableMessage>({
         ],
     );
 
-    return {
-        activeThreadParent,
-        closeThread,
-        setActiveThreadParent,
-        setThreadMessages,
-        openThread,
-        pins,
-        refreshPins,
-        sendThreadReply,
-        isThreadUnread,
-        threadLoading,
-        threadMessages,
-        threadReadByMessageId,
-        threadReplySending,
-        togglePin,
-    };
+    // Stable identity: consumers put this object in dependency arrays, and a fresh
+    // object literal per render re-ran those effects on every render.
+    return useMemo(
+        () => ({
+            activeThreadParent,
+            closeThread,
+            setActiveThreadParent,
+            setThreadMessages,
+            openThread,
+            pins,
+            refreshPins,
+            sendThreadReply,
+            isThreadUnread,
+            threadLoading,
+            threadMessages,
+            threadReadByMessageId,
+            threadReplySending,
+            togglePin,
+        }),
+        [
+            activeThreadParent,
+            closeThread,
+            isThreadUnread,
+            openThread,
+            pins,
+            refreshPins,
+            sendThreadReply,
+            setActiveThreadParent,
+            setThreadMessages,
+            threadLoading,
+            threadMessages,
+            threadReadByMessageId,
+            threadReplySending,
+            togglePin,
+        ],
+    );
 }

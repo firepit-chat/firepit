@@ -35,9 +35,15 @@ export async function GET(request: Request) {
 
         const userIds = new Set<string>();
         for (const item of items) {
-            if (item.reporterId) {userIds.add(item.reporterId);}
-            if (item.reportedUserId) {userIds.add(item.reportedUserId);}
-            if (item.resolvedBy) {userIds.add(item.resolvedBy);}
+            if (item.reporterId) {
+                userIds.add(item.reporterId);
+            }
+            if (item.reportedUserId) {
+                userIds.add(item.reportedUserId);
+            }
+            if (item.resolvedBy) {
+                userIds.add(item.resolvedBy);
+            }
         }
 
         const profiles = new Map<
@@ -70,18 +76,15 @@ export async function GET(request: Request) {
                 $id: item.$id,
                 reporterId: item.reporterId,
                 reporterName:
-                    reporterProfile?.displayName ||
-                    reporterProfile?.userName,
+                    reporterProfile?.displayName || reporterProfile?.userName,
                 reportedUserId: item.reportedUserId,
                 reportedUserName:
-                    reportedProfile?.displayName ||
-                    reportedProfile?.userName,
+                    reportedProfile?.displayName || reportedProfile?.userName,
                 justification: item.justification,
                 status: item.status,
                 resolvedBy: item.resolvedBy,
                 resolvedByName:
-                    resolverProfile?.displayName ||
-                    resolverProfile?.userName,
+                    resolverProfile?.displayName || resolverProfile?.userName,
                 resolutionNotes: item.resolutionNotes,
                 createdAt: item.$createdAt,
             };
@@ -94,8 +97,7 @@ export async function GET(request: Request) {
     } catch (error) {
         if (
             error instanceof Error &&
-            (error.message === "UNAUTHORIZED" ||
-                error.message === "FORBIDDEN")
+            (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN")
         ) {
             return NextResponse.json(
                 { error: "Forbidden: Moderator access required" },
@@ -139,7 +141,8 @@ export async function POST(request: Request) {
         }
 
         const normalizedNotes =
-            typeof resolutionNotes === "string" && resolutionNotes.trim().length > 0
+            typeof resolutionNotes === "string" &&
+            resolutionNotes.trim().length > 0
                 ? resolutionNotes.trim()
                 : undefined;
 
@@ -188,8 +191,7 @@ export async function POST(request: Request) {
     } catch (error) {
         if (
             error instanceof Error &&
-            (error.message === "UNAUTHORIZED" ||
-                error.message === "FORBIDDEN")
+            (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN")
         ) {
             return NextResponse.json(
                 { error: "Forbidden: Moderator access required" },

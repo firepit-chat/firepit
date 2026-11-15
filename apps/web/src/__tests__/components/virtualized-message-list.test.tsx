@@ -273,8 +273,12 @@ describe("VirtualizedMessageList", () => {
         render(<VirtualizedMessageList {...defaultProps} />);
 
         expect(screen.getByRole("button", { name: /reply/i })).toBeDefined();
-        expect(screen.getByRole("button", { name: /edit message/i })).toBeDefined();
-        expect(screen.getByRole("button", { name: /delete message/i })).toBeDefined();
+        expect(
+            screen.getByRole("button", { name: /edit message/i }),
+        ).toBeDefined();
+        expect(
+            screen.getByRole("button", { name: /delete message/i }),
+        ).toBeDefined();
     });
 
     it("should not render edit and delete buttons for other users' messages", () => {

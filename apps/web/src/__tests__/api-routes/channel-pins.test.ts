@@ -9,11 +9,12 @@ const { mockGetServerSession, mockGetDocument, mockListDocuments } = vi.hoisted(
     }),
 );
 
-const { mockGetChannelAccessForUser, mockIsDocumentNotFoundError } =
-    vi.hoisted(() => ({
+const { mockGetChannelAccessForUser, mockIsDocumentNotFoundError } = vi.hoisted(
+    () => ({
         mockGetChannelAccessForUser: vi.fn(),
         mockIsDocumentNotFoundError: vi.fn(),
-    }));
+    }),
+);
 
 vi.mock("@/lib/auth-server", () => ({
     getServerSession: mockGetServerSession,
@@ -48,8 +49,12 @@ vi.mock("@/lib/appwrite-core", () => ({
 }));
 
 vi.mock("@/lib/posthog-utils", () => ({
-    returnUnauthorized: () => new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 }),
-    returnForbidden: () => new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    returnUnauthorized: () =>
+        new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+        }),
+    returnForbidden: () =>
+        new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     recordError: vi.fn(),
     trackApiCall: vi.fn(),

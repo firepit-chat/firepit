@@ -7,13 +7,15 @@ import {
     TabTriggerSlotProps,
 } from "expo-router/ui";
 import { SymbolView } from "expo-symbols";
-import { Pressable, StyleSheet, useColorScheme, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 import { ExternalLink } from "./external-link";
 import { ThemedText } from "./themed-text";
 import { ThemedView } from "./themed-view";
 
-import { Colors, MaxContentWidth, Spacing } from "@/constants/theme";
+import { MaxContentWidth, Spacing, isDarkPalette } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { useThemePreference } from "@/providers/theme-preference-context";
 
 export default function AppTabs() {
     return (
@@ -44,8 +46,7 @@ export function TabButton({
     isFocused,
     ...props
 }: TabTriggerSlotProps) {
-    const scheme = useColorScheme();
-    const colors = Colors[scheme === "dark" ? "dark" : "light"];
+    const colors = useTheme();
 
     return (
         <Pressable
@@ -68,8 +69,8 @@ export function TabButton({
 }
 
 export function CustomTabList(props: TabListProps) {
-    const scheme = useColorScheme();
-    const colors = Colors[scheme === "dark" ? "dark" : "light"];
+    const colors = useTheme();
+    const { palette } = useThemePreference();
 
     return (
         <View {...props} style={styles.tabListContainer}>
@@ -79,7 +80,9 @@ export function CustomTabList(props: TabListProps) {
                     styles.innerContainer,
                     {
                         borderColor: colors.sidebarBorder,
-                        shadowOpacity: scheme === "dark" ? 0.24 : 0.08,
+                        // Three of the four palettes are dark, so this tracks
+                        // the palette rather than the OS colour scheme.
+                        shadowOpacity: isDarkPalette(palette) ? 0.24 : 0.08,
                     },
                 ]}
             >
@@ -129,7 +132,6 @@ const styles = StyleSheet.create({
         gap: Spacing.two,
         maxWidth: MaxContentWidth,
         borderWidth: 1,
-        borderColor: Colors.light.sidebarBorder,
         shadowColor: "#000000",
         shadowOpacity: 0.08,
         shadowRadius: 20,
