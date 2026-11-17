@@ -4,7 +4,10 @@ import { Channel } from "appwrite";
 import type { RealtimeResponseEvent } from "appwrite";
 import { logger } from "@/lib/client-logger";
 import { closeSubscriptionSafely } from "@/lib/realtime-error-suppression";
-import type { CustomEmoji } from "@/lib/types";
+import {
+    CUSTOM_EMOJIS_UNAVAILABLE_HEADER,
+    type CustomEmoji,
+} from "@/lib/types";
 
 const EMOJIS_STORAGE_KEY = "firepit_custom_emojis";
 
@@ -146,6 +149,11 @@ async function fetchEmojisFromServer(): Promise<CustomEmoji[]> {
         const response = await fetch("/api/custom-emojis");
         if (!response.ok) {
             throw new Error("Failed to fetch emojis");
+        }
+        // The server could not read the emoji bucket and sent an empty
+        // fallback list. Keep the cached emojis and do not overwrite them.
+        if (response.headers.get(CUSTOM_EMOJIS_UNAVAILABLE_HEADER)) {
+            return getStoredEmojis();
         }
         const rawEmojis = (await response.json()) as unknown;
         const emojis = validateCustomEmojis(rawEmojis);

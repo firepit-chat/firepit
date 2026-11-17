@@ -4838,6 +4838,8 @@ export interface paths {
                 /** @description Custom emoji list */
                 200: {
                     headers: {
+                        /** @description Set to "1" when the list is an empty fallback because the emoji storage could not be read. Clients should keep any cached emojis. */
+                        "X-Custom-Emojis-Unavailable"?: string;
                         [name: string]: unknown;
                     };
                     content: {

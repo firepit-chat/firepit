@@ -10,6 +10,9 @@ export type CustomEmoji = {
     name: string;
 };
 
+/** Set on a fallback custom emoji list so clients keep their cached emojis. */
+export const CUSTOM_EMOJIS_UNAVAILABLE_HEADER = "X-Custom-Emojis-Unavailable";
+
 export const ATTACHMENT_MEDIA_KIND_VALUES = [
     "generic",
     "image",

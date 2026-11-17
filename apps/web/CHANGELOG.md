@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Bug Fixes
 
+- **Custom emojis stay available when the backend is unavailable.** If the
+  server cannot read the emoji storage, the emoji list now loads as empty
+  instead of failing, and your previously cached custom emojis stay visible.
+- **Backend errors are easier to diagnose.** Server logs for feature flags,
+  the signup policy and custom emojis now include the Appwrite error code and
+  type, for example `402 team_read_only`.
 - **Presence works for new accounts.** A user with no saved status could never
   set one: the server created the status record without the user id, so every
   online, away, busy, or manual status change failed. The record now includes

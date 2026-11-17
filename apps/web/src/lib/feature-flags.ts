@@ -3,6 +3,7 @@ import { Query } from "node-appwrite";
 import { unstable_cache, revalidateTag } from "next/cache";
 
 import { getEnvConfig } from "./appwrite-core";
+import { describeAppwriteError } from "./appwrite-errors";
 import {
     FEATURE_FLAGS,
     getFeatureFlagDescription,
@@ -124,9 +125,10 @@ export async function getFeatureFlag(key: FeatureFlagKey): Promise<boolean> {
             return value;
         }
     } catch (error) {
-        logger.error(`Failed to get feature flag ${key}:`, {
-            error,
-        });
+        logger.error(
+            `Failed to get feature flag ${key}${describeAppwriteError(error)}`,
+            { error },
+        );
     }
 
     return DEFAULT_FLAGS[key] ?? false;
@@ -161,9 +163,10 @@ export async function getAllFeatureFlags(): Promise<FeatureFlag[]> {
 
         return knownFlags as unknown as FeatureFlag[];
     } catch (error) {
-        logger.error("Failed to get all feature flags:", {
-            error,
-        });
+        logger.error(
+            `Failed to get all feature flags${describeAppwriteError(error)}`,
+            { error },
+        );
         return [];
     }
 }
