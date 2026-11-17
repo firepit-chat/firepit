@@ -67,8 +67,10 @@ function statusDocumentData(params: {
     isManuallySet?: unknown;
     now: string;
     status: UserStatus["status"];
+    userId: string;
 }) {
     return {
+        userId: params.userId,
         status: params.status,
         customMessage: params.customMessage || null,
         lastSeenAt: params.now,
@@ -178,6 +180,7 @@ export async function POST(request: Request) {
                     isManuallySet,
                     now,
                     status,
+                    userId,
                 }),
                 perms.serverOwner(userId),
             );
@@ -226,6 +229,7 @@ export async function POST(request: Request) {
             isManuallySet,
             now,
             status,
+            userId,
         });
 
         let created: Awaited<ReturnType<typeof databases.createDocument>>;

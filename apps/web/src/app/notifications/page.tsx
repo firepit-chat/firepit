@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 import { NotificationsCenter } from "./notifications-center";
 import { AuthError, requireAuth } from "@/lib/auth-server";
@@ -14,15 +15,13 @@ export const metadata = {
 } as const;
 
 export default async function NotificationsPage() {
+    // Stop the build-time prerender here, before the session lookup can
+    // reject inside the try block below.
+    await connection();
     try {
         const user = await requireAuth();
         return <NotificationsCenter userId={user.$id} />;
     } catch (err: unknown) {
-        // Log the error for diagnostics via structured logger
-        logger.error("requireAuth failed for notifications page:", {
-            error: err instanceof Error ? err : String(err),
-        });
-
         const message = err instanceof Error ? err.message : String(err);
         // If the error appears to be an authentication failure, redirect to login.
         if (
@@ -31,6 +30,10 @@ export default async function NotificationsPage() {
         ) {
             redirect("/login?redirect=/notifications");
         }
+
+        logger.error("requireAuth failed for notifications page:", {
+            error: err instanceof Error ? err : String(err),
+        });
 
         // Non-authentication errors should bubble up to avoid masking issues
         throw err;
