@@ -83,6 +83,67 @@ describe("Status API Routes", () => {
             expect(mockDatabases.createDocument).toHaveBeenCalled();
         });
 
+        it("should include userId when creating a status document", async () => {
+            mockDatabases.listDocuments.mockResolvedValue({ documents: [] });
+            mockDatabases.createDocument.mockResolvedValue({
+                $id: "user-1",
+                userId: "user-1",
+                status: "online",
+                lastSeenAt: new Date().toISOString(),
+            });
+
+            const request = new NextRequest("http://localhost/api/status", {
+                method: "POST",
+                body: JSON.stringify({ userId: "user-1", status: "online" }),
+            });
+
+            const response = await POST(request);
+
+            expect(response.status).toBe(200);
+            expect(mockDatabases.createDocument).toHaveBeenCalledWith(
+                "test-db",
+                "statuses-collection",
+                "user-1",
+                expect.objectContaining({ userId: "user-1", status: "online" }),
+                expect.any(Array),
+            );
+        });
+
+        it("should include userId when a concurrent create wins", async () => {
+            mockDatabases.listDocuments
+                .mockResolvedValueOnce({ documents: [] })
+                .mockResolvedValueOnce({
+                    documents: [{ $id: "user-1", userId: "user-1" }],
+                });
+            mockDatabases.createDocument.mockRejectedValue(
+                Object.assign(new Error("Document already exists"), {
+                    code: 409,
+                }),
+            );
+            mockDatabases.updateDocument.mockResolvedValue({
+                $id: "user-1",
+                userId: "user-1",
+                status: "online",
+                lastSeenAt: new Date().toISOString(),
+            });
+
+            const request = new NextRequest("http://localhost/api/status", {
+                method: "POST",
+                body: JSON.stringify({ userId: "user-1", status: "online" }),
+            });
+
+            const response = await POST(request);
+
+            expect(response.status).toBe(200);
+            expect(mockDatabases.updateDocument).toHaveBeenCalledWith(
+                "test-db",
+                "statuses-collection",
+                "user-1",
+                expect.objectContaining({ userId: "user-1" }),
+                expect.any(Array),
+            );
+        });
+
         it("should update existing status document", async () => {
             const existingDoc = {
                 $id: "status-1",
