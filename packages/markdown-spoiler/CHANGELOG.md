@@ -10,6 +10,10 @@ bump `version` in `package.json` as part of the same change.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-17
+
+- **Vulnerability** in `happy-dom` package has been resolved with a version bump
+
 ## [0.1.0] - 2026-10-02
 
 ### ✨ Features
@@ -47,5 +51,3 @@ bump `version` in `package.json` as part of the same change.
 
 - Documented the syntax, the accessibility rationale, the two block-level
   limitations, and the spoiler-and-search behaviour in the package README.
-
-### 📚 Documentation
