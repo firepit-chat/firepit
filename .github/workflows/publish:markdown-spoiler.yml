@@ -72,9 +72,7 @@ jobs:
               if: ${{ github.event_name == 'push' || inputs.dry_run != true }}
               working-directory: packages/markdown-spoiler
               run: | 
-                  npm ci; npm publish --provenance --access public
-              env:
-                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+                  npm publish
 
             - name: Report dry run
               if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
